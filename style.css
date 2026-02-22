@@ -1,0 +1,252 @@
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --color-bg: #faf8f5;
+  --color-text: #3a3632;
+  --color-text-light: #7a7470;
+  --color-accent: #b8917a;
+  --color-accent-hover: #a07a63;
+  --color-border: #e8e2dc;
+  --font-heading: 'Cormorant Garamond', Georgia, serif;
+  --font-body: 'Nunito Sans', -apple-system, sans-serif;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-weight: 300;
+  color: var(--color-text);
+  background: var(--color-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Language toggle ── */
+[data-en] { display: none; }
+[data-no] { display: inline; }
+
+html[lang="en"] [data-en] { display: inline; }
+html[lang="en"] [data-no] { display: none; }
+
+.lang-option[data-lang="en"] { display: none; }
+.lang-option[data-lang="no"] { display: inline; }
+
+html[lang="en"] .lang-option[data-lang="en"] { display: inline; }
+html[lang="en"] .lang-option[data-lang="no"] { display: none; }
+
+.lang-toggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  background: none;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-light);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  padding: 0.4rem 0.75rem;
+  border-radius: 2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+
+.lang-toggle:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ── Main content ── */
+main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1.5rem 2rem;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+
+/* ── Hero ── */
+.hero {
+  margin-bottom: 2rem;
+}
+
+h1 {
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 2.4rem;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  color: var(--color-text);
+  margin-bottom: 0.35rem;
+}
+
+.subtitle {
+  font-family: var(--font-heading);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1rem;
+  color: var(--color-text-light);
+  letter-spacing: 0.05em;
+}
+
+/* ── Tagline ── */
+.tagline {
+  font-size: 1.05rem;
+  color: var(--color-text-light);
+  margin-bottom: 2.5rem;
+  line-height: 1.6;
+}
+
+/* ── Instagram link ── */
+.instagram-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.95rem;
+  font-weight: 400;
+  padding: 0.7rem 1.5rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 2rem;
+  transition: all 0.25s ease;
+}
+
+.instagram-link:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.instagram-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* ── Divider ── */
+.divider {
+  width: 40px;
+  height: 1px;
+  background: var(--color-border);
+  margin: 2.5rem 0;
+}
+
+/* ── Signup ── */
+.signup {
+  width: 100%;
+}
+
+h2 {
+  font-family: var(--font-heading);
+  font-weight: 500;
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.signup-text {
+  font-size: 0.9rem;
+  color: var(--color-text-light);
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.signup-form {
+  width: 100%;
+}
+
+.form-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.email-input {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 2rem;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--color-text);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.email-input::placeholder {
+  color: #c0b8b0;
+}
+
+.email-input:focus {
+  border-color: var(--color-accent);
+}
+
+.submit-btn {
+  padding: 0.7rem 1.4rem;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: 2rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+.submit-btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.form-success {
+  display: none;
+  color: var(--color-accent);
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+/* ── Footer ── */
+footer {
+  padding: 2rem 1.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-light);
+  letter-spacing: 0.03em;
+}
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.9rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+  }
+
+  .submit-btn {
+    width: 100%;
+    padding: 0.75rem;
+  }
+
+  main {
+    padding-top: 3.5rem;
+  }
+}
