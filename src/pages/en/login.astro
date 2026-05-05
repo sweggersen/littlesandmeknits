@@ -5,10 +5,10 @@ import { getCurrentUser } from '../../lib/auth';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (user) {
-  return Astro.redirect('/en/studio');
+  return Astro.redirect('/studio');
 }
 
-const next = Astro.url.searchParams.get('next') ?? '/en/studio';
+const next = Astro.url.searchParams.get('next') ?? '/studio';
 ---
 
 <Layout title="Log in — Littles and Me" lang="en">

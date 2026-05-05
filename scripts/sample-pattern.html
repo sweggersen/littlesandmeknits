@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<title>Solskinn — Littles and Me</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --linen: #FAF6F0;
+    --oatmeal: #E8DFD0;
+    --sage-100: #E8EFE3;
+    --sage-500: #9CAF88;
+    --sage-900: #4A5A3F;
+    --terracotta: #C76D4E;
+    --charcoal: #2C2A26;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--charcoal);
+    background: white;
+    line-height: 1.6;
+    font-size: 11pt;
+  }
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 50px 60px;
+  }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 500; color: var(--charcoal); }
+  h1 { font-size: 42pt; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 8px; }
+  h2 {
+    font-size: 18pt;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--oatmeal);
+    page-break-after: avoid;
+  }
+  h3 { font-size: 13pt; margin-top: 18px; margin-bottom: 6px; page-break-after: avoid; }
+  p { margin-bottom: 10px; }
+  .cover {
+    text-align: center;
+    padding: 80px 0 60px;
+    border-bottom: 2px solid var(--oatmeal);
+    margin-bottom: 30px;
+  }
+  .brand {
+    font-family: 'Fraunces', serif;
+    font-size: 11pt;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--sage-900);
+    margin-bottom: 32px;
+  }
+  .subtitle {
+    font-style: italic;
+    font-family: 'Fraunces', serif;
+    color: var(--charcoal);
+    opacity: 0.7;
+    font-size: 14pt;
+    margin-top: 8px;
+  }
+  .badges {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .badge-sage { background: var(--sage-100); color: var(--sage-900); }
+  .badge-oatmeal { background: var(--oatmeal); color: var(--charcoal); }
+  .hero-img {
+    width: 100%;
+    height: 320px;
+    border-radius: 16px;
+    margin: 32px 0;
+    overflow: hidden;
+    background: var(--oatmeal);
+  }
+  .hero-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  dl.specs {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    row-gap: 8px;
+    column-gap: 16px;
+    margin: 16px 0;
+  }
+  dl.specs dt { color: var(--charcoal); opacity: 0.55; font-size: 10pt; }
+  dl.specs dd { font-weight: 500; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px;
+    font-size: 10pt;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--oatmeal);
+  }
+  th {
+    background: var(--linen);
+    font-weight: 600;
+    font-size: 9pt;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--sage-900);
+  }
+  ul, ol { margin: 8px 0 14px 22px; }
+  li { margin-bottom: 6px; }
+  .callout {
+    background: var(--linen);
+    border-left: 3px solid var(--terracotta);
+    padding: 14px 18px;
+    margin: 14px 0;
+    border-radius: 0 8px 8px 0;
+  }
+  .callout strong { color: var(--terracotta); }
+  .step {
+    margin-bottom: 14px;
+    padding-left: 8px;
+    border-left: 2px solid var(--sage-100);
+    padding: 8px 0 8px 16px;
+  }
+  .step-num {
+    display: inline-block;
+    background: var(--sage-500);
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 22px;
+    font-size: 10pt;
+    font-weight: 600;
+    margin-right: 8px;
+    vertical-align: middle;
+  }
+  footer {
+    margin-top: 50px;
+    padding-top: 24px;
+    border-top: 1px solid var(--oatmeal);
+    font-size: 9pt;
+    color: var(--charcoal);
+    opacity: 0.55;
+    text-align: center;
+  }
+  footer a { color: var(--terracotta); text-decoration: none; }
+  .copyright {
+    margin-top: 6px;
+    font-style: italic;
+  }
+  @media print {
+    body { background: white; }
+    .page { padding: 30px 40px; }
+    h2 { page-break-after: avoid; }
+    .callout, table, .hero-img { page-break-inside: avoid; }
+  }
+  @page { size: A4; margin: 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="cover">
+    <div class="brand">Littles and Me · Strikkeoppskrift</div>
+    <h1>Solskinn</h1>
+    <p class="subtitle">Lett rundfellingsgenser med solstråle-mønster</p>
+    <div class="badges">
+      <span class="badge badge-sage">Mellomvanskelig</span>
+      <span class="badge badge-oatmeal">Mellomtykt (DK)</span>
+    </div>
+  </header>
+
+  <div class="hero-img">
+    <img src="../src/assets/img/mustard-knit.jpg" alt="Solskinn — gult garn og pinner på marmor">
+  </div>
+
+  <h2>Om oppskriften</h2>
+  <p>
+    Solskinn er en lett rundfellingsgenser med et delikat solstråle-mønster i ok over yoken.
+    Strikket ovenfra og ned i mellomtykt garn, slik at du kan prøve underveis og justere lengden
+    etter hva som passer barnet ditt. Designet er inspirert av varme, late sommermorgener og
+    de små som gleder seg over hver solstråle gjennom kjøkkenvinduet.
+  </p>
+
+  <h2>Spesifikasjoner</h2>
+  <dl class="specs">
+    <dt>Designer</dt><dd>Weggersen Design</dd>
+    <dt>Garn</dt><dd>Sandnes Sunday eller tilsvarende mellomtykt (DK) garn</dd>
+    <dt>Pinner</dt><dd>3,0 mm rundpinne (vrangbord) · 3,5 mm rundpinne (hovedstykke)</dd>
+    <dt>Strikkefasthet</dt><dd>22 m × 30 omg = 10 × 10 cm i glattstrikk på 3,5 mm pinner</dd>
+    <dt>Forbruk</dt><dd>2–4 nøster (200–400 g) avhengig av størrelse</dd>
+    <dt>Konstruksjon</dt><dd>Sømløs, ovenfra-og-ned, rundfelling</dd>
+  </dl>
+
+  <h2>Størrelser</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Størrelse</th>
+        <th>Alder</th>
+        <th>Brystvidde</th>
+        <th>Lengde</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>1–2 år</td><td>52 cm</td><td>32 cm</td></tr>
+      <tr><td>2</td><td>3–4 år</td><td>58 cm</td><td>38 cm</td></tr>
+      <tr><td>3</td><td>5–6 år</td><td>62 cm</td><td>43 cm</td></tr>
+      <tr><td>4</td><td>7–8 år</td><td>66 cm</td><td>48 cm</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Tips fra Sam:</strong> Tenk på at barn vokser fortere på lengden enn på bredden.
+    Strikk gjerne en størrelse opp og kort inn ermene — så har du en genser som varer to sesonger.
+  </div>
+
+  <h2>Forkortelser</h2>
+  <ul>
+    <li><strong>r</strong> — rett</li>
+    <li><strong>vr</strong> — vrang</li>
+    <li><strong>m</strong> — maske(r)</li>
+    <li><strong>omg</strong> — omgang</li>
+    <li><strong>kast</strong> — kast (omslag rundt pinnen)</li>
+    <li><strong>2 r sm</strong> — 2 rette sammen (1 m felt, høyrehellende)</li>
+    <li><strong>sl 1, 1 r, lsmo</strong> — venstrehellende felling</li>
+  </ul>
+
+  <h2>Halsringning og vrangbord</h2>
+  <div class="step">
+    <span class="step-num">1</span>
+    Legg opp <strong>72 (76, 80, 84) m</strong> på 3,0 mm rundpinne.
+    Strikk vrangbord 1 r, 1 vr i ca. 2,5 cm.
+  </div>
+  <div class="step">
+    <span class="step-num">2</span>
+    Skift til 3,5 mm rundpinne. Strikk 1 omg rett, og øk jevnt til
+    <strong>96 (104, 112, 120) m</strong>.
+  </div>
+
+  <h2>Yokemønster — Solstråle</h2>
+  <p>Følg diagram A (vedlagt på neste side i ferdig oppskrift). Mønsteret går over 8 omganger og gjentas etter behov.</p>
+  <div class="step">
+    <span class="step-num">3</span>
+    Strikk yokemønsteret samtidig som du øker etter felletabellen under.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Felling</th><th>Str 1</th><th>Str 2</th><th>Str 3</th><th>Str 4</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Etter omg 8</td><td>+24 m</td><td>+26 m</td><td>+28 m</td><td>+30 m</td></tr>
+      <tr><td>Etter omg 16</td><td>+24 m</td><td>+26 m</td><td>+28 m</td><td>+30 m</td></tr>
+      <tr><td>Etter omg 24</td><td>+24 m</td><td>+26 m</td><td>+28 m</td><td>+30 m</td></tr>
+      <tr><td>Totalt</td><td>168 m</td><td>182 m</td><td>196 m</td><td>210 m</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Deling av bol og ermer</h2>
+  <div class="step">
+    <span class="step-num">4</span>
+    Strikk <strong>50 (54, 58, 62) m</strong> til halve bolen, sett <strong>34 (37, 40, 43) m</strong>
+    på en hjelpetråd til erme. Legg opp <strong>4 (5, 6, 7) nye m</strong> i ermehullet.
+  </div>
+  <div class="step">
+    <span class="step-num">5</span>
+    Gjenta for andre halvdel. Du har nå <strong>108 (118, 128, 138) m</strong> på pinnen til bolen.
+  </div>
+
+  <h2>Bol</h2>
+  <div class="step">
+    <span class="step-num">6</span>
+    Strikk rett rundt til arbeidet måler <strong>20 (24, 28, 32) cm</strong> fra delingen,
+    eller ønsket lengde minus vrangbord.
+  </div>
+  <div class="step">
+    <span class="step-num">7</span>
+    Skift til 3,0 mm pinne, strikk vrangbord 1 r, 1 vr i 4 cm. Fell av løst i mønster.
+  </div>
+
+  <h2>Ermer</h2>
+  <div class="step">
+    <span class="step-num">8</span>
+    Sett ermemaskene fra hjelpetråden på 3,5 mm rundpinne. Plukk opp og strikk
+    <strong>4 (5, 6, 7) m</strong> i ermehullet. Strikk rett rundt med markør for omgangsstart.
+  </div>
+  <div class="step">
+    <span class="step-num">9</span>
+    Fell på undersiden av ermet: strikk 1 omg, så
+    <em>2 r sm — strikk til 2 m før omgangsslutt — sl 1, 1 r, lsmo</em>. Gjenta hver
+    <strong>6. (5., 5., 4.) omg</strong> til <strong>30 (32, 34, 36) m</strong> gjenstår.
+  </div>
+  <div class="step">
+    <span class="step-num">10</span>
+    Strikk rett til ermet måler <strong>18 (22, 26, 30) cm</strong>. Skift til 3,0 mm pinne,
+    strikk vrangbord i 4 cm. Fell av løst.
+  </div>
+
+  <h2>Avslutning</h2>
+  <ol>
+    <li>Fest alle tråder forsiktig på vrangsiden — flett dem inn i flere retninger for å hindre at de løsner.</li>
+    <li>Vask plagget forsiktig i lunkent vann med ullsjampo.</li>
+    <li>Press ut overflødig vann i et håndkle (ikke vri) og legg flatt til tørk i form.</li>
+  </ol>
+
+  <div class="callout">
+    <strong>Del strikkegleden:</strong> Tag oss på Instagram med <strong>#solskinnstrikk</strong>
+    eller <strong>@littlesandmeknits</strong> — vi elsker å se Solskinn på små kropper rundt om i Norden.
+  </div>
+
+  <footer>
+    <div>Littles and Me · <a href="https://www.littlesandmeknits.com">littlesandmeknits.com</a></div>
+    <div class="copyright">© 2026 Weggersen Design. Oppskriften er kun til personlig bruk. Salg av ferdige plagg i liten skala er tillatt med kreditering.</div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -56,7 +56,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
         {t('nav.login')}
       </a>
       <a
-        href={localizedPath(lang, '/studio')}
+        href="/studio"
         class="hidden text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
         data-auth-link="studio"
       >
@@ -90,7 +90,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
         </a>
       </li>
       <li class="hidden" data-auth-link="studio">
-        <a href={localizedPath(lang, '/studio')} class="block py-2 text-base font-medium text-charcoal/80">
+        <a href="/studio" class="block py-2 text-base font-medium text-charcoal/80">
           {t('nav.studio')}
         </a>
       </li>
