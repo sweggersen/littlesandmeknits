@@ -17,7 +17,7 @@ const patterns = allPatterns
     </nav>
     <h1 class="font-serif text-4xl mb-8">Nytt prosjekt</h1>
 
-    <form method="post" action="/api/projects/create" class="bg-white rounded-3xl p-8 border border-sage-500/10 space-y-6">
+    <form method="post" action="/api/projects/create" enctype="multipart/form-data" class="bg-white rounded-3xl p-8 border border-sage-500/10 space-y-6">
       <div>
         <label for="title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
           Tittel *
@@ -31,6 +31,20 @@ const patterns = allPatterns
           placeholder="f.eks. Solskinn til Aksel"
           class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
         />
+      </div>
+
+      <div>
+        <label for="hero_photo" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Hovedbilde
+        </label>
+        <input
+          id="hero_photo"
+          name="hero_photo"
+          type="file"
+          accept="image/*"
+          class="block w-full text-sm text-charcoal/70 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
+        />
+        <p class="text-[11px] text-charcoal/45 mt-2">Valgfritt. Maks 10 MB. Kan endres senere.</p>
       </div>
 
       <div>
@@ -66,17 +80,32 @@ const patterns = allPatterns
 
         <div>
           <label for="pattern_slug" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Oppskrift
+            Oppskrift fra Littles and Me
           </label>
           <select
             id="pattern_slug"
             name="pattern_slug"
             class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
           >
-            <option value="">— Ingen / egen design —</option>
+            <option value="">— Ingen —</option>
             {patterns.map((p) => <option value={p.slug}>{p.title}</option>)}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label for="pattern_external" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Eller egen / annen oppskrift
+        </label>
+        <input
+          id="pattern_external"
+          name="pattern_external"
+          type="text"
+          maxlength="120"
+          placeholder="Skappel-genseren, egen design, …"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+        <p class="text-[11px] text-charcoal/45 mt-2">Bruk denne hvis oppskriften er din egen eller fra en annen designer.</p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">

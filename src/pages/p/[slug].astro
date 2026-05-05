@@ -1,0 +1,189 @@
+---
+import ShareLayout from '../../layouts/ShareLayout.astro';
+import { createServerSupabase } from '../../lib/supabase';
+import { getEntry } from 'astro:content';
+import { projectPhotoUrl } from '../../lib/storage';
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect('/');
+
+// Anon client; RLS exposes rows where public_slug is set.
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+type ProjectRow = {
+  id: string;
+  title: string;
+  summary: string | null;
+  status: 'planning' | 'active' | 'finished' | 'frogged';
+  recipient: string | null;
+  target_size: string | null;
+  yarn: string | null;
+  needles: string | null;
+  pattern_slug: string | null;
+  pattern_external: string | null;
+  hero_photo_path: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  public_slug: string;
+};
+
+const { data: project } = await supabase
+  .from('projects')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, public_slug')
+  .eq('public_slug', slug)
+  .maybeSingle();
+
+if (!project) {
+  return new Response('Not found', { status: 404 });
+}
+
+const p = project as ProjectRow;
+
+type LogRow = {
+  id: string;
+  body: string;
+  log_date: string;
+  photos: string[];
+  created_at: string;
+};
+
+const { data: logsData } = await supabase
+  .from('project_logs')
+  .select('id, body, log_date, photos, created_at')
+  .eq('project_id', p.id)
+  .order('log_date', { ascending: false })
+  .order('created_at', { ascending: false });
+
+const logs = (logsData ?? []) as LogRow[];
+
+const patternEntry = p.pattern_slug ? await getEntry('patterns', p.pattern_slug) : null;
+const heroUrl = projectPhotoUrl(p.hero_photo_path);
+const patternLabel = patternEntry?.data.title.nb ?? p.pattern_external;
+
+const statusLabels = {
+  planning: 'Planlegges',
+  active: 'I gang',
+  finished: 'Ferdig',
+  frogged: 'Røket opp',
+} as const;
+
+const statusClass = {
+  planning: 'bg-oatmeal text-charcoal/70',
+  active: 'bg-sage-100 text-sage-900',
+  finished: 'bg-terracotta-500/10 text-terracotta-500',
+  frogged: 'bg-charcoal/10 text-charcoal/60',
+} as const;
+
+const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
+const canonical = `${siteUrl}/p/${p.public_slug}`;
+---
+
+<ShareLayout
+  title={p.title}
+  description={p.summary ?? `Strikkeprosjekt fra Littles and Me`}
+  ogImage={heroUrl}
+  canonical={canonical}
+>
+  {heroUrl && (
+    <div class="aspect-[4/5] sm:aspect-[16/10] rounded-3xl overflow-hidden bg-oatmeal mb-8 border border-sage-500/10">
+      <img src={heroUrl} alt={p.title} class="w-full h-full object-cover" />
+    </div>
+  )}
+
+  <article class="mb-10">
+    <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[p.status]}`}>
+      {statusLabels[p.status]}
+    </span>
+    <h1 class="font-serif text-4xl sm:text-5xl mt-4 leading-tight">{p.title}</h1>
+    {p.summary && (
+      <p class="text-charcoal/70 mt-4 leading-relaxed text-lg">{p.summary}</p>
+    )}
+
+    <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 mt-8 pt-8 border-t border-sage-500/15 text-sm">
+      {p.recipient && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">For</dt>
+          <dd>{p.recipient}</dd>
+        </div>
+      )}
+      {patternLabel && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
+          <dd>
+            {patternEntry ? (
+              <a href={`/oppskrifter/${p.pattern_slug}`} class="text-terracotta-500 hover:underline">
+                {patternLabel}
+              </a>
+            ) : patternLabel}
+          </dd>
+        </div>
+      )}
+      {p.target_size && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
+          <dd>{p.target_size}</dd>
+        </div>
+      )}
+      {p.yarn && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Garn</dt>
+          <dd>{p.yarn}</dd>
+        </div>
+      )}
+      {p.needles && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Pinner</dt>
+          <dd>{p.needles}</dd>
+        </div>
+      )}
+      {p.started_at && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Startet</dt>
+          <dd>{new Date(p.started_at).toLocaleDateString('nb-NO')}</dd>
+        </div>
+      )}
+      {p.finished_at && (
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ferdig</dt>
+          <dd>{new Date(p.finished_at).toLocaleDateString('nb-NO')}</dd>
+        </div>
+      )}
+    </dl>
+  </article>
+
+  {logs.length > 0 && (
+    <section>
+      <h2 class="font-serif text-2xl mb-6">Tidslinje</h2>
+      <ol class="space-y-6">
+        {logs.map((log) => (
+          <li class="bg-white rounded-2xl p-6 border border-sage-500/10">
+            <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
+              {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </time>
+            <p class="text-charcoal/85 leading-relaxed mt-3 whitespace-pre-wrap">{log.body}</p>
+            {log.photos && log.photos.length > 0 && (
+              <div class={`mt-5 grid gap-2 ${log.photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
+                {log.photos.map((path) => (
+                  <a href={projectPhotoUrl(path)} target="_blank" rel="noopener" class="aspect-square rounded-xl overflow-hidden bg-oatmeal hover:opacity-90 transition-opacity">
+                    <img src={projectPhotoUrl(path)} alt="" class="w-full h-full object-cover" loading="lazy" />
+                  </a>
+                ))}
+              </div>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
+  )}
+
+  <div class="text-center mt-16 pt-12 border-t border-sage-500/15">
+    <p class="text-charcoal/60 mb-4 font-serif text-lg italic">Liker du dette prosjektet?</p>
+    <a
+      href="/oppskrifter"
+      class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      Bla gjennom oppskriftene
+    </a>
+  </div>
+</ShareLayout>

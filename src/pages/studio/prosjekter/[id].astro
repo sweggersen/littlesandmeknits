@@ -2,6 +2,7 @@
 import StudioLayout from '../../../layouts/StudioLayout.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getEntry } from 'astro:content';
+import { projectPhotoUrl } from '../../../lib/storage';
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/studio/prosjekter');
@@ -18,6 +19,7 @@ type ProjectRow = {
   yarn: string | null;
   needles: string | null;
   pattern_slug: string | null;
+  pattern_external: string | null;
   hero_photo_path: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -28,7 +30,7 @@ type ProjectRow = {
 
 const { data: project, error } = await supabase
   .from('projects')
-  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug')
   .eq('id', id)
   .maybeSingle();
 
@@ -42,12 +44,13 @@ type LogRow = {
   id: string;
   body: string;
   log_date: string;
+  photos: string[];
   created_at: string;
 };
 
 const { data: logsData } = await supabase
   .from('project_logs')
-  .select('id, body, log_date, created_at')
+  .select('id, body, log_date, photos, created_at')
   .eq('project_id', id)
   .order('log_date', { ascending: false })
   .order('created_at', { ascending: false });
@@ -55,6 +58,7 @@ const { data: logsData } = await supabase
 const logs = (logsData ?? []) as LogRow[];
 
 const patternEntry = p.pattern_slug ? await getEntry('patterns', p.pattern_slug) : null;
+const heroUrl = projectPhotoUrl(p.hero_photo_path);
 
 const statusLabels = {
   planning: 'Planlegges',
@@ -71,6 +75,9 @@ const statusClass = {
 } as const;
 
 const today = new Date().toISOString().slice(0, 10);
+
+const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
+const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
 ---
 
 <StudioLayout title={`${p.title} — Littles and Me`} lang="nb">
@@ -81,8 +88,14 @@ const today = new Date().toISOString().slice(0, 10);
   </nav>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    <!-- Main: header + log timeline -->
+    <!-- Main column -->
     <div class="lg:col-span-2">
+      {heroUrl && (
+        <div class="aspect-[16/10] rounded-3xl overflow-hidden bg-oatmeal mb-6 border border-sage-500/10">
+          <img src={heroUrl} alt={p.title} class="w-full h-full object-cover" loading="lazy" />
+        </div>
+      )}
+
       <header class="flex items-start justify-between gap-4 mb-6">
         <div class="flex-1 min-w-0">
           <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[p.status]}`}>
@@ -98,7 +111,7 @@ const today = new Date().toISOString().slice(0, 10);
       <!-- Add a log -->
       <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
         <h2 class="font-serif text-lg mb-4">Ny logg</h2>
-        <form method="post" action={`/api/projects/${p.id}/log`} class="space-y-3">
+        <form method="post" action={`/api/projects/${p.id}/log`} enctype="multipart/form-data" class="space-y-3">
           <textarea
             name="body"
             required
@@ -107,7 +120,17 @@ const today = new Date().toISOString().slice(0, 10);
             placeholder="Hva skjedde i dag? Antall masker, endringer i mønsteret, hvordan det ser ut…"
             class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
           ></textarea>
-          <div class="flex items-center justify-between gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bilder (valgfritt, opptil 6)</label>
+            <input
+              type="file"
+              name="photos"
+              accept="image/*"
+              multiple
+              class="block w-full text-sm text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
+            />
+          </div>
+          <div class="flex items-center justify-between gap-3 pt-2">
             <input
               type="date"
               name="log_date"
@@ -148,6 +171,15 @@ const today = new Date().toISOString().slice(0, 10);
                   </form>
                 </div>
                 <p class="text-sm text-charcoal/80 leading-relaxed whitespace-pre-wrap">{log.body}</p>
+                {log.photos && log.photos.length > 0 && (
+                  <div class={`mt-4 grid gap-2 ${log.photos.length === 1 ? 'grid-cols-1' : log.photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {log.photos.map((path) => (
+                      <a href={projectPhotoUrl(path)} target="_blank" rel="noopener" class="aspect-square rounded-xl overflow-hidden bg-oatmeal hover:opacity-90 transition-opacity">
+                        <img src={projectPhotoUrl(path)} alt="" class="w-full h-full object-cover" loading="lazy" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ol>
@@ -155,9 +187,10 @@ const today = new Date().toISOString().slice(0, 10);
       </section>
     </div>
 
-    <!-- Sidebar: project facts + edit -->
-    <aside class="lg:col-span-1">
-      <div class="bg-white rounded-3xl p-6 border border-sage-500/10 sticky lg:top-24">
+    <!-- Sidebar -->
+    <aside class="lg:col-span-1 space-y-5">
+      <!-- Details -->
+      <div class="bg-white rounded-3xl p-6 border border-sage-500/10">
         <h2 class="font-serif text-lg mb-4">Detaljer</h2>
         <dl class="space-y-3 text-sm">
           {p.recipient && (
@@ -174,6 +207,12 @@ const today = new Date().toISOString().slice(0, 10);
                   {patternEntry.data.title.nb}
                 </a>
               </dd>
+            </div>
+          )}
+          {!patternEntry && p.pattern_external && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Oppskrift</dt>
+              <dd>{p.pattern_external}</dd>
             </div>
           )}
           {p.target_size && (
@@ -200,10 +239,10 @@ const today = new Date().toISOString().slice(0, 10);
           </div>
         </dl>
 
-        <div class="mt-6 pt-6 border-t border-sage-500/10 space-y-2">
+        <div class="mt-6 pt-6 border-t border-sage-500/10">
           <form method="post" action={`/api/projects/${p.id}/status`}>
             <label class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 block mb-2">
-              Endre status
+              Status
             </label>
             <div class="flex gap-2">
               <select
@@ -223,18 +262,127 @@ const today = new Date().toISOString().slice(0, 10);
               </button>
             </div>
           </form>
-
-          <form method="post" action={`/api/projects/${p.id}/delete`} class="mt-4">
-            <button
-              type="submit"
-              class="w-full text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors py-2"
-              onclick="return confirm('Slett dette prosjektet permanent? Alle logger forsvinner.')"
-            >
-              Slett prosjekt
-            </button>
-          </form>
         </div>
       </div>
+
+      <!-- Hero photo -->
+      <div class="bg-white rounded-3xl p-6 border border-sage-500/10">
+        <h2 class="font-serif text-lg mb-3">Hovedbilde</h2>
+        {heroUrl ? (
+          <div class="aspect-[4/3] rounded-2xl overflow-hidden bg-oatmeal mb-3">
+            <img src={heroUrl} alt="" class="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <p class="text-xs text-charcoal/50 italic mb-3">Ingen hovedbilde ennå.</p>
+        )}
+        <form method="post" action={`/api/projects/${p.id}/photo`} enctype="multipart/form-data" class="space-y-2">
+          <input
+            type="file"
+            name="hero_photo"
+            accept="image/*"
+            class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
+          />
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              class="flex-1 bg-charcoal text-linen px-3 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors"
+            >
+              {heroUrl ? 'Bytt bilde' : 'Last opp'}
+            </button>
+            {heroUrl && (
+              <button
+                type="submit"
+                formnovalidate
+                onclick={`event.preventDefault(); if(confirm('Fjern hovedbilde?')) { this.form.querySelector('input[type=file]').value=''; this.form.submit(); }`}
+                class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors px-3"
+              >
+                Fjern
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+
+      <!-- Share -->
+      <div class="bg-white rounded-3xl p-6 border border-sage-500/10">
+        <h2 class="font-serif text-lg mb-3">Deling</h2>
+        {shareUrl ? (
+          <>
+            <p class="text-xs text-charcoal/55 mb-2">Prosjektet er offentlig på:</p>
+            <div class="flex gap-2 items-center bg-linen rounded-xl px-3 py-2 mb-3">
+              <input
+                type="text"
+                value={shareUrl}
+                readonly
+                class="flex-1 bg-transparent text-xs text-charcoal/80 focus:outline-none truncate"
+                data-share-url
+              />
+              <button
+                type="button"
+                class="text-[10px] font-bold uppercase tracking-wider text-sage-900 hover:text-terracotta-500 transition-colors whitespace-nowrap"
+                data-copy-share
+              >
+                Kopier
+              </button>
+            </div>
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noopener"
+              class="text-xs text-terracotta-500 hover:underline block mb-3"
+            >
+              Åpne delt side ↗
+            </a>
+            <form method="post" action={`/api/projects/${p.id}/share`}>
+              <input type="hidden" name="share" value="false" />
+              <button
+                type="submit"
+                class="w-full text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors py-2"
+                onclick="return confirm('Slutte å dele dette prosjektet?')"
+              >
+                Slutt å dele
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <p class="text-xs text-charcoal/55 mb-3">Lag en offentlig lenke som hvem som helst kan se. Hovedbilde, detaljer og logger blir delt.</p>
+            <form method="post" action={`/api/projects/${p.id}/share`}>
+              <input type="hidden" name="share" value="true" />
+              <button
+                type="submit"
+                class="w-full bg-charcoal text-linen px-3 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors"
+              >
+                Del prosjekt
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+
+      <form method="post" action={`/api/projects/${p.id}/delete`}>
+        <button
+          type="submit"
+          class="w-full text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors py-2"
+          onclick="return confirm('Slett dette prosjektet permanent? Alle logger forsvinner.')"
+        >
+          Slett prosjekt
+        </button>
+      </form>
     </aside>
   </div>
 </StudioLayout>
+
+<script>
+  document.querySelector('[data-copy-share]')?.addEventListener('click', () => {
+    const input = document.querySelector<HTMLInputElement>('[data-share-url]');
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+      const btn = document.querySelector<HTMLButtonElement>('[data-copy-share]');
+      if (!btn) return;
+      const original = btn.textContent;
+      btn.textContent = 'Kopiert ✓';
+      setTimeout(() => { btn.textContent = original; }, 1600);
+    });
+  });
+</script>

@@ -1,0 +1,66 @@
+---
+import '@fontsource-variable/fraunces';
+import '@fontsource-variable/inter';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogImage?: string | null;
+  canonical?: string;
+}
+
+const { title, description, ogImage, canonical } = Astro.props;
+const fullTitle = `${title} — Littles and Me`;
+---
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{fullTitle}</title>
+  {description && <meta name="description" content={description} />}
+  {canonical && <link rel="canonical" href={canonical} />}
+
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content={fullTitle} />
+  {description && <meta property="og:description" content={description} />}
+  {ogImage && <meta property="og:image" content={ogImage} />}
+  {canonical && <meta property="og:url" content={canonical} />}
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={fullTitle} />
+  {description && <meta name="twitter:description" content={description} />}
+  {ogImage && <meta name="twitter:image" content={ogImage} />}
+
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body class="bg-linen text-charcoal antialiased font-sans">
+  <header class="border-b border-sage-500/10 bg-linen/90 backdrop-blur-md sticky top-0 z-10">
+    <div class="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
+      <a
+        href="/"
+        class="font-serif text-lg font-medium tracking-tight text-charcoal hover:text-terracotta-500 transition-colors"
+      >
+        Littles and Me
+      </a>
+      <a
+        href="/oppskrifter"
+        class="text-xs font-medium text-charcoal/65 hover:text-charcoal transition-colors"
+      >
+        Se oppskrifter →
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-6 py-12">
+    <slot />
+  </main>
+
+  <footer class="max-w-3xl mx-auto px-6 py-12 border-t border-sage-500/10 mt-16">
+    <p class="text-[11px] uppercase tracking-widest text-charcoal/40 text-center">
+      Et prosjekt fra <a href="/" class="hover:text-terracotta-500 transition-colors">Littles and Me</a>
+    </p>
+  </footer>
+</body>
+</html>
