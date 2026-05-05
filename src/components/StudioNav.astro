@@ -1,0 +1,45 @@
+---
+import { useTranslations, type Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+  currentPath: string;
+}
+
+const { lang, currentPath } = Astro.props;
+const t = useTranslations(lang);
+
+const items = [
+  { href: '/studio', label: t('studio.nav.overview'), match: /^\/studio\/?$/ },
+  { href: '/studio/prosjekter', label: t('studio.nav.projects'), match: /^\/studio\/prosjekter/ },
+  { href: '/studio/garn', label: t('studio.nav.stash'), match: /^\/studio\/garn/ },
+  { href: '/studio/verktoy', label: t('studio.nav.tools'), match: /^\/studio\/verktoy/ },
+  { href: '/studio/kjop', label: t('studio.nav.purchases'), match: /^\/studio\/kjop/ },
+  { href: '/studio/profil', label: t('studio.nav.profile'), match: /^\/studio\/profil/ },
+];
+---
+
+<nav class="border-b border-sage-500/10 bg-linen/60 backdrop-blur-sm sticky top-[64px] z-30">
+  <div class="max-w-6xl mx-auto px-6">
+    <ul class="flex gap-6 overflow-x-auto -mb-px">
+      {items.map((item) => {
+        const isActive = item.match.test(currentPath);
+        return (
+          <li>
+            <a
+              href={item.href}
+              class:list={[
+                'inline-block py-4 text-sm font-medium border-b-2 whitespace-nowrap transition-colors',
+                isActive
+                  ? 'text-charcoal border-terracotta-500'
+                  : 'text-charcoal/55 border-transparent hover:text-charcoal',
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+</nav>

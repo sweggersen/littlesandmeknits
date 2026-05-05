@@ -1,0 +1,41 @@
+---
+import { useTranslations, type Lang } from '../lib/i18n';
+import LoginForm from './LoginForm';
+
+interface Props {
+  lang: Lang;
+  redirectTo?: string;
+}
+
+const { lang, redirectTo = '/studio' } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<section class="max-w-md mx-auto px-6 py-16 sm:py-24">
+  <div class="text-center mb-10">
+    <h1 class="font-serif text-4xl sm:text-5xl mb-3">{t('login.title')}</h1>
+    <p class="text-charcoal/55">{t('login.subtitle')}</p>
+  </div>
+
+  <div class="bg-white rounded-3xl p-8 shadow-sm border border-sage-500/10">
+    <LoginForm
+      client:load
+      redirectTo={redirectTo}
+      strings={{
+        emailLabel: t('login.email.label'),
+        emailPlaceholder: t('login.email.placeholder'),
+        magicLinkCta: t('login.magicLink.cta'),
+        divider: t('login.divider.or'),
+        google: t('login.google'),
+        successHeading: t('login.success.heading'),
+        successBody: t('login.success.body'),
+        errorGeneric: t('login.error.generic'),
+        loading: t('login.loading'),
+      }}
+    />
+  </div>
+
+  <p class="text-center text-xs text-charcoal/40 mt-6">
+    {t('login.tos')}
+  </p>
+</section>

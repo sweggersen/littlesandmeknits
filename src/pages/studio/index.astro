@@ -1,0 +1,30 @@
+---
+import StudioLayout from '../../layouts/StudioLayout.astro';
+import { useTranslations } from '../../lib/i18n';
+
+const t = useTranslations('nb');
+---
+
+<StudioLayout title="Studio — Littles and Me" lang="nb">
+  <section>
+    <h1 class="font-serif text-4xl mb-3">{t('studio.nav.overview')}</h1>
+    <p class="text-charcoal/60 max-w-prose">
+      Her samles alt du driver med — prosjekter, garnlager, oppskriftene du har kjøpt, og verktøyene jeg bygger ut etter hvert.
+    </p>
+    <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {[
+        { href: '/studio/prosjekter', title: t('studio.nav.projects'), body: t('studio.empty.projects') },
+        { href: '/studio/garn', title: t('studio.nav.stash'), body: t('studio.empty.stash') },
+        { href: '/studio/kjop', title: t('studio.nav.purchases'), body: t('studio.empty.purchases') },
+      ].map((card) => (
+        <a
+          href={card.href}
+          class="block bg-white rounded-3xl p-6 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
+        >
+          <h2 class="font-serif text-xl mb-2">{card.title}</h2>
+          <p class="text-sm text-charcoal/55">{card.body}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+</StudioLayout>

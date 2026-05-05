@@ -1,0 +1,25 @@
+---
+import StudioLayout from '../../layouts/StudioLayout.astro';
+import { useTranslations } from '../../lib/i18n';
+
+const t = useTranslations('nb');
+
+// TODO Phase 1.7: query purchases from Supabase, render with Download buttons
+const purchases: Array<{ id: string; pattern_slug: string; amount_nok: number; status: string }> = [];
+---
+
+<StudioLayout title="Kjøp — Littles and Me" lang="nb">
+  <h1 class="font-serif text-4xl mb-8">{t('studio.nav.purchases')}</h1>
+
+  {purchases.length === 0 ? (
+    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+      <p class="text-charcoal/55 mb-6">{t('studio.empty.purchases')}</p>
+      <a
+        href="/oppskrifter"
+        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        {t('studio.cta.browsePatterns')}
+      </a>
+    </div>
+  ) : null}
+</StudioLayout>

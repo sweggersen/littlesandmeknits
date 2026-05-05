@@ -1,0 +1,19 @@
+---
+import StudioLayout from '../../layouts/StudioLayout.astro';
+import { useTranslations } from '../../lib/i18n';
+
+const t = useTranslations('nb');
+---
+
+<StudioLayout title="Mine prosjekter — Littles and Me" lang="nb">
+  <h1 class="font-serif text-4xl mb-8">{t('studio.nav.projects')}</h1>
+  <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+    <p class="text-charcoal/55 mb-6">{t('studio.empty.projects')}</p>
+    <a
+      href="/oppskrifter"
+      class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      {t('studio.cta.browsePatterns')}
+    </a>
+  </div>
+</StudioLayout>

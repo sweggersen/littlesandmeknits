@@ -1,0 +1,16 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import LoginContent from '../../components/LoginContent.astro';
+import { getCurrentUser } from '../../lib/auth';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (user) {
+  return Astro.redirect('/en/studio');
+}
+
+const next = Astro.url.searchParams.get('next') ?? '/en/studio';
+---
+
+<Layout title="Log in — Littles and Me" lang="en">
+  <LoginContent lang="en" redirectTo={next} />
+</Layout>

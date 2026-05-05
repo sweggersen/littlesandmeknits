@@ -1,0 +1,23 @@
+---
+import StudioLayout from '../../layouts/StudioLayout.astro';
+import { useTranslations } from '../../lib/i18n';
+import { getCurrentUser } from '../../lib/auth';
+
+const t = useTranslations('nb');
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+---
+
+<StudioLayout title="Profil — Littles and Me" lang="nb">
+  <h1 class="font-serif text-4xl mb-8">{t('studio.nav.profile')}</h1>
+  <div class="bg-white rounded-3xl p-8 border border-sage-500/10 max-w-xl">
+    <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+      <dt class="text-charcoal/50">Epost</dt>
+      <dd class="text-charcoal">{user?.email}</dd>
+      <dt class="text-charcoal/50">Bruker-ID</dt>
+      <dd class="text-charcoal/70 font-mono text-xs">{user?.id}</dd>
+    </dl>
+    <p class="text-xs text-charcoal/40 mt-6">
+      Profil-redigering kommer i neste runde (visningsnavn, Instagram-handle, språk).
+    </p>
+  </div>
+</StudioLayout>
