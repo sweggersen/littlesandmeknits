@@ -3,11 +3,17 @@ import { defineConfig } from 'astro/config';
 
 import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
+import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://littlesandmeknits.com',
+
+  output: 'server',
+  adapter: cloudflare({
+    imageService: 'compile',
+  }),
 
   i18n: {
     locales: ['nb', 'en'],
