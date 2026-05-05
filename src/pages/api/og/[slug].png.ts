@@ -366,6 +366,11 @@ export const GET: APIRoute = async ({ params, request, cookies, url }) => {
   const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const displayUrl = `littlesandmeknits.com/p/${project.public_slug}`;
 
+  // Render at ~720 wide — Instagram displays at 1080 but happily upscales
+  // shorter sources, and resvg-wasm rasterization on Workers scales with
+  // pixel count, so cutting from 1080 to 720 saves ~55% of the render CPU.
+  const SCALE = 0.667;
+
   let png: Uint8Array;
   try {
     if (format === 'story') {
@@ -379,6 +384,7 @@ export const GET: APIRoute = async ({ params, request, cookies, url }) => {
       png = await renderPng(tree, {
         width: 1080,
         height: 1920,
+        renderWidth: Math.round(1080 * SCALE),
         fonts: [
           { name: 'Inter', data: fonts.inter, weight: 500 },
           { name: 'Inter', data: fonts.interBold, weight: 700 },
@@ -398,6 +404,7 @@ export const GET: APIRoute = async ({ params, request, cookies, url }) => {
       png = await renderPng(tree, {
         width: 1080,
         height: 1350,
+        renderWidth: Math.round(1080 * SCALE),
         fonts: [
           { name: 'Inter', data: fonts.inter, weight: 500 },
           { name: 'Inter', data: fonts.interBold, weight: 700 },

@@ -50,6 +50,10 @@ export async function renderPng(
   opts: {
     width: number;
     height: number;
+    /** Optional rasterization width — defaults to `width` (1:1). Use a smaller
+     * value to save CPU on Cloudflare Workers; resvg fitTo will scale the
+     * vector SVG down to this pixel width. */
+    renderWidth?: number;
     fonts: Array<{ name: string; data: ArrayBuffer; weight: number; style?: 'normal' | 'italic' }>;
   }
 ): Promise<Uint8Array> {
@@ -67,7 +71,9 @@ export async function renderPng(
     throw new StageError('satori', err);
   }
   try {
-    const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: opts.width } });
+    const resvg = new Resvg(svg, {
+      fitTo: { mode: 'width', value: opts.renderWidth ?? opts.width },
+    });
     return resvg.render().asPng();
   } catch (err) {
     throw new StageError('resvg', err);
