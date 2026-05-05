@@ -329,19 +329,29 @@ const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
               href={shareUrl}
               target="_blank"
               rel="noopener"
-              class="text-xs text-terracotta-500 hover:underline block mb-3"
+              class="text-xs text-terracotta-500 hover:underline block mb-4"
             >
               Åpne delt side ↗
             </a>
-            {heroUrl && (
-              <a
-                href={heroUrl}
-                download
-                class="block text-center text-xs font-medium text-charcoal/70 hover:text-terracotta-500 transition-colors py-2 mb-2 border border-sage-500/15 rounded-full"
-              >
-                Last ned bilde for Instagram
-              </a>
-            )}
+
+            <div class="border-t border-sage-500/10 pt-4 mb-3">
+              <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">For Instagram</h3>
+              {heroUrl ? (
+                <a
+                  href={heroUrl}
+                  download
+                  class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
+                >
+                  Last ned hovedbilde
+                </a>
+              ) : (
+                <p class="text-[11px] text-charcoal/50 italic">Last opp et hovedbilde for å laste det ned for Instagram.</p>
+              )}
+              <p class="text-[10px] text-charcoal/40 mt-2 leading-relaxed">
+                Branded delingskort med tittel og merkevare kommer snart — for nå deler du selve bildet, med lenke til siden i caption: <code class="text-[10px] text-charcoal/60">{shareUrl}</code>
+              </p>
+            </div>
+
             <form method="post" action={`/api/projects/${p.id}/share`}>
               <input type="hidden" name="share" value="false" />
               <button
