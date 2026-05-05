@@ -336,19 +336,28 @@ const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
 
             <div class="border-t border-sage-500/10 pt-4 mb-3">
               <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">For Instagram</h3>
-              {heroUrl ? (
+              <div class="grid grid-cols-2 gap-2 mb-2">
                 <a
-                  href={heroUrl}
-                  download
+                  href={`/api/og/${p.public_slug}.png?format=feed`}
+                  download={`${p.public_slug}-feed.png`}
+                  target="_blank"
+                  rel="noopener"
                   class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
                 >
-                  Last ned hovedbilde
+                  Feed (4:5)
                 </a>
-              ) : (
-                <p class="text-[11px] text-charcoal/50 italic">Last opp et hovedbilde for å laste det ned for Instagram.</p>
-              )}
-              <p class="text-[10px] text-charcoal/40 mt-2 leading-relaxed">
-                Branded delingskort med tittel og merkevare kommer snart — for nå deler du selve bildet, med lenke til siden i caption: <code class="text-[10px] text-charcoal/60">{shareUrl}</code>
+                <a
+                  href={`/api/og/${p.public_slug}.png?format=story`}
+                  download={`${p.public_slug}-story.png`}
+                  target="_blank"
+                  rel="noopener"
+                  class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
+                >
+                  Story (9:16)
+                </a>
+              </div>
+              <p class="text-[10px] text-charcoal/45 leading-relaxed">
+                Brandede delingskort. Trykk for å åpne, høyreklikk eller hold inne for å lagre. Eller del lenken i caption: <code class="text-[10px] text-charcoal/60">{shareUrl}</code>
               </p>
             </div>
 

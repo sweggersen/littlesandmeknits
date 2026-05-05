@@ -77,12 +77,13 @@ const statusClass = {
 
 const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
 const canonical = `${siteUrl}/p/${p.public_slug}`;
+const ogCardUrl = `${siteUrl}/api/og/${p.public_slug}.png?format=feed`;
 ---
 
 <ShareLayout
   title={p.title}
   description={p.summary ?? `Strikkeprosjekt fra Littles and Me`}
-  ogImage={heroUrl}
+  ogImage={ogCardUrl}
   canonical={canonical}
 >
   {heroUrl && (
