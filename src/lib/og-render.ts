@@ -8,11 +8,30 @@ import resvgWasmModule from '@resvg/resvg-wasm/index_bg.wasm';
 // as a separate WASM file that we have to initialize ourselves on Workers.
 import yogaWasmModule from 'satori/yoga.wasm';
 
+class StageError extends Error {
+  stage: string;
+  constructor(stage: string, cause: unknown) {
+    const causeMsg = cause instanceof Error ? cause.message : String(cause);
+    super(causeMsg);
+    this.stage = stage;
+    if (cause instanceof Error && cause.stack) this.stack = cause.stack;
+  }
+}
+
 let initPromise: Promise<void> | null = null;
 function ensureInit(): Promise<void> {
   if (!initPromise) {
     initPromise = (async () => {
-      await Promise.all([initResvg(resvgWasmModule), initSatori(yogaWasmModule)]);
+      try {
+        await initResvg(resvgWasmModule);
+      } catch (err) {
+        throw new StageError('init-resvg', err);
+      }
+      try {
+        await initSatori(yogaWasmModule);
+      } catch (err) {
+        throw new StageError('init-yoga', err);
+      }
     })().catch((err) => {
       initPromise = null;
       throw err;
@@ -35,15 +54,24 @@ export async function renderPng(
   }
 ): Promise<Uint8Array> {
   await ensureInit();
-  // satori type expects React.ReactNode; our object tree is structurally compatible.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const svg = await satori(tree as any, {
-    width: opts.width,
-    height: opts.height,
-    fonts: opts.fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight, style: f.style ?? 'normal' })),
-  });
-  const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: opts.width } });
-  return resvg.render().asPng();
+  let svg: string;
+  try {
+    // satori type expects React.ReactNode; our object tree is structurally compatible.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    svg = await satori(tree as any, {
+      width: opts.width,
+      height: opts.height,
+      fonts: opts.fonts.map((f) => ({ name: f.name, data: f.data, weight: f.weight, style: f.style ?? 'normal' })),
+    });
+  } catch (err) {
+    throw new StageError('satori', err);
+  }
+  try {
+    const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: opts.width } });
+    return resvg.render().asPng();
+  } catch (err) {
+    throw new StageError('resvg', err);
+  }
 }
 
 export async function fetchAsDataUrl(url: string): Promise<string | null> {
