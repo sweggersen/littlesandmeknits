@@ -1,16 +1,22 @@
-// Satori on Cloudflare Workers needs TTF (no built-in WOFF2 decoder).
-// We pull the variable-font TTFs straight from the Google Fonts repo via
-// jsDelivr — the previous "old IE User-Agent" trick on fonts.googleapis.com
-// stopped serving TTF for variable fonts. Satori v0.10+ handles variable
-// fonts and picks the closest instance for the requested weight.
+// Satori on Cloudflare Workers needs TTF, and its OpenType parser crashes
+// on the variable-font fvar table that Google's variable TTFs ship with
+// ("Cannot read properties of undefined (reading '256')" inside
+// parseFvarAxis). Pull static, non-variable TTFs from fonts.gstatic.com
+// instead — Google still serves these for the legacy CSS API. URLs were
+// resolved via google-webfonts-helper.
 
 const FONT_URLS = {
-  fraunces: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/fraunces/Fraunces%5BSOFT,WONK,opsz,wght%5D.ttf',
-  inter: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/inter/Inter%5Bopsz,wght%5D.ttf',
+  fraunces500:
+    'https://fonts.gstatic.com/s/fraunces/v38/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0K7iN7hzFUPJH58nib1603gg7S2nfgRYIchRuTCf7W.ttf',
+  inter500:
+    'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuI6fAZ9hjQ.ttf',
+  inter700:
+    'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYAZ9hjQ.ttf',
 } as const;
 
 let frauncesCache: ArrayBuffer | null = null;
 let interCache: ArrayBuffer | null = null;
+let interBoldCache: ArrayBuffer | null = null;
 
 async function fetchTTF(url: string): Promise<ArrayBuffer> {
   const res = await fetch(url);
@@ -19,13 +25,13 @@ async function fetchTTF(url: string): Promise<ArrayBuffer> {
 }
 
 export async function loadOgFonts() {
-  const [fraunces, inter] = await Promise.all([
-    frauncesCache ? Promise.resolve(frauncesCache) : fetchTTF(FONT_URLS.fraunces),
-    interCache ? Promise.resolve(interCache) : fetchTTF(FONT_URLS.inter),
+  const [fraunces, inter, interBold] = await Promise.all([
+    frauncesCache ? Promise.resolve(frauncesCache) : fetchTTF(FONT_URLS.fraunces500),
+    interCache ? Promise.resolve(interCache) : fetchTTF(FONT_URLS.inter500),
+    interBoldCache ? Promise.resolve(interBoldCache) : fetchTTF(FONT_URLS.inter700),
   ]);
   frauncesCache = fraunces;
   interCache = inter;
-  // Inter variable covers both regular and bold via weight axis; satori uses
-  // the same buffer for multiple weight registrations.
-  return { fraunces, inter, interBold: inter };
+  interBoldCache = interBold;
+  return { fraunces, inter, interBold };
 }
