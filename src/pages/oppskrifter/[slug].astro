@@ -1,0 +1,23 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import PatternDetail from '../../components/PatternDetail.astro';
+
+export async function getStaticPaths() {
+  const patterns = await getCollection('patterns', (p) => !p.data.draft);
+  return patterns.map((pattern) => ({
+    params: { slug: pattern.id },
+    props: { pattern },
+  }));
+}
+
+const { pattern } = Astro.props;
+---
+
+<Layout
+  title={`${pattern.data.title.nb} — Littles and Me`}
+  description={pattern.data.summary.nb}
+  lang="nb"
+>
+  <PatternDetail pattern={pattern} lang="nb" />
+</Layout>

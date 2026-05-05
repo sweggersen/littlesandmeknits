@@ -1,0 +1,71 @@
+---
+import { useTranslations, localizedPath, type Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const year = new Date().getFullYear();
+---
+
+<footer class="bg-charcoal text-linen mt-24">
+  <div class="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 gap-12">
+    <div class="md:col-span-2">
+      <h2 class="font-serif text-2xl mb-4">Littles and Me</h2>
+      <p class="text-linen/60 max-w-sm text-sm leading-relaxed">
+        {t('footer.tagline')}
+      </p>
+    </div>
+
+    <div>
+      <h4 class="text-[10px] font-bold uppercase tracking-widest text-linen/40 mb-4">
+        {t('footer.studio')}
+      </h4>
+      <ul class="space-y-2.5 text-sm">
+        <li>
+          <a href={localizedPath(lang, '/studio/prosjekter')} class="text-linen/80 hover:text-terracotta-500 transition-colors">
+            {t('footer.studio.projects')}
+          </a>
+        </li>
+        <li>
+          <a href={localizedPath(lang, '/studio/garn')} class="text-linen/80 hover:text-terracotta-500 transition-colors">
+            {t('footer.studio.stash')}
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <h4 class="text-[10px] font-bold uppercase tracking-widest text-linen/40 mb-4">
+        {t('footer.connect')}
+      </h4>
+      <ul class="space-y-2.5 text-sm">
+        <li>
+          <a href="https://instagram.com/littlesandmeknits" target="_blank" rel="noopener" class="text-linen/80 hover:text-terracotta-500 transition-colors">
+            {t('footer.instagram')}
+          </a>
+        </li>
+        <li>
+          <a href={`${localizedPath(lang, '/')}#newsletter`} class="text-linen/80 hover:text-terracotta-500 transition-colors">
+            {t('footer.newsletter')}
+          </a>
+        </li>
+        <li>
+          <a href={`mailto:hei@littlesandmeknits.com`} class="text-linen/80 hover:text-terracotta-500 transition-colors">
+            {t('footer.support')}
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-6 pb-10 pt-6 border-t border-linen/10 flex flex-col sm:flex-row justify-between gap-3 text-[10px] font-medium tracking-widest uppercase text-linen/30">
+    <span>&copy; {year} Littles and Me</span>
+    <div class="flex gap-5">
+      <a href={localizedPath(lang, '/personvern')} class="hover:text-linen transition-colors">{t('footer.legal.privacy')}</a>
+      <a href={localizedPath(lang, '/vilkar')} class="hover:text-linen transition-colors">{t('footer.legal.terms')}</a>
+    </div>
+  </div>
+</footer>

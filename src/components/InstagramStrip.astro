@@ -1,0 +1,108 @@
+---
+import { Image } from 'astro:assets';
+import { useTranslations, type Lang } from '../lib/i18n';
+import fallbackA from '../assets/img/cream-flatlay.jpg';
+import fallbackB from '../assets/img/autumn-cable.jpg';
+import fallbackC from '../assets/img/hands-knitting.jpg';
+import fallbackD from '../assets/img/brown-wool.jpg';
+import fallbackE from '../assets/img/mustard-knit.jpg';
+import fallbackF from '../assets/img/colorful-tshirt.jpg';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const FEED_ID = 'oxMkbiYKHU7QbpdD5P5M';
+const LIMIT = 6;
+
+type BeholdPost = {
+  id: string;
+  permalink: string;
+  mediaUrl?: string;
+  thumbnail?: string;
+  prunedCaption?: string;
+  sizes?: {
+    small?: { mediaUrl?: string };
+    medium?: { mediaUrl?: string };
+    large?: { mediaUrl?: string };
+  };
+};
+
+let posts: Array<{ src: string; href: string; alt: string }> = [];
+
+try {
+  const res = await fetch(`https://feeds.behold.so/${FEED_ID}`);
+  if (res.ok) {
+    const data = (await res.json()) as { posts?: BeholdPost[] };
+    posts = (data.posts ?? [])
+      .slice(0, LIMIT)
+      .map((p) => ({
+        src:
+          p.sizes?.medium?.mediaUrl ??
+          p.sizes?.small?.mediaUrl ??
+          p.thumbnail ??
+          p.mediaUrl ??
+          '',
+        href: p.permalink,
+        alt: p.prunedCaption?.slice(0, 120) ?? '',
+      }))
+      .filter((p) => p.src);
+  }
+} catch (err) {
+  console.warn('[behold] feed fetch failed; using fallback images', err);
+}
+
+const fallback = [fallbackA, fallbackB, fallbackC, fallbackD, fallbackE, fallbackF];
+---
+
+<section class="my-20">
+  <div class="flex items-end justify-between mb-6 px-1">
+    <h2 class="font-serif text-3xl sm:text-4xl">{t('home.instagram.title')}</h2>
+    <a
+      href="https://instagram.com/littlesandmeknits"
+      target="_blank"
+      rel="noopener"
+      class="text-sm font-medium text-terracotta-500 hover:text-terracotta-700 transition-colors"
+    >
+      {t('home.instagram.cta')} →
+    </a>
+  </div>
+  <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 sm:gap-3">
+    {posts.length > 0
+      ? posts.map((post) => (
+          <a
+            href={post.href}
+            target="_blank"
+            rel="noopener"
+            class="group block aspect-square overflow-hidden rounded-xl bg-oatmeal"
+            aria-label={post.alt || 'Instagram post'}
+          >
+            <img
+              src={post.src}
+              alt={post.alt}
+              loading="lazy"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          </a>
+        ))
+      : fallback.map((img) => (
+          <a
+            href="https://instagram.com/littlesandmeknits"
+            target="_blank"
+            rel="noopener"
+            class="group block aspect-square overflow-hidden rounded-xl bg-oatmeal"
+          >
+            <Image
+              src={img}
+              alt=""
+              widths={[200, 400]}
+              sizes="(min-width: 640px) 16vw, 33vw"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            />
+          </a>
+        ))}
+  </div>
+</section>

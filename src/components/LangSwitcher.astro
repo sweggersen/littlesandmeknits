@@ -1,0 +1,33 @@
+---
+import { languages, defaultLang, type Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+
+function pathFor(target: Lang): string {
+  const path = Astro.url.pathname;
+  const stripped = path.replace(/^\/(nb|en)(?=\/|$)/, '') || '/';
+  if (target === defaultLang) return stripped;
+  return `/${target}${stripped === '/' ? '' : stripped}`;
+}
+---
+
+<div class="flex items-center gap-1 text-xs font-medium text-charcoal/60">
+  {(Object.keys(languages) as Lang[]).map((code, i) => (
+    <>
+      {i > 0 && <span class="text-charcoal/20">/</span>}
+      <a
+        href={pathFor(code)}
+        class:list={[
+          'uppercase tracking-wider transition-colors',
+          code === lang ? 'text-charcoal' : 'hover:text-charcoal',
+        ]}
+      >
+        {code}
+      </a>
+    </>
+  ))}
+</div>

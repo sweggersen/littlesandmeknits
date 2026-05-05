@@ -1,0 +1,81 @@
+---
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import PatternCard from '../../components/PatternCard.astro';
+import { useTranslations, type Lang } from '../../lib/i18n';
+
+const lang: Lang = 'nb';
+const t = useTranslations(lang);
+
+const patterns = (await getCollection('patterns', (p) => !p.data.draft))
+  .sort((a, b) => +b.data.publishedAt - +a.data.publishedAt);
+
+const categories: Array<'all' | 'sweaters' | 'accessories' | 'blankets' | 'sets'> = [
+  'all',
+  'sweaters',
+  'accessories',
+  'blankets',
+  'sets',
+];
+---
+
+<Layout title="Oppskrifter — Littles and Me" lang={lang}>
+  <div class="max-w-7xl mx-auto px-6 py-14">
+    <header class="mb-10">
+      <h1 class="font-serif text-4xl sm:text-5xl mb-2">{t('shop.title')}</h1>
+      <p class="text-charcoal/55">{t('shop.subtitle')}</p>
+    </header>
+
+    <div class="flex flex-wrap items-center gap-2 mb-10 bg-white rounded-full p-1.5 shadow-sm border border-sage-500/10 w-fit">
+      {categories.map((cat) => (
+        <button
+          type="button"
+          data-filter={cat}
+          class:list={[
+            'px-5 py-2 rounded-full text-sm font-medium transition-all',
+            cat === 'all'
+              ? 'bg-sage-500 text-white shadow-sm'
+              : 'text-charcoal/60 hover:text-charcoal',
+          ]}
+        >
+          {t(`shop.filter.${cat}` as const)}
+        </button>
+      ))}
+    </div>
+
+    {patterns.length === 0 ? (
+      <p class="text-charcoal/40 italic py-20 text-center">{t('shop.empty')}</p>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-pattern-grid>
+        {patterns.map((p) => (
+          <div data-category={p.data.category}>
+            <PatternCard pattern={p} lang={lang} />
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</Layout>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+  const items = document.querySelectorAll<HTMLElement>('[data-category]');
+
+  buttons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const filter = btn.dataset.filter ?? 'all';
+
+      buttons.forEach((b) => {
+        b.classList.remove('bg-sage-500', 'text-white', 'shadow-sm');
+        b.classList.add('text-charcoal/60');
+      });
+      btn.classList.remove('text-charcoal/60');
+      btn.classList.add('bg-sage-500', 'text-white', 'shadow-sm');
+
+      items.forEach((item) => {
+        const matches = filter === 'all' || item.dataset.category === filter;
+        item.style.display = matches ? '' : 'none';
+      });
+    });
+  });
+</script>

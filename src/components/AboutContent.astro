@@ -1,0 +1,59 @@
+---
+import { Image } from 'astro:assets';
+import { useTranslations, type Lang } from '../lib/i18n';
+import portraitImg from '../assets/img/sage-sweater.jpg';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const body = {
+  nb: [
+    'Hei. Jeg heter [navn] og jeg strikker for de små menneskene jeg er glad i.',
+    'Littles and Me startet med min eldste — den første genseren jeg strikket fra bunnen, uten oppskrift, fordi jeg ikke fant det jeg lette etter. Litt etter litt ble den til en oppskrift, og litt etter litt ble det fler.',
+    'Hver oppskrift jeg slipper er testet av meg selv, på mine egne barn. Jeg vil at du skal kunne stole på det du kjøper — at størrelsene stemmer, at instruksjonene er tydelige, og at sluttplagget kan arves videre.',
+    'Hvis du vil følge med eller si hei: finn meg på Instagram.',
+  ],
+  en: [
+    "Hi. I'm [name] and I knit for the small humans I love.",
+    "Littles and Me began with my eldest — the first sweater I knit from scratch, without a pattern, because I couldn't find what I was looking for. Bit by bit it became a pattern, and bit by bit there were more.",
+    "Every pattern I release has been tested by me, on my own children. I want you to be able to trust what you're buying — that the sizing works, that the instructions are clear, and that the finished piece can be passed on.",
+    'If you want to follow along or say hi: find me on Instagram.',
+  ],
+};
+---
+
+<div class="max-w-3xl mx-auto px-6 py-16">
+  <h1 class="font-serif text-4xl sm:text-5xl mb-10">{t('about.title')}</h1>
+  <div class="aspect-[4/3] rounded-3xl overflow-hidden bg-oatmeal mb-10">
+    <Image
+      src={portraitImg}
+      alt=""
+      widths={[600, 1000, 1400]}
+      sizes="(min-width: 768px) 768px, 100vw"
+      class="w-full h-full object-cover"
+    />
+  </div>
+  <div class="space-y-5 text-lg leading-relaxed text-charcoal/80">
+    {body[lang].map((para) => <p>{para}</p>)}
+  </div>
+  <div class="mt-12 flex gap-4">
+    <a
+      href="https://instagram.com/littlesandmeknits"
+      target="_blank"
+      rel="noopener"
+      class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      Instagram
+    </a>
+    <a
+      href="mailto:hei@littlesandmeknits.com"
+      class="border border-charcoal/30 text-charcoal px-6 py-3 rounded-full text-sm font-medium hover:bg-charcoal hover:text-linen transition-colors"
+    >
+      hei@littlesandmeknits.com
+    </a>
+  </div>
+</div>

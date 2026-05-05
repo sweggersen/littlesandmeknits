@@ -1,0 +1,51 @@
+---
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import { useTranslations, localizedPath, type Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const projects = (await getCollection('projects'))
+  .sort((a, b) => +b.data.knitDate - +a.data.knitDate);
+---
+
+<div class="max-w-7xl mx-auto px-6 py-14">
+  <header class="mb-12">
+    <h1 class="font-serif text-4xl sm:text-5xl mb-2">{t('projects.title')}</h1>
+    <p class="text-charcoal/55">{t('projects.subtitle')}</p>
+  </header>
+
+  {projects.length === 0 ? (
+    <p class="text-charcoal/40 italic py-20 text-center">—</p>
+  ) : (
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {projects.map((project) => (
+        <a
+          href={localizedPath(lang, `/prosjekter/${project.id}`)}
+          class="group block bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow"
+        >
+          <div class="aspect-[4/5] overflow-hidden bg-oatmeal">
+            <Image
+              src={project.data.cover}
+              alt={project.data.title[lang]}
+              widths={[400, 600, 800]}
+              sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+          </div>
+          <div class="p-6">
+            <h3 class="font-serif text-xl mb-1 group-hover:text-terracotta-500 transition-colors">
+              {project.data.title[lang]}
+            </h3>
+            <p class="text-sm text-charcoal/55 line-clamp-2">{project.data.summary[lang]}</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  )}
+</div>

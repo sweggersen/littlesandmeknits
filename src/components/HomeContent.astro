@@ -1,0 +1,142 @@
+---
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import { useTranslations, localizedPath, type Lang } from '../lib/i18n';
+import PatternCard from './PatternCard.astro';
+import NewsletterSignup from './NewsletterSignup.astro';
+import InstagramStrip from './InstagramStrip.astro';
+import heroImg from '../assets/img/cream-flatlay.jpg';
+import storyImg from '../assets/img/hands-knitting.jpg';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const allPatterns = (await getCollection('patterns', (p) => !p.data.draft))
+  .sort((a, b) => +b.data.publishedAt - +a.data.publishedAt);
+
+const featured = allPatterns.filter((p) => p.data.featured).slice(0, 4);
+const featuredOrLatest = featured.length > 0 ? featured : allPatterns.slice(0, 4);
+---
+
+<!-- Hero -->
+<section class="relative h-[78vh] min-h-[520px] overflow-hidden">
+  <Image
+    src={heroImg}
+    alt=""
+    widths={[800, 1200, 1800, 2400]}
+    sizes="100vw"
+    loading="eager"
+    class="absolute inset-0 w-full h-full object-cover"
+  />
+  <div class="absolute inset-0 bg-gradient-to-r from-charcoal/60 via-charcoal/30 to-transparent"></div>
+  <div class="relative h-full max-w-7xl mx-auto px-6 flex flex-col justify-center">
+    <div class="max-w-2xl">
+      <h1 class="font-serif text-5xl sm:text-6xl md:text-7xl text-linen leading-[1.05] tracking-tight mb-6">
+        {t('home.hero.title')}
+      </h1>
+      <p class="text-lg sm:text-xl text-linen/85 mb-9 max-w-md font-light">
+        {t('home.hero.subtitle')}
+      </p>
+      <a
+        href={localizedPath(lang, '/oppskrifter')}
+        class="inline-flex items-center gap-2 bg-linen text-charcoal px-7 py-4 rounded-full text-sm font-medium hover:bg-terracotta-500 hover:text-linen transition-colors"
+      >
+        {t('home.hero.cta')}
+        <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Featured patterns -->
+<section class="max-w-7xl mx-auto px-6 mt-20">
+  <div class="flex items-end justify-between mb-10">
+    <div>
+      <h2 class="font-serif text-3xl sm:text-4xl mb-2">{t('home.featured.title')}</h2>
+      <p class="text-charcoal/55 text-sm">{t('home.featured.subtitle')}</p>
+    </div>
+    <a
+      href={localizedPath(lang, '/oppskrifter')}
+      class="hidden sm:inline text-sm font-medium text-charcoal/60 hover:text-terracotta-500 transition-colors"
+    >
+      {t('nav.shop')} →
+    </a>
+  </div>
+
+  {featuredOrLatest.length === 0 ? (
+    <p class="text-charcoal/40 italic">{t('shop.empty')}</p>
+  ) : (
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {featuredOrLatest.map((p) => <PatternCard pattern={p} lang={lang} />)}
+    </div>
+  )}
+</section>
+
+<!-- Story block -->
+<section class="max-w-5xl mx-auto px-6 my-24">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+    <div class="aspect-square rounded-3xl overflow-hidden bg-oatmeal">
+      <Image
+        src={storyImg}
+        alt=""
+        widths={[400, 800, 1200]}
+        sizes="(min-width: 768px) 40vw, 100vw"
+        class="w-full h-full object-cover"
+      />
+    </div>
+    <div>
+      <h2 class="font-serif text-3xl sm:text-4xl mb-5">{t('home.story.title')}</h2>
+      <p class="text-charcoal/70 leading-relaxed mb-6">{t('home.story.body')}</p>
+      <a
+        href={localizedPath(lang, '/om')}
+        class="inline-flex items-center gap-2 text-sm font-medium text-terracotta-500 hover:text-terracotta-700 transition-colors"
+      >
+        {t('home.story.cta')} →
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Tools teaser -->
+<section class="max-w-7xl mx-auto px-6 my-24">
+  <div class="text-center mb-12">
+    <h2 class="font-serif text-3xl sm:text-4xl mb-2">{t('home.tools.title')}</h2>
+    <p class="text-charcoal/55 text-sm">{t('home.tools.subtitle')}</p>
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+    {[
+      { key: 'home.tools.counter', icon: '⊕' },
+      { key: 'home.tools.gauge', icon: '⊙' },
+      { key: 'home.tools.stash', icon: '◇' },
+    ].map((item) => (
+      <div class="bg-white rounded-3xl p-8 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+        <div class="w-12 h-12 rounded-2xl bg-sage-100 flex items-center justify-center text-2xl text-sage-700 mb-5">
+          {item.icon}
+        </div>
+        <h3 class="font-serif text-xl">{t(item.key as 'home.tools.counter')}</h3>
+      </div>
+    ))}
+  </div>
+  <div class="text-center mt-10">
+    <a
+      href={localizedPath(lang, '/studio/verktoy')}
+      class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/70 hover:text-terracotta-500 transition-colors"
+    >
+      {t('home.tools.cta')} →
+    </a>
+  </div>
+</section>
+
+<!-- Instagram strip -->
+<section class="max-w-7xl mx-auto px-6">
+  <InstagramStrip lang={lang} />
+</section>
+
+<!-- Newsletter -->
+<section class="max-w-7xl mx-auto px-6">
+  <NewsletterSignup lang={lang} />
+</section>

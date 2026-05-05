@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/inter";
+
+@theme {
+  /* Brand palette — Littles and Me */
+  --color-sage-50: #F2F4ED;
+  --color-sage-100: #E0E6D5;
+  --color-sage-300: #BCCAA3;
+  --color-sage-500: #9CAF88;
+  --color-sage-700: #6E8259;
+  --color-sage-900: #44523A;
+
+  --color-terracotta-50: #FBF0EB;
+  --color-terracotta-100: #F4D9CC;
+  --color-terracotta-500: #C76D4E;
+  --color-terracotta-700: #9A4F37;
+  --color-terracotta-900: #5E3122;
+
+  --color-linen: #FAF6F0;
+  --color-oatmeal: #E8DFD0;
+  --color-charcoal: #2C2A26;
+
+  --font-serif: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-charcoal);
+    background-color: var(--color-linen);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: rgb(from var(--color-terracotta-500) r g b / 0.2);
+  }
+}

@@ -1,0 +1,80 @@
+---
+import { useTranslations, type Lang } from '../lib/i18n';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+---
+
+<section id="newsletter" class="bg-oatmeal/50 rounded-3xl px-8 py-14 sm:px-14 my-20">
+  <div class="max-w-2xl mx-auto text-center">
+    <h2 class="font-serif text-3xl sm:text-4xl mb-3">{t('home.newsletter.title')}</h2>
+    <p class="text-charcoal/60 mb-7 text-base">{t('home.newsletter.body')}</p>
+
+    <form
+      class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+      action="https://formspree.io/f/mjgepbnq"
+      method="POST"
+      data-newsletter-form
+    >
+      <input type="hidden" name="_subject" value="Newsletter signup — littlesandmeknits.com" />
+      <input type="hidden" name="source" value={Astro.url.pathname} />
+      <input type="hidden" name="lang" value={lang} />
+      <input type="text" name="_gotcha" tabindex="-1" autocomplete="off" class="hidden" aria-hidden="true" />
+      <input
+        type="email"
+        name="email"
+        required
+        placeholder={t('home.newsletter.placeholder')}
+        class="flex-1 bg-white rounded-full px-5 py-3 text-sm placeholder:text-charcoal/40 focus:outline-none focus:ring-2 focus:ring-sage-500/40 disabled:opacity-50"
+      />
+      <button
+        type="submit"
+        class="bg-charcoal text-linen rounded-full px-6 py-3 text-sm font-medium hover:bg-terracotta-500 transition-colors disabled:opacity-50"
+      >
+        {t('home.newsletter.cta')}
+      </button>
+    </form>
+    <p class="text-[11px] text-sage-700 mt-4" data-newsletter-success hidden>
+      ✓ {lang === 'nb' ? 'Takk! Du står på listen.' : "Thanks! You're on the list."}
+    </p>
+    <p class="text-[11px] text-terracotta-700 mt-4" data-newsletter-error hidden>
+      {lang === 'nb' ? 'Noe gikk galt. Prøv igjen?' : 'Something went wrong. Try again?'}
+    </p>
+  </div>
+</section>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>('[data-newsletter-form]');
+  const success = document.querySelector<HTMLElement>('[data-newsletter-success]');
+  const error = document.querySelector<HTMLElement>('[data-newsletter-error]');
+  const submit = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (success) success.hidden = true;
+    if (error) error.hidden = true;
+    if (submit) submit.disabled = true;
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new FormData(form),
+      });
+      if (response.ok) {
+        form.reset();
+        if (success) success.hidden = false;
+      } else {
+        if (error) error.hidden = false;
+      }
+    } catch {
+      if (error) error.hidden = false;
+    } finally {
+      if (submit) submit.disabled = false;
+    }
+  });
+</script>

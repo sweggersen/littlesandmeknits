@@ -1,0 +1,94 @@
+---
+import { useTranslations, localizedPath, type Lang } from '../lib/i18n';
+import LangSwitcher from './LangSwitcher.astro';
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+
+const navItems = [
+  { href: localizedPath(lang, '/oppskrifter'), label: t('nav.shop') },
+  { href: localizedPath(lang, '/prosjekter'), label: t('nav.projects') },
+  { href: localizedPath(lang, '/om'), label: t('nav.about') },
+];
+
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
+---
+
+<nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-10">
+      <a
+        href={localizedPath(lang, '/')}
+        class="font-serif text-xl font-medium tracking-tight text-charcoal hover:text-terracotta-500 transition-colors"
+      >
+        Littles and Me
+      </a>
+      <ul class="hidden md:flex items-center gap-7">
+        {navItems.map((item) => (
+          <li>
+            <a
+              href={item.href}
+              class:list={[
+                'text-sm font-medium transition-colors',
+                currentPath.startsWith(item.href) && item.href !== localizedPath(lang, '/')
+                  ? 'text-terracotta-500'
+                  : 'text-charcoal/70 hover:text-charcoal',
+              ]}
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <LangSwitcher lang={lang} />
+      <a
+        href={localizedPath(lang, '/logg-inn')}
+        class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
+      >
+        {t('nav.login')}
+      </a>
+      <button
+        type="button"
+        class="md:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal"
+        aria-label="Menu"
+        data-mobile-menu-trigger
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M3 6h18M3 12h18M3 18h18" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="hidden md:hidden border-t border-sage-500/10 px-6 py-4" data-mobile-menu>
+    <ul class="flex flex-col gap-3">
+      {navItems.map((item) => (
+        <li>
+          <a href={item.href} class="block py-2 text-base font-medium text-charcoal/80">
+            {item.label}
+          </a>
+        </li>
+      ))}
+      <li>
+        <a href={localizedPath(lang, '/logg-inn')} class="block py-2 text-base font-medium text-charcoal/80">
+          {t('nav.login')}
+        </a>
+      </li>
+    </ul>
+  </div>
+</nav>
+
+<script>
+  const trigger = document.querySelector<HTMLButtonElement>('[data-mobile-menu-trigger]');
+  const menu = document.querySelector<HTMLElement>('[data-mobile-menu]');
+  trigger?.addEventListener('click', () => {
+    menu?.classList.toggle('hidden');
+  });
+</script>
