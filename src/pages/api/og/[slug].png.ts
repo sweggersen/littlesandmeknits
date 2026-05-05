@@ -357,8 +357,10 @@ export const GET: APIRoute = async ({ params, request, cookies, url }) => {
 
   if (!project) return new Response('Not found', { status: 404 });
 
+  // ?nohero=1 — diagnostic: skip the hero image embed to isolate render CPU.
+  const skipHero = url.searchParams.get('nohero') === '1';
   const heroPath = project.hero_photo_path as string | null;
-  const heroPublicUrl = projectPhotoUrl(heroPath);
+  const heroPublicUrl = skipHero ? null : projectPhotoUrl(heroPath);
   const heroDataUrl = heroPublicUrl ? await fetchAsDataUrl(heroPublicUrl) : null;
 
   const fonts = await loadOgFonts();
