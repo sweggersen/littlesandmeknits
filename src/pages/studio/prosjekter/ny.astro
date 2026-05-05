@@ -1,0 +1,156 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { getCollection } from 'astro:content';
+
+const allPatterns = await getCollection('patterns', (p) => !p.data.draft);
+const patterns = allPatterns
+  .map((p) => ({ slug: p.id, title: p.data.title.nb }))
+  .sort((a, b) => a.title.localeCompare(b.title, 'nb'));
+---
+
+<StudioLayout title="Nytt prosjekt — Littles and Me" lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/prosjekter" class="hover:text-charcoal transition-colors">Prosjekter</a>
+      <span class="mx-2">/</span>
+      <span>Nytt</span>
+    </nav>
+    <h1 class="font-serif text-4xl mb-8">Nytt prosjekt</h1>
+
+    <form method="post" action="/api/projects/create" class="bg-white rounded-3xl p-8 border border-sage-500/10 space-y-6">
+      <div>
+        <label for="title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Tittel *
+        </label>
+        <input
+          id="title"
+          name="title"
+          type="text"
+          required
+          maxlength="120"
+          placeholder="f.eks. Solskinn til Aksel"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div>
+        <label for="summary" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Kort beskrivelse
+        </label>
+        <textarea
+          id="summary"
+          name="summary"
+          rows="3"
+          maxlength="500"
+          placeholder="Et lite notat om hva dette prosjektet er — hvem det er til, hva som er spesielt med det…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+        ></textarea>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="status" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Status
+          </label>
+          <select
+            id="status"
+            name="status"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          >
+            <option value="planning">Planlegges</option>
+            <option value="active" selected>I gang</option>
+            <option value="finished">Ferdig</option>
+            <option value="frogged">Røket opp</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="pattern_slug" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Oppskrift
+          </label>
+          <select
+            id="pattern_slug"
+            name="pattern_slug"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          >
+            <option value="">— Ingen / egen design —</option>
+            {patterns.map((p) => <option value={p.slug}>{p.title}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="recipient" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            For hvem?
+          </label>
+          <input
+            id="recipient"
+            name="recipient"
+            type="text"
+            maxlength="80"
+            placeholder="Aksel, meg selv, …"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label for="target_size" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Størrelse
+          </label>
+          <input
+            id="target_size"
+            name="target_size"
+            type="text"
+            maxlength="40"
+            placeholder="2 år, str M, …"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="yarn" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Garn
+          </label>
+          <input
+            id="yarn"
+            name="yarn"
+            type="text"
+            maxlength="120"
+            placeholder="Sandnes Sunday, fargenr 1015"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label for="needles" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Pinner
+          </label>
+          <input
+            id="needles"
+            name="needles"
+            type="text"
+            maxlength="60"
+            placeholder="3,5 mm rundpinne"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <a
+          href="/studio/prosjekter"
+          class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2"
+        >
+          Avbryt
+        </a>
+        <button
+          type="submit"
+          class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          Opprett prosjekt
+        </button>
+      </div>
+    </form>
+  </div>
+</StudioLayout>

@@ -1,0 +1,240 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { getEntry } from 'astro:content';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/studio/prosjekter');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+type ProjectRow = {
+  id: string;
+  title: string;
+  summary: string | null;
+  status: 'planning' | 'active' | 'finished' | 'frogged';
+  recipient: string | null;
+  target_size: string | null;
+  yarn: string | null;
+  needles: string | null;
+  pattern_slug: string | null;
+  hero_photo_path: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+  updated_at: string;
+  public_slug: string | null;
+};
+
+const { data: project, error } = await supabase
+  .from('projects')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug')
+  .eq('id', id)
+  .maybeSingle();
+
+if (error || !project) {
+  return Astro.redirect('/studio/prosjekter');
+}
+
+const p = project as ProjectRow;
+
+type LogRow = {
+  id: string;
+  body: string;
+  log_date: string;
+  created_at: string;
+};
+
+const { data: logsData } = await supabase
+  .from('project_logs')
+  .select('id, body, log_date, created_at')
+  .eq('project_id', id)
+  .order('log_date', { ascending: false })
+  .order('created_at', { ascending: false });
+
+const logs = (logsData ?? []) as LogRow[];
+
+const patternEntry = p.pattern_slug ? await getEntry('patterns', p.pattern_slug) : null;
+
+const statusLabels = {
+  planning: 'Planlegges',
+  active: 'I gang',
+  finished: 'Ferdig',
+  frogged: 'Røket opp',
+} as const;
+
+const statusClass = {
+  planning: 'bg-oatmeal text-charcoal/70',
+  active: 'bg-sage-100 text-sage-900',
+  finished: 'bg-terracotta-500/10 text-terracotta-500',
+  frogged: 'bg-charcoal/10 text-charcoal/60',
+} as const;
+
+const today = new Date().toISOString().slice(0, 10);
+---
+
+<StudioLayout title={`${p.title} — Littles and Me`} lang="nb">
+  <nav class="text-xs text-charcoal/50 mb-4">
+    <a href="/studio/prosjekter" class="hover:text-charcoal transition-colors">Prosjekter</a>
+    <span class="mx-2">/</span>
+    <span>{p.title}</span>
+  </nav>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main: header + log timeline -->
+    <div class="lg:col-span-2">
+      <header class="flex items-start justify-between gap-4 mb-6">
+        <div class="flex-1 min-w-0">
+          <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[p.status]}`}>
+            {statusLabels[p.status]}
+          </span>
+          <h1 class="font-serif text-4xl mt-3 leading-tight">{p.title}</h1>
+          {p.summary && (
+            <p class="text-charcoal/65 mt-3 leading-relaxed">{p.summary}</p>
+          )}
+        </div>
+      </header>
+
+      <!-- Add a log -->
+      <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
+        <h2 class="font-serif text-lg mb-4">Ny logg</h2>
+        <form method="post" action={`/api/projects/${p.id}/log`} class="space-y-3">
+          <textarea
+            name="body"
+            required
+            rows="4"
+            maxlength="4000"
+            placeholder="Hva skjedde i dag? Antall masker, endringer i mønsteret, hvordan det ser ut…"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+          ></textarea>
+          <div class="flex items-center justify-between gap-3">
+            <input
+              type="date"
+              name="log_date"
+              value={today}
+              class="bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+            />
+            <button
+              type="submit"
+              class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+            >
+              Legg til logg
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Logs timeline -->
+      <section>
+        <h2 class="font-serif text-lg mb-4">Tidslinje</h2>
+        {logs.length === 0 ? (
+          <p class="text-sm text-charcoal/50 italic">Ingen loggføringer ennå. Legg til en over for å begynne.</p>
+        ) : (
+          <ol class="space-y-4">
+            {logs.map((log) => (
+              <li class="bg-white rounded-2xl p-5 border border-sage-500/10">
+                <div class="flex items-baseline justify-between mb-2">
+                  <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
+                    {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </time>
+                  <form method="post" action={`/api/projects/${p.id}/log/${log.id}/delete`} class="inline">
+                    <button
+                      type="submit"
+                      class="text-[11px] text-charcoal/40 hover:text-terracotta-500 transition-colors"
+                      onclick="return confirm('Slette denne loggen?')"
+                    >
+                      Slett
+                    </button>
+                  </form>
+                </div>
+                <p class="text-sm text-charcoal/80 leading-relaxed whitespace-pre-wrap">{log.body}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
+    </div>
+
+    <!-- Sidebar: project facts + edit -->
+    <aside class="lg:col-span-1">
+      <div class="bg-white rounded-3xl p-6 border border-sage-500/10 sticky lg:top-24">
+        <h2 class="font-serif text-lg mb-4">Detaljer</h2>
+        <dl class="space-y-3 text-sm">
+          {p.recipient && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">For</dt>
+              <dd>{p.recipient}</dd>
+            </div>
+          )}
+          {patternEntry && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Oppskrift</dt>
+              <dd>
+                <a href={`/oppskrifter/${p.pattern_slug}`} class="text-terracotta-500 hover:underline" target="_blank" rel="noopener">
+                  {patternEntry.data.title.nb}
+                </a>
+              </dd>
+            </div>
+          )}
+          {p.target_size && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Størrelse</dt>
+              <dd>{p.target_size}</dd>
+            </div>
+          )}
+          {p.yarn && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Garn</dt>
+              <dd>{p.yarn}</dd>
+            </div>
+          )}
+          {p.needles && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Pinner</dt>
+              <dd>{p.needles}</dd>
+            </div>
+          )}
+          <div>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Opprettet</dt>
+            <dd class="text-charcoal/60">{new Date(p.created_at).toLocaleDateString('nb-NO')}</dd>
+          </div>
+        </dl>
+
+        <div class="mt-6 pt-6 border-t border-sage-500/10 space-y-2">
+          <form method="post" action={`/api/projects/${p.id}/status`}>
+            <label class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 block mb-2">
+              Endre status
+            </label>
+            <div class="flex gap-2">
+              <select
+                name="status"
+                class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15"
+              >
+                <option value="planning" selected={p.status === 'planning'}>Planlegges</option>
+                <option value="active" selected={p.status === 'active'}>I gang</option>
+                <option value="finished" selected={p.status === 'finished'}>Ferdig</option>
+                <option value="frogged" selected={p.status === 'frogged'}>Røket opp</option>
+              </select>
+              <button
+                type="submit"
+                class="bg-charcoal text-linen px-3 rounded-xl text-xs font-medium hover:bg-terracotta-500 transition-colors"
+              >
+                Lagre
+              </button>
+            </div>
+          </form>
+
+          <form method="post" action={`/api/projects/${p.id}/delete`} class="mt-4">
+            <button
+              type="submit"
+              class="w-full text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors py-2"
+              onclick="return confirm('Slett dette prosjektet permanent? Alle logger forsvinner.')"
+            >
+              Slett prosjekt
+            </button>
+          </form>
+        </div>
+      </div>
+    </aside>
+  </div>
+</StudioLayout>
