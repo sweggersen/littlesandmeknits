@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 
-export const GET: APIRoute = async ({ params, request, cookies, locals }) => {
+export const GET: APIRoute = async ({ params, request, cookies }) => {
   const user = await getCurrentUser({ request, cookies });
   if (!user) return new Response('Unauthorized', { status: 401 });
 
@@ -25,8 +26,7 @@ export const GET: APIRoute = async ({ params, request, cookies, locals }) => {
     return new Response('Forbidden', { status: 403 });
   }
 
-  const env = locals.runtime.env;
-  if (!env?.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return new Response('Server not configured', { status: 503 });
   }
 

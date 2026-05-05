@@ -1,9 +1,10 @@
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { getEntry } from 'astro:content';
 import { getCurrentUser } from '../../lib/auth';
 import { createStripe } from '../../lib/stripe';
 
-export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => {
+export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const formData = await request.formData();
   const slug = formData.get('pattern')?.toString();
   if (!slug) return new Response('Missing pattern', { status: 400 });
@@ -23,8 +24,7 @@ export const POST: APIRoute = async ({ request, cookies, locals, redirect }) => 
   }
 
   const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
-  const env = locals.runtime.env;
-  if (!env?.STRIPE_SECRET_KEY) {
+  if (!env.STRIPE_SECRET_KEY) {
     return new Response('Stripe not configured', { status: 503 });
   }
 

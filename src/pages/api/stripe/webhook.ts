@@ -1,11 +1,11 @@
 import type { APIRoute } from 'astro';
 import type Stripe from 'stripe';
+import { env } from 'cloudflare:workers';
 import { createStripe } from '../../../lib/stripe';
 import { createAdminSupabase } from '../../../lib/supabase';
 
-export const POST: APIRoute = async ({ request, locals }) => {
-  const env = locals.runtime.env;
-  if (!env?.STRIPE_SECRET_KEY || !env?.STRIPE_WEBHOOK_SECRET || !env?.SUPABASE_SERVICE_ROLE_KEY) {
+export const POST: APIRoute = async ({ request }) => {
+  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return new Response('Server not configured', { status: 503 });
   }
 
