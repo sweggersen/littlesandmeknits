@@ -1,0 +1,8 @@
+# Server-only secrets (Worker runtime).
+# Copy this file to `.dev.vars` and fill in the values.
+# In production: set these via `wrangler secret put NAME` or the Cloudflare dashboard.
+# Never commit `.dev.vars` — it's gitignored.
+
+SUPABASE_SERVICE_ROLE_KEY=""
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
