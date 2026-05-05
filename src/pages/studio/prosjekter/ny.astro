@@ -6,6 +6,10 @@ const allPatterns = await getCollection('patterns', (p) => !p.data.draft);
 const patterns = allPatterns
   .map((p) => ({ slug: p.id, title: p.data.title.nb }))
   .sort((a, b) => a.title.localeCompare(b.title, 'nb'));
+
+const fromSlug = Astro.url.searchParams.get('from')?.trim() ?? '';
+const fromTitle = patterns.find((p) => p.slug === fromSlug)?.title ?? '';
+const prefilledTitle = fromTitle ? `${fromTitle}` : '';
 ---
 
 <StudioLayout title="Nytt prosjekt — Littles and Me" lang="nb">
@@ -28,6 +32,7 @@ const patterns = allPatterns
           type="text"
           required
           maxlength="120"
+          value={prefilledTitle}
           placeholder="f.eks. Solskinn til Aksel"
           class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
         />
@@ -88,7 +93,7 @@ const patterns = allPatterns
             class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
           >
             <option value="">— Ingen —</option>
-            {patterns.map((p) => <option value={p.slug}>{p.title}</option>)}
+            {patterns.map((p) => <option value={p.slug} selected={p.slug === fromSlug}>{p.title}</option>)}
           </select>
         </div>
       </div>

@@ -1,0 +1,175 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+
+const weights = [
+  'Lace (Tråd)',
+  'Tynn (Fingering)',
+  'Sport',
+  'Mellomtykt (DK)',
+  'Tykkere (Worsted)',
+  'Tykk (Aran)',
+  'Bulky',
+  'Super bulky',
+];
+---
+
+<StudioLayout title="Nytt garn — Littles and Me" lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/garn" class="hover:text-charcoal transition-colors">Garnlager</a>
+      <span class="mx-2">/</span>
+      <span>Nytt</span>
+    </nav>
+    <h1 class="font-serif text-4xl mb-8">Nytt garn</h1>
+
+    <form method="post" action="/api/yarns/create" enctype="multipart/form-data" class="bg-white rounded-3xl p-8 border border-sage-500/10 space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="brand" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Merke *
+          </label>
+          <input
+            id="brand"
+            name="brand"
+            type="text"
+            required
+            maxlength="80"
+            placeholder="Sandnes Garn"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label for="name" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Garnnavn *
+          </label>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            required
+            maxlength="80"
+            placeholder="Sunday"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="color" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Farge / fargenummer
+          </label>
+          <input
+            id="color"
+            name="color"
+            type="text"
+            maxlength="80"
+            placeholder="Sennep · 1015"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label for="weight" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Vekt
+          </label>
+          <select
+            id="weight"
+            name="weight"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          >
+            <option value="">— Velg —</option>
+            {weights.map((w) => <option value={w}>{w}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label for="fiber" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Fiber
+        </label>
+        <input
+          id="fiber"
+          name="fiber"
+          type="text"
+          maxlength="120"
+          placeholder="100% merino, 70% ull / 30% silke …"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="total_grams" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Mengde (gram)
+          </label>
+          <input
+            id="total_grams"
+            name="total_grams"
+            type="number"
+            min="0"
+            step="50"
+            placeholder="200"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label for="total_meters" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Lengde (meter)
+          </label>
+          <input
+            id="total_meters"
+            name="total_meters"
+            type="number"
+            min="0"
+            step="50"
+            placeholder="500"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label for="photo" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Bilde
+        </label>
+        <input
+          id="photo"
+          name="photo"
+          type="file"
+          accept="image/*"
+          class="block w-full text-sm text-charcoal/70 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
+        />
+        <p class="text-[11px] text-charcoal/45 mt-2">Valgfritt. Maks 10 MB.</p>
+      </div>
+
+      <div>
+        <label for="notes" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Notater
+        </label>
+        <textarea
+          id="notes"
+          name="notes"
+          rows="3"
+          maxlength="500"
+          placeholder="Hvor er det fra, hva er det tenkt til, hvordan oppfører det seg…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+        ></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <a
+          href="/studio/garn"
+          class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2"
+        >
+          Avbryt
+        </a>
+        <button
+          type="submit"
+          class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          Legg til garn
+        </button>
+      </div>
+    </form>
+  </div>
+</StudioLayout>

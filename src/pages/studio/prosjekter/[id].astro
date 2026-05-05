@@ -333,6 +333,15 @@ const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
             >
               Åpne delt side ↗
             </a>
+            {heroUrl && (
+              <a
+                href={heroUrl}
+                download
+                class="block text-center text-xs font-medium text-charcoal/70 hover:text-terracotta-500 transition-colors py-2 mb-2 border border-sage-500/15 rounded-full"
+              >
+                Last ned bilde for Instagram
+              </a>
+            )}
             <form method="post" action={`/api/projects/${p.id}/share`}>
               <input type="hidden" name="share" value="false" />
               <button

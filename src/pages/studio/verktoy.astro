@@ -1,13 +1,203 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
-import { useTranslations } from '../../lib/i18n';
 
-const t = useTranslations('nb');
+const needles = [
+  { metric: '2.0', us: '0', uk: '14' },
+  { metric: '2.25', us: '1', uk: '13' },
+  { metric: '2.5', us: '1.5', uk: '—' },
+  { metric: '2.75', us: '2', uk: '12' },
+  { metric: '3.0', us: '—', uk: '11' },
+  { metric: '3.25', us: '3', uk: '10' },
+  { metric: '3.5', us: '4', uk: '—' },
+  { metric: '3.75', us: '5', uk: '9' },
+  { metric: '4.0', us: '6', uk: '8' },
+  { metric: '4.5', us: '7', uk: '7' },
+  { metric: '5.0', us: '8', uk: '6' },
+  { metric: '5.5', us: '9', uk: '5' },
+  { metric: '6.0', us: '10', uk: '4' },
+  { metric: '6.5', us: '10.5', uk: '3' },
+  { metric: '7.0', us: '—', uk: '2' },
+  { metric: '7.5', us: '—', uk: '1' },
+  { metric: '8.0', us: '11', uk: '0' },
+  { metric: '9.0', us: '13', uk: '00' },
+  { metric: '10.0', us: '15', uk: '000' },
+];
 ---
 
 <StudioLayout title="Verktøy — Littles and Me" lang="nb">
-  <h1 class="font-serif text-4xl mb-8">{t('studio.nav.tools')}</h1>
-  <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
-    <p class="text-charcoal/55">{t('studio.empty.tools')}</p>
+  <h1 class="font-serif text-4xl mb-3">Verktøy</h1>
+  <p class="text-charcoal/60 mb-10 max-w-2xl">
+    Praktiske kalkulatorer for å hjelpe deg fra plan til ferdig plagg. Alt regner lokalt i nettleseren — ingenting lagres eller sendes.
+  </p>
+
+  <div class="space-y-8">
+
+    <!-- Strikkfasthet -->
+    <section class="bg-white rounded-3xl p-8 border border-sage-500/10">
+      <h2 class="font-serif text-2xl mb-2">Strikkfasthet</h2>
+      <p class="text-sm text-charcoal/55 mb-6">Regn ut hvor mange masker du trenger for å få riktig bredde.</p>
+      <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end" data-gauge>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Masker pr 10 cm
+          </label>
+          <input
+            type="number"
+            name="stitches"
+            min="1"
+            step="0.5"
+            value="22"
+            class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+          />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Ønsket bredde (cm)
+          </label>
+          <input
+            type="number"
+            name="width"
+            min="1"
+            step="0.5"
+            value="50"
+            class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+          />
+        </div>
+        <div class="bg-sage-100 rounded-xl px-4 py-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">Du trenger</p>
+          <p class="font-serif text-3xl text-sage-900" data-gauge-result>110</p>
+          <p class="text-xs text-sage-900/70">masker</p>
+        </div>
+      </form>
+      <p class="text-xs text-charcoal/45 mt-4">Tips: Strikk alltid en prøvelapp først. Strikkfastheten endrer seg med garn, pinner og hvor stramt du strikker.</p>
+    </section>
+
+    <!-- Garnforbruk -->
+    <section class="bg-white rounded-3xl p-8 border border-sage-500/10">
+      <h2 class="font-serif text-2xl mb-2">Garnforbruk</h2>
+      <p class="text-sm text-charcoal/55 mb-6">Anslag basert på plaggtype og str. Kan variere med ±20 %.</p>
+
+      <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end" data-yardage>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Plagg
+          </label>
+          <select name="garment" class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500">
+            <option value="hat">Lue</option>
+            <option value="mittens">Votter (par)</option>
+            <option value="socks">Sokker (par)</option>
+            <option value="scarf">Skjerf</option>
+            <option value="cardigan_kid" selected>Genser/cardigan, barn</option>
+            <option value="cardigan_adult">Genser/cardigan, voksen</option>
+            <option value="blanket">Babyteppe</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Størrelse / alder
+          </label>
+          <select name="size" class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500">
+            <option value="0">0–6 mnd</option>
+            <option value="1">1 år</option>
+            <option value="2" selected>2 år</option>
+            <option value="4">4 år</option>
+            <option value="6">6 år</option>
+            <option value="8">8 år</option>
+            <option value="adult_s">Voksen S</option>
+            <option value="adult_m">Voksen M</option>
+            <option value="adult_l">Voksen L</option>
+          </select>
+        </div>
+        <div class="bg-sage-100 rounded-xl px-4 py-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">Forbruk ca.</p>
+          <p class="font-serif text-3xl text-sage-900" data-yardage-grams>250 g</p>
+          <p class="text-xs text-sage-900/70" data-yardage-meters>· 580 m</p>
+        </div>
+      </form>
+    </section>
+
+    <!-- Pinnestørrelse -->
+    <section class="bg-white rounded-3xl p-8 border border-sage-500/10">
+      <h2 class="font-serif text-2xl mb-2">Pinnestørrelser</h2>
+      <p class="text-sm text-charcoal/55 mb-6">Konverteringstabell mellom metrisk, US og UK.</p>
+      <div class="overflow-x-auto -mx-2">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 border-b border-sage-500/15">
+              <th class="text-left py-3 px-2">Metrisk (mm)</th>
+              <th class="text-left py-3 px-2">US</th>
+              <th class="text-left py-3 px-2">UK</th>
+            </tr>
+          </thead>
+          <tbody>
+            {needles.map((n) => (
+              <tr class="border-b border-sage-500/10">
+                <td class="py-2 px-2 font-medium">{n.metric}</td>
+                <td class="py-2 px-2 text-charcoal/70">{n.us}</td>
+                <td class="py-2 px-2 text-charcoal/70">{n.uk}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </StudioLayout>
+
+<script>
+  // Gauge calculator
+  const gaugeForm = document.querySelector<HTMLFormElement>('[data-gauge]');
+  const gaugeOut = document.querySelector<HTMLElement>('[data-gauge-result]');
+  function recalcGauge() {
+    if (!gaugeForm || !gaugeOut) return;
+    const fd = new FormData(gaugeForm);
+    const stitches = parseFloat(fd.get('stitches')?.toString() ?? '0');
+    const width = parseFloat(fd.get('width')?.toString() ?? '0');
+    if (!stitches || !width) {
+      gaugeOut.textContent = '—';
+      return;
+    }
+    const result = Math.round((stitches / 10) * width);
+    gaugeOut.textContent = String(result);
+  }
+  gaugeForm?.addEventListener('input', recalcGauge);
+  recalcGauge();
+
+  // Yardage estimator
+  // Approximate base yardage in grams for a "default" size, then scale by size factor.
+  type Garment = 'hat' | 'mittens' | 'socks' | 'scarf' | 'cardigan_kid' | 'cardigan_adult' | 'blanket';
+  const baseGrams: Record<Garment, number> = {
+    hat: 80,
+    mittens: 70,
+    socks: 100,
+    scarf: 200,
+    cardigan_kid: 250,
+    cardigan_adult: 600,
+    blanket: 700,
+  };
+  const sizeFactor: Record<string, number> = {
+    '0': 0.7, '1': 0.85, '2': 1.0, '4': 1.2, '6': 1.4, '8': 1.6,
+    'adult_s': 1.0, 'adult_m': 1.1, 'adult_l': 1.25,
+  };
+  // Yarn meters per gram baseline (DK weight): ~3.0 m/g
+  const metersPerGram = 3.0;
+
+  const yarForm = document.querySelector<HTMLFormElement>('[data-yardage]');
+  const yarGrams = document.querySelector<HTMLElement>('[data-yardage-grams]');
+  const yarMeters = document.querySelector<HTMLElement>('[data-yardage-meters]');
+  function recalcYardage() {
+    if (!yarForm || !yarGrams || !yarMeters) return;
+    const fd = new FormData(yarForm);
+    const garment = fd.get('garment')?.toString() as Garment;
+    const size = fd.get('size')?.toString() ?? '2';
+    const isAdult = garment === 'cardigan_adult';
+    const sizeKey = isAdult && !size.startsWith('adult_') ? 'adult_m' : size;
+    const factor = sizeFactor[sizeKey] ?? 1;
+    const g = Math.round(baseGrams[garment] * factor);
+    const m = Math.round(g * metersPerGram);
+    yarGrams.textContent = `${g} g`;
+    yarMeters.textContent = `· ${m} m`;
+  }
+  yarForm?.addEventListener('input', recalcYardage);
+  recalcYardage();
+</script>

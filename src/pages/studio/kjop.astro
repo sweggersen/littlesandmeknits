@@ -57,14 +57,22 @@ const enriched = await Promise.all(
               {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
             </p>
           </div>
-          <a
-            href={`/api/download/${p.id}`}
-            target="_blank"
-            rel="noopener"
-            class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
-          >
-            Last ned PDF
-          </a>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <a
+              href={`/studio/prosjekter/ny?from=${encodeURIComponent(p.pattern_slug)}`}
+              class="hidden sm:inline-block text-xs font-medium text-charcoal/70 hover:text-terracotta-500 px-3 py-2.5 rounded-full transition-colors whitespace-nowrap"
+            >
+              Start prosjekt
+            </a>
+            <a
+              href={`/api/download/${p.id}`}
+              target="_blank"
+              rel="noopener"
+              class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
+            >
+              Last ned PDF
+            </a>
+          </div>
         </li>
       ))}
     </ul>

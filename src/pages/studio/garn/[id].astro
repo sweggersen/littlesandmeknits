@@ -1,0 +1,137 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { projectPhotoUrl } from '../../../lib/storage';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/studio/garn');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+type YarnRow = {
+  id: string;
+  brand: string;
+  name: string;
+  color: string | null;
+  weight: string | null;
+  fiber: string | null;
+  total_grams: number | null;
+  total_meters: number | null;
+  notes: string | null;
+  photo_path: string | null;
+  acquired_at: string | null;
+  created_at: string;
+};
+
+const { data: yarn, error } = await supabase
+  .from('yarns')
+  .select('id, brand, name, color, weight, fiber, total_grams, total_meters, notes, photo_path, acquired_at, created_at')
+  .eq('id', id)
+  .maybeSingle();
+
+if (error || !yarn) return Astro.redirect('/studio/garn');
+
+const y = yarn as YarnRow;
+const photoUrl = projectPhotoUrl(y.photo_path);
+
+const weights = [
+  'Lace (Tråd)',
+  'Tynn (Fingering)',
+  'Sport',
+  'Mellomtykt (DK)',
+  'Tykkere (Worsted)',
+  'Tykk (Aran)',
+  'Bulky',
+  'Super bulky',
+];
+---
+
+<StudioLayout title={`${y.brand} ${y.name} — Littles and Me`} lang="nb">
+  <nav class="text-xs text-charcoal/50 mb-4">
+    <a href="/studio/garn" class="hover:text-charcoal transition-colors">Garnlager</a>
+    <span class="mx-2">/</span>
+    <span>{y.brand} {y.name}</span>
+  </nav>
+
+  <div class="max-w-4xl grid grid-cols-1 lg:grid-cols-5 gap-8">
+    <div class="lg:col-span-2">
+      {photoUrl ? (
+        <div class="aspect-square rounded-3xl overflow-hidden bg-oatmeal border border-sage-500/10">
+          <img src={photoUrl} alt={`${y.brand} ${y.name}`} class="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div class="aspect-square rounded-3xl bg-gradient-to-br from-sage-100 to-oatmeal border border-sage-500/10" />
+      )}
+    </div>
+
+    <div class="lg:col-span-3">
+      <p class="text-xs font-bold uppercase tracking-widest text-sage-900 mb-1">{y.brand}</p>
+      <h1 class="font-serif text-4xl mb-2">{y.name}</h1>
+      {y.color && <p class="text-charcoal/65 mb-4">{y.color}</p>}
+
+      <form method="post" action={`/api/yarns/${y.id}/update`} enctype="multipart/form-data" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Merke</label>
+            <input name="brand" type="text" required maxlength="80" value={y.brand} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garnnavn</label>
+            <input name="name" type="text" required maxlength="80" value={y.name} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Farge</label>
+            <input name="color" type="text" maxlength="80" value={y.color ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Vekt</label>
+            <select name="weight" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+              <option value="">— Velg —</option>
+              {weights.map((w) => <option value={w} selected={w === y.weight}>{w}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fiber</label>
+          <input name="fiber" type="text" maxlength="120" value={y.fiber ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Mengde (g)</label>
+            <input name="total_grams" type="number" min="0" step="50" value={y.total_grams ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lengde (m)</label>
+            <input name="total_meters" type="number" min="0" step="50" value={y.total_meters ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt bilde</label>
+          <input name="photo" type="file" accept="image/*" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
+          <p class="text-[10px] text-charcoal/45 mt-1">La feltet være tomt for å beholde det nåværende bildet.</p>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
+          <textarea name="notes" rows="3" maxlength="500" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{y.notes ?? ''}</textarea>
+        </div>
+        <div class="flex justify-end pt-2">
+          <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            Lagre endringer
+          </button>
+        </div>
+      </form>
+
+      <form method="post" action={`/api/yarns/${y.id}/delete`} class="mt-4">
+        <button
+          type="submit"
+          class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors"
+          onclick="return confirm('Slette dette garnet?')"
+        >
+          Slett garn
+        </button>
+      </form>
+    </div>
+  </div>
+</StudioLayout>

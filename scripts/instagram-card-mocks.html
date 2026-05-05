@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="UTF-8">
+<title>Instagram card mocks — Littles and Me</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400..600;9..144,1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --linen: #FAF6F0;
+    --oatmeal: #E8DFD0;
+    --sage-100: #E8EFE3;
+    --sage-500: #9CAF88;
+    --sage-900: #4A5A3F;
+    --terracotta: #C76D4E;
+    --charcoal: #2C2A26;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #f0eee8;
+    color: var(--charcoal);
+    padding: 40px 20px 80px;
+  }
+  h1.page-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 28pt;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  p.page-sub {
+    text-align: center;
+    color: rgba(0,0,0,0.5);
+    font-size: 11pt;
+    margin-bottom: 50px;
+  }
+  .row {
+    max-width: 1280px;
+    margin: 0 auto 60px;
+  }
+  .row-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18pt;
+    margin-bottom: 6px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding-bottom: 8px;
+  }
+  .row-sub {
+    font-size: 10pt;
+    color: rgba(0,0,0,0.5);
+    margin-bottom: 24px;
+  }
+  .variants {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .variant {
+    flex: 1 1 320px;
+    max-width: 380px;
+  }
+  .variant-label {
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.5);
+    margin-bottom: 10px;
+  }
+  .variant-note {
+    font-size: 10pt;
+    color: rgba(0,0,0,0.55);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  /* The card containers — render at exact target px, scaled down to fit */
+  .card-wrap {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+  }
+  .card-feed-square {
+    width: 360px;
+    height: 360px;
+    position: relative;
+  }
+  .card-feed-portrait {
+    width: 360px;
+    height: 450px;
+    position: relative;
+  }
+  .card-story {
+    width: 320px;
+    height: 568px;
+    position: relative;
+  }
+
+  /* === Card A — Hero with title overlay === */
+  .card-a { background: var(--charcoal); }
+  .card-a .photo {
+    position: absolute;
+    inset: 0;
+    background-image: url('../src/assets/img/mustard-knit.jpg');
+    background-size: cover;
+    background-position: center;
+  }
+  .card-a .scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.65) 100%);
+  }
+  .card-a .brand {
+    position: absolute;
+    top: 6%;
+    left: 7%;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    color: white;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.18);
+    padding: 4px 10px;
+    border-radius: 99px;
+    backdrop-filter: blur(6px);
+  }
+  .card-a .info {
+    position: absolute;
+    bottom: 6%;
+    left: 7%;
+    right: 7%;
+    color: white;
+  }
+  .card-a .pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--terracotta);
+    color: white;
+    padding: 5px 11px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+  }
+  .card-a .title {
+    font-family: 'Fraunces', serif;
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.05;
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+  }
+  .card-a .meta {
+    font-size: 11px;
+    opacity: 0.85;
+    line-height: 1.5;
+  }
+  .card-a .url {
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    opacity: 0.65;
+    margin-top: 14px;
+  }
+
+  /* === Card B — Split: photo top, info card below === */
+  .card-b { background: var(--linen); display: flex; flex-direction: column; }
+  .card-b .photo {
+    flex: 1.4 1 0;
+    background-image: url('../src/assets/img/mustard-knit.jpg');
+    background-size: cover;
+    background-position: center;
+  }
+  .card-b .info {
+    flex: 1 1 0;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .card-b .pill {
+    display: inline-block;
+    align-self: flex-start;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--sage-100);
+    color: var(--sage-900);
+    padding: 5px 11px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+  }
+  .card-b .title {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.05;
+    color: var(--charcoal);
+    margin-bottom: 6px;
+  }
+  .card-b .summary {
+    font-size: 11px;
+    color: rgba(44,42,38,0.75);
+    line-height: 1.5;
+  }
+  .card-b .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding-top: 10px;
+  }
+  .card-b .brand {
+    font-family: 'Fraunces', serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--charcoal);
+  }
+  .card-b .url {
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--terracotta);
+    font-weight: 600;
+  }
+
+  /* === Card C — Polaroid === */
+  .card-c { background: var(--oatmeal); padding: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .card-c .polaroid {
+    background: white;
+    padding: 18px 18px 24px;
+    border-radius: 4px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    transform: rotate(-1.5deg);
+    width: 78%;
+  }
+  .card-c .photo {
+    aspect-ratio: 1/1;
+    background-image: url('../src/assets/img/mustard-knit.jpg');
+    background-size: cover;
+    background-position: center;
+    margin-bottom: 14px;
+  }
+  .card-c .pill {
+    display: inline-block;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--terracotta);
+    margin-bottom: 4px;
+  }
+  .card-c .title {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.05;
+    color: var(--charcoal);
+  }
+  .card-c .url {
+    font-size: 8px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(44,42,38,0.5);
+    margin-top: 16px;
+    font-weight: 600;
+  }
+
+  /* === Story-specific (9:16) === */
+  .card-story-a { background: var(--charcoal); }
+  .card-story-a .photo {
+    position: absolute;
+    inset: 0;
+    background-image: url('../src/assets/img/mustard-knit.jpg');
+    background-size: cover;
+    background-position: center;
+  }
+  .card-story-a .scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.4) 0%, transparent 25%, transparent 60%, rgba(0,0,0,0.7) 100%);
+  }
+  .card-story-a .brand-pill {
+    position: absolute;
+    top: 5%;
+    left: 6%;
+    right: 6%;
+    text-align: center;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 12px;
+    color: white;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .card-story-a .info {
+    position: absolute;
+    bottom: 12%;
+    left: 7%;
+    right: 7%;
+    color: white;
+    text-align: center;
+  }
+  .card-story-a .pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--terracotta);
+    color: white;
+    padding: 5px 11px;
+    border-radius: 99px;
+    margin-bottom: 14px;
+  }
+  .card-story-a .title {
+    font-family: 'Fraunces', serif;
+    font-size: 36px;
+    font-weight: 500;
+    line-height: 1.05;
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+  .card-story-a .summary {
+    font-size: 12px;
+    opacity: 0.9;
+    line-height: 1.5;
+    max-width: 90%;
+    margin: 0 auto 24px;
+    font-style: italic;
+    font-family: 'Fraunces', serif;
+  }
+  .card-story-a .url-block {
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding-top: 14px;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0.85;
+  }
+
+  /* Story B — softer, on linen */
+  .card-story-b { background: var(--linen); display: flex; flex-direction: column; }
+  .card-story-b .top {
+    text-align: center;
+    padding: 32px 24px 16px;
+  }
+  .card-story-b .brand {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sage-900);
+  }
+  .card-story-b .photo {
+    flex: 1.5 1 0;
+    background-image: url('../src/assets/img/mustard-knit.jpg');
+    background-size: cover;
+    background-position: center;
+    margin: 0 24px;
+    border-radius: 14px;
+  }
+  .card-story-b .info {
+    flex: 1 1 0;
+    padding: 22px 24px;
+    text-align: center;
+  }
+  .card-story-b .pill {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--sage-100);
+    color: var(--sage-900);
+    padding: 5px 11px;
+    border-radius: 99px;
+    margin-bottom: 12px;
+  }
+  .card-story-b .title {
+    font-family: 'Fraunces', serif;
+    font-size: 30px;
+    font-weight: 500;
+    line-height: 1.05;
+    color: var(--charcoal);
+    margin-bottom: 8px;
+  }
+  .card-story-b .summary {
+    font-size: 11px;
+    color: rgba(44,42,38,0.7);
+    line-height: 1.5;
+    font-style: italic;
+    font-family: 'Fraunces', serif;
+  }
+  .card-story-b .footer {
+    margin: 0 24px 26px;
+    padding: 14px 0 0;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--terracotta);
+    font-weight: 600;
+  }
+
+  .legend {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 10pt;
+    color: rgba(0,0,0,0.45);
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Instagram-bilde mockup</h1>
+<p class="page-sub">Solskinn-prosjektet i tre layoutvarianter, gjengitt for både feed og story.</p>
+
+<!-- Feed (1080x1080 — square) -->
+<div class="row">
+  <h2 class="row-title">Feed · 1080 × 1080 (firkant)</h2>
+  <p class="row-sub">Den klassiske Instagram-feed-størrelsen.</p>
+
+  <div class="variants">
+    <div class="variant">
+      <div class="variant-label">A — Hero med tittel-overlay</div>
+      <div class="card-wrap card-feed-square card-a">
+        <div class="photo"></div>
+        <div class="scrim"></div>
+        <div class="brand">Littles and Me</div>
+        <div class="info">
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="meta">For Aksel · Sandnes Sunday · 3,5 mm</div>
+          <div class="url">littlesandmeknits.com/p/solskinn-aksel</div>
+        </div>
+      </div>
+      <p class="variant-note">Bildet i full bredde, info brent inn nederst med en scrim. Mest dramatisk, fungerer best med skarpe detaljbilder.</p>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — Splittet: bilde + infokort</div>
+      <div class="card-wrap card-feed-square card-b">
+        <div class="photo"></div>
+        <div class="info">
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="summary">Mellomtykt mustard på 3,5&nbsp;mm. Ferdig med yoke, snart bol.</div>
+          <div class="footer">
+            <span class="brand">Littles and Me</span>
+            <span class="url">/p/solskinn-aksel</span>
+          </div>
+        </div>
+      </div>
+      <p class="variant-note">Mer luft, lettere å lese på små skjermer. Sammendraget gir mer kontekst i feeden — folk leser det uten å trykke.</p>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">C — Polaroid</div>
+      <div class="card-wrap card-feed-square card-c">
+        <div class="polaroid">
+          <div class="photo"></div>
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="url">littlesandmeknits.com</div>
+        </div>
+      </div>
+      <p class="variant-note">Personlig og varmt. Fungerer best for ferdige plagg / dagboknotater. Litt kunstig på Instagram der polaroid-estetikken er overbrukt.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Feed Portrait (1080x1350 — 4:5) -->
+<div class="row">
+  <h2 class="row-title">Feed · 1080 × 1350 (4:5 portrait)</h2>
+  <p class="row-sub">Tar mer plass i feeden enn 1:1, og er den anbefalte feed-størrelsen i 2026.</p>
+
+  <div class="variants">
+    <div class="variant">
+      <div class="variant-label">A — Hero med tittel-overlay</div>
+      <div class="card-wrap card-feed-portrait card-a">
+        <div class="photo"></div>
+        <div class="scrim"></div>
+        <div class="brand">Littles and Me</div>
+        <div class="info">
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="meta">For Aksel · Sandnes Sunday · 3,5 mm</div>
+          <div class="url">littlesandmeknits.com/p/solskinn-aksel</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — Splittet: bilde + infokort</div>
+      <div class="card-wrap card-feed-portrait card-b">
+        <div class="photo"></div>
+        <div class="info">
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="summary">Mellomtykt mustard på 3,5&nbsp;mm. Ferdig med yoke, snart bol.</div>
+          <div class="footer">
+            <span class="brand">Littles and Me</span>
+            <span class="url">/p/solskinn-aksel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Story (1080x1920 — 9:16) -->
+<div class="row">
+  <h2 class="row-title">Story · 1080 × 1920 (9:16)</h2>
+  <p class="row-sub">For Instagram Stories. Større tekst, midtjustert, med plass til en lenke-sticker øverst eller nederst.</p>
+
+  <div class="variants">
+    <div class="variant">
+      <div class="variant-label">A — Mørk story med hero</div>
+      <div class="card-wrap card-story card-story-a">
+        <div class="photo"></div>
+        <div class="scrim"></div>
+        <div class="brand-pill">Littles and Me</div>
+        <div class="info">
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="summary">Mellomtykt mustard på 3,5 mm. Ferdig med yoke, snart bol.</div>
+          <div class="url-block">Trykk lenken — littlesandmeknits.com/p/solskinn-aksel</div>
+        </div>
+      </div>
+      <p class="variant-note">Mest visuell impact. Den nederste tredjedelen er mørk, så en story link sticker leses tydelig.</p>
+    </div>
+
+    <div class="variant">
+      <div class="variant-label">B — Lys story med kortet</div>
+      <div class="card-wrap card-story card-story-b">
+        <div class="top">
+          <div class="brand">Littles and Me</div>
+        </div>
+        <div class="photo"></div>
+        <div class="info">
+          <span class="pill">I gang</span>
+          <div class="title">Solskinn til Aksel</div>
+          <div class="summary">Mellomtykt mustard på 3,5 mm. Ferdig med yoke, snart bol.</div>
+        </div>
+        <div class="footer">/p/solskinn-aksel</div>
+      </div>
+      <p class="variant-note">Roligere, mer på linje med resten av merkevaren. Bedre når posten er en oppdatering, ikke et "se-det-nye-prosjektet"-øyeblikk.</p>
+    </div>
+  </div>
+
+  <p class="legend">Visningene over er forminsket ~33%. På telefon vil tittelen og bildene se betydelig større ut.</p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,95 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { projectPhotoUrl } from '../../../lib/storage';
+
+type YarnRow = {
+  id: string;
+  brand: string;
+  name: string;
+  color: string | null;
+  weight: string | null;
+  fiber: string | null;
+  total_grams: number | null;
+  total_meters: number | null;
+  photo_path: string | null;
+  created_at: string;
+};
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data } = await supabase
+  .from('yarns')
+  .select('id, brand, name, color, weight, fiber, total_grams, total_meters, photo_path, created_at')
+  .order('created_at', { ascending: false });
+
+const yarns = (data ?? []) as YarnRow[];
+const totalGrams = yarns.reduce((s, y) => s + (y.total_grams ?? 0), 0);
+const totalKg = (totalGrams / 1000).toFixed(1);
+---
+
+<StudioLayout title="Garnlager — Littles and Me" lang="nb">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="font-serif text-4xl">Garnlager</h1>
+      {yarns.length > 0 && (
+        <p class="text-sm text-charcoal/55 mt-2">
+          {yarns.length} {yarns.length === 1 ? 'garn' : 'garn'} · ca. {totalKg} kg totalt
+        </p>
+      )}
+    </div>
+    <a
+      href="/studio/garn/ny"
+      class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      + Nytt garn
+    </a>
+  </div>
+
+  {yarns.length === 0 ? (
+    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+      <p class="text-charcoal/55 mb-6">Ingen garn ennå. Legg til det første for å holde styr på fargene, vektene og hvor mye du har igjen.</p>
+      <a
+        href="/studio/garn/ny"
+        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Legg til garn
+      </a>
+    </div>
+  ) : (
+    <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {yarns.map((y) => {
+        const photoUrl = projectPhotoUrl(y.photo_path);
+        return (
+          <li>
+            <a
+              href={`/studio/garn/${y.id}`}
+              class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
+            >
+              {photoUrl ? (
+                <div class="aspect-square bg-oatmeal overflow-hidden">
+                  <img src={photoUrl} alt={`${y.brand} ${y.name}`} class="w-full h-full object-cover" loading="lazy" />
+                </div>
+              ) : (
+                <div class="aspect-square bg-gradient-to-br from-sage-100 to-oatmeal" />
+              )}
+              <div class="p-5">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">{y.brand}</p>
+                <h3 class="font-serif text-lg leading-tight mb-1">{y.name}</h3>
+                {y.color && <p class="text-sm text-charcoal/65">{y.color}</p>}
+                <div class="mt-3 pt-3 border-t border-sage-500/10 flex items-center gap-3 text-xs text-charcoal/55">
+                  {y.weight && <span>{y.weight}</span>}
+                  {y.total_grams != null && (
+                    <>
+                      {y.weight && <span class="text-charcoal/20">·</span>}
+                      <span>{y.total_grams} g</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</StudioLayout>
