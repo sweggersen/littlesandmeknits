@@ -51,8 +51,16 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       <a
         href={localizedPath(lang, '/logg-inn')}
         class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
+        data-auth-link="login"
       >
         {t('nav.login')}
+      </a>
+      <a
+        href={localizedPath(lang, '/studio')}
+        class="hidden text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
+        data-auth-link="studio"
+      >
+        {t('nav.studio')}
       </a>
       <button
         type="button"
@@ -76,9 +84,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
           </a>
         </li>
       ))}
-      <li>
+      <li data-auth-link="login">
         <a href={localizedPath(lang, '/logg-inn')} class="block py-2 text-base font-medium text-charcoal/80">
           {t('nav.login')}
+        </a>
+      </li>
+      <li class="hidden" data-auth-link="studio">
+        <a href={localizedPath(lang, '/studio')} class="block py-2 text-base font-medium text-charcoal/80">
+          {t('nav.studio')}
         </a>
       </li>
     </ul>
@@ -91,4 +104,19 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   trigger?.addEventListener('click', () => {
     menu?.classList.toggle('hidden');
   });
+
+  // Swap "Logg inn" → "Studio" once we know the user is signed in.
+  fetch('/api/me', { credentials: 'same-origin' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((data) => {
+      if (!data?.user) return;
+      document.querySelectorAll<HTMLElement>('[data-auth-link="login"]').forEach((el) => {
+        el.classList.add('hidden');
+      });
+      document.querySelectorAll<HTMLElement>('[data-auth-link="studio"]').forEach((el) => {
+        el.classList.remove('hidden');
+        if (el.tagName === 'A') el.classList.add('sm:inline-flex');
+      });
+    })
+    .catch(() => {});
 </script>
