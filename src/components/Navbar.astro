@@ -106,16 +106,17 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
   });
 
   // Swap "Logg inn" → "Studio" once we know the user is signed in.
+  // Use inline display style to bypass Tailwind responsive variants
+  // (e.g. `sm:inline-flex` would otherwise override the `hidden` class).
   fetch('/api/me', { credentials: 'same-origin' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
       if (!data?.user) return;
       document.querySelectorAll<HTMLElement>('[data-auth-link="login"]').forEach((el) => {
-        el.classList.add('hidden');
+        el.style.display = 'none';
       });
       document.querySelectorAll<HTMLElement>('[data-auth-link="studio"]').forEach((el) => {
         el.classList.remove('hidden');
-        if (el.tagName === 'A') el.classList.add('sm:inline-flex');
       });
     })
     .catch(() => {});
