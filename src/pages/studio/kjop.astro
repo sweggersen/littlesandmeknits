@@ -1,17 +1,43 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
 import { useTranslations } from '../../lib/i18n';
+import { createServerSupabase } from '../../lib/supabase';
+import { getEntry } from 'astro:content';
+import { formatNok } from '../../lib/format';
 
 const t = useTranslations('nb');
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-// TODO Phase 1.7: query purchases from Supabase, render with Download buttons
-const purchases: Array<{ id: string; pattern_slug: string; amount_nok: number; status: string }> = [];
+type PurchaseRow = {
+  id: string;
+  pattern_slug: string;
+  amount_nok: number;
+  status: string;
+  created_at: string;
+};
+
+const { data } = await supabase
+  .from('purchases')
+  .select('id, pattern_slug, amount_nok, status, created_at')
+  .order('created_at', { ascending: false });
+
+const purchases = (data ?? []) as PurchaseRow[];
+
+const enriched = await Promise.all(
+  purchases.map(async (p) => {
+    const entry = await getEntry('patterns', p.pattern_slug);
+    return {
+      ...p,
+      title: entry?.data.title.nb ?? p.pattern_slug,
+    };
+  })
+);
 ---
 
 <StudioLayout title="Kjøp — Littles and Me" lang="nb">
   <h1 class="font-serif text-4xl mb-8">{t('studio.nav.purchases')}</h1>
 
-  {purchases.length === 0 ? (
+  {enriched.length === 0 ? (
     <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">{t('studio.empty.purchases')}</p>
       <a
@@ -21,5 +47,24 @@ const purchases: Array<{ id: string; pattern_slug: string; amount_nok: number; s
         {t('studio.cta.browsePatterns')}
       </a>
     </div>
-  ) : null}
+  ) : (
+    <ul class="space-y-3">
+      {enriched.map((p) => (
+        <li class="bg-white rounded-2xl p-5 border border-sage-500/10 flex items-center justify-between gap-4">
+          <div>
+            <h3 class="font-serif text-lg leading-tight">{p.title}</h3>
+            <p class="text-xs text-charcoal/50 mt-1">
+              {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
+            </p>
+          </div>
+          <a
+            href={`/api/download/${p.id}`}
+            class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
+          >
+            Last ned PDF
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
 </StudioLayout>

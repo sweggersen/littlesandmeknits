@@ -85,17 +85,21 @@ const otherImages = data.gallery.slice(1);
         </span>
       </div>
 
-      <button
-        type="button"
-        class="w-full bg-charcoal text-linen py-4 rounded-full font-medium hover:bg-terracotta-500 transition-colors mb-3"
-        data-buy-pattern={pattern.id}
-      >
-        {t('pattern.buy')}
-      </button>
-      <p class="text-[11px] text-charcoal/40 text-center mb-8">
-        {/* TODO Phase 1.5: wire to Stripe Checkout */}
-        Stripe checkout — kommer
-      </p>
+      <form method="post" action="/api/checkout" class="mb-8">
+        <input type="hidden" name="pattern" value={pattern.id} />
+        <input type="hidden" name="lang" value={lang} />
+        <button
+          type="submit"
+          class="w-full bg-charcoal text-linen py-4 rounded-full font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          {t('pattern.buy')}
+        </button>
+        <p class="text-[11px] text-charcoal/40 text-center mt-3">
+          {lang === 'nb'
+            ? 'Sikker betaling via Stripe. Du får oppskriften med en gang.'
+            : 'Secure checkout via Stripe. PDF delivered instantly.'}
+        </p>
+      </form>
 
       <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm border-t border-sage-500/15 pt-6">
         <dt class="text-charcoal/50">{t('pattern.sizes')}</dt>
