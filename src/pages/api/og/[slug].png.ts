@@ -406,8 +406,11 @@ export const GET: APIRoute = async ({ params, request, cookies, url }) => {
       });
     }
   } catch (err) {
-    console.error('OG render failed', err);
-    return new Response('Render failed', { status: 500 });
+    const stage = (err as { stage?: string })?.stage ?? 'unknown';
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    console.error('OG render failed', { stage, message, stack, slug, format });
+    return new Response(`Render failed: [${stage}] ${message}`, { status: 500 });
   }
 
   // Suppress unused warning while keeping the helper around for future absolute-URL needs.
