@@ -1,15 +1,15 @@
 import satori from 'satori';
 import { Resvg, initWasm } from '@resvg/resvg-wasm';
-
-const RESVG_WASM_URL = 'https://cdn.jsdelivr.net/npm/@resvg/resvg-wasm@2.6.2/index_bg.wasm';
+// @ts-expect-error — Cloudflare's Vite plugin resolves .wasm imports to a
+// pre-compiled WebAssembly.Module at build time. Runtime WASM compilation
+// is blocked by the Workers embedder, so this static import is required.
+import resvgWasmModule from '@resvg/resvg-wasm/index_bg.wasm';
 
 let wasmInit: Promise<void> | null = null;
 function ensureWasm(): Promise<void> {
   if (!wasmInit) {
     wasmInit = (async () => {
-      const res = await fetch(RESVG_WASM_URL);
-      if (!res.ok) throw new Error(`resvg wasm fetch failed: ${res.status}`);
-      await initWasm(res);
+      await initWasm(resvgWasmModule);
     })().catch((err) => {
       wasmInit = null;
       throw err;
