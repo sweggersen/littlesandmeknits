@@ -62,21 +62,10 @@ call PATCH /config/auth "$AUTH_BODY" >/dev/null
 echo "  ✓ Auth URLs configured"
 
 echo "▸ Creating patterns storage bucket..."
-BUCKET_BODY='{"id":"patterns","name":"patterns","public":false}'
-HTTP_CODE=$(curl -sS -o /tmp/lsmk-bucket.json -w "%{http_code}" \
-  -X POST "${API}/storage/buckets" \
-  -H "Authorization: Bearer ${SUPABASE_PAT}" \
-  -H "Content-Type: application/json" \
-  --data "$BUCKET_BODY")
-case "$HTTP_CODE" in
-  200|201) echo "  ✓ Bucket created" ;;
-  409)     echo "  ✓ Bucket already exists" ;;
-  *)
-    echo "  ✗ Bucket creation failed (HTTP ${HTTP_CODE}):" >&2
-    cat /tmp/lsmk-bucket.json >&2
-    exit 1
-    ;;
-esac
+BUCKET_SQL="insert into storage.buckets (id, name, public) values ('patterns', 'patterns', false) on conflict (id) do nothing;"
+BUCKET_BODY=$(jq -n --arg q "$BUCKET_SQL" '{query: $q}')
+call POST /database/query "$BUCKET_BODY" >/dev/null
+echo "  ✓ Bucket ready"
 
 echo
 echo "✅ Supabase setup complete"
