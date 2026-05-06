@@ -11,9 +11,41 @@ const year = new Date().getFullYear();
 ---
 
 <footer class="bg-charcoal text-linen mt-24">
-  <div class="max-w-7xl mx-auto px-6 py-16 grid grid-cols-1 md:grid-cols-4 gap-12">
+  <button
+    type="button"
+    data-footer-toggle
+    aria-expanded="false"
+    aria-controls="footer-rich"
+    class="sm:hidden w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between text-sm text-linen/70 hover:text-linen transition-colors"
+  >
+    <span class="font-serif text-lg">Littles and Me</span>
+    <span class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
+      <span data-footer-toggle-label>Mer</span>
+      <svg
+        data-footer-toggle-chev
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="transition-transform"
+        aria-hidden="true"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </span>
+  </button>
+
+  <div
+    id="footer-rich"
+    data-footer-rich
+    class="hidden sm:grid max-w-7xl mx-auto px-6 pt-2 sm:pt-16 pb-10 sm:pb-0 grid-cols-1 md:grid-cols-4 gap-10 sm:gap-12"
+  >
     <div class="md:col-span-2">
-      <h2 class="font-serif text-2xl mb-4">Littles and Me</h2>
+      <h2 class="hidden sm:block font-serif text-2xl mb-4">Littles and Me</h2>
       <p class="text-linen/60 max-w-sm text-sm leading-relaxed">
         {t('footer.tagline')}
       </p>
@@ -61,7 +93,7 @@ const year = new Date().getFullYear();
     </div>
   </div>
 
-  <div class="max-w-7xl mx-auto px-6 pb-10 pt-6 border-t border-linen/10 flex flex-col sm:flex-row justify-between gap-3 text-[10px] font-medium tracking-widest uppercase text-linen/30">
+  <div class="max-w-7xl mx-auto px-6 pb-8 sm:pb-10 pt-5 sm:pt-6 border-t border-linen/10 flex flex-col sm:flex-row justify-between gap-3 text-[10px] font-medium tracking-widest uppercase text-linen/30">
     <span>&copy; {year} Littles and Me</span>
     <div class="flex gap-5">
       <a href={localizedPath(lang, '/personvern')} class="hover:text-linen transition-colors">{t('footer.legal.privacy')}</a>
@@ -69,3 +101,26 @@ const year = new Date().getFullYear();
     </div>
   </div>
 </footer>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>('[data-footer-toggle]');
+  const rich = document.querySelector<HTMLElement>('[data-footer-rich]');
+  const label = document.querySelector<HTMLElement>('[data-footer-toggle-label]');
+  const chev = document.querySelector<SVGElement>('[data-footer-toggle-chev]');
+  if (btn && rich) {
+    btn.addEventListener('click', () => {
+      const isOpen = !rich.classList.contains('hidden');
+      if (isOpen) {
+        rich.classList.add('hidden');
+        btn.setAttribute('aria-expanded', 'false');
+        if (label) label.textContent = 'Mer';
+        if (chev) chev.style.transform = '';
+      } else {
+        rich.classList.remove('hidden');
+        btn.setAttribute('aria-expanded', 'true');
+        if (label) label.textContent = 'Skjul';
+        if (chev) chev.style.transform = 'rotate(180deg)';
+      }
+    });
+  }
+</script>

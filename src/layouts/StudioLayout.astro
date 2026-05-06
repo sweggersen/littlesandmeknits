@@ -1,6 +1,7 @@
 ---
 import Layout from './Layout.astro';
 import StudioNav from '../components/StudioNav.astro';
+import StudioTabBar from '../components/StudioTabBar.astro';
 import { type Lang } from '../lib/i18n';
 import { getCurrentUser } from '../lib/auth';
 
@@ -27,4 +28,5 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/studio';
       <slot />
     </div>
   </div>
+  <StudioTabBar />
 </Layout>
