@@ -1,0 +1,110 @@
+---
+// Reusable "Installer som app" button. Renders nothing visible until the
+// browser tells us the site is installable (Chrome/Edge/Android via the
+// `beforeinstallprompt` event) or until we detect iOS Safari (which has no
+// programmatic install API; we show instructions instead).
+//
+// Place anywhere in a logged-in surface (e.g. /studio dashboard, profile
+// page). Drop-in: `<InstallAppButton />`.
+---
+
+<div data-install-root class="hidden">
+  <button
+    type="button"
+    data-install-trigger
+    class="inline-flex items-center gap-2 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors"
+  >
+    <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3v12" />
+      <path d="m6 9 6 6 6-6" />
+      <path d="M5 21h14" />
+    </svg>
+    Installer som app
+  </button>
+</div>
+
+<!-- iOS instructions modal — hidden until triggered. -->
+<div
+  data-install-ios
+  class="hidden fixed inset-0 z-50 bg-charcoal/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+>
+  <div class="bg-linen rounded-3xl p-6 max-w-sm w-full">
+    <h2 class="font-serif text-2xl mb-2">Legg til på Hjem-skjerm</h2>
+    <p class="text-sm text-charcoal/70 mb-4">
+      Trykk på <strong>Del</strong>-ikonet (firkant med pil opp) i nettleseren, og velg deretter <strong>«Legg til på Hjem-skjerm»</strong>.
+    </p>
+    <p class="text-xs text-charcoal/55 mb-5">Etter installasjon åpnes Littles and Me som en egen app uten nettleserlinje.</p>
+    <button
+      type="button"
+      data-install-ios-close
+      class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      Skjønner
+    </button>
+  </div>
+</div>
+
+<script>
+  type BeforeInstallPromptEvent = Event & {
+    prompt(): Promise<void>;
+    userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+  };
+
+  const root = document.querySelector<HTMLElement>('[data-install-root]');
+  const trigger = document.querySelector<HTMLButtonElement>('[data-install-trigger]');
+  const iosModal = document.querySelector<HTMLElement>('[data-install-ios]');
+  const iosClose = document.querySelector<HTMLButtonElement>('[data-install-ios-close]');
+
+  if (!root || !trigger || !iosModal || !iosClose) {
+    // No-op when component isn't mounted on this page.
+  } else {
+    let deferred: BeforeInstallPromptEvent | null = null;
+
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      // Older iOS — Safari exposes navigator.standalone.
+      (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+    const ua = navigator.userAgent.toLowerCase();
+    const isIOS = /iphone|ipad|ipod/.test(ua) && !/crios|fxios/.test(ua);
+
+    if (isStandalone) {
+      // Already installed — keep hidden.
+    } else if (isIOS) {
+      root.classList.remove('hidden');
+      trigger.addEventListener('click', () => {
+        iosModal.classList.remove('hidden');
+        iosModal.classList.add('flex');
+      });
+      iosClose.addEventListener('click', () => {
+        iosModal.classList.add('hidden');
+        iosModal.classList.remove('flex');
+      });
+      iosModal.addEventListener('click', (e) => {
+        if (e.target === iosModal) {
+          iosModal.classList.add('hidden');
+          iosModal.classList.remove('flex');
+        }
+      });
+    } else {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferred = e as BeforeInstallPromptEvent;
+        root.classList.remove('hidden');
+      });
+      window.addEventListener('appinstalled', () => {
+        root.classList.add('hidden');
+        deferred = null;
+      });
+      trigger.addEventListener('click', async () => {
+        if (!deferred) return;
+        await deferred.prompt();
+        const choice = await deferred.userChoice;
+        if (choice.outcome === 'accepted') {
+          root.classList.add('hidden');
+        }
+        deferred = null;
+      });
+    }
+  }
+</script>

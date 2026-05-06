@@ -5,21 +5,95 @@ import { getCurrentUser } from '../../lib/auth';
 
 const t = useTranslations('nb');
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+
+const meta = (user?.user_metadata ?? {}) as {
+  display_name?: string;
+  instagram_handle?: string;
+  language?: 'nb' | 'en';
+};
+const displayName = meta.display_name ?? '';
+const instagramHandle = meta.instagram_handle ?? '';
+const language = meta.language ?? 'nb';
 ---
 
 <StudioLayout title="Profil — Littles and Me" lang="nb">
-  <h1 class="font-serif text-3xl sm:text-4xl mb-8">{t('studio.nav.profile')}</h1>
-  <div class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 max-w-xl">
-    <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+  <h1 class="font-serif text-3xl sm:text-4xl mb-2">{t('studio.nav.profile')}</h1>
+  <p class="text-charcoal/55 text-sm mb-8">Innstillingene dine. Endringer lagres til kontoen og brukes i hele studioet.</p>
+
+  <form
+    method="post"
+    action="/api/profile/update"
+    class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 max-w-xl space-y-5"
+  >
+    <div>
+      <label for="display_name" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+        Visningsnavn
+      </label>
+      <input
+        id="display_name"
+        name="display_name"
+        type="text"
+        maxlength="60"
+        value={displayName}
+        placeholder="Sam"
+        class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+      />
+      <p class="text-[11px] text-charcoal/45 mt-1">Vises i hilsenen på oversikten og på delingskortene dine.</p>
+    </div>
+
+    <div>
+      <label for="instagram_handle" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+        Instagram-handle
+      </label>
+      <div class="flex items-stretch bg-linen rounded-xl border border-sage-500/15 focus-within:border-sage-500 overflow-hidden">
+        <span class="px-3 flex items-center text-charcoal/55">@</span>
+        <input
+          id="instagram_handle"
+          name="instagram_handle"
+          type="text"
+          maxlength="30"
+          value={instagramHandle}
+          placeholder="littlesandme.knits"
+          class="flex-1 bg-transparent px-1 py-3 text-base focus:outline-none"
+        />
+      </div>
+      <p class="text-[11px] text-charcoal/45 mt-1">Brukes som underskrift på Instagram-delingskort og som «tagg meg»-hint i caption.</p>
+    </div>
+
+    <div>
+      <label for="language" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+        Språk
+      </label>
+      <select
+        id="language"
+        name="language"
+        class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+      >
+        <option value="nb" selected={language === 'nb'}>Norsk (bokmål)</option>
+        <option value="en" selected={language === 'en'}>English</option>
+      </select>
+      <p class="text-[11px] text-charcoal/45 mt-1">Foretrukket språk for nyhetsbrev og e-poster (frontend følger lenken du klikker).</p>
+    </div>
+
+    <div class="flex justify-end pt-2">
+      <button
+        type="submit"
+        class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Lagre profil
+      </button>
+    </div>
+  </form>
+
+  <details class="mt-8 max-w-xl">
+    <summary class="text-xs text-charcoal/55 cursor-pointer hover:text-charcoal">Konto-detaljer</summary>
+    <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm mt-4 bg-white rounded-2xl p-5 border border-sage-500/10">
       <dt class="text-charcoal/50">Epost</dt>
       <dd class="text-charcoal break-all">{user?.email}</dd>
       <dt class="text-charcoal/50">Bruker-ID</dt>
       <dd class="text-charcoal/70 font-mono text-xs break-all">{user?.id}</dd>
     </dl>
-    <p class="text-xs text-charcoal/40 mt-6">
-      Profil-redigering kommer i neste runde (visningsnavn, Instagram-handle, språk).
-    </p>
-  </div>
+  </details>
 
   <div class="mt-8 max-w-xl">
     <form method="post" action="/api/auth/signout">

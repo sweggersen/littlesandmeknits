@@ -47,3 +47,11 @@
     background-color: rgb(from var(--color-terracotta-500) r g b / 0.2);
   }
 }
+
+/* Hide the marketing footer when the site is launched as an installed PWA.
+   In standalone mode users are inside the app shell; the footer's brand
+   pitch + outbound links would feel out of place and waste vertical room. */
+@media all and (display-mode: standalone) {
+  body > footer { display: none; }
+}
+

@@ -3,6 +3,7 @@ import StudioLayout from '../../../layouts/StudioLayout.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getEntry } from 'astro:content';
 import { projectPhotoUrl } from '../../../lib/storage';
+import { getCurrentUser } from '../../../lib/auth';
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/studio/prosjekter');
@@ -142,6 +143,15 @@ const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknit
 const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
 const cardSummary = p.summary ?? null;
 const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).join(' · ');
+
+// User profile bits used by the share card + caption builder.
+const profileUser = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const profileMeta = (profileUser?.user_metadata ?? {}) as {
+  display_name?: string;
+  instagram_handle?: string;
+};
+const igHandle = profileMeta.instagram_handle?.replace(/^@+/, '').trim() || null;
+const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
 ---
 
 <StudioLayout title={`${p.title} — Littles and Me`} lang="nb">
@@ -577,9 +587,21 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
                   Story (9:16)
                 </button>
               </div>
-              <p class="text-[10px] text-charcoal/45 leading-relaxed" data-share-status>
-                Brandede delingskort. Trykk for å laste ned. Del lenken i caption: <code class="text-[10px] text-charcoal/60">{shareUrl}</code>
+              <button
+                type="button"
+                data-share-caption
+                class="w-full mt-2 text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
+              >
+                Kopier caption
+              </button>
+              <p class="text-[10px] text-charcoal/45 leading-relaxed mt-3" data-share-status>
+                Brandede delingskort. Trykk for å laste ned. Bruk «Kopier caption» og lim inn i Instagram-posten.
               </p>
+              {!igHandle && (
+                <p class="text-[10px] text-charcoal/55 mt-2">
+                  Tips: Legg til Instagram-handle på <a href="/studio/profil" class="text-terracotta-500 hover:underline">profilen din</a> så blir den med på kortet og i caption.
+                </p>
+              )}
             </div>
 
             <form method="post" action={`/api/projects/${p.id}/share`}>
@@ -626,6 +648,10 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
       aria-hidden="true"
       data-share-root
       data-share-slug={p.public_slug}
+      data-share-title={p.title}
+      data-share-summary={p.summary ?? ''}
+      data-share-url={shareUrl ?? ''}
+      data-share-handle={igHandle ?? ''}
       style="position:fixed; left:-99999px; top:0; pointer-events:none; opacity:1;"
     >
       {/* Feed card 1080×1350 */}
@@ -653,8 +679,8 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
           </div>
           <div style="display:flex; justify-content:space-between; align-items:center; padding-top:24px; border-top:1px solid rgba(0,0,0,0.08);">
             <div style="font-family:'Fraunces','Fraunces Variable',serif; font-size:28px; color:#2C2A26; font-weight:500;">Littles and Me</div>
-            <div style="font-size:18px; color:#C76D4E; font-weight:600; letter-spacing:0.18em; text-transform:uppercase;">
-              littlesandmeknits.com/p/{p.public_slug}
+            <div style="font-size:18px; color:#C76D4E; font-weight:600; letter-spacing:0.14em;">
+              {igHandle ? `@${igHandle}` : `littlesandmeknits.com/p/${p.public_slug}`}
             </div>
           </div>
         </div>
@@ -677,8 +703,8 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
                 {cardSummary.length > 130 ? cardSummary.slice(0, 127) + '…' : cardSummary}
               </div>
             )}
-            <div style="margin-top:20px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.3); font-size:22px; letter-spacing:0.22em; text-transform:uppercase; opacity:0.85;">
-              littlesandmeknits.com/p/{p.public_slug}
+            <div style="margin-top:20px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.3); font-size:22px; letter-spacing:0.18em; opacity:0.85;">
+              {igHandle ? `@${igHandle}` : `littlesandmeknits.com/p/${p.public_slug}`}
             </div>
           </div>
         </div>
@@ -702,6 +728,40 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
 
   const shareRoot = document.querySelector<HTMLElement>('[data-share-root]');
   const slug = shareRoot?.dataset.shareSlug ?? null;
+  const shareTitle = shareRoot?.dataset.shareTitle ?? '';
+  const shareSummary = shareRoot?.dataset.shareSummary ?? '';
+  const shareUrlValue = shareRoot?.dataset.shareUrl ?? '';
+  const shareHandle = shareRoot?.dataset.shareHandle ?? '';
+
+  function buildCaption(): string {
+    const lines: string[] = [];
+    if (shareTitle) lines.push(shareTitle);
+    if (shareSummary) lines.push('', shareSummary);
+    lines.push('');
+    if (shareHandle) {
+      lines.push(`Strikket av @${shareHandle}`);
+    }
+    if (shareUrlValue) lines.push(`Hele prosjektet: ${shareUrlValue}`);
+    lines.push('', '#strikking #strikkemamma #littlesandme');
+    return lines.join('\n');
+  }
+
+  const captionBtn = document.querySelector<HTMLButtonElement>('[data-share-caption]');
+  captionBtn?.addEventListener('click', async () => {
+    const caption = buildCaption();
+    const status = document.querySelector<HTMLElement>('[data-share-status]');
+    const setStatus = (msg: string) => { if (status) status.textContent = msg; };
+    try {
+      await navigator.clipboard.writeText(caption);
+      const original = captionBtn.textContent;
+      captionBtn.textContent = 'Kopiert ✓';
+      setStatus('Caption kopiert til utklippstavla. Lim inn på Instagram.');
+      setTimeout(() => { if (captionBtn) captionBtn.textContent = original; }, 2000);
+    } catch {
+      setStatus('Klarte ikke å kopiere — marker tekst manuelt og prøv igjen.');
+    }
+  });
+
   if (slug) {
     const status = document.querySelector<HTMLElement>('[data-share-status]');
     const setStatus = (msg: string) => { if (status) status.textContent = msg; };

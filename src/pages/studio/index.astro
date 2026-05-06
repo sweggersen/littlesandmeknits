@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
+import InstallAppButton from '../../components/InstallAppButton.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { useTranslations } from '../../lib/i18n';
 import { getCurrentUser } from '../../lib/auth';
@@ -101,9 +102,9 @@ const badges: Badge[] = [
 
 const earnedBadges = badges.filter((b) => b.earned);
 
-// Best-effort first name from the email local part: "sam.mathias.weggersen"
-// → "Sam". Stops at the first separator and capitalizes. Falls back to a
-// neutral greeting when we can't make a clean name out of the email.
+// Prefer the user-set display name; fall back to a best-effort first name
+// derived from the email local part (sam.mathias.weggersen → Sam) and
+// finally to an empty string so the layout shows a neutral greeting.
 function firstNameFromEmail(email: string | undefined): string {
   if (!email) return '';
   const local = email.split('@')[0] ?? '';
@@ -111,7 +112,9 @@ function firstNameFromEmail(email: string | undefined): string {
   if (!first) return '';
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
-const greeting = firstNameFromEmail(user?.email);
+const meta = (user?.user_metadata ?? {}) as { display_name?: string };
+const hasDisplayName = !!(meta.display_name && meta.display_name.trim());
+const greeting = hasDisplayName ? meta.display_name!.trim() : firstNameFromEmail(user?.email);
 const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} g`);
 ---
 
@@ -123,6 +126,33 @@ const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} 
     <p class="text-charcoal/60 text-sm sm:text-base max-w-prose">
       Oversikt over alt du driver med — prosjekter, garnlager, oppskriftene dine, og verktøyene som hjelper deg fra plan til ferdig plagg.
     </p>
+
+    {!hasDisplayName && (
+      <form
+        method="post"
+        action="/api/profile/update"
+        class="mt-4 sm:mt-6 bg-sage-100 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-3 max-w-xl"
+      >
+        <input type="hidden" name="next" value="/studio" />
+        <div class="flex-1">
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-sage-900/80 mb-1">Hva skal jeg kalle deg?</label>
+          <input
+            type="text"
+            name="display_name"
+            maxlength="60"
+            required
+            placeholder="Sam"
+            class="w-full bg-white rounded-xl px-3 py-2 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500"
+          />
+        </div>
+        <button
+          type="submit"
+          class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
+        >
+          Lagre
+        </button>
+      </form>
+    )}
 
     <div class="mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
@@ -156,6 +186,10 @@ const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} 
         Lengste prosjekt: {longestDays} dager fra start til ferdig.
       </p>
     )}
+
+    <div class="mt-6">
+      <InstallAppButton />
+    </div>
 
     <h2 class="font-serif text-2xl mt-12 mb-4">Snarveier</h2>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
