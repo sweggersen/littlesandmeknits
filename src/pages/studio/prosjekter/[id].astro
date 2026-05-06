@@ -74,10 +74,28 @@ const statusClass = {
   frogged: 'bg-charcoal/10 text-charcoal/60',
 } as const;
 
+// Inline-style palette for the offscreen share-card scaffold (Tailwind classes
+// can't be relied on for the 1080×1350 / 1080×1920 dimensions, so we hardcode
+// the brand tones the satori version used to produce).
+const statusPillBg = {
+  planning: '#E8DFD0',
+  active: '#E8EFE3',
+  finished: '#FBEAE3',
+  frogged: '#E5E3DD',
+} as const;
+const statusPillFg = {
+  planning: '#5B544A',
+  active: '#4A5A3F',
+  finished: '#C76D4E',
+  frogged: '#6F6A60',
+} as const;
+
 const today = new Date().toISOString().slice(0, 10);
 
 const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
 const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
+const cardSummary = p.summary ?? null;
+const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).join(' · ');
 ---
 
 <StudioLayout title={`${p.title} — Littles and Me`} lang="nb">
@@ -337,27 +355,23 @@ const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
             <div class="border-t border-sage-500/10 pt-4 mb-3">
               <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">For Instagram</h3>
               <div class="grid grid-cols-2 gap-2 mb-2">
-                <a
-                  href={`/api/og/${p.public_slug}.png?format=feed`}
-                  download={`${p.public_slug}-feed.png`}
-                  target="_blank"
-                  rel="noopener"
-                  class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
+                <button
+                  type="button"
+                  data-share-card="feed"
+                  class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full disabled:opacity-50 disabled:cursor-wait"
                 >
                   Feed (4:5)
-                </a>
-                <a
-                  href={`/api/og/${p.public_slug}.png?format=story`}
-                  download={`${p.public_slug}-story.png`}
-                  target="_blank"
-                  rel="noopener"
-                  class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
+                </button>
+                <button
+                  type="button"
+                  data-share-card="story"
+                  class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full disabled:opacity-50 disabled:cursor-wait"
                 >
                   Story (9:16)
-                </a>
+                </button>
               </div>
-              <p class="text-[10px] text-charcoal/45 leading-relaxed">
-                Brandede delingskort. Trykk for å åpne, høyreklikk eller hold inne for å lagre. Eller del lenken i caption: <code class="text-[10px] text-charcoal/60">{shareUrl}</code>
+              <p class="text-[10px] text-charcoal/45 leading-relaxed" data-share-status>
+                Brandede delingskort. Trykk for å laste ned. Del lenken i caption: <code class="text-[10px] text-charcoal/60">{shareUrl}</code>
               </p>
             </div>
 
@@ -399,10 +413,75 @@ const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
       </form>
     </aside>
   </div>
+
+  {p.public_slug && (
+    <div
+      aria-hidden="true"
+      data-share-root
+      data-share-slug={p.public_slug}
+      style="position:fixed; left:-99999px; top:0; pointer-events:none; opacity:1;"
+    >
+      {/* Feed card 1080×1350 */}
+      <div
+        data-share-scaffold="feed"
+        style={`width:1080px; height:1350px; background:#FAF6F0; font-family:'Inter','Inter Variable',system-ui,sans-serif; display:flex; flex-direction:column;`}
+      >
+        <div
+          style={`width:100%; height:780px; background-color:#E8DFD0; ${heroUrl ? `background-image:url('${heroUrl}'); background-size:cover; background-position:center;` : ''}`}
+        ></div>
+        <div style="flex:1; padding:60px 80px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div style="display:flex; flex-direction:column; gap:20px;">
+            <span style={`align-self:flex-start; font-size:20px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; padding:10px 22px; border-radius:999px; background:${statusPillBg[p.status]}; color:${statusPillFg[p.status]};`}>
+              {statusLabels[p.status]}
+            </span>
+            <div style="font-family:'Fraunces','Fraunces Variable',serif; font-size:76px; font-weight:500; line-height:1.05; color:#2C2A26; letter-spacing:-0.01em;">{p.title}</div>
+            {cardSummary && (
+              <div style="font-size:24px; color:rgba(44,42,38,0.7); line-height:1.4;">
+                {cardSummary.length > 110 ? cardSummary.slice(0, 107) + '…' : cardSummary}
+              </div>
+            )}
+            {cardMeta && (
+              <div style="font-size:22px; color:rgba(44,42,38,0.55);">{cardMeta}</div>
+            )}
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:24px; border-top:1px solid rgba(0,0,0,0.08);">
+            <div style="font-family:'Fraunces','Fraunces Variable',serif; font-size:28px; color:#2C2A26; font-weight:500;">Littles and Me</div>
+            <div style="font-size:18px; color:#C76D4E; font-weight:600; letter-spacing:0.18em; text-transform:uppercase;">
+              littlesandmeknits.com/p/{p.public_slug}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Story card 1080×1920 */}
+      <div
+        data-share-scaffold="story"
+        style={`width:1080px; height:1920px; background-color:#2C2A26; ${heroUrl ? `background-image:url('${heroUrl}'); background-size:cover; background-position:center;` : ''} font-family:'Inter','Inter Variable',system-ui,sans-serif; color:#FAF6F0; position:relative;`}
+      >
+        <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.78) 100%); padding:120px 90px; display:flex; flex-direction:column; justify-content:space-between;">
+          <div style="text-align:center; font-family:'Fraunces','Fraunces Variable',serif; font-style:italic; font-size:28px; letter-spacing:0.22em; text-transform:uppercase; opacity:0.92;">Littles and Me</div>
+          <div style="display:flex; flex-direction:column; gap:28px; align-items:center; text-align:center;">
+            <span style="background:#C76D4E; color:#FAF6F0; font-size:22px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; padding:12px 26px; border-radius:999px;">
+              {statusLabels[p.status]}
+            </span>
+            <div style="font-family:'Fraunces','Fraunces Variable',serif; font-size:108px; font-weight:500; line-height:1.04; letter-spacing:-0.01em; max-width:900px;">{p.title}</div>
+            {cardSummary && (
+              <div style="font-family:'Fraunces','Fraunces Variable',serif; font-style:italic; font-size:32px; line-height:1.4; opacity:0.9; max-width:780px;">
+                {cardSummary.length > 130 ? cardSummary.slice(0, 127) + '…' : cardSummary}
+              </div>
+            )}
+            <div style="margin-top:20px; padding-top:24px; border-top:1px solid rgba(255,255,255,0.3); font-size:22px; letter-spacing:0.22em; text-transform:uppercase; opacity:0.85;">
+              littlesandmeknits.com/p/{p.public_slug}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
 </StudioLayout>
 
 <script>
-  document.querySelector('[data-copy-share]')?.addEventListener('click', () => {
+  document.querySelector<HTMLElement>('[data-copy-share]')?.addEventListener('click', () => {
     const input = document.querySelector<HTMLInputElement>('[data-share-url]');
     if (!input) return;
     navigator.clipboard.writeText(input.value).then(() => {
@@ -413,4 +492,49 @@ const shareUrl = p.public_slug ? `${siteUrl}/p/${p.public_slug}` : null;
       setTimeout(() => { btn.textContent = original; }, 1600);
     });
   });
+
+  const shareRoot = document.querySelector<HTMLElement>('[data-share-root]');
+  const slug = shareRoot?.dataset.shareSlug ?? null;
+  if (slug) {
+    const status = document.querySelector<HTMLElement>('[data-share-status]');
+    const setStatus = (msg: string) => { if (status) status.textContent = msg; };
+
+    const buttons = document.querySelectorAll<HTMLButtonElement>('[data-share-card]');
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const format = btn.getAttribute('data-share-card');
+        if (!format) return;
+        const scaffold = document.querySelector<HTMLElement>(`[data-share-scaffold="${format}"]`);
+        if (!scaffold) return;
+
+        buttons.forEach((b) => { b.disabled = true; });
+        const originalLabel = btn.textContent;
+        btn.textContent = 'Genererer…';
+
+        try {
+          if (document.fonts && document.fonts.ready) await document.fonts.ready;
+          const { toPng } = await import('html-to-image');
+          const dataUrl = await toPng(scaffold, {
+            pixelRatio: 1,
+            cacheBust: true,
+            // Avoid CORS taint on Supabase-hosted hero photos.
+            fetchRequestInit: { mode: 'cors', credentials: 'omit' },
+          });
+          const a = document.createElement('a');
+          a.href = dataUrl;
+          a.download = `${slug}-${format}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setStatus('Lastet ned. Last opp på Instagram, og lim inn lenken i caption.');
+        } catch (err) {
+          console.error('share card render failed', err);
+          setStatus('Kunne ikke lage delingskort. Prøv igjen, eller bruk hovedbildet manuelt.');
+        } finally {
+          buttons.forEach((b) => { b.disabled = false; });
+          btn.textContent = originalLabel;
+        }
+      });
+    });
+  }
 </script>
