@@ -26,11 +26,13 @@ type ProjectRow = {
   finished_at: string | null;
   created_at: string;
   public_slug: string;
+  target_rows: number | null;
+  current_rows: number | null;
 };
 
 const { data: project } = await supabase
   .from('projects')
-  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, public_slug')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, public_slug, target_rows, current_rows')
   .eq('public_slug', slug)
   .maybeSingle();
 
@@ -102,6 +104,23 @@ const ogCardUrl = heroUrl ?? null;
     <h1 class="font-serif text-4xl sm:text-5xl mt-4 leading-tight">{p.title}</h1>
     {p.summary && (
       <p class="text-charcoal/70 mt-4 leading-relaxed text-lg">{p.summary}</p>
+    )}
+
+    {p.target_rows && p.target_rows > 0 && p.current_rows !== null && (
+      <div class="mt-6">
+        <div class="flex items-baseline justify-between mb-2 text-xs">
+          <span class="font-bold uppercase tracking-wider text-charcoal/55">Fremdrift</span>
+          <span class="text-charcoal/65 font-medium">
+            {p.current_rows} / {p.target_rows} rader · {Math.min(100, Math.round((p.current_rows / p.target_rows) * 100))}%
+          </span>
+        </div>
+        <div class="h-2 bg-sage-500/10 rounded-full overflow-hidden">
+          <div
+            class="h-full bg-sage-500"
+            style={`width: ${Math.min(100, Math.round((p.current_rows / p.target_rows) * 100))}%`}
+          ></div>
+        </div>
+      </div>
     )}
 
     <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 mt-8 pt-8 border-t border-sage-500/15 text-sm">

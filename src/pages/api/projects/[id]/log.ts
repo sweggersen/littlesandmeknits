@@ -21,6 +21,12 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     ? rawDate
     : new Date().toISOString().slice(0, 10);
 
+  const rawRows = form.get('rows_at')?.toString().trim();
+  const rowsAt = rawRows ? Number.parseInt(rawRows, 10) : null;
+  const rows_at = Number.isFinite(rowsAt) && (rowsAt as number) >= 0 && (rowsAt as number) <= 100000
+    ? rowsAt
+    : null;
+
   const supabase = createServerSupabase({ request, cookies });
 
   const photoFiles = form
@@ -50,11 +56,26 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     body,
     log_date,
     photos: uploadedPaths,
+    rows_at,
   });
 
   if (error) {
     console.error('Log insert failed', error);
     return new Response('Could not save log', { status: 500 });
+  }
+
+  // If the log carries a row count, advance the project's current_rows to match
+  // (only forward — a log of an earlier checkpoint shouldn't roll the meter back).
+  if (rows_at !== null) {
+    const { data: existing } = await supabase
+      .from('projects')
+      .select('current_rows')
+      .eq('id', projectId)
+      .maybeSingle();
+    const prev = (existing?.current_rows as number | null) ?? 0;
+    if ((rows_at as number) > prev) {
+      await supabase.from('projects').update({ current_rows: rows_at }).eq('id', projectId);
+    }
   }
 
   return redirect(`/studio/prosjekter/${projectId}`, 303);

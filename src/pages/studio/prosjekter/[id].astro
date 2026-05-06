@@ -26,11 +26,13 @@ type ProjectRow = {
   created_at: string;
   updated_at: string;
   public_slug: string | null;
+  target_rows: number | null;
+  current_rows: number | null;
 };
 
 const { data: project, error } = await supabase
   .from('projects')
-  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug, target_rows, current_rows')
   .eq('id', id)
   .maybeSingle();
 
@@ -45,17 +47,24 @@ type LogRow = {
   body: string;
   log_date: string;
   photos: string[];
+  rows_at: number | null;
   created_at: string;
 };
 
 const { data: logsData } = await supabase
   .from('project_logs')
-  .select('id, body, log_date, photos, created_at')
+  .select('id, body, log_date, photos, rows_at, created_at')
   .eq('project_id', id)
   .order('log_date', { ascending: false })
   .order('created_at', { ascending: false });
 
 const logs = (logsData ?? []) as LogRow[];
+
+const targetRows = p.target_rows ?? null;
+const currentRows = p.current_rows ?? null;
+const progressPct = targetRows && targetRows > 0 && currentRows !== null
+  ? Math.min(100, Math.round((currentRows / targetRows) * 100))
+  : null;
 
 const patternEntry = p.pattern_slug ? await getEntry('patterns', p.pattern_slug) : null;
 const heroUrl = projectPhotoUrl(p.hero_photo_path);
@@ -126,6 +135,66 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
         </div>
       </header>
 
+      <!-- Fremdrift / progress -->
+      <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
+        <details class="group">
+          <summary class="flex items-baseline justify-between gap-3 cursor-pointer list-none">
+            <h2 class="font-serif text-lg">Fremdrift</h2>
+            {progressPct !== null ? (
+              <span class="text-sm text-charcoal/65 font-medium">
+                {currentRows} / {targetRows} rader · {progressPct}%
+              </span>
+            ) : currentRows !== null ? (
+              <span class="text-sm text-charcoal/65 font-medium">{currentRows} rader</span>
+            ) : (
+              <span class="text-xs text-charcoal/45">Sett mål for å vise fremdrift</span>
+            )}
+          </summary>
+
+          {progressPct !== null && (
+            <div class="mt-4 h-2 bg-sage-500/10 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-sage-500 transition-all"
+                style={`width: ${progressPct}%`}
+              ></div>
+            </div>
+          )}
+
+          <form method="post" action={`/api/projects/${p.id}/progress`} class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Rader strikket</label>
+              <input
+                type="number"
+                name="current_rows"
+                min="0"
+                step="1"
+                value={currentRows ?? ''}
+                placeholder="0"
+                class="w-full bg-linen rounded-xl px-3 py-2 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+              />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Mål (totalt)</label>
+              <input
+                type="number"
+                name="target_rows"
+                min="0"
+                step="1"
+                value={targetRows ?? ''}
+                placeholder="—"
+                class="w-full bg-linen rounded-xl px-3 py-2 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+              />
+            </div>
+            <button
+              type="submit"
+              class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors"
+            >
+              Lagre
+            </button>
+          </form>
+        </details>
+      </section>
+
       <!-- Add a log -->
       <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
         <h2 class="font-serif text-lg mb-4">Ny logg</h2>
@@ -148,13 +217,24 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
               class="block w-full text-sm text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
             />
           </div>
-          <div class="flex items-center justify-between gap-3 pt-2">
-            <input
-              type="date"
-              name="log_date"
-              value={today}
-              class="bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-            />
+          <div class="flex items-center justify-between gap-3 pt-2 flex-wrap">
+            <div class="flex items-center gap-2">
+              <input
+                type="date"
+                name="log_date"
+                value={today}
+                class="bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+              />
+              <input
+                type="number"
+                name="rows_at"
+                min="0"
+                step="1"
+                placeholder="rad nr."
+                title="Hvilken rad er du på? (valgfritt)"
+                class="w-24 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+              />
+            </div>
             <button
               type="submit"
               class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
@@ -175,9 +255,16 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
             {logs.map((log) => (
               <li class="bg-white rounded-2xl p-5 border border-sage-500/10">
                 <div class="flex items-baseline justify-between mb-2">
-                  <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
-                    {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
-                  </time>
+                  <div class="flex items-baseline gap-3 flex-wrap">
+                    <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
+                      {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </time>
+                    {log.rows_at !== null && log.rows_at !== undefined && (
+                      <span class="text-[10px] font-medium uppercase tracking-wider text-charcoal/45">
+                        Rad {log.rows_at}
+                      </span>
+                    )}
+                  </div>
                   <form method="post" action={`/api/projects/${p.id}/log/${log.id}/delete`} class="inline">
                     <button
                       type="submit"

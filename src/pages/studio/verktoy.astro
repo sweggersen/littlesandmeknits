@@ -116,6 +116,96 @@ const needles = [
       </form>
     </section>
 
+    <!-- Felling og økning -->
+    <section class="bg-white rounded-3xl p-8 border border-sage-500/10">
+      <h2 class="font-serif text-2xl mb-2">Felling og økning</h2>
+      <p class="text-sm text-charcoal/55 mb-6">Fordel fellingene eller økningene jevnt over et antall rader.</p>
+      <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end mb-6" data-evenly>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Maskeantall nå</label>
+          <input
+            type="number"
+            name="current"
+            min="1"
+            step="1"
+            value="120"
+            class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+          />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Ønsket antall</label>
+          <input
+            type="number"
+            name="target"
+            min="1"
+            step="1"
+            value="80"
+            class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+          />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Rader til disp.</label>
+          <input
+            type="number"
+            name="rows"
+            min="1"
+            step="1"
+            value="40"
+            class="w-full bg-linen rounded-xl px-3 py-2.5 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
+          />
+        </div>
+      </form>
+      <div class="bg-sage-100 rounded-xl p-4">
+        <p class="font-serif text-lg text-sage-900 mb-1" data-evenly-summary>—</p>
+        <p class="text-xs text-sage-900/70" data-evenly-detail></p>
+        <p class="text-xs text-sage-900/70 mt-2 break-words" data-evenly-rows></p>
+      </div>
+      <p class="text-xs text-charcoal/45 mt-4">Tips: Plasser felling/økning symmetrisk på begge sider for raglan eller A‑form. Skriv ut rad‑listen og kryss av etter hvert.</p>
+    </section>
+
+    <!-- Linjal -->
+    <section class="bg-white rounded-3xl p-8 border border-sage-500/10">
+      <h2 class="font-serif text-2xl mb-2">Linjal</h2>
+      <p class="text-sm text-charcoal/55 mb-6">
+        Mål prøvelappen rett på skjermen. Kalibrer én gang ved å holde et bankkort mot skjermen og justere bredden under.
+      </p>
+
+      <div class="bg-linen rounded-2xl p-6 mb-6">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-3">Kalibrering — bankkort (85,6 mm)</p>
+        <div class="mb-4 flex justify-center">
+          <div data-ruler-card class="bg-sage-500/15 border border-sage-500/40 rounded-md flex items-center justify-center text-xs text-charcoal/60" style="height: 54px;">
+            Hold kortet ditt her
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="button" data-ruler-narrow class="text-xs font-medium text-charcoal/70 hover:text-terracotta-500 px-2 py-1">−</button>
+          <input
+            type="range"
+            data-ruler-slider
+            min="2.5"
+            max="6"
+            step="0.01"
+            value="3.78"
+            class="flex-1 accent-sage-900"
+            aria-label="Juster kalibrering"
+          />
+          <button type="button" data-ruler-wide class="text-xs font-medium text-charcoal/70 hover:text-terracotta-500 px-2 py-1">+</button>
+        </div>
+        <div class="flex items-center justify-between mt-3">
+          <p class="text-xs text-charcoal/55"><span data-ruler-pxpmm>3,78</span> px / mm</p>
+          <button type="button" data-ruler-save class="text-[10px] font-bold uppercase tracking-wider text-sage-900 hover:text-terracotta-500">Lagre kalibrering</button>
+        </div>
+        <p class="text-[10px] text-charcoal/45 mt-2" data-ruler-savemsg></p>
+      </div>
+
+      <div class="overflow-x-auto -mx-2 px-2 pb-2">
+        <div data-ruler class="relative bg-linen rounded-md" style="height: 70px; width: 100%;"></div>
+      </div>
+      <p class="text-xs text-charcoal/45 mt-4">
+        Linjalen tegnes i centimeter og millimeter etter kalibreringen din. Tips: Strikk en lapp på minst 12 × 12 cm og bløtlegg den før du måler.
+      </p>
+    </section>
+
     <!-- Pinnestørrelse -->
     <section class="bg-white rounded-3xl p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Pinnestørrelser</h2>
@@ -200,4 +290,164 @@ const needles = [
   }
   yarForm?.addEventListener('input', recalcYardage);
   recalcYardage();
+
+  // Increase / decrease evenly
+  const evenlyForm = document.querySelector<HTMLFormElement>('[data-evenly]');
+  const evenlySummary = document.querySelector<HTMLElement>('[data-evenly-summary]');
+  const evenlyDetail = document.querySelector<HTMLElement>('[data-evenly-detail]');
+  const evenlyRows = document.querySelector<HTMLElement>('[data-evenly-rows]');
+  function recalcEvenly() {
+    if (!evenlyForm || !evenlySummary || !evenlyDetail || !evenlyRows) return;
+    const fd = new FormData(evenlyForm);
+    const current = parseInt(fd.get('current')?.toString() ?? '0', 10);
+    const target = parseInt(fd.get('target')?.toString() ?? '0', 10);
+    const rows = parseInt(fd.get('rows')?.toString() ?? '0', 10);
+    if (!current || !target || !rows) {
+      evenlySummary.textContent = '—';
+      evenlyDetail.textContent = '';
+      evenlyRows.textContent = '';
+      return;
+    }
+    const delta = target - current;
+    const D = Math.abs(delta);
+    const verb = delta > 0 ? 'Øk' : 'Senk';
+    if (D === 0) {
+      evenlySummary.textContent = 'Ingen endring trengs.';
+      evenlyDetail.textContent = '';
+      evenlyRows.textContent = '';
+      return;
+    }
+    if (D > rows) {
+      evenlySummary.textContent = 'Flere endringer enn rader — øk antall rader.';
+      evenlyDetail.textContent = '';
+      evenlyRows.textContent = '';
+      return;
+    }
+    const q = Math.floor(rows / D);
+    const r = rows % D;
+    if (r === 0) {
+      evenlySummary.textContent = `${verb} 1 maske hver ${q}. rad, ${D} ganger.`;
+    } else {
+      evenlySummary.textContent =
+        `${verb} 1 maske hver ${q + 1}. rad ${r} gang${r === 1 ? '' : 'er'}, ` +
+        `deretter hver ${q}. rad ${D - r} gang${(D - r) === 1 ? '' : 'er'}.`;
+    }
+    evenlyDetail.textContent = `${D} endringer over ${rows} rader, sluttantall ${target} masker.`;
+    // Even-distribution row list (Bresenham-style — change at end of these rows).
+    const list: number[] = [];
+    for (let i = 0; i < D; i++) {
+      list.push(Math.round(((i + 1) * rows) / D));
+    }
+    evenlyRows.textContent = `Endre etter rad: ${list.join(', ')}.`;
+  }
+  evenlyForm?.addEventListener('input', recalcEvenly);
+  recalcEvenly();
+
+  // Ruler — calibrate via credit card (85.6 mm wide), then draw a cm/mm ruler.
+  const STORAGE_KEY = 'littles-ruler-pxpmm';
+  const DEFAULT_PXPMM = 3.7795; // 96 dpi
+  const CARD_MM = 85.6;
+
+  const rulerCard = document.querySelector<HTMLElement>('[data-ruler-card]');
+  const rulerSlider = document.querySelector<HTMLInputElement>('[data-ruler-slider]');
+  const rulerNarrow = document.querySelector<HTMLButtonElement>('[data-ruler-narrow]');
+  const rulerWide = document.querySelector<HTMLButtonElement>('[data-ruler-wide]');
+  const rulerSave = document.querySelector<HTMLButtonElement>('[data-ruler-save]');
+  const rulerPxPmmLabel = document.querySelector<HTMLElement>('[data-ruler-pxpmm]');
+  const rulerSaveMsg = document.querySelector<HTMLElement>('[data-ruler-savemsg]');
+  const rulerSurface = document.querySelector<HTMLElement>('[data-ruler]');
+
+  function loadPxPmm(): number {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return DEFAULT_PXPMM;
+      const n = parseFloat(stored);
+      return Number.isFinite(n) && n > 0 ? n : DEFAULT_PXPMM;
+    } catch {
+      return DEFAULT_PXPMM;
+    }
+  }
+
+  function applyPxPmm(pxpmm: number) {
+    if (rulerCard) rulerCard.style.width = `${Math.round(pxpmm * CARD_MM)}px`;
+    if (rulerPxPmmLabel) rulerPxPmmLabel.textContent = pxpmm.toFixed(2).replace('.', ',');
+    drawRuler(pxpmm);
+  }
+
+  function drawRuler(pxpmm: number) {
+    if (!rulerSurface) return;
+    rulerSurface.innerHTML = '';
+    const totalWidth = rulerSurface.clientWidth;
+    if (!totalWidth) return;
+    const maxMm = Math.floor(totalWidth / pxpmm);
+    const tickColor = 'rgba(44,42,38,0.7)';
+    const subTickColor = 'rgba(44,42,38,0.35)';
+    for (let mm = 0; mm <= maxMm; mm++) {
+      const x = mm * pxpmm;
+      const tall = mm % 10 === 0;
+      const mid = mm % 5 === 0;
+      const tick = document.createElement('div');
+      tick.style.position = 'absolute';
+      tick.style.left = `${x}px`;
+      tick.style.top = '0';
+      tick.style.width = '1px';
+      tick.style.height = tall ? '34px' : mid ? '22px' : '12px';
+      tick.style.background = tall ? tickColor : subTickColor;
+      rulerSurface.appendChild(tick);
+      if (tall) {
+        const label = document.createElement('div');
+        label.style.position = 'absolute';
+        label.style.left = `${x + 2}px`;
+        label.style.top = '36px';
+        label.style.fontSize = '11px';
+        label.style.color = 'rgba(44,42,38,0.7)';
+        label.textContent = `${mm / 10}`;
+        rulerSurface.appendChild(label);
+      }
+    }
+    const cmLabel = document.createElement('div');
+    cmLabel.style.position = 'absolute';
+    cmLabel.style.right = '8px';
+    cmLabel.style.bottom = '4px';
+    cmLabel.style.fontSize = '10px';
+    cmLabel.style.fontWeight = '700';
+    cmLabel.style.letterSpacing = '0.18em';
+    cmLabel.style.textTransform = 'uppercase';
+    cmLabel.style.color = 'rgba(44,42,38,0.4)';
+    cmLabel.textContent = 'cm';
+    rulerSurface.appendChild(cmLabel);
+  }
+
+  let currentPxPmm = loadPxPmm();
+  if (rulerSlider) rulerSlider.value = String(currentPxPmm);
+  applyPxPmm(currentPxPmm);
+
+  rulerSlider?.addEventListener('input', () => {
+    currentPxPmm = parseFloat(rulerSlider.value);
+    applyPxPmm(currentPxPmm);
+  });
+  rulerNarrow?.addEventListener('click', () => {
+    if (!rulerSlider) return;
+    currentPxPmm = Math.max(2.5, currentPxPmm - 0.05);
+    rulerSlider.value = String(currentPxPmm);
+    applyPxPmm(currentPxPmm);
+  });
+  rulerWide?.addEventListener('click', () => {
+    if (!rulerSlider) return;
+    currentPxPmm = Math.min(6, currentPxPmm + 0.05);
+    rulerSlider.value = String(currentPxPmm);
+    applyPxPmm(currentPxPmm);
+  });
+  rulerSave?.addEventListener('click', () => {
+    try {
+      localStorage.setItem(STORAGE_KEY, String(currentPxPmm));
+      if (rulerSaveMsg) {
+        rulerSaveMsg.textContent = 'Lagret. Linjalen vil huske kalibreringen din neste gang.';
+        setTimeout(() => { if (rulerSaveMsg) rulerSaveMsg.textContent = ''; }, 3000);
+      }
+    } catch {
+      if (rulerSaveMsg) rulerSaveMsg.textContent = 'Kunne ikke lagre — prøv igjen.';
+    }
+  });
+  window.addEventListener('resize', () => drawRuler(currentPxPmm));
 </script>
