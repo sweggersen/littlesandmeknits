@@ -1,0 +1,39 @@
+---
+// Placeholder landing page for the marketplace surface. Lives on the
+// marketplace-exploration branch as a stub so the route exists and the
+// IA addition is visible. Real implementation follows the rollout in
+// docs/marketplace/05-rollout.md (Phase 0–1).
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+---
+
+<StudioLayout title="Marked — Littles and Me" lang="nb">
+  <div class="flex items-end justify-between mb-6 gap-4 flex-wrap">
+    <div>
+      <h1 class="font-serif text-3xl sm:text-4xl">Marked</h1>
+      <p class="text-charcoal/55 text-sm mt-2 max-w-xl">
+        Kjøp brukt og nytt strikket, eller bestill at noen strikker for deg.
+      </p>
+    </div>
+    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 px-2 py-1 rounded">
+      Under utforskning
+    </span>
+  </div>
+
+  <div class="rounded-2xl bg-white border border-sage-500/15 p-5 sm:p-6 mb-6">
+    <h2 class="font-serif text-xl mb-2">Tre måter å bruke markedet</h2>
+    <ul class="space-y-3 text-sm text-charcoal/75">
+      <li><strong class="text-charcoal">Brukt:</strong> finn (eller selg) plagg ungene har vokst fra.</li>
+      <li><strong class="text-charcoal">Nytt:</strong> strikkere selger plagg de har strikket på spec.</li>
+      <li><strong class="text-charcoal">Strikk for meg:</strong> bestill et plagg fra en strikker, eller legg ut en åpen forespørsel.</li>
+    </ul>
+  </div>
+
+  <div class="rounded-2xl bg-oatmeal/40 border border-sage-500/10 p-5 sm:p-6">
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">For utviklere</p>
+    <p class="text-sm text-charcoal/75 leading-relaxed">
+      Dette er en plassholderside. Hele planen ligger i
+      <code class="bg-white px-1.5 py-0.5 rounded text-[12px]">docs/marketplace/</code>
+      på <code class="bg-white px-1.5 py-0.5 rounded text-[12px]">marketplace-exploration</code>-branchen.
+    </p>
+  </div>
+</StudioLayout>
