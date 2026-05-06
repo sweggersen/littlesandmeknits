@@ -48,42 +48,31 @@
   }
 }
 
-/* App-mode chrome rules. Apply both when the site is launched as an
-   installed PWA (`display-mode: standalone`) and when previewing in any
-   browser via `?pwa=1` (sets `html.pwa-preview` from Layout.astro).
-   These selectors deliberately reach across components, so they live in
-   the global stylesheet — Astro's per-component <style> blocks are
-   scoped and would never match `body > nav` or [data-studio-topnav]. */
-@media all and (display-mode: standalone) {
-  body > footer { display: none; }
-  [data-studio-topnav] { display: none; }
-  [data-public-only] { display: none; }
-  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
-  [data-studio-tabbar] { display: flex; }
-}
-html.pwa-preview body > footer { display: none; }
-html.pwa-preview [data-studio-topnav] { display: none; }
-html.pwa-preview [data-public-only] { display: none; }
-html.pwa-preview body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
-html.pwa-preview [data-studio-tabbar] { display: flex; }
-
 /* Bottom tab bar styling (rendered by StudioTabBar.astro). Lives here
    instead of inside the component because Astro's component <style>
    blocks are scoped, and the tab-sheet backdrop / card need to reach
-   into nested elements without scope hashing. */
-[data-studio-tabbar] {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 60;
-  display: none;
+   into nested elements without scope hashing.
+
+   Tailwind v4's CSS optimizer (Lightning CSS) was silently dropping
+   shorthand-style properties like `position`, `bottom`, `left`,
+   `right`, and `display` from this rule when they conflicted with the
+   later override. Use `body` as a specificity bump on the layout
+   properties so Lightning CSS treats them as a distinct rule, and
+   gate visibility with !important to keep the standalone reveal
+   honest in any cascade order. */
+body [data-studio-tabbar] {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 60 !important;
   background: rgb(from var(--color-linen) r g b / 0.96);
   backdrop-filter: saturate(140%) blur(10px);
   -webkit-backdrop-filter: saturate(140%) blur(10px);
   border-top: 1px solid rgb(from var(--color-charcoal) r g b / 0.08);
   padding-bottom: env(safe-area-inset-bottom);
 }
+[data-studio-tabbar] { display: none !important; }
 [data-studio-tabbar] > * {
   flex: 1 1 0;
   min-width: 0;
@@ -158,4 +147,23 @@ html.pwa-preview [data-studio-tabbar] { display: flex; }
   color: var(--color-sage-900);
 }
 [data-tab-sheet-card] a svg { width: 22px; height: 22px; }
+
+/* App-mode chrome rules. Apply both when the site is launched as an
+   installed PWA (`display-mode: standalone`) and when previewing in any
+   browser via `?pwa=1` (sets `html.pwa-preview` from Layout.astro).
+   These selectors deliberately reach across components, so they live in
+   the global stylesheet — Astro's per-component <style> blocks are
+   scoped and would never match `body > nav` or [data-studio-topnav]. */
+@media all and (display-mode: standalone) {
+  body > footer { display: none; }
+  [data-studio-topnav] { display: none; }
+  [data-public-only] { display: none; }
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  [data-studio-tabbar] { display: flex !important; }
+}
+html.pwa-preview body > footer { display: none; }
+html.pwa-preview [data-studio-topnav] { display: none; }
+html.pwa-preview [data-public-only] { display: none; }
+html.pwa-preview body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+html.pwa-preview [data-studio-tabbar] { display: flex !important; }
 
