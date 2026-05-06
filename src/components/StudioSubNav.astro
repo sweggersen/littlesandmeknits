@@ -1,7 +1,16 @@
 ---
 // Reusable sticky sub-nav strip used at the top of grouped studio
-// surfaces (Garn/Pinner; Profil/Bibliotek/Kjøp; Verktøy tools). Pass
-// the items + the currently-active key.
+// surfaces.
+//
+// `variant`:
+//   "flush"  (default) — pulls up over the studio layout's top padding
+//                        so the strip sits right under the brand bar.
+//                        Use when the sub-nav is the very first child
+//                        of the slot (Garn/Pinner, Profil/Bibliotek/Kjøp,
+//                        Prosjekter status filter).
+//   "inline"           — no negative top margin; sits where you place it
+//                        in the document. Use when the page renders
+//                        H1+intro above the sub-nav (Verktøy tools).
 
 export interface SubNavItem {
   key: string;
@@ -13,13 +22,15 @@ export interface SubNavItem {
 interface Props {
   items: SubNavItem[];
   active: string;
+  variant?: 'flush' | 'inline';
   className?: string;
 }
 
-const { items, active, className = '' } = Astro.props;
+const { items, active, variant = 'flush', className = '' } = Astro.props;
+const flushPull = variant === 'flush' ? '-mt-8 sm:-mt-10' : '';
 ---
 
-<nav class:list={['sticky top-0 sm:top-[64px] -mt-8 sm:-mt-10 -mx-4 sm:-mx-6 px-4 sm:px-6 mb-6 bg-linen/90 backdrop-blur-md z-20', className]}>
+<nav class:list={['sticky top-0 sm:top-[64px] -mx-4 sm:-mx-6 px-4 sm:px-6 mb-6 bg-linen/90 backdrop-blur-md z-20', flushPull, className]}>
   <ul class="flex gap-5 sm:gap-7 overflow-x-auto py-2 -mb-px text-sm font-medium">
     {items.map((item) => {
       const isActive = item.key === active;
