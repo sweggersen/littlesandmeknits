@@ -1,0 +1,134 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+
+const sizes = [
+  '2.0', '2.25', '2.5', '2.75', '3.0', '3.25', '3.5', '3.75',
+  '4.0', '4.5', '5.0', '5.5', '6.0', '6.5', '7.0', '7.5',
+  '8.0', '9.0', '10.0', '12.0',
+];
+---
+
+<StudioLayout title="Ny pinne — Littles and Me" lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/pinner" class="hover:text-charcoal transition-colors">Pinner</a>
+      <span class="mx-2">/</span>
+      <span>Ny</span>
+    </nav>
+    <h1 class="font-serif text-4xl mb-8">Ny pinne</h1>
+
+    <form method="post" action="/api/needles/create" class="bg-white rounded-3xl p-8 border border-sage-500/10 space-y-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="needle_type" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Type *
+          </label>
+          <select
+            id="needle_type"
+            name="needle_type"
+            required
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          >
+            <option value="circular">Rundpinne</option>
+            <option value="dpn">Strømpepinner</option>
+            <option value="straight">Rette pinner</option>
+          </select>
+        </div>
+        <div>
+          <label for="size_mm" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Størrelse (mm) *
+          </label>
+          <input
+            id="size_mm"
+            name="size_mm"
+            type="number"
+            min="1"
+            max="25"
+            step="0.25"
+            required
+            list="size-options"
+            placeholder="4.0"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+          <datalist id="size-options">
+            {sizes.map((s) => <option value={s} />)}
+          </datalist>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="length_cm" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Lengde (cm)
+          </label>
+          <input
+            id="length_cm"
+            name="length_cm"
+            type="number"
+            min="0"
+            step="5"
+            placeholder="80"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+          <p class="text-[11px] text-charcoal/45 mt-1">Mest aktuelt for rundpinner.</p>
+        </div>
+        <div>
+          <label for="material" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Materiale
+          </label>
+          <input
+            id="material"
+            name="material"
+            type="text"
+            maxlength="40"
+            placeholder="Bambus, tre, metall…"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label for="brand" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Merke
+        </label>
+        <input
+          id="brand"
+          name="brand"
+          type="text"
+          maxlength="80"
+          placeholder="Knit Pro, ChiaoGoo, Addi…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div>
+        <label for="notes" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Notater
+        </label>
+        <textarea
+          id="notes"
+          name="notes"
+          rows="3"
+          maxlength="500"
+          placeholder="Hvor er den lagret, hvordan glir den, har den noen kvirk…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+        ></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <a
+          href="/studio/pinner"
+          class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2"
+        >
+          Avbryt
+        </a>
+        <button
+          type="submit"
+          class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          Legg til pinne
+        </button>
+      </div>
+    </form>
+  </div>
+</StudioLayout>

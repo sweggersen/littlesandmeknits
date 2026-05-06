@@ -1,0 +1,126 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { projectPhotoUrl } from '../../../lib/storage';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/studio/mine-oppskrifter');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+type ExternalPattern = {
+  id: string;
+  title: string;
+  designer: string | null;
+  source_url: string | null;
+  notes: string | null;
+  file_path: string | null;
+  cover_path: string | null;
+  created_at: string;
+};
+
+const { data: pattern, error } = await supabase
+  .from('external_patterns')
+  .select('id, title, designer, source_url, notes, file_path, cover_path, created_at')
+  .eq('id', id)
+  .maybeSingle();
+
+if (error || !pattern) return Astro.redirect('/studio/mine-oppskrifter');
+
+const pat = pattern as ExternalPattern;
+const fileUrl = projectPhotoUrl(pat.file_path);
+const coverUrl = projectPhotoUrl(pat.cover_path);
+const isPdf = !!pat.file_path && pat.file_path.toLowerCase().endsWith('.pdf');
+---
+
+<StudioLayout title={`${pat.title} — Littles and Me`} lang="nb">
+  <nav class="text-xs text-charcoal/50 mb-4">
+    <a href="/studio/mine-oppskrifter" class="hover:text-charcoal transition-colors">Mine oppskrifter</a>
+    <span class="mx-2">/</span>
+    <span>{pat.title}</span>
+  </nav>
+
+  <div class="max-w-4xl grid grid-cols-1 lg:grid-cols-5 gap-8">
+    <div class="lg:col-span-2">
+      {coverUrl ? (
+        <div class="aspect-[4/5] rounded-3xl overflow-hidden bg-oatmeal border border-sage-500/10">
+          <img src={coverUrl} alt={pat.title} class="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div class="aspect-[4/5] rounded-3xl bg-gradient-to-br from-sage-100 to-oatmeal border border-sage-500/10 flex items-center justify-center">
+          <span class="font-serif text-5xl text-sage-900/50">{isPdf ? 'PDF' : '✎'}</span>
+        </div>
+      )}
+
+      {fileUrl && (
+        <div class="mt-4 space-y-2">
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noopener"
+            class="block w-full text-center bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Åpne {isPdf ? 'PDF' : 'bildet'} ↗
+          </a>
+          <a
+            href={fileUrl}
+            download
+            class="block w-full text-center text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors py-2"
+          >
+            Last ned
+          </a>
+        </div>
+      )}
+    </div>
+
+    <div class="lg:col-span-3">
+      <h1 class="font-serif text-4xl mb-2">{pat.title}</h1>
+      {pat.designer && <p class="text-charcoal/65 mb-4">av {pat.designer}</p>}
+
+      <form method="post" action={`/api/external-patterns/${pat.id}/update`} enctype="multipart/form-data" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tittel</label>
+          <input name="title" type="text" required maxlength="120" value={pat.title} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Designer</label>
+            <input name="designer" type="text" maxlength="120" value={pat.designer ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lenke</label>
+            <input name="source_url" type="url" maxlength="400" value={pat.source_url ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt fil</label>
+          <input name="file" type="file" accept="application/pdf,image/*" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
+          <p class="text-[10px] text-charcoal/45 mt-1">La feltet være tomt for å beholde nåværende fil.</p>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt forside</label>
+          <input name="cover" type="file" accept="image/*" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
+          <textarea name="notes" rows="3" maxlength="1000" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{pat.notes ?? ''}</textarea>
+        </div>
+        <div class="flex justify-end pt-2">
+          <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            Lagre endringer
+          </button>
+        </div>
+      </form>
+
+      <form method="post" action={`/api/external-patterns/${pat.id}/delete`} class="mt-4">
+        <button
+          type="submit"
+          class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors"
+          onclick="return confirm('Slette denne oppskriften? Filene fjernes også.')"
+        >
+          Slett oppskrift
+        </button>
+      </form>
+    </div>
+  </div>
+</StudioLayout>

@@ -66,6 +66,43 @@ const progressPct = targetRows && targetRows > 0 && currentRows !== null
   ? Math.min(100, Math.round((currentRows / targetRows) * 100))
   : null;
 
+// Linked yarns from the stash (with grams used + deduction state).
+type ProjectYarnLink = {
+  id: string;
+  yarn_id: string;
+  grams_used: number;
+  deducted_at: string | null;
+  yarns: {
+    brand: string;
+    name: string;
+    color: string | null;
+    total_grams: number | null;
+  } | null;
+};
+const { data: yarnLinksData } = await supabase
+  .from('project_yarns')
+  .select('id, yarn_id, grams_used, deducted_at, yarns(brand, name, color, total_grams)')
+  .eq('project_id', id)
+  .order('created_at', { ascending: true });
+const yarnLinks = (yarnLinksData ?? []) as ProjectYarnLink[];
+
+// All yarns in the user's stash for the picker.
+type StashYarnRow = {
+  id: string;
+  brand: string;
+  name: string;
+  color: string | null;
+  total_grams: number | null;
+};
+const { data: stashData } = await supabase
+  .from('yarns')
+  .select('id, brand, name, color, total_grams')
+  .order('brand', { ascending: true })
+  .order('name', { ascending: true });
+const stash = (stashData ?? []) as StashYarnRow[];
+const linkedYarnIds = new Set(yarnLinks.map((l) => l.yarn_id));
+const availableStash = stash.filter((y) => !linkedYarnIds.has(y.id));
+
 const patternEntry = p.pattern_slug ? await getEntry('patterns', p.pattern_slug) : null;
 const heroUrl = projectPhotoUrl(p.hero_photo_path);
 
@@ -192,6 +229,89 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
               Lagre
             </button>
           </form>
+        </details>
+      </section>
+
+      <!-- Garn brukt / yarns from stash -->
+      <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
+        <details class="group" open={yarnLinks.length > 0}>
+          <summary class="flex items-baseline justify-between gap-3 cursor-pointer list-none">
+            <h2 class="font-serif text-lg">Garn brukt</h2>
+            {yarnLinks.length > 0 ? (
+              <span class="text-sm text-charcoal/65 font-medium">
+                {yarnLinks.length} {yarnLinks.length === 1 ? 'nøste' : 'nøster'} ·
+                {' '}{yarnLinks.reduce((s, l) => s + (l.grams_used ?? 0), 0)} g
+              </span>
+            ) : (
+              <span class="text-xs text-charcoal/45">Knytt garn fra lageret for å trekke fra automatisk når prosjektet er ferdig.</span>
+            )}
+          </summary>
+
+          {yarnLinks.length > 0 && (
+            <ul class="mt-4 space-y-2">
+              {yarnLinks.map((link) => (
+                <li class="flex items-center justify-between gap-3 bg-linen rounded-xl px-4 py-2.5">
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate">
+                      {link.yarns?.brand} {link.yarns?.name}
+                      {link.yarns?.color && <span class="text-charcoal/55"> · {link.yarns.color}</span>}
+                    </p>
+                    <p class="text-xs text-charcoal/55">
+                      {link.grams_used} g
+                      {link.deducted_at ? (
+                        <span class="text-sage-900 font-medium ml-2">✓ trukket fra lager</span>
+                      ) : (
+                        link.yarns?.total_grams !== null && link.yarns?.total_grams !== undefined && (
+                          <span class="ml-2">av {link.yarns.total_grams} g i lager</span>
+                        )
+                      )}
+                    </p>
+                  </div>
+                  <form method="post" action={`/api/projects/${p.id}/yarn/${link.id}/delete`} class="inline">
+                    <button
+                      type="submit"
+                      class="text-[11px] text-charcoal/40 hover:text-terracotta-500 transition-colors"
+                      onclick="return confirm('Fjerne denne garnkoblingen? Hvis prosjektet er ferdig, legges grammene tilbake i lageret.')"
+                    >
+                      Fjern
+                    </button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {availableStash.length > 0 ? (
+            <form method="post" action={`/api/projects/${p.id}/yarn`} class="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-3 items-end">
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garn fra lager</label>
+                <select name="yarn_id" required class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+                  {availableStash.map((y) => (
+                    <option value={y.id}>
+                      {y.brand} {y.name}{y.color ? ` · ${y.color}` : ''}{y.total_grams ? ` (${y.total_grams} g)` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Brukt (g)</label>
+                <input type="number" name="grams_used" required min="0" step="10" placeholder="100" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              </div>
+              <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                Knytt garn
+              </button>
+            </form>
+          ) : stash.length === 0 ? (
+            <p class="mt-4 text-xs text-charcoal/45">
+              Ingen garn i lageret ennå. <a href="/studio/garn/ny" class="text-terracotta-500 hover:underline">Legg til et garn</a> for å kunne knytte det til prosjekter.
+            </p>
+          ) : (
+            <p class="mt-4 text-xs text-charcoal/45">Alle garnene fra lageret er allerede knyttet til dette prosjektet.</p>
+          )}
+
+          {p.status === 'finished' && yarnLinks.length > 0 && yarnLinks.every((l) => l.deducted_at) && (
+            <p class="mt-4 text-xs text-sage-900">Garnene er trukket fra lageret. De legges automatisk tilbake hvis du endrer status.</p>
+          )}
         </details>
       </section>
 

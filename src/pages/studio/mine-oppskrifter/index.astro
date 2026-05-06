@@ -1,0 +1,87 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { projectPhotoUrl } from '../../../lib/storage';
+
+type ExternalPattern = {
+  id: string;
+  title: string;
+  designer: string | null;
+  cover_path: string | null;
+  file_path: string | null;
+  created_at: string;
+};
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data } = await supabase
+  .from('external_patterns')
+  .select('id, title, designer, cover_path, file_path, created_at')
+  .order('created_at', { ascending: false });
+
+const patterns = (data ?? []) as ExternalPattern[];
+
+function isPdf(path: string | null): boolean {
+  return !!path && path.toLowerCase().endsWith('.pdf');
+}
+---
+
+<StudioLayout title="Mine oppskrifter — Littles and Me" lang="nb">
+  <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
+    <div>
+      <h1 class="font-serif text-4xl">Mine oppskrifter</h1>
+      <p class="text-sm text-charcoal/55 mt-2 max-w-xl">
+        Bibliotek for oppskrifter du strikker som ikke er dine egne — PDF‑er, blader, scans. Knytt dem til prosjekter for raskt oppslag.
+      </p>
+    </div>
+    <a
+      href="/studio/mine-oppskrifter/ny"
+      class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
+    >
+      + Last opp oppskrift
+    </a>
+  </div>
+
+  {patterns.length === 0 ? (
+    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+      <p class="text-charcoal/55 mb-6">Ingen oppskrifter i biblioteket ennå. Last opp en PDF eller scan slik at du finner den igjen.</p>
+      <a
+        href="/studio/mine-oppskrifter/ny"
+        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Last opp oppskrift
+      </a>
+    </div>
+  ) : (
+    <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {patterns.map((pat) => {
+        const cover = projectPhotoUrl(pat.cover_path);
+        return (
+          <li>
+            <a
+              href={`/studio/mine-oppskrifter/${pat.id}`}
+              class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
+            >
+              {cover ? (
+                <div class="aspect-[4/5] bg-oatmeal overflow-hidden">
+                  <img src={cover} alt={pat.title} class="w-full h-full object-cover" loading="lazy" />
+                </div>
+              ) : (
+                <div class="aspect-[4/5] bg-gradient-to-br from-sage-100 to-oatmeal flex items-center justify-center">
+                  <span class="font-serif text-3xl text-sage-900/50">
+                    {isPdf(pat.file_path) ? 'PDF' : '✎'}
+                  </span>
+                </div>
+              )}
+              <div class="p-5">
+                <h3 class="font-serif text-lg leading-tight mb-1">{pat.title}</h3>
+                {pat.designer && (
+                  <p class="text-xs text-charcoal/55">{pat.designer}</p>
+                )}
+              </div>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  )}
+</StudioLayout>

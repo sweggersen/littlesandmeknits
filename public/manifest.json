@@ -1,0 +1,41 @@
+{
+  "name": "Littles and Me",
+  "short_name": "Littles",
+  "description": "Strikkeoppskrifter, prosjekter, garnlager og verktøy.",
+  "start_url": "/studio",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF6F0",
+  "theme_color": "#FAF6F0",
+  "lang": "nb-NO",
+  "categories": ["lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Nytt prosjekt",
+      "short_name": "Nytt",
+      "description": "Start en ny prosjektlogg",
+      "url": "/studio/prosjekter/ny"
+    },
+    {
+      "name": "Garnlager",
+      "short_name": "Garn",
+      "description": "Se garnlageret ditt",
+      "url": "/studio/garn"
+    },
+    {
+      "name": "Verktøy",
+      "short_name": "Verktøy",
+      "description": "Kalkulatorer og linjal",
+      "url": "/studio/verktoy"
+    }
+  ]
+}

@@ -21,6 +21,12 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
     <meta name="description" content={description ?? ''} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#FAF6F0" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Littles" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
   </head>
@@ -30,5 +36,13 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
       <slot />
     </main>
     <Footer lang={lang} />
+    <script>
+      // Register the PWA service worker on supported browsers.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {});
+        });
+      }
+    </script>
   </body>
 </html>

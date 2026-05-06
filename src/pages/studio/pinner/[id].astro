@@ -1,0 +1,98 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/studio/pinner');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+type NeedleRow = {
+  id: string;
+  needle_type: 'circular' | 'dpn' | 'straight' | string;
+  size_mm: number | string;
+  length_cm: number | null;
+  material: string | null;
+  brand: string | null;
+  notes: string | null;
+};
+
+const { data: needle, error } = await supabase
+  .from('needles')
+  .select('id, needle_type, size_mm, length_cm, material, brand, notes')
+  .eq('id', id)
+  .maybeSingle();
+
+if (error || !needle) return Astro.redirect('/studio/pinner');
+
+const n = needle as NeedleRow;
+const sizeNum = parseFloat(n.size_mm as string);
+
+const TYPE_LABEL: Record<string, string> = {
+  circular: 'Rundpinne',
+  dpn: 'Strømpepinner',
+  straight: 'Rette pinner',
+};
+---
+
+<StudioLayout title={`${sizeNum} mm ${TYPE_LABEL[n.needle_type] ?? n.needle_type} — Littles and Me`} lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/pinner" class="hover:text-charcoal transition-colors">Pinner</a>
+      <span class="mx-2">/</span>
+      <span>{sizeNum} mm {TYPE_LABEL[n.needle_type] ?? n.needle_type}</span>
+    </nav>
+    <h1 class="font-serif text-4xl mb-2">{sizeNum} mm</h1>
+    <p class="text-charcoal/65 mb-8">{TYPE_LABEL[n.needle_type] ?? n.needle_type}{n.length_cm ? ` · ${n.length_cm} cm` : ''}</p>
+
+    <form method="post" action={`/api/needles/${n.id}/update`} class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type</label>
+          <select name="needle_type" required class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+            <option value="circular" selected={n.needle_type === 'circular'}>Rundpinne</option>
+            <option value="dpn" selected={n.needle_type === 'dpn'}>Strømpepinner</option>
+            <option value="straight" selected={n.needle_type === 'straight'}>Rette pinner</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Størrelse (mm)</label>
+          <input name="size_mm" type="number" min="1" max="25" step="0.25" required value={sizeNum} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lengde (cm)</label>
+          <input name="length_cm" type="number" min="0" step="5" value={n.length_cm ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Materiale</label>
+          <input name="material" type="text" maxlength="40" value={n.material ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Merke</label>
+        <input name="brand" type="text" maxlength="80" value={n.brand ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
+        <textarea name="notes" rows="3" maxlength="500" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{n.notes ?? ''}</textarea>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Lagre endringer
+        </button>
+      </div>
+    </form>
+
+    <form method="post" action={`/api/needles/${n.id}/delete`} class="mt-4">
+      <button
+        type="submit"
+        class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors"
+        onclick="return confirm('Slette denne pinnen?')"
+      >
+        Slett pinne
+      </button>
+    </form>
+  </div>
+</StudioLayout>

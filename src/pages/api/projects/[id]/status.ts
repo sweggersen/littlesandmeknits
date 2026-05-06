@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCurrentUser } from '../../../../lib/auth';
 import { createServerSupabase } from '../../../../lib/supabase';
+import { reconcileYarnDeductions } from '../../../../lib/yarn-deduction';
 
 const VALID_STATUS = new Set(['planning', 'active', 'finished', 'frogged']);
 
@@ -33,6 +34,9 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     console.error('Status update failed', error);
     return new Response('Could not update', { status: 500 });
   }
+
+  // Apply or revert yarn-stash deductions for any linked yarns.
+  await reconcileYarnDeductions(supabase, projectId, status);
 
   return redirect(`/studio/prosjekter/${projectId}`, 303);
 };

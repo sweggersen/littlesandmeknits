@@ -1,30 +1,198 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../lib/supabase';
 import { useTranslations } from '../../lib/i18n';
+import { getCurrentUser } from '../../lib/auth';
 
 const t = useTranslations('nb');
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const now = new Date();
+const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+
+const [projectsRes, yarnsRes, needlesRes, externalRes, deductionsRes] = await Promise.all([
+  supabase.from('projects').select('id, status, started_at, finished_at, created_at'),
+  supabase.from('yarns').select('id, total_grams'),
+  supabase.from('needles').select('id'),
+  supabase.from('external_patterns').select('id'),
+  supabase.from('project_yarns').select('grams_used, deducted_at'),
+]);
+
+type ProjectStatRow = {
+  id: string;
+  status: 'planning' | 'active' | 'finished' | 'frogged';
+  started_at: string | null;
+  finished_at: string | null;
+  created_at: string;
+};
+
+const projects = (projectsRes.data ?? []) as ProjectStatRow[];
+const yarns = (yarnsRes.data ?? []) as Array<{ id: string; total_grams: number | null }>;
+const needles = (needlesRes.data ?? []) as Array<{ id: string }>;
+const externals = (externalRes.data ?? []) as Array<{ id: string }>;
+const deductions = (deductionsRes.data ?? []) as Array<{ grams_used: number; deducted_at: string | null }>;
+
+const finishedAll = projects.filter((p) => p.status === 'finished');
+const finishedThisYear = finishedAll.filter((p) => p.finished_at && p.finished_at >= startOfYear);
+const active = projects.filter((p) => p.status === 'active');
+const planning = projects.filter((p) => p.status === 'planning');
+
+const stashTotalGrams = yarns.reduce((s, y) => s + (y.total_grams ?? 0), 0);
+const totalGramsKnit = deductions
+  .filter((d) => d.deducted_at)
+  .reduce((s, d) => s + (d.grams_used ?? 0), 0);
+
+let longestDays = 0;
+for (const p of finishedAll) {
+  if (!p.started_at || !p.finished_at) continue;
+  const days = Math.round(
+    (new Date(p.finished_at).getTime() - new Date(p.started_at).getTime()) / 86_400_000,
+  );
+  if (days > longestDays) longestDays = days;
+}
+
+type Badge = { id: string; label: string; emoji: string; description: string; earned: boolean };
+const badges: Badge[] = [
+  {
+    id: 'first-finished',
+    label: 'Første plagg',
+    emoji: '🎉',
+    description: 'Strikket ferdig ditt første prosjekt.',
+    earned: finishedAll.length >= 1,
+  },
+  {
+    id: 'five-finished',
+    label: '5 plagg',
+    emoji: '🧶',
+    description: 'Fem ferdige prosjekter.',
+    earned: finishedAll.length >= 5,
+  },
+  {
+    id: 'ten-finished',
+    label: '10 plagg',
+    emoji: '🏅',
+    description: 'Ti ferdige prosjekter — du er på rull.',
+    earned: finishedAll.length >= 10,
+  },
+  {
+    id: 'kilo-knit',
+    label: '1 kg strikket',
+    emoji: '⚖️',
+    description: 'Totalt 1 kg garn brukt på ferdige prosjekter.',
+    earned: totalGramsKnit >= 1000,
+  },
+  {
+    id: 'stash-builder',
+    label: 'Garnsamler',
+    emoji: '🪡',
+    description: '10 garn i lageret.',
+    earned: yarns.length >= 10,
+  },
+  {
+    id: 'librarian',
+    label: 'Bibliotekar',
+    emoji: '📚',
+    description: '10 oppskrifter i biblioteket.',
+    earned: externals.length >= 10,
+  },
+];
+
+const earnedBadges = badges.filter((b) => b.earned);
+
+const greeting = user?.email ? user.email.split('@')[0] : 'der';
+const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} g`);
 ---
 
 <StudioLayout title="Studio — Littles and Me" lang="nb">
   <section>
-    <h1 class="font-serif text-4xl mb-3">{t('studio.nav.overview')}</h1>
+    <h1 class="font-serif text-4xl mb-2">Hei, {greeting}</h1>
     <p class="text-charcoal/60 max-w-prose">
-      Her samles alt du driver med — prosjekter, garnlager, oppskriftene du har kjøpt, og verktøyene jeg bygger ut etter hvert.
+      Oversikt over alt du driver med — prosjekter, garnlager, oppskriftene dine, og verktøyene som hjelper deg fra plan til ferdig plagg.
     </p>
-    <div class="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+    <div class="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">I gang</p>
+        <p class="font-serif text-3xl text-charcoal">{active.length}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Planlegges</p>
+        <p class="font-serif text-3xl text-charcoal">{planning.length}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Ferdig {now.getFullYear()}</p>
+        <p class="font-serif text-3xl text-sage-900">{finishedThisYear.length}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Strikket totalt</p>
+        <p class="font-serif text-3xl text-charcoal">{fmtKg(totalGramsKnit)}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">I lager</p>
+        <p class="font-serif text-3xl text-charcoal">{fmtKg(stashTotalGrams)}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Pinner</p>
+        <p class="font-serif text-3xl text-charcoal">{needles.length}</p>
+      </div>
+    </div>
+
+    {longestDays > 0 && (
+      <p class="mt-4 text-xs text-charcoal/55 italic">
+        Lengste prosjekt: {longestDays} dager fra start til ferdig.
+      </p>
+    )}
+
+    <h2 class="font-serif text-2xl mt-12 mb-4">Snarveier</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {[
-        { href: '/studio/prosjekter', title: t('studio.nav.projects'), body: t('studio.empty.projects') },
-        { href: '/studio/garn', title: t('studio.nav.stash'), body: t('studio.empty.stash') },
-        { href: '/studio/kjop', title: t('studio.nav.purchases'), body: t('studio.empty.purchases') },
+        { href: '/studio/prosjekter/ny', title: 'Nytt prosjekt', body: 'Start en ny logg.' },
+        { href: '/studio/garn/ny', title: 'Nytt garn', body: 'Legg til i lageret.' },
+        { href: '/studio/pinner/ny', title: 'Ny pinne', body: 'Registrer pinner.' },
+        { href: '/studio/mine-oppskrifter/ny', title: 'Last opp oppskrift', body: 'PDF eller bilde.' },
       ].map((card) => (
         <a
           href={card.href}
-          class="block bg-white rounded-3xl p-6 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
+          class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
         >
-          <h2 class="font-serif text-xl mb-2">{card.title}</h2>
-          <p class="text-sm text-charcoal/55">{card.body}</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">+ Ny</p>
+          <h3 class="font-serif text-lg leading-tight mb-1">{card.title}</h3>
+          <p class="text-xs text-charcoal/55">{card.body}</p>
         </a>
       ))}
     </div>
+
+    <h2 class="font-serif text-2xl mt-12 mb-1">Merker</h2>
+    <p class="text-sm text-charcoal/55 mb-6">
+      {earnedBadges.length === 0
+        ? 'Strikk ferdig ditt første prosjekt for å låse opp første merke.'
+        : `${earnedBadges.length} av ${badges.length} merker oppnådd.`}
+    </p>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      {badges.map((b) => (
+        <div
+          class:list={[
+            'bg-white rounded-2xl p-4 border text-center transition-all',
+            b.earned ? 'border-sage-500/30 shadow-sm' : 'border-sage-500/10 opacity-50',
+          ]}
+        >
+          <div class={`text-3xl mb-1 ${b.earned ? '' : 'grayscale'}`}>{b.emoji}</div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal mb-1">{b.label}</p>
+          <p class="text-[10px] text-charcoal/55 leading-tight">{b.description}</p>
+        </div>
+      ))}
+    </div>
+
+    {projects.length === 0 && (
+      <div class="mt-12 bg-sage-100 rounded-3xl p-8 text-center">
+        <p class="font-serif text-2xl text-sage-900 mb-3">Ny her?</p>
+        <p class="text-sage-900/80 max-w-md mx-auto mb-5">{t('studio.empty.projects')}</p>
+        <a href="/studio/prosjekter/ny" class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Start et prosjekt
+        </a>
+      </div>
+    )}
   </section>
 </StudioLayout>

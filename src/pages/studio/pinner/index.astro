@@ -1,0 +1,99 @@
+---
+import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+
+type NeedleRow = {
+  id: string;
+  needle_type: 'circular' | 'dpn' | 'straight' | string;
+  size_mm: number | string;
+  length_cm: number | null;
+  material: string | null;
+  brand: string | null;
+};
+
+const TYPE_LABEL: Record<string, string> = {
+  circular: 'Rundpinne',
+  dpn: 'Strømpepinner',
+  straight: 'Rette pinner',
+};
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data } = await supabase
+  .from('needles')
+  .select('id, needle_type, size_mm, length_cm, material, brand')
+  .order('size_mm', { ascending: true });
+
+const needles = (data ?? []) as NeedleRow[];
+
+// Group by size_mm for the list view (most natural way to find a pinne is "do I have a 4mm circular?").
+const grouped = new Map<string, NeedleRow[]>();
+for (const n of needles) {
+  const key = String(parseFloat(n.size_mm as string).toFixed(2));
+  if (!grouped.has(key)) grouped.set(key, []);
+  grouped.get(key)!.push(n);
+}
+const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - parseFloat(b));
+---
+
+<StudioLayout title="Pinner — Littles and Me" lang="nb">
+  <div class="flex items-center justify-between mb-8">
+    <div>
+      <h1 class="font-serif text-4xl">Pinner</h1>
+      {needles.length > 0 && (
+        <p class="text-sm text-charcoal/55 mt-2">{needles.length} {needles.length === 1 ? 'pinne' : 'pinner'} · sortert etter størrelse</p>
+      )}
+    </div>
+    <a
+      href="/studio/pinner/ny"
+      class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      + Ny pinne
+    </a>
+  </div>
+
+  {needles.length === 0 ? (
+    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+      <p class="text-charcoal/55 mb-6">Ingen pinner ennå. Registrer rundpinner, strømpepinner og rette pinner for å slippe å lete neste gang.</p>
+      <a
+        href="/studio/pinner/ny"
+        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Legg til pinne
+      </a>
+    </div>
+  ) : (
+    <div class="space-y-6">
+      {sortedSizes.map((size) => (
+        <section class="bg-white rounded-3xl border border-sage-500/10 overflow-hidden">
+          <header class="px-6 py-4 bg-sage-100">
+            <h2 class="font-serif text-xl text-sage-900">{size} mm</h2>
+          </header>
+          <ul class="divide-y divide-sage-500/10">
+            {grouped.get(size)!.map((n) => (
+              <li>
+                <a href={`/studio/pinner/${n.id}`} class="block px-6 py-4 hover:bg-linen transition-colors">
+                  <div class="flex items-baseline justify-between gap-4 flex-wrap">
+                    <div class="flex items-baseline gap-3 flex-wrap">
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-sage-900">
+                        {TYPE_LABEL[n.needle_type] ?? n.needle_type}
+                      </span>
+                      {n.length_cm && (
+                        <span class="text-sm text-charcoal/65">{n.length_cm} cm</span>
+                      )}
+                      {n.material && (
+                        <span class="text-sm text-charcoal/65">{n.material}</span>
+                      )}
+                    </div>
+                    {n.brand && (
+                      <span class="text-xs text-charcoal/45">{n.brand}</span>
+                    )}
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  )}
+</StudioLayout>
