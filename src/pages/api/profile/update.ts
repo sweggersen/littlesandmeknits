@@ -39,5 +39,18 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return new Response('Could not update profile', { status: 500 });
   }
 
+  // Mirror the chosen language into a cookie so the marketing-site middleware
+  // can enforce it on subsequent requests without re-checking Supabase.
+  if (language) {
+    cookies.set('lm-lang', language, {
+      path: '/',
+      httpOnly: false,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  } else {
+    cookies.delete('lm-lang', { path: '/' });
+  }
+
   return redirect(next, 303);
 };

@@ -48,16 +48,116 @@
   }
 }
 
-/* Hide marketing chrome (footer + language switcher) when the site is
-   launched as an installed PWA. In standalone mode users are inside the
-   app shell; the brand pitch + outbound links would feel out of place
-   and the locale switcher is irrelevant once the studio is the home.
-   `html.pwa-preview` mirrors the same rules so the experience can be
-   inspected in any browser via ?pwa=1. */
+/* App-mode chrome rules. Apply both when the site is launched as an
+   installed PWA (`display-mode: standalone`) and when previewing in any
+   browser via `?pwa=1` (sets `html.pwa-preview` from Layout.astro).
+   These selectors deliberately reach across components, so they live in
+   the global stylesheet — Astro's per-component <style> blocks are
+   scoped and would never match `body > nav` or [data-studio-topnav]. */
 @media all and (display-mode: standalone) {
   body > footer { display: none; }
+  body > nav:first-of-type { display: none; }
+  [data-studio-topnav] { display: none; }
   [data-public-only] { display: none; }
+  body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+  [data-studio-tabbar] { display: flex; }
 }
 html.pwa-preview body > footer { display: none; }
+html.pwa-preview body > nav:first-of-type { display: none; }
+html.pwa-preview [data-studio-topnav] { display: none; }
 html.pwa-preview [data-public-only] { display: none; }
+html.pwa-preview body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+html.pwa-preview [data-studio-tabbar] { display: flex; }
+
+/* Bottom tab bar styling (rendered by StudioTabBar.astro). Lives here
+   instead of inside the component because Astro's component <style>
+   blocks are scoped, and the tab-sheet backdrop / card need to reach
+   into nested elements without scope hashing. */
+[data-studio-tabbar] {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: none;
+  background: rgb(from var(--color-linen) r g b / 0.96);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  border-top: 1px solid rgb(from var(--color-charcoal) r g b / 0.08);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+[data-studio-tabbar] > * {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px 6px;
+  background: transparent;
+  border: 0;
+  color: rgb(from var(--color-charcoal) r g b / 0.55);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+}
+[data-studio-tabbar] > * svg { width: 24px; height: 24px; }
+[data-studio-tabbar] > *.is-active { color: var(--color-terracotta-500); }
+
+[data-tab-sheet] {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: none;
+}
+[data-tab-sheet][data-open] { display: block; }
+[data-tab-sheet-backdrop] {
+  position: absolute;
+  inset: 0;
+  background: rgb(from var(--color-charcoal) r g b / 0.35);
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+[data-tab-sheet][data-open] [data-tab-sheet-backdrop] { opacity: 1; }
+[data-tab-sheet-card] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--color-linen);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  padding: 12px 16px calc(env(safe-area-inset-bottom) + 16px);
+  transform: translateY(100%);
+  transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 -10px 40px rgb(from var(--color-charcoal) r g b / 0.1);
+}
+[data-tab-sheet][data-open] [data-tab-sheet-card] { transform: translateY(0); }
+[data-tab-sheet-handle] {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(from var(--color-charcoal) r g b / 0.2);
+  margin: 0 auto 12px;
+}
+[data-tab-sheet-card] ul { display: flex; flex-direction: column; gap: 2px; }
+[data-tab-sheet-card] a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 12px;
+  border-radius: 14px;
+  color: var(--color-charcoal);
+  font-size: 16px;
+  font-weight: 500;
+  text-decoration: none;
+}
+[data-tab-sheet-card] a.is-active {
+  background: rgb(from var(--color-sage-100) r g b / 1);
+  color: var(--color-sage-900);
+}
+[data-tab-sheet-card] a svg { width: 22px; height: 22px; }
 

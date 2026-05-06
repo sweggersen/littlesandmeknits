@@ -8,7 +8,7 @@
 // iOS safe area so nothing hides behind it.
 ---
 
-<nav data-studio-tabbar class="hidden">
+<nav data-studio-tabbar>
   <a href="/studio" data-tab="/studio" data-tab-match="^/studio/?$">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 11 12 4l9 7" />
@@ -48,7 +48,7 @@
 </nav>
 
 <!-- More-sheet, slides up over the tab bar. -->
-<div data-tab-sheet class="hidden">
+<div data-tab-sheet>
   <div data-tab-sheet-backdrop></div>
   <div data-tab-sheet-card>
     <div data-tab-sheet-handle></div>
@@ -84,151 +84,6 @@
     </ul>
   </div>
 </div>
-
-<style>
-  /* Bottom tab bar — only visible when running as installed PWA. */
-  [data-studio-tabbar] {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 60;
-    display: none;
-    background: rgb(from var(--color-linen) r g b / 0.96);
-    backdrop-filter: saturate(140%) blur(10px);
-    -webkit-backdrop-filter: saturate(140%) blur(10px);
-    border-top: 1px solid rgb(from var(--color-charcoal) r g b / 0.08);
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  [data-studio-tabbar] > * {
-    flex: 1 1 0;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    padding: 8px 4px 6px;
-    background: transparent;
-    border: 0;
-    color: rgb(from var(--color-charcoal) r g b / 0.55);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    text-decoration: none;
-    cursor: pointer;
-  }
-  [data-studio-tabbar] > * svg {
-    width: 24px;
-    height: 24px;
-  }
-  [data-studio-tabbar] > *.is-active {
-    color: var(--color-terracotta-500);
-  }
-
-  /* More sheet. */
-  [data-tab-sheet] {
-    position: fixed;
-    inset: 0;
-    z-index: 70;
-    display: none;
-  }
-  [data-tab-sheet][data-open] {
-    display: block;
-  }
-  [data-tab-sheet-backdrop] {
-    position: absolute;
-    inset: 0;
-    background: rgb(from var(--color-charcoal) r g b / 0.35);
-    opacity: 0;
-    transition: opacity 200ms ease;
-  }
-  [data-tab-sheet][data-open] [data-tab-sheet-backdrop] {
-    opacity: 1;
-  }
-  [data-tab-sheet-card] {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--color-linen);
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
-    padding: 12px 16px calc(env(safe-area-inset-bottom) + 16px);
-    transform: translateY(100%);
-    transition: transform 220ms cubic-bezier(0.32, 0.72, 0, 1);
-    box-shadow: 0 -10px 40px rgb(from var(--color-charcoal) r g b / 0.1);
-  }
-  [data-tab-sheet][data-open] [data-tab-sheet-card] {
-    transform: translateY(0);
-  }
-  [data-tab-sheet-handle] {
-    width: 36px;
-    height: 4px;
-    border-radius: 999px;
-    background: rgb(from var(--color-charcoal) r g b / 0.2);
-    margin: 0 auto 12px;
-  }
-  [data-tab-sheet-card] ul {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  [data-tab-sheet-card] a {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 12px;
-    border-radius: 14px;
-    color: var(--color-charcoal);
-    font-size: 16px;
-    font-weight: 500;
-    text-decoration: none;
-  }
-  [data-tab-sheet-card] a.is-active {
-    background: rgb(from var(--color-sage-100) r g b / 1);
-    color: var(--color-sage-900);
-  }
-  [data-tab-sheet-card] a svg {
-    width: 22px;
-    height: 22px;
-  }
-
-  @media all and (display-mode: standalone) {
-    [data-studio-tabbar] {
-      display: flex;
-    }
-    /* Reserve space at the bottom of the studio scroll area for the tab bar
-       + iOS home indicator so content doesn't slip behind. */
-    body {
-      padding-bottom: calc(64px + env(safe-area-inset-bottom));
-    }
-    /* Suppress the existing top studio nav in standalone — bottom tabs replace it. */
-    [data-studio-topnav] {
-      display: none;
-    }
-    /* And hide the marketing site nav at the very top — apps shouldn't show
-       a brand bar pointing to /, /oppskrifter, etc. */
-    body > nav:first-of-type {
-      display: none;
-    }
-  }
-
-  /* Preview mirror: `?pwa=1` (or sessionStorage flag) sets html.pwa-preview
-     so the same chrome shows up in any browser without installing. */
-  html.pwa-preview [data-studio-tabbar] {
-    display: flex;
-  }
-  html.pwa-preview body {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
-  }
-  html.pwa-preview [data-studio-topnav] {
-    display: none;
-  }
-  html.pwa-preview body > nav:first-of-type {
-    display: none;
-  }
-</style>
 
 <script>
   function syncActive() {
