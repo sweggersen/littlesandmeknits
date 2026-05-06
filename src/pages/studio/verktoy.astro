@@ -50,9 +50,8 @@ const toolTabs = [
 
   <div>
 
-    {tool === 'gauge' && (
     <!-- Strikkfasthet -->
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+    <section data-verktoy-tool="gauge" hidden={tool !== 'gauge'} class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Strikkfasthet</h2>
       <p class="text-sm text-charcoal/55 mb-6">Regn ut hvor mange masker du trenger for å få riktig bredde.</p>
       <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end" data-gauge>
@@ -90,11 +89,9 @@ const toolTabs = [
       </form>
       <p class="text-xs text-charcoal/45 mt-4">Tips: Strikk alltid en prøvelapp først. Strikkfastheten endrer seg med garn, pinner og hvor stramt du strikker.</p>
     </section>
-    )}
 
-    {tool === 'yardage' && (
     <!-- Garnforbruk -->
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+    <section data-verktoy-tool="yardage" hidden={tool !== 'yardage'} class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Garnforbruk</h2>
       <p class="text-sm text-charcoal/55 mb-6">Anslag basert på plaggtype og str. Kan variere med ±20 %.</p>
 
@@ -136,11 +133,9 @@ const toolTabs = [
         </div>
       </form>
     </section>
-    )}
 
-    {tool === 'evenly' && (
     <!-- Felling og økning -->
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+    <section data-verktoy-tool="evenly" hidden={tool !== 'evenly'} class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Felling og økning</h2>
       <p class="text-sm text-charcoal/55 mb-6">Fordel fellingene eller økningene jevnt over et antall rader.</p>
       <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end mb-6" data-evenly>
@@ -185,11 +180,9 @@ const toolTabs = [
       </div>
       <p class="text-xs text-charcoal/45 mt-4">Tips: Plasser felling/økning symmetrisk på begge sider for raglan eller A‑form. Skriv ut rad‑listen og kryss av etter hvert.</p>
     </section>
-    )}
 
-    {tool === 'ruler' && (
     <!-- Linjal -->
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+    <section data-verktoy-tool="ruler" hidden={tool !== 'ruler'} class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Linjal</h2>
       <p class="text-sm text-charcoal/55 mb-6">
         Mål prøvelappen rett på skjermen. Kalibrer én gang ved å holde et bankkort mot skjermen og justere bredden under.
@@ -230,11 +223,9 @@ const toolTabs = [
         Linjalen tegnes i centimeter og millimeter etter kalibreringen din. Tips: Strikk en lapp på minst 12 × 12 cm og bløtlegg den før du måler.
       </p>
     </section>
-    )}
 
-    {tool === 'needles' && (
     <!-- Pinnestørrelse -->
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+    <section data-verktoy-tool="needles" hidden={tool !== 'needles'} class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Pinnestørrelser</h2>
       <p class="text-sm text-charcoal/55 mb-6">Konverteringstabell mellom metrisk, US og UK.</p>
       <div class="overflow-x-auto -mx-2">
@@ -258,11 +249,59 @@ const toolTabs = [
         </table>
       </div>
     </section>
-    )}
   </div>
 </StudioLayout>
 
 <script>
+  // Tool toggle — client-side. All five sections render into the DOM
+  // (with `hidden` set on the inactive ones at SSR time); the sub-nav
+  // links intercept clicks to swap which one is visible, push a new
+  // history entry, and dispatch a `verktoy:show` event so per-tool
+  // scripts (the ruler) can re-init now that they have layout width.
+  const VERKTOY_TOOLS = ['gauge', 'yardage', 'evenly', 'ruler', 'needles'] as const;
+  type VerktoyTool = (typeof VERKTOY_TOOLS)[number];
+
+  const tabLinks = document.querySelectorAll<HTMLAnchorElement>(
+    'nav a[href^="/studio/verktoy?tool="]',
+  );
+  const sections = document.querySelectorAll<HTMLElement>('[data-verktoy-tool]');
+
+  function setActiveTool(tool: VerktoyTool) {
+    sections.forEach((s) => {
+      s.toggleAttribute('hidden', s.dataset.verktoyTool !== tool);
+    });
+    tabLinks.forEach((a) => {
+      const href = a.getAttribute('href') ?? '';
+      const isActive = href.includes(`tool=${tool}`);
+      a.classList.toggle('border-terracotta-500', isActive);
+      a.classList.toggle('text-charcoal', isActive);
+      a.classList.toggle('border-transparent', !isActive);
+      a.classList.toggle('text-charcoal/55', !isActive);
+    });
+    document.dispatchEvent(new CustomEvent('verktoy:show', { detail: { tool } }));
+  }
+
+  function toolFromUrl(): VerktoyTool {
+    const t = new URL(window.location.href).searchParams.get('tool');
+    return (VERKTOY_TOOLS as readonly string[]).includes(t ?? '')
+      ? (t as VerktoyTool)
+      : 'gauge';
+  }
+
+  tabLinks.forEach((a) => {
+    a.addEventListener('click', (e) => {
+      // Allow modifier-clicks (open-in-new-tab) to behave normally.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      const target = new URL(a.href, window.location.origin);
+      const tool = target.searchParams.get('tool');
+      if (!tool || !(VERKTOY_TOOLS as readonly string[]).includes(tool)) return;
+      setActiveTool(tool as VerktoyTool);
+      history.pushState(null, '', a.href);
+    });
+  });
+  window.addEventListener('popstate', () => setActiveTool(toolFromUrl()));
+
   // Gauge calculator
   const gaugeForm = document.querySelector<HTMLFormElement>('[data-gauge]');
   const gaugeOut = document.querySelector<HTMLElement>('[data-gauge-result]');
@@ -478,4 +517,14 @@ const toolTabs = [
     }
   });
   window.addEventListener('resize', () => drawRuler(currentPxPmm));
+  // Redraw when the ruler tab becomes visible — its surface clientWidth
+  // is 0 while the section is `hidden`, so the initial draw uses the
+  // wrong width and the ticks land too tight.
+  document.addEventListener('verktoy:show', (e) => {
+    const detail = (e as CustomEvent<{ tool: string }>).detail;
+    if (detail.tool === 'ruler') {
+      // Wait one frame so display updates have flushed before we measure.
+      requestAnimationFrame(() => drawRuler(currentPxPmm));
+    }
+  });
 </script>
