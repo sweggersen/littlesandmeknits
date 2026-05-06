@@ -8,16 +8,27 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 ---
 
 <StudioLayout title="Profil — Littles and Me" lang="nb">
-  <h1 class="font-serif text-4xl mb-8">{t('studio.nav.profile')}</h1>
-  <div class="bg-white rounded-3xl p-8 border border-sage-500/10 max-w-xl">
+  <h1 class="font-serif text-3xl sm:text-4xl mb-8">{t('studio.nav.profile')}</h1>
+  <div class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 max-w-xl">
     <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
       <dt class="text-charcoal/50">Epost</dt>
-      <dd class="text-charcoal">{user?.email}</dd>
+      <dd class="text-charcoal break-all">{user?.email}</dd>
       <dt class="text-charcoal/50">Bruker-ID</dt>
-      <dd class="text-charcoal/70 font-mono text-xs">{user?.id}</dd>
+      <dd class="text-charcoal/70 font-mono text-xs break-all">{user?.id}</dd>
     </dl>
     <p class="text-xs text-charcoal/40 mt-6">
       Profil-redigering kommer i neste runde (visningsnavn, Instagram-handle, språk).
     </p>
+  </div>
+
+  <div class="mt-8 max-w-xl">
+    <form method="post" action="/api/auth/signout">
+      <button
+        type="submit"
+        class="text-sm text-charcoal/55 hover:text-terracotta-500 transition-colors"
+      >
+        {t('studio.nav.signout')} →
+      </button>
+    </form>
   </div>
 </StudioLayout>

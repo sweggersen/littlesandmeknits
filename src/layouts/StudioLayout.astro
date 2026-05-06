@@ -1,7 +1,7 @@
 ---
 import Layout from './Layout.astro';
 import StudioNav from '../components/StudioNav.astro';
-import { useTranslations, type Lang } from '../lib/i18n';
+import { type Lang } from '../lib/i18n';
 import { getCurrentUser } from '../lib/auth';
 
 interface Props {
@@ -10,7 +10,6 @@ interface Props {
 }
 
 const { title, lang = 'nb' } = Astro.props;
-const t = useTranslations(lang);
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) {
@@ -24,23 +23,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/studio';
 <Layout title={title} lang={lang}>
   <StudioNav lang={lang} currentPath={currentPath} />
   <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-6xl mx-auto px-6 py-10">
-      <div class="flex items-center justify-between mb-8 flex-wrap gap-4">
-        <div>
-          <p class="text-xs font-medium uppercase tracking-wider text-charcoal/40 mb-1">
-            {t('studio.welcome')}
-          </p>
-          <p class="text-charcoal/70 text-sm">{user.email}</p>
-        </div>
-        <form method="post" action="/api/auth/signout">
-          <button
-            type="submit"
-            class="text-sm text-charcoal/55 hover:text-terracotta-500 transition-colors"
-          >
-            {t('studio.nav.signout')} →
-          </button>
-        </form>
-      </div>
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
       <slot />
     </div>
   </div>

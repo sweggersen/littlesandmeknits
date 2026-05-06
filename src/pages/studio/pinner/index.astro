@@ -36,9 +36,9 @@ const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - pa
 ---
 
 <StudioLayout title="Pinner — Littles and Me" lang="nb">
-  <div class="flex items-center justify-between mb-8">
+  <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
     <div>
-      <h1 class="font-serif text-4xl">Pinner</h1>
+      <h1 class="font-serif text-3xl sm:text-4xl">Pinner</h1>
       {needles.length > 0 && (
         <p class="text-sm text-charcoal/55 mt-2">{needles.length} {needles.length === 1 ? 'pinne' : 'pinner'} · sortert etter størrelse</p>
       )}

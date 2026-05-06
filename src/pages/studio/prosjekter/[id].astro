@@ -165,7 +165,7 @@ const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).j
           <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[p.status]}`}>
             {statusLabels[p.status]}
           </span>
-          <h1 class="font-serif text-4xl mt-3 leading-tight">{p.title}</h1>
+          <h1 class="font-serif text-3xl sm:text-4xl mt-3 leading-tight">{p.title}</h1>
           {p.summary && (
             <p class="text-charcoal/65 mt-3 leading-relaxed">{p.summary}</p>
           )}

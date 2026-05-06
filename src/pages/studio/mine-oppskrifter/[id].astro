@@ -74,7 +74,7 @@ const isPdf = !!pat.file_path && pat.file_path.toLowerCase().endsWith('.pdf');
     </div>
 
     <div class="lg:col-span-3">
-      <h1 class="font-serif text-4xl mb-2">{pat.title}</h1>
+      <h1 class="font-serif text-3xl sm:text-4xl mb-2">{pat.title}</h1>
       {pat.designer && <p class="text-charcoal/65 mb-4">av {pat.designer}</p>}
 
       <form method="post" action={`/api/external-patterns/${pat.id}/update`} enctype="multipart/form-data" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">

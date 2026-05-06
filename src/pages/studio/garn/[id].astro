@@ -66,7 +66,7 @@ const weights = [
 
     <div class="lg:col-span-3">
       <p class="text-xs font-bold uppercase tracking-widest text-sage-900 mb-1">{y.brand}</p>
-      <h1 class="font-serif text-4xl mb-2">{y.name}</h1>
+      <h1 class="font-serif text-3xl sm:text-4xl mb-2">{y.name}</h1>
       {y.color && <p class="text-charcoal/65 mb-4">{y.color}</p>}
 
       <form method="post" action={`/api/yarns/${y.id}/update`} enctype="multipart/form-data" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">

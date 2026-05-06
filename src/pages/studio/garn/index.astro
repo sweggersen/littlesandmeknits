@@ -28,9 +28,9 @@ const totalKg = (totalGrams / 1000).toFixed(1);
 ---
 
 <StudioLayout title="Garnlager — Littles and Me" lang="nb">
-  <div class="flex items-center justify-between mb-8">
+  <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
     <div>
-      <h1 class="font-serif text-4xl">Garnlager</h1>
+      <h1 class="font-serif text-3xl sm:text-4xl">Garnlager</h1>
       {yarns.length > 0 && (
         <p class="text-sm text-charcoal/55 mt-2">
           {yarns.length} {yarns.length === 1 ? 'garn' : 'garn'} · ca. {totalKg} kg totalt

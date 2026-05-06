@@ -42,7 +42,7 @@ const TYPE_LABEL: Record<string, string> = {
       <span class="mx-2">/</span>
       <span>{sizeNum} mm {TYPE_LABEL[n.needle_type] ?? n.needle_type}</span>
     </nav>
-    <h1 class="font-serif text-4xl mb-2">{sizeNum} mm</h1>
+    <h1 class="font-serif text-3xl sm:text-4xl mb-2">{sizeNum} mm</h1>
     <p class="text-charcoal/65 mb-8">{TYPE_LABEL[n.needle_type] ?? n.needle_type}{n.length_cm ? ` · ${n.length_cm} cm` : ''}</p>
 
     <form method="post" action={`/api/needles/${n.id}/update`} class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">

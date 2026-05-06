@@ -101,18 +101,30 @@ const badges: Badge[] = [
 
 const earnedBadges = badges.filter((b) => b.earned);
 
-const greeting = user?.email ? user.email.split('@')[0] : 'der';
+// Best-effort first name from the email local part: "sam.mathias.weggersen"
+// → "Sam". Stops at the first separator and capitalizes. Falls back to a
+// neutral greeting when we can't make a clean name out of the email.
+function firstNameFromEmail(email: string | undefined): string {
+  if (!email) return '';
+  const local = email.split('@')[0] ?? '';
+  const first = local.split(/[._-]/)[0] ?? '';
+  if (!first) return '';
+  return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
+const greeting = firstNameFromEmail(user?.email);
 const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} g`);
 ---
 
 <StudioLayout title="Studio — Littles and Me" lang="nb">
   <section>
-    <h1 class="font-serif text-4xl mb-2">Hei, {greeting}</h1>
-    <p class="text-charcoal/60 max-w-prose">
+    <h1 class="font-serif text-3xl sm:text-4xl mb-2 leading-tight">
+      {greeting ? `Hei, ${greeting}` : 'Velkommen tilbake'}
+    </h1>
+    <p class="text-charcoal/60 text-sm sm:text-base max-w-prose">
       Oversikt over alt du driver med — prosjekter, garnlager, oppskriftene dine, og verktøyene som hjelper deg fra plan til ferdig plagg.
     </p>
 
-    <div class="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div class="mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">I gang</p>
         <p class="font-serif text-3xl text-charcoal">{active.length}</p>
