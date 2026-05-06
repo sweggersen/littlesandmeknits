@@ -1,0 +1,135 @@
+---
+import StudioLayout from '../../../../../layouts/StudioLayout.astro';
+import { getCurrentUser } from '../../../../../lib/auth';
+import { createServerSupabase } from '../../../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/studio/marked');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/studio/marked');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: listing } = await supabase
+  .from('listings')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, shipping_options, published_at')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!listing || listing.seller_id !== user.id) {
+  return Astro.redirect('/studio/marked');
+}
+
+const { data: knitter } = await supabase
+  .from('knitter_profiles')
+  .select('stripe_charges_enabled')
+  .eq('user_id', user.id)
+  .maybeSingle();
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Utkast',
+  active: 'Aktiv',
+  reserved: 'Reservert',
+  sold: 'Solgt',
+  removed: 'Fjernet',
+};
+const CONDITION_LABEL: Record<string, string> = {
+  som_ny: 'Som ny',
+  lite_brukt: 'Lite brukt',
+  brukt: 'Brukt',
+  slitt: 'Slitt',
+};
+
+const canPublish = listing.status === 'draft' && !!knitter?.stripe_charges_enabled;
+---
+
+<StudioLayout title={`${listing.title} — Marked`} lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/marked" class="hover:text-charcoal transition-colors">Marked</a>
+      <span class="mx-2">/</span>
+      <span>Annonse</span>
+    </nav>
+
+    <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+          {KIND_LABEL[listing.kind] ?? listing.kind} · {STATUS_LABEL[listing.status]}
+        </p>
+        <h1 class="font-serif text-3xl sm:text-4xl">{listing.title}</h1>
+      </div>
+      <p class="font-mono tabular-nums text-2xl">{listing.price_nok} NOK</p>
+    </div>
+
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+      <dl class="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
+          <dd>{listing.size_label}</dd>
+        </div>
+        <div>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kategori</dt>
+          <dd>{listing.category}</dd>
+        </div>
+        {listing.condition && (
+          <div>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Tilstand</dt>
+            <dd>{CONDITION_LABEL[listing.condition] ?? listing.condition}</dd>
+          </div>
+        )}
+        {listing.colorway && (
+          <div>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Farge</dt>
+            <dd>{listing.colorway}</dd>
+          </div>
+        )}
+        {listing.pattern_external_title && (
+          <div class="col-span-2">
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
+            <dd>{listing.pattern_external_title}</dd>
+          </div>
+        )}
+      </dl>
+      {listing.description && (
+        <p class="mt-5 text-sm text-charcoal/75 leading-relaxed whitespace-pre-line">{listing.description}</p>
+      )}
+    </section>
+
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+      <h2 class="font-serif text-xl mb-2">Bilder</h2>
+      <p class="text-sm text-charcoal/55">
+        Bildelasting kommer i neste runde. Fram til da kan du publisere
+        annonser uten bilder, men du vil sannsynligvis ikke få salg.
+      </p>
+    </section>
+
+    {listing.status === 'draft' && (
+      <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+        <h2 class="font-serif text-xl mb-2">Publiser</h2>
+        {canPublish ? (
+          <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
+            <button
+              type="submit"
+              class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+            >
+              Publiser annonsen
+            </button>
+          </form>
+        ) : (
+          <p class="text-sm text-charcoal/65">
+            Du må fullføre <a href="/studio/marked/innstillinger" class="underline">Stripe-oppsettet</a> før du kan publisere.
+          </p>
+        )}
+      </section>
+    )}
+
+    {listing.status === 'active' && (
+      <section class="bg-sage-100 rounded-3xl p-6 sm:p-8 border border-sage-500/15 mb-6">
+        <p class="text-sm text-sage-900">
+          Annonsen er publisert. <a href={`/marked/listing/${listing.id}`} class="underline">Se den slik kjøper ser den ↗</a>
+        </p>
+      </section>
+    )}
+  </div>
+</StudioLayout>

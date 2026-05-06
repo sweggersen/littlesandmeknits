@@ -1,0 +1,74 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { createServerSupabase } from '../../lib/supabase';
+
+const url = Astro.url;
+const category = url.searchParams.get('kategori');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+let q = supabase
+  .from('listings')
+  .select('id, title, price_nok, size_label, hero_photo_path, category, published_at')
+  .eq('status', 'active')
+  .eq('kind', 'ready_made')
+  .order('published_at', { ascending: false });
+if (category) q = q.eq('category', category);
+const { data: listings } = await q.limit(60);
+
+const CATEGORY_LABEL: Record<string, string> = {
+  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
+  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
+};
+---
+
+<Layout title="Nytt — Marked — Littles and Me" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <nav class="text-xs text-charcoal/50 mb-4">
+        <a href="/marked" class="hover:text-charcoal transition-colors">Marked</a>
+        <span class="mx-2">/</span>
+        <span>Nytt</span>
+      </nav>
+      <h1 class="font-serif text-4xl sm:text-5xl mb-2">Nytt</h1>
+      <p class="text-charcoal/65 mb-8">Ferdigstrikket av strikkere i fellesskapet.</p>
+
+      <form method="get" class="bg-white rounded-3xl p-4 sm:p-5 border border-sage-500/10 mb-8 flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[140px]">
+          <label for="kategori" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kategori</label>
+          <select id="kategori" name="kategori" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
+            <option value="">Alle</option>
+            {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
+              <option value={k} selected={category === k}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" class="bg-charcoal text-linen px-5 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Filtrer
+        </button>
+      </form>
+
+      {(listings ?? []).length === 0 ? (
+        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+          <p class="text-charcoal/55">Ingen ferdigstrikkede plagg ennå. Kom tilbake snart.</p>
+        </div>
+      ) : (
+        <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {(listings ?? []).map((l) => (
+            <li>
+              <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
+                <div class="aspect-square bg-oatmeal/40"></div>
+                <div class="p-3">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
+                    {CATEGORY_LABEL[l.category] ?? l.category} · str. {l.size_label}
+                  </p>
+                  <p class="text-sm font-medium line-clamp-2">{l.title}</p>
+                  <p class="font-mono tabular-nums text-sm mt-1">{l.price_nok} NOK</p>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+</Layout>

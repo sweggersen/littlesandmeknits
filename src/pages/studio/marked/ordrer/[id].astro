@@ -1,0 +1,153 @@
+---
+import StudioLayout from '../../../../layouts/StudioLayout.astro';
+import { getCurrentUser } from '../../../../lib/auth';
+import { createServerSupabase } from '../../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/studio/marked/ordrer');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/studio/marked/ordrer');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: order } = await supabase
+  .from('marketplace_orders')
+  .select('id, status, gross_nok, shipping_nok, platform_fee_nok, net_to_seller_nok, created_at, paid_at, shipped_at, delivered_at, released_at, listing_id, shipping_address, shipping_carrier, shipping_tracking, seller_id')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!order || order.seller_id !== user.id) {
+  return Astro.redirect('/studio/marked/ordrer');
+}
+
+const { data: listing } = order.listing_id
+  ? await supabase
+      .from('listings')
+      .select('id, title, hero_photo_path')
+      .eq('id', order.listing_id)
+      .maybeSingle()
+  : { data: null as null | { id: string; title: string; hero_photo_path: string | null } };
+
+const STATUS_LABEL: Record<string, string> = {
+  pending_payment: 'Venter på betaling',
+  paid: 'Send i dag',
+  shipped: 'Sendt',
+  delivered: 'Levert',
+  released: 'Bekreftet — utbetalt',
+  disputed: 'I tvist',
+  refunded: 'Refundert',
+  cancelled: 'Avbrutt',
+};
+
+const addr = (order.shipping_address ?? {}) as Record<string, unknown>;
+---
+
+<StudioLayout title={`Ordre ${order.id.slice(0, 8)} — Marked`} lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/marked" class="hover:text-charcoal transition-colors">Marked</a>
+      <span class="mx-2">/</span>
+      <a href="/studio/marked/ordrer" class="hover:text-charcoal transition-colors">Ordre</a>
+      <span class="mx-2">/</span>
+      <span>{order.id.slice(0, 8)}</span>
+    </nav>
+
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+      {STATUS_LABEL[order.status] ?? order.status}
+    </p>
+    <h1 class="font-serif text-3xl sm:text-4xl mb-6">{listing?.title ?? 'Ordre'}</h1>
+
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+      <h2 class="font-serif text-xl mb-4">Sammendrag</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-charcoal/65">Pris</dt><dd>{order.gross_nok - order.shipping_nok} NOK</dd></div>
+        <div class="flex justify-between"><dt class="text-charcoal/65">Frakt</dt><dd>{order.shipping_nok} NOK</dd></div>
+        <div class="flex justify-between"><dt class="text-charcoal/65">Plattformgebyr</dt><dd>−{order.platform_fee_nok} NOK</dd></div>
+        <div class="flex justify-between font-medium border-t border-sage-500/10 pt-2 mt-2">
+          <dt>Du får utbetalt</dt><dd class="font-mono tabular-nums">{order.net_to_seller_nok} NOK</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+      <h2 class="font-serif text-xl mb-4">Sendes til</h2>
+      {Object.keys(addr).length === 0 ? (
+        <p class="text-sm text-charcoal/55">Adresse ikke tilgjengelig ennå.</p>
+      ) : (
+        <address class="text-sm not-italic leading-relaxed text-charcoal/80">
+          {addr.name as string}<br />
+          {addr.line1 as string}<br />
+          {addr.line2 ? <>{addr.line2 as string}<br /></> : null}
+          {addr.postal_code as string} {addr.city as string}<br />
+          {addr.country as string}
+        </address>
+      )}
+    </section>
+
+    {order.status === 'paid' && (
+      <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+        <h2 class="font-serif text-xl mb-2">Marker som sendt</h2>
+        <p class="text-sm text-charcoal/65 mb-5">
+          Send pakken og lim inn sporing om du har det. Kjøper bekrefter
+          mottak — da utbetales pengene til kontoen din.
+        </p>
+        <form method="post" action={`/api/marketplace/orders/${order.id}/ship`} class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="shipping_carrier" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                Transportør
+              </label>
+              <select
+                id="shipping_carrier"
+                name="shipping_carrier"
+                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+              >
+                <option value="posten">Posten</option>
+                <option value="bring">Bring</option>
+                <option value="postnord">PostNord</option>
+                <option value="annet">Annet</option>
+              </select>
+            </div>
+            <div>
+              <label for="shipping_tracking" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                Sporing
+              </label>
+              <input
+                id="shipping_tracking"
+                name="shipping_tracking"
+                type="text"
+                maxlength="60"
+                placeholder="LX123456789NO"
+                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+              />
+            </div>
+          </div>
+          <button
+            type="submit"
+            class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Marker som sendt
+          </button>
+        </form>
+      </section>
+    )}
+
+    {(order.status === 'shipped' || order.status === 'delivered') && (
+      <section class="bg-sage-100 rounded-3xl p-6 sm:p-8 border border-sage-500/15">
+        <p class="text-sm text-sage-900">
+          Sendt {order.shipped_at ? new Date(order.shipped_at).toLocaleDateString('nb-NO') : ''}
+          {order.shipping_carrier && order.shipping_tracking ? <> · {order.shipping_carrier} · {order.shipping_tracking}</> : null}
+        </p>
+        <p class="text-xs text-sage-900/70 mt-2">
+          Pengene utbetales når kjøper bekrefter mottak (eller automatisk etter 14 dager).
+        </p>
+      </section>
+    )}
+
+    {order.status === 'released' && (
+      <section class="bg-sage-100 rounded-3xl p-6 sm:p-8 border border-sage-500/15">
+        <p class="text-sm text-sage-900">Bekreftet og utbetalt {order.released_at ? new Date(order.released_at).toLocaleDateString('nb-NO') : ''}.</p>
+      </section>
+    )}
+  </div>
+</StudioLayout>

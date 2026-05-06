@@ -1,0 +1,110 @@
+---
+import StudioLayout from '../../../../layouts/StudioLayout.astro';
+import { getCurrentUser } from '../../../../lib/auth';
+import { createServerSupabase } from '../../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/studio/kjop/marked');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/studio/kjop/marked');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: order } = await supabase
+  .from('marketplace_orders')
+  .select('id, buyer_id, seller_id, status, gross_nok, shipping_nok, created_at, paid_at, shipped_at, delivered_at, released_at, listing_id, shipping_address, shipping_carrier, shipping_tracking')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!order || order.buyer_id !== user.id) {
+  return Astro.redirect('/studio/kjop/marked');
+}
+
+const { data: listing } = order.listing_id
+  ? await supabase
+      .from('listings')
+      .select('id, title, hero_photo_path')
+      .eq('id', order.listing_id)
+      .maybeSingle()
+  : { data: null as null | { id: string; title: string; hero_photo_path: string | null } };
+
+const STATUS_LABEL: Record<string, string> = {
+  pending_payment: 'Venter på betaling',
+  paid: 'Betalt — venter på utsendelse',
+  shipped: 'Sendt',
+  delivered: 'Levert',
+  released: 'Bekreftet',
+  disputed: 'I tvist',
+  refunded: 'Refundert',
+  cancelled: 'Avbrutt',
+};
+
+const justReleased = Astro.url.searchParams.get('released') === '1';
+const canRelease = order.status === 'shipped' || order.status === 'delivered';
+---
+
+<StudioLayout title={`Ordre ${order.id.slice(0, 8)} — Marked`} lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/kjop/marked" class="hover:text-charcoal transition-colors">Kjøp</a>
+      <span class="mx-2">/</span>
+      <span>{order.id.slice(0, 8)}</span>
+    </nav>
+
+    {justReleased && (
+      <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 mb-6 text-sm">
+        Takk for at du bekreftet mottak. Selgeren får utbetalt nå.
+      </div>
+    )}
+
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+      {STATUS_LABEL[order.status] ?? order.status}
+    </p>
+    <h1 class="font-serif text-3xl sm:text-4xl mb-6">{listing?.title ?? 'Ordre'}</h1>
+
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+      <ol class="space-y-3 text-sm">
+        <li class={order.paid_at ? 'text-charcoal' : 'text-charcoal/35'}>
+          1. Betalt {order.paid_at ? <>· {new Date(order.paid_at).toLocaleDateString('nb-NO')}</> : null}
+        </li>
+        <li class={order.shipped_at ? 'text-charcoal' : 'text-charcoal/35'}>
+          2. Sendt {order.shipped_at ? <>· {new Date(order.shipped_at).toLocaleDateString('nb-NO')}</> : null}
+          {order.shipping_carrier && order.shipping_tracking && (
+            <span class="block text-xs text-charcoal/55 mt-1">{order.shipping_carrier} · {order.shipping_tracking}</span>
+          )}
+        </li>
+        <li class={order.released_at ? 'text-charcoal' : 'text-charcoal/35'}>
+          3. Bekreftet mottatt {order.released_at ? <>· {new Date(order.released_at).toLocaleDateString('nb-NO')}</> : null}
+        </li>
+      </ol>
+    </section>
+
+    {canRelease && (
+      <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
+        <h2 class="font-serif text-xl mb-2">Bekreft at du har mottatt</h2>
+        <p class="text-sm text-charcoal/65 mb-5">
+          Når du bekrefter, utbetales pengene til strikkeren. Hvis noe er galt — bruk «Rapporter problem» i stedet.
+        </p>
+        <form method="post" action={`/api/marketplace/orders/${order.id}/release`}>
+          <button
+            type="submit"
+            class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Bekreft mottatt
+          </button>
+        </form>
+      </section>
+    )}
+
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+      <h2 class="font-serif text-xl mb-4">Sammendrag</h2>
+      <dl class="space-y-2 text-sm">
+        <div class="flex justify-between"><dt class="text-charcoal/65">Pris</dt><dd>{order.gross_nok - order.shipping_nok} NOK</dd></div>
+        <div class="flex justify-between"><dt class="text-charcoal/65">Frakt</dt><dd>{order.shipping_nok} NOK</dd></div>
+        <div class="flex justify-between font-medium border-t border-sage-500/10 pt-2 mt-2">
+          <dt>Totalt</dt><dd class="font-mono tabular-nums">{order.gross_nok} NOK</dd>
+        </div>
+      </dl>
+    </section>
+  </div>
+</StudioLayout>

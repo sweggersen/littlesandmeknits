@@ -1,0 +1,137 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { getCurrentUser } from '../../../lib/auth';
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/marked');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: listing } = await supabase
+  .from('listings')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, shipping_options, published_at')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!listing || (listing.status !== 'active' && listing.status !== 'reserved')) {
+  return Astro.redirect('/marked');
+}
+
+const { data: seller } = await supabase
+  .from('knitter_profiles')
+  .select('slug, bio, availability')
+  .eq('user_id', listing.seller_id)
+  .maybeSingle();
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const isOwn = user?.id === listing.seller_id;
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const CONDITION_LABEL: Record<string, string> = {
+  som_ny: 'Som ny', lite_brukt: 'Lite brukt', brukt: 'Brukt', slitt: 'Slitt',
+};
+const shippingOpts = (listing.shipping_options ?? []) as Array<{ carrier: string; price_nok: number; days: string }>;
+const minShipping = shippingOpts.length ? Math.min(...shippingOpts.map((o) => o.price_nok)) : 0;
+const total = listing.price_nok + minShipping;
+---
+
+<Layout title={`${listing.title} — Marked`} lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <nav class="text-xs text-charcoal/50 mb-4">
+        <a href="/marked" class="hover:text-charcoal transition-colors">Marked</a>
+        <span class="mx-2">/</span>
+        <a href={`/marked/${listing.kind === 'pre_loved' ? 'brukt' : 'nytt'}`} class="hover:text-charcoal transition-colors">
+          {KIND_LABEL[listing.kind]}
+        </a>
+      </nav>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div class="bg-oatmeal/40 rounded-3xl aspect-square flex items-center justify-center text-charcoal/30">
+          <p class="text-xs">Bildelasting kommer snart</p>
+        </div>
+
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">
+            {KIND_LABEL[listing.kind]}
+          </p>
+          <h1 class="font-serif text-3xl sm:text-4xl mb-4">{listing.title}</h1>
+
+          <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} NOK</p>
+
+          <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
+              <dd>{listing.size_label}</dd>
+            </div>
+            {listing.condition && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Tilstand</dt>
+                <dd>{CONDITION_LABEL[listing.condition] ?? listing.condition}</dd>
+              </div>
+            )}
+            {listing.colorway && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Farge</dt>
+                <dd>{listing.colorway}</dd>
+              </div>
+            )}
+            {listing.pattern_external_title && (
+              <div class="col-span-2">
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
+                <dd>{listing.pattern_external_title}</dd>
+              </div>
+            )}
+          </dl>
+
+          {listing.description && (
+            <p class="text-sm text-charcoal/75 leading-relaxed whitespace-pre-line mb-6">{listing.description}</p>
+          )}
+
+          <div class="bg-white rounded-3xl p-5 border border-sage-500/10 mb-4 text-sm">
+            <p class="flex items-center justify-between mb-2">
+              <span class="text-charcoal/65">Pris</span>
+              <span class="font-mono tabular-nums">{listing.price_nok} NOK</span>
+            </p>
+            <p class="flex items-center justify-between mb-2">
+              <span class="text-charcoal/65">Frakt</span>
+              <span class="font-mono tabular-nums">{minShipping} NOK</span>
+            </p>
+            <p class="flex items-center justify-between font-medium border-t border-sage-500/10 pt-2 mt-2">
+              <span>Totalt</span>
+              <span class="font-mono tabular-nums">{total} NOK</span>
+            </p>
+          </div>
+
+          {isOwn ? (
+            <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm text-charcoal/65">
+              Dette er din egen annonse. <a href={`/studio/marked/listing/${listing.id}`} class="underline">Rediger ↗</a>
+            </div>
+          ) : listing.status === 'reserved' ? (
+            <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm text-charcoal/65">
+              Reservert — venter på betaling fra annen kjøper.
+            </div>
+          ) : (
+            <form method="post" action="/api/marketplace/orders/create">
+              <input type="hidden" name="listing_id" value={listing.id} />
+              <button
+                type="submit"
+                class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors"
+              >
+                Kjøp nå
+              </button>
+            </form>
+          )}
+
+          {seller && (
+            <div class="mt-6 pt-6 border-t border-sage-500/10">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger</p>
+              <p class="font-medium">{seller.slug}</p>
+              {seller.bio && <p class="text-sm text-charcoal/65 mt-1">{seller.bio}</p>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

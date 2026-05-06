@@ -1,0 +1,242 @@
+---
+import StudioLayout from '../../../../layouts/StudioLayout.astro';
+import { getCurrentUser } from '../../../../lib/auth';
+import { createServerSupabase } from '../../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/studio/marked/listing/ny');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: knitter } = await supabase
+  .from('knitter_profiles')
+  .select('stripe_charges_enabled')
+  .eq('user_id', user.id)
+  .maybeSingle();
+
+const isReady = !!knitter?.stripe_charges_enabled;
+---
+
+<StudioLayout title="Ny annonse — Marked" lang="nb">
+  <div class="max-w-2xl">
+    <nav class="text-xs text-charcoal/50 mb-4">
+      <a href="/studio/marked" class="hover:text-charcoal transition-colors">Marked</a>
+      <span class="mx-2">/</span>
+      <span>Ny annonse</span>
+    </nav>
+    <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
+    <p class="text-sm text-charcoal/55 mb-8">
+      Lagre som utkast først, så kan du legge til bilder og publisere etterpå.
+    </p>
+
+    {!isReady && (
+      <div class="bg-terracotta-500/10 text-terracotta-500 rounded-2xl p-4 mb-6 text-sm">
+        Du kan opprette utkast nå, men må fullføre <a href="/studio/marked/innstillinger" class="underline">Stripe-oppsettet</a> før du kan publisere.
+      </div>
+    )}
+
+    <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
+      <div>
+        <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Type *
+        </label>
+        <select
+          id="kind"
+          name="kind"
+          required
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        >
+          <option value="pre_loved">Brukt</option>
+          <option value="ready_made">Nytt (strikket av meg)</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Tittel *
+        </label>
+        <input
+          id="title"
+          name="title"
+          type="text"
+          required
+          maxlength="80"
+          placeholder="Sondre cardigan str. 92, dustyrosa"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="category" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Kategori *
+          </label>
+          <select
+            id="category"
+            name="category"
+            required
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          >
+            <option value="genser">Genser</option>
+            <option value="cardigan">Cardigan</option>
+            <option value="lue">Lue</option>
+            <option value="votter">Votter</option>
+            <option value="sokker">Sokker</option>
+            <option value="teppe">Teppe</option>
+            <option value="kjole">Kjole</option>
+            <option value="bukser">Bukser</option>
+            <option value="annet">Annet</option>
+          </select>
+        </div>
+        <div>
+          <label for="size_label" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Størrelse *
+          </label>
+          <input
+            id="size_label"
+            name="size_label"
+            type="text"
+            required
+            maxlength="20"
+            placeholder="92, 2 år, S…"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="size_age_months_min" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Alder fra (mnd)
+          </label>
+          <input
+            id="size_age_months_min"
+            name="size_age_months_min"
+            type="number"
+            min="0"
+            max="240"
+            placeholder="18"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+        <div>
+          <label for="size_age_months_max" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Alder til (mnd)
+          </label>
+          <input
+            id="size_age_months_max"
+            name="size_age_months_max"
+            type="number"
+            min="0"
+            max="240"
+            placeholder="24"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+          />
+        </div>
+      </div>
+
+      <div data-condition-wrapper>
+        <label for="condition" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Tilstand * (kun for brukt)
+        </label>
+        <select
+          id="condition"
+          name="condition"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        >
+          <option value="som_ny">Som ny</option>
+          <option value="lite_brukt">Lite brukt</option>
+          <option value="brukt">Brukt</option>
+          <option value="slitt">Slitt</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="price_nok" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Pris (NOK) *
+        </label>
+        <input
+          id="price_nok"
+          name="price_nok"
+          type="number"
+          min="0"
+          step="10"
+          required
+          placeholder="350"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+        <p class="text-[11px] text-charcoal/45 mt-1">Frakt legges til separat (Posten Småpakke ~80 NOK).</p>
+      </div>
+
+      <div>
+        <label for="colorway" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Farge
+        </label>
+        <input
+          id="colorway"
+          name="colorway"
+          type="text"
+          maxlength="60"
+          placeholder="Dustyrosa, naturhvit…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div>
+        <label for="pattern_external_title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Oppskrift
+        </label>
+        <input
+          id="pattern_external_title"
+          name="pattern_external_title"
+          type="text"
+          maxlength="120"
+          placeholder="Sondre cardigan, av Weggersen Design"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div>
+        <label for="description" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Beskrivelse
+        </label>
+        <textarea
+          id="description"
+          name="description"
+          rows="5"
+          maxlength="2000"
+          placeholder="Garn, vask, små feil, hvor lenge brukt…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+        ></textarea>
+      </div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <a href="/studio/marked" class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2">
+          Avbryt
+        </a>
+        <button
+          type="submit"
+          class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          Lagre utkast
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Hide the condition field for ready-made; backend enforces it too.
+    const kind = document.getElementById('kind') as HTMLSelectElement | null;
+    const condition = document.getElementById('condition') as HTMLSelectElement | null;
+    const wrapper = document.querySelector('[data-condition-wrapper]') as HTMLElement | null;
+    function sync() {
+      if (!kind || !condition || !wrapper) return;
+      const isPreLoved = kind.value === 'pre_loved';
+      wrapper.style.display = isPreLoved ? '' : 'none';
+      condition.disabled = !isPreLoved;
+      if (!isPreLoved) condition.removeAttribute('name');
+      else condition.setAttribute('name', 'condition');
+    }
+    kind?.addEventListener('change', sync);
+    sync();
+  </script>
+</StudioLayout>

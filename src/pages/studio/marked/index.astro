@@ -1,39 +1,187 @@
 ---
-// Placeholder landing page for the marketplace surface. Lives on the
-// marketplace-exploration branch as a stub so the route exists and the
-// IA addition is visible. Real implementation follows the rollout in
-// docs/marketplace/05-rollout.md (Phase 0–1).
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { getCurrentUser } from '../../../lib/auth';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/studio/marked');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [{ data: knitter }, { data: listings }, { data: openOrders }] = await Promise.all([
+  supabase
+    .from('knitter_profiles')
+    .select('user_id, slug, availability, stripe_charges_enabled, stripe_payouts_enabled')
+    .eq('user_id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('listings')
+    .select('id, title, price_nok, status, kind, hero_photo_path, created_at')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false }),
+  supabase
+    .from('marketplace_orders')
+    .select('id, status, gross_nok, created_at, listing_id')
+    .eq('seller_id', user.id)
+    .in('status', ['paid', 'shipped'])
+    .order('created_at', { ascending: false }),
+]);
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Utkast',
+  active: 'Aktiv',
+  reserved: 'Reservert',
+  sold: 'Solgt',
+  removed: 'Fjernet',
+};
+
+const isOnboarded = !!knitter?.stripe_charges_enabled;
+const drafts = (listings ?? []).filter((l) => l.status === 'draft');
+const live = (listings ?? []).filter((l) => l.status === 'active' || l.status === 'reserved');
+const sold = (listings ?? []).filter((l) => l.status === 'sold');
 ---
 
 <StudioLayout title="Marked — Littles and Me" lang="nb">
-  <div class="flex items-end justify-between mb-6 gap-4 flex-wrap">
+  <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
     <div>
       <h1 class="font-serif text-3xl sm:text-4xl">Marked</h1>
       <p class="text-charcoal/55 text-sm mt-2 max-w-xl">
-        Kjøp brukt og nytt strikket, eller bestill at noen strikker for deg.
+        Selg brukt og nytt strikket, eller ta imot oppdrag fra andre.
       </p>
     </div>
-    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 px-2 py-1 rounded">
-      Under utforskning
-    </span>
+    {isOnboarded && (
+      <a
+        href="/studio/marked/listing/ny"
+        class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        + Ny annonse
+      </a>
+    )}
   </div>
 
-  <div class="rounded-2xl bg-white border border-sage-500/15 p-5 sm:p-6 mb-6">
-    <h2 class="font-serif text-xl mb-2">Tre måter å bruke markedet</h2>
-    <ul class="space-y-3 text-sm text-charcoal/75">
-      <li><strong class="text-charcoal">Brukt:</strong> finn (eller selg) plagg ungene har vokst fra.</li>
-      <li><strong class="text-charcoal">Nytt:</strong> strikkere selger plagg de har strikket på spec.</li>
-      <li><strong class="text-charcoal">Strikk for meg:</strong> bestill et plagg fra en strikker, eller legg ut en åpen forespørsel.</li>
-    </ul>
-  </div>
+  {!isOnboarded && (
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/15 mb-8">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">
+        Kom i gang
+      </p>
+      <h2 class="font-serif text-2xl mb-3">Bli strikker på Littles and Me</h2>
+      <p class="text-sm text-charcoal/70 leading-relaxed mb-5 max-w-xl">
+        For å selge må du koble til en utbetalingskonto via Stripe. Det
+        tar et par minutter — du trenger BankID og kontonummer.
+      </p>
+      <a
+        href="/studio/marked/innstillinger"
+        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Sett opp utbetalinger
+      </a>
+    </section>
+  )}
 
-  <div class="rounded-2xl bg-oatmeal/40 border border-sage-500/10 p-5 sm:p-6">
-    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">For utviklere</p>
-    <p class="text-sm text-charcoal/75 leading-relaxed">
-      Dette er en plassholderside. Hele planen ligger i
-      <code class="bg-white px-1.5 py-0.5 rounded text-[12px]">docs/marketplace/</code>
-      på <code class="bg-white px-1.5 py-0.5 rounded text-[12px]">marketplace-exploration</code>-branchen.
-    </p>
-  </div>
+  {(openOrders ?? []).length > 0 && (
+    <section class="mb-8">
+      <h2 class="font-serif text-xl mb-3">Ordre å sende</h2>
+      <ul class="space-y-2">
+        {(openOrders ?? []).map((o) => (
+          <li>
+            <a
+              href={`/studio/marked/ordrer/${o.id}`}
+              class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-xs font-bold uppercase tracking-widest text-terracotta-500 mb-1">
+                    {o.status === 'paid' ? 'Send i dag' : 'Sendt'}
+                  </p>
+                  <p class="text-sm text-charcoal/70">Ordre {o.id.slice(0, 8)}</p>
+                </div>
+                <p class="font-mono tabular-nums text-sm">{o.gross_nok} NOK</p>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  {drafts.length > 0 && (
+    <section class="mb-8">
+      <h2 class="font-serif text-xl mb-3">Utkast</h2>
+      <ul class="space-y-2">
+        {drafts.map((l) => (
+          <li>
+            <a
+              href={`/studio/marked/listing/${l.id}`}
+              class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
+                    {KIND_LABEL[l.kind] ?? l.kind} · {STATUS_LABEL[l.status]}
+                  </p>
+                  <p class="font-medium">{l.title}</p>
+                </div>
+                <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <section class="mb-8">
+    <h2 class="font-serif text-xl mb-3">Aktive annonser</h2>
+    {live.length === 0 ? (
+      <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
+        <p class="text-charcoal/55 text-sm">Ingen aktive annonser ennå.</p>
+      </div>
+    ) : (
+      <ul class="space-y-2">
+        {live.map((l) => (
+          <li>
+            <a
+              href={`/studio/marked/listing/${l.id}`}
+              class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
+            >
+              <div class="flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">
+                    {KIND_LABEL[l.kind] ?? l.kind} · {STATUS_LABEL[l.status]}
+                  </p>
+                  <p class="font-medium">{l.title}</p>
+                </div>
+                <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+
+  {sold.length > 0 && (
+    <section>
+      <h2 class="font-serif text-xl mb-3 text-charcoal/55">Solgt</h2>
+      <ul class="space-y-2">
+        {sold.map((l) => (
+          <li>
+            <div class="bg-oatmeal/40 rounded-2xl p-4 border border-sage-500/10">
+              <div class="flex items-center justify-between gap-4">
+                <p class="font-medium text-charcoal/65">{l.title}</p>
+                <p class="font-mono tabular-nums text-sm text-charcoal/55">{l.price_nok} NOK</p>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <p class="mt-12 text-center text-[11px] text-charcoal/45">
+    <a href="/studio/marked/innstillinger" class="hover:text-charcoal transition-colors">Innstillinger</a>
+    <span class="mx-2">·</span>
+    <a href="/marked" class="hover:text-charcoal transition-colors">Se markedet som kjøper</a>
+  </p>
 </StudioLayout>
