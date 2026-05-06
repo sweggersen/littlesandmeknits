@@ -9,11 +9,9 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 const meta = (user?.user_metadata ?? {}) as {
   display_name?: string;
   instagram_handle?: string;
-  language?: 'nb' | 'en';
 };
 const displayName = meta.display_name ?? '';
 const instagramHandle = meta.instagram_handle ?? '';
-const language = meta.language ?? 'nb';
 ---
 
 <StudioLayout title="Profil — Littles and Me" lang="nb">
@@ -58,21 +56,6 @@ const language = meta.language ?? 'nb';
         />
       </div>
       <p class="text-[11px] text-charcoal/45 mt-1">Brukes som underskrift på Instagram-delingskort og som «tagg meg»-hint i caption.</p>
-    </div>
-
-    <div>
-      <label for="language" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-        Språk
-      </label>
-      <select
-        id="language"
-        name="language"
-        class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500"
-      >
-        <option value="nb" selected={language === 'nb'}>Norsk (bokmål)</option>
-        <option value="en" selected={language === 'en'}>English</option>
-      </select>
-      <p class="text-[11px] text-charcoal/45 mt-1">Foretrukket språk for nyhetsbrev og e-poster (frontend følger lenken du klikker).</p>
     </div>
 
     <div class="flex justify-end pt-2">

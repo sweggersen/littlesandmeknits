@@ -2,8 +2,6 @@ import type { APIRoute } from 'astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 
-const VALID_LANGS = new Set(['nb', 'en']);
-
 function cleanHandle(raw: string | undefined | null): string | null {
   if (!raw) return null;
   const trimmed = raw.trim().replace(/^@+/, '');
@@ -20,8 +18,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const form = await request.formData();
   const displayName = form.get('display_name')?.toString().trim().slice(0, 60) || null;
   const instagram = cleanHandle(form.get('instagram_handle')?.toString());
-  const langRaw = form.get('language')?.toString();
-  const language = langRaw && VALID_LANGS.has(langRaw) ? langRaw : null;
 
   const next = form.get('next')?.toString() || '/studio/profil';
 
@@ -31,7 +27,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     ...(user.user_metadata ?? {}),
     display_name: displayName,
     instagram_handle: instagram,
-    language: language,
   };
   const { error } = await supabase.auth.updateUser({ data: merged });
   if (error) {

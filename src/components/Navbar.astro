@@ -47,7 +47,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     </div>
 
     <div class="flex items-center gap-4">
-      <LangSwitcher lang={lang} />
+      <span data-public-only>
+        <LangSwitcher lang={lang} />
+      </span>
       <a
         href={localizedPath(lang, '/logg-inn')}
         class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
@@ -105,9 +107,10 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
     menu?.classList.toggle('hidden');
   });
 
-  // Swap "Logg inn" → "Studio" once we know the user is signed in.
-  // Use inline display style to bypass Tailwind responsive variants
-  // (e.g. `sm:inline-flex` would otherwise override the `hidden` class).
+  // Swap "Logg inn" → "Studio" once we know the user is signed in,
+  // and hide marketing-only chrome (the language switcher) at the same
+  // time. Inline display style is used to bypass Tailwind responsive
+  // variants like `sm:inline-flex` that otherwise win over `hidden`.
   fetch('/api/me', { credentials: 'same-origin' })
     .then((r) => (r.ok ? r.json() : null))
     .then((data) => {
@@ -117,6 +120,9 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
       });
       document.querySelectorAll<HTMLElement>('[data-auth-link="studio"]').forEach((el) => {
         el.classList.remove('hidden');
+      });
+      document.querySelectorAll<HTMLElement>('[data-public-only]').forEach((el) => {
+        el.style.display = 'none';
       });
     })
     .catch(() => {});
