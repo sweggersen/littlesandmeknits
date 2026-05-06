@@ -1,9 +1,16 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
+import StudioSubNav from '../../components/StudioSubNav.astro';
 import { useTranslations } from '../../lib/i18n';
 import { createServerSupabase } from '../../lib/supabase';
 import { getEntry } from 'astro:content';
 import { formatNok } from '../../lib/format';
+
+const meTabs = [
+  { key: 'profil', label: 'Profil', href: '/studio/profil' },
+  { key: 'bibliotek', label: 'Bibliotek', href: '/studio/mine-oppskrifter' },
+  { key: 'kjop', label: 'Kjøp', href: '/studio/kjop' },
+];
 
 const t = useTranslations('nb');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
@@ -35,6 +42,8 @@ const enriched = await Promise.all(
 ---
 
 <StudioLayout title="Kjøp — Littles and Me" lang="nb">
+  <StudioSubNav items={meTabs} active="kjop" />
+
   <h1 class="font-serif text-3xl sm:text-4xl mb-8">{t('studio.nav.purchases')}</h1>
 
   {enriched.length === 0 ? (

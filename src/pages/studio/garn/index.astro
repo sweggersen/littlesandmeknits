@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioSubNav from '../../../components/StudioSubNav.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 
@@ -17,17 +18,28 @@ type YarnRow = {
 };
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data } = await supabase
-  .from('yarns')
-  .select('id, brand, name, color, weight, fiber, total_grams, total_meters, photo_path, created_at')
-  .order('created_at', { ascending: false });
+const [yarnsRes, needlesRes] = await Promise.all([
+  supabase
+    .from('yarns')
+    .select('id, brand, name, color, weight, fiber, total_grams, total_meters, photo_path, created_at')
+    .order('created_at', { ascending: false }),
+  supabase.from('needles').select('id', { count: 'exact', head: true }),
+]);
 
-const yarns = (data ?? []) as YarnRow[];
+const yarns = (yarnsRes.data ?? []) as YarnRow[];
+const needleCount = needlesRes.count ?? 0;
 const totalGrams = yarns.reduce((s, y) => s + (y.total_grams ?? 0), 0);
 const totalKg = (totalGrams / 1000).toFixed(1);
+
+const lagerTabs = [
+  { key: 'garn', label: 'Garn', href: '/studio/garn', count: yarns.length },
+  { key: 'pinner', label: 'Pinner', href: '/studio/pinner', count: needleCount },
+];
 ---
 
 <StudioLayout title="Garnlager — Littles and Me" lang="nb">
+  <StudioSubNav items={lagerTabs} active="garn" />
+
   <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
     <div>
       <h1 class="font-serif text-3xl sm:text-4xl">Garnlager</h1>

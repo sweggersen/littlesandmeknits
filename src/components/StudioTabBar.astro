@@ -5,9 +5,11 @@ import { getCurrentUser } from '../lib/auth';
 // running as an installed PWA (`display-mode: standalone`); on the web
 // the existing top StudioNav stays in place.
 //
-// Four primary tabs + a circular avatar that opens a slide-up sheet
-// holding the secondary surfaces (Pinner, Bibliotek, Kjøp, Profil).
-// The sheet handle is draggable: drag it down past 80px to dismiss.
+// Five fixed tabs:
+//   Hjem · Prosjekter · Garn (also covers /pinner) · Verktøy · Avatar
+// The avatar tab links straight to /studio/profil. Profil, Bibliotek,
+// and Kjøp share a sub-tab strip on those pages, so no slide-up sheet
+// is needed.
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 const meta = (user?.user_metadata ?? {}) as { display_name?: string };
@@ -36,7 +38,7 @@ const avatarInitial = initial();
     </svg>
     <span>Prosjekter</span>
   </a>
-  <a href="/studio/garn" data-tab-match="^/studio/garn">
+  <a href="/studio/garn" data-tab-match="^/studio/(garn|pinner)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="8" />
       <path d="M5 9c4 4 10 4 14 0M5 15c4 4 10 4 14 0M9 5c4 4 4 10 0 14M15 5c4 4 4 10 0 14" />
@@ -50,166 +52,26 @@ const avatarInitial = initial();
     </svg>
     <span>Verktøy</span>
   </a>
-  <button
-    type="button"
-    data-tab-more
-    data-tab-match="^/studio/(pinner|mine-oppskrifter|kjop|profil)"
-    aria-label="Mer"
+  <a
+    href="/studio/profil"
+    data-tab-match="^/studio/(profil|mine-oppskrifter|kjop)"
+    aria-label="Profil"
   >
     <span data-tab-avatar>{avatarInitial}</span>
-    <span>Mer</span>
-  </button>
+    <span>Meg</span>
+  </a>
 </nav>
-
-<!-- More-sheet, slides up over the tab bar. -->
-<div data-tab-sheet>
-  <div data-tab-sheet-backdrop></div>
-  <div data-tab-sheet-card>
-    <div data-tab-sheet-handle aria-label="Lukk meny" role="button" tabindex="0"></div>
-    <ul>
-      <li><a href="/studio/pinner" data-tab-match="^/studio/pinner">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-          <path d="M3 21 21 3" />
-          <circle cx="20" cy="4" r="1.5" />
-        </svg>
-        Pinner
-      </a></li>
-      <li><a href="/studio/mine-oppskrifter" data-tab-match="^/studio/mine-oppskrifter">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-        </svg>
-        Bibliotek
-      </a></li>
-      <li><a href="/studio/kjop" data-tab-match="^/studio/kjop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-          <path d="M3 6h18M16 10a4 4 0 0 1-8 0" />
-        </svg>
-        Kjøp
-      </a></li>
-      <li><a href="/studio/profil" data-tab-match="^/studio/profil">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="8" r="4" />
-          <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
-        </svg>
-        Profil
-      </a></li>
-    </ul>
-  </div>
-</div>
 
 <script>
   function syncActive() {
     const path = window.location.pathname.replace(/\/$/, '') || '/studio';
     document
-      .querySelectorAll<HTMLElement>('[data-studio-tabbar] [data-tab-match], [data-tab-sheet-card] [data-tab-match]')
+      .querySelectorAll<HTMLElement>('[data-studio-tabbar] [data-tab-match]')
       .forEach((el) => {
         const re = el.getAttribute('data-tab-match');
         if (!re) return;
-        const isActive = new RegExp(re).test(path);
-        el.classList.toggle('is-active', isActive);
+        el.classList.toggle('is-active', new RegExp(re).test(path));
       });
   }
-
-  const sheet = document.querySelector<HTMLElement>('[data-tab-sheet]');
-  const card = document.querySelector<HTMLElement>('[data-tab-sheet-card]');
-  const handle = document.querySelector<HTMLElement>('[data-tab-sheet-handle]');
-  const moreBtn = document.querySelector<HTMLButtonElement>('[data-tab-more]');
-  const backdrop = document.querySelector<HTMLElement>('[data-tab-sheet-backdrop]');
-
-  function openSheet() {
-    sheet?.setAttribute('data-open', '');
-    document.documentElement.style.overflow = 'hidden';
-  }
-  function closeSheet() {
-    sheet?.removeAttribute('data-open');
-    document.documentElement.style.overflow = '';
-    if (card) {
-      card.style.transition = '';
-      card.style.transform = '';
-    }
-  }
-
-  moreBtn?.addEventListener('click', () => {
-    if (sheet?.hasAttribute('data-open')) closeSheet();
-    else openSheet();
-  });
-  backdrop?.addEventListener('click', closeSheet);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeSheet();
-  });
-  // Sheet links close the sheet on click; navigation replaces the page,
-  // but if the link is the same page we still need to clean up.
-  document.querySelectorAll('[data-tab-sheet-card] a').forEach((a) => {
-    a.addEventListener('click', closeSheet);
-  });
-
-  // Drag-to-close on the handle. Tracks Y delta during touchmove and
-  // either snaps the card back into place or fires closeSheet() if the
-  // user dragged past the threshold (or flicked downward fast).
-  let dragStartY: number | null = null;
-  let dragLastY = 0;
-  let dragStartTime = 0;
-  const DRAG_CLOSE_PX = 80;
-  const FLICK_VELOCITY = 0.5; // px per ms
-
-  function startDrag(y: number) {
-    dragStartY = y;
-    dragLastY = y;
-    dragStartTime = performance.now();
-    if (card) card.style.transition = 'none';
-  }
-  function moveDrag(y: number) {
-    if (dragStartY === null || !card) return;
-    dragLastY = y;
-    const delta = Math.max(0, y - dragStartY);
-    card.style.transform = `translateY(${delta}px)`;
-  }
-  function endDrag() {
-    if (dragStartY === null || !card) return;
-    const delta = dragLastY - dragStartY;
-    const elapsed = performance.now() - dragStartTime;
-    const velocity = elapsed > 0 ? delta / elapsed : 0;
-    card.style.transition = '';
-    if (delta > DRAG_CLOSE_PX || velocity > FLICK_VELOCITY) {
-      closeSheet();
-    } else {
-      card.style.transform = '';
-    }
-    dragStartY = null;
-  }
-
-  handle?.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) startDrag(e.touches[0].clientY);
-  }, { passive: true });
-  handle?.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 1) moveDrag(e.touches[0].clientY);
-  }, { passive: true });
-  handle?.addEventListener('touchend', endDrag);
-  handle?.addEventListener('touchcancel', endDrag);
-
-  // Mouse drag (desktop / DevTools). Use document-level listeners so the
-  // user can drag past the handle and still complete the gesture.
-  handle?.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    startDrag(e.clientY);
-    const onMove = (m: MouseEvent) => moveDrag(m.clientY);
-    const onUp = () => {
-      endDrag();
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  });
-  // Keyboard: Enter / Space on the handle closes the sheet.
-  handle?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      closeSheet();
-    }
-  });
-
   syncActive();
 </script>

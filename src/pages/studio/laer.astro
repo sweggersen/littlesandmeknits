@@ -1,0 +1,74 @@
+---
+import StudioLayout from '../../layouts/StudioLayout.astro';
+import { TUTORIAL_VIDEOS, PLAYLIST_ID, PLAYLIST_AUTHOR } from '../../data/tutorials';
+
+function thumbUrl(id: string): string {
+  // Use mqdefault.jpg for the list view — sharp on retina, ~320×180.
+  return `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
+}
+
+function watchUrl(id: string): string {
+  return `https://www.youtube.com/watch?v=${id}&list=${PLAYLIST_ID}`;
+}
+---
+
+<StudioLayout title="Lær å strikke — Littles and Me" lang="nb">
+  <div class="flex items-end justify-between mb-6 gap-4 flex-wrap">
+    <div>
+      <h1 class="font-serif text-3xl sm:text-4xl">Lær å strikke</h1>
+      <p class="text-charcoal/55 text-sm mt-2 max-w-xl">
+        En kuratert spilleliste fra <strong>{PLAYLIST_AUTHOR}</strong> — start med begynnerkurset og bygg deg opp.
+      </p>
+    </div>
+    <a
+      href={`https://www.youtube.com/playlist?list=${PLAYLIST_ID}`}
+      target="_blank"
+      rel="noopener"
+      class="text-xs font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors whitespace-nowrap"
+    >
+      Åpne hele spillelisten ↗
+    </a>
+  </div>
+
+  <ol class="space-y-3">
+    {TUTORIAL_VIDEOS.map((v, i) => (
+      <li>
+        <a
+          href={watchUrl(v.id)}
+          target="_blank"
+          rel="noopener"
+          class="group flex items-stretch gap-3 sm:gap-4 bg-white rounded-2xl p-3 sm:p-4 border border-sage-500/10 hover:border-sage-500/30 hover:shadow-sm transition-all"
+        >
+          <div class="relative shrink-0 w-32 sm:w-44 aspect-video rounded-xl overflow-hidden bg-oatmeal">
+            <img
+              src={thumbUrl(v.id)}
+              alt=""
+              class="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
+            <span class="absolute right-1.5 bottom-1.5 bg-charcoal/85 text-linen text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded">
+              {v.duration}
+            </span>
+          </div>
+          <div class="flex-1 min-w-0 flex flex-col justify-center">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">
+              #{i + 1} · {v.author}
+            </p>
+            <h3 class="font-serif text-base sm:text-lg leading-tight text-charcoal group-hover:text-terracotta-500 transition-colors line-clamp-2">
+              {v.title}
+            </h3>
+          </div>
+          <div class="hidden sm:flex items-center pr-1 text-charcoal/30 group-hover:text-charcoal/60 transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </div>
+        </a>
+      </li>
+    ))}
+  </ol>
+
+  <p class="text-[11px] text-charcoal/45 mt-8">
+    Videoene spilles på YouTube. Trenger du norsk tekst? Slå på automatisk teksting i YouTube‑spilleren og velg «Norsk» under tannhjul → Undertekster → Oversett automatisk.
+  </p>
+</StudioLayout>

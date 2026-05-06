@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
+import StudioSubNav from '../../components/StudioSubNav.astro';
 import { useTranslations } from '../../lib/i18n';
 import { getCurrentUser } from '../../lib/auth';
 
@@ -14,9 +15,17 @@ const meta = (user?.user_metadata ?? {}) as {
 const displayName = meta.display_name ?? '';
 const instagramHandle = meta.instagram_handle ?? '';
 const language = meta.language ?? 'nb';
+
+const meTabs = [
+  { key: 'profil', label: 'Profil', href: '/studio/profil' },
+  { key: 'bibliotek', label: 'Bibliotek', href: '/studio/mine-oppskrifter' },
+  { key: 'kjop', label: 'Kjøp', href: '/studio/kjop' },
+];
 ---
 
 <StudioLayout title="Profil — Littles and Me" lang="nb">
+  <StudioSubNav items={meTabs} active="profil" />
+
   <h1 class="font-serif text-3xl sm:text-4xl mb-2">{t('studio.nav.profile')}</h1>
   <p class="text-charcoal/55 text-sm mb-8">Innstillingene dine. Endringer lagres til kontoen og brukes i hele studioet.</p>
 

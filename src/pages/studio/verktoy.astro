@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
+import StudioSubNav from '../../components/StudioSubNav.astro';
 
 const needles = [
   { metric: '2.0', us: '0', uk: '14' },
@@ -22,6 +23,21 @@ const needles = [
   { metric: '9.0', us: '13', uk: '00' },
   { metric: '10.0', us: '15', uk: '000' },
 ];
+
+const VALID_TOOLS = ['gauge', 'yardage', 'evenly', 'ruler', 'needles'] as const;
+type Tool = (typeof VALID_TOOLS)[number];
+const toolParam = Astro.url.searchParams.get('tool');
+const tool: Tool = (VALID_TOOLS as readonly string[]).includes(toolParam ?? '')
+  ? (toolParam as Tool)
+  : 'gauge';
+
+const toolTabs = [
+  { key: 'gauge', label: 'Strikkfasthet', href: '/studio/verktoy?tool=gauge' },
+  { key: 'yardage', label: 'Garnforbruk', href: '/studio/verktoy?tool=yardage' },
+  { key: 'evenly', label: 'Felling/økning', href: '/studio/verktoy?tool=evenly' },
+  { key: 'ruler', label: 'Linjal', href: '/studio/verktoy?tool=ruler' },
+  { key: 'needles', label: 'Pinner', href: '/studio/verktoy?tool=needles' },
+];
 ---
 
 <StudioLayout title="Verktøy — Littles and Me" lang="nb">
@@ -30,43 +46,13 @@ const needles = [
     Praktiske kalkulatorer for å hjelpe deg fra plan til ferdig plagg. Alt regner lokalt i nettleseren — ingenting lagres eller sendes.
   </p>
 
-  <nav
-    data-tools-nav
-    class="sticky top-0 sm:top-[64px] -mx-4 sm:-mx-6 px-4 sm:px-6 mb-6 bg-linen/90 backdrop-blur-md z-20"
-  >
-    <ul class="flex gap-5 sm:gap-7 overflow-x-auto py-2 -mb-px text-sm font-medium">
-      <li>
-        <a href="#strikkfasthet" data-tool-link="strikkfasthet" class="inline-block py-2 border-b-2 border-transparent whitespace-nowrap text-charcoal/55 hover:text-charcoal transition-colors">
-          Strikkfasthet
-        </a>
-      </li>
-      <li>
-        <a href="#garnforbruk" data-tool-link="garnforbruk" class="inline-block py-2 border-b-2 border-transparent whitespace-nowrap text-charcoal/55 hover:text-charcoal transition-colors">
-          Garnforbruk
-        </a>
-      </li>
-      <li>
-        <a href="#felling" data-tool-link="felling" class="inline-block py-2 border-b-2 border-transparent whitespace-nowrap text-charcoal/55 hover:text-charcoal transition-colors">
-          Felling/økning
-        </a>
-      </li>
-      <li>
-        <a href="#linjal" data-tool-link="linjal" class="inline-block py-2 border-b-2 border-transparent whitespace-nowrap text-charcoal/55 hover:text-charcoal transition-colors">
-          Linjal
-        </a>
-      </li>
-      <li>
-        <a href="#pinner" data-tool-link="pinner" class="inline-block py-2 border-b-2 border-transparent whitespace-nowrap text-charcoal/55 hover:text-charcoal transition-colors">
-          Pinner
-        </a>
-      </li>
-    </ul>
-  </nav>
+  <StudioSubNav items={toolTabs} active={tool} />
 
-  <div class="space-y-8">
+  <div>
 
+    {tool === 'gauge' && (
     <!-- Strikkfasthet -->
-    <section id="strikkfasthet" data-tool-section="strikkfasthet" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 scroll-mt-32">
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Strikkfasthet</h2>
       <p class="text-sm text-charcoal/55 mb-6">Regn ut hvor mange masker du trenger for å få riktig bredde.</p>
       <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end" data-gauge>
@@ -104,9 +90,11 @@ const needles = [
       </form>
       <p class="text-xs text-charcoal/45 mt-4">Tips: Strikk alltid en prøvelapp først. Strikkfastheten endrer seg med garn, pinner og hvor stramt du strikker.</p>
     </section>
+    )}
 
+    {tool === 'yardage' && (
     <!-- Garnforbruk -->
-    <section id="garnforbruk" data-tool-section="garnforbruk" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 scroll-mt-32">
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Garnforbruk</h2>
       <p class="text-sm text-charcoal/55 mb-6">Anslag basert på plaggtype og str. Kan variere med ±20 %.</p>
 
@@ -148,9 +136,11 @@ const needles = [
         </div>
       </form>
     </section>
+    )}
 
+    {tool === 'evenly' && (
     <!-- Felling og økning -->
-    <section id="felling" data-tool-section="felling" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 scroll-mt-32">
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Felling og økning</h2>
       <p class="text-sm text-charcoal/55 mb-6">Fordel fellingene eller økningene jevnt over et antall rader.</p>
       <form class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end mb-6" data-evenly>
@@ -195,9 +185,11 @@ const needles = [
       </div>
       <p class="text-xs text-charcoal/45 mt-4">Tips: Plasser felling/økning symmetrisk på begge sider for raglan eller A‑form. Skriv ut rad‑listen og kryss av etter hvert.</p>
     </section>
+    )}
 
+    {tool === 'ruler' && (
     <!-- Linjal -->
-    <section id="linjal" data-tool-section="linjal" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 scroll-mt-32">
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Linjal</h2>
       <p class="text-sm text-charcoal/55 mb-6">
         Mål prøvelappen rett på skjermen. Kalibrer én gang ved å holde et bankkort mot skjermen og justere bredden under.
@@ -238,9 +230,11 @@ const needles = [
         Linjalen tegnes i centimeter og millimeter etter kalibreringen din. Tips: Strikk en lapp på minst 12 × 12 cm og bløtlegg den før du måler.
       </p>
     </section>
+    )}
 
+    {tool === 'needles' && (
     <!-- Pinnestørrelse -->
-    <section id="pinner" data-tool-section="pinner" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 scroll-mt-32">
+    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
       <h2 class="font-serif text-2xl mb-2">Pinnestørrelser</h2>
       <p class="text-sm text-charcoal/55 mb-6">Konverteringstabell mellom metrisk, US og UK.</p>
       <div class="overflow-x-auto -mx-2">
@@ -264,48 +258,11 @@ const needles = [
         </table>
       </div>
     </section>
+    )}
   </div>
 </StudioLayout>
 
 <script>
-  // Highlight whichever tool section is currently in view in the sub-nav.
-  // IntersectionObserver fires when a section enters/leaves the top
-  // viewport area; the most recently entered section wins.
-  const navLinks = document.querySelectorAll<HTMLAnchorElement>('[data-tool-link]');
-  const sections = document.querySelectorAll<HTMLElement>('[data-tool-section]');
-  if (sections.length > 0 && navLinks.length > 0) {
-    const setActive = (id: string) => {
-      navLinks.forEach((a) => {
-        const isActive = a.getAttribute('data-tool-link') === id;
-        a.classList.toggle('text-charcoal/55', !isActive);
-        a.classList.toggle('text-charcoal', isActive);
-        a.classList.toggle('border-transparent', !isActive);
-        a.classList.toggle('border-terracotta-500', isActive);
-      });
-    };
-    const visible = new Map<string, number>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const id = (entry.target as HTMLElement).dataset.toolSection!;
-          if (entry.isIntersecting) visible.set(id, entry.intersectionRatio);
-          else visible.delete(id);
-        }
-        // Pick the topmost visible section (most negative top — highest on screen).
-        let best: { id: string; top: number } | null = null;
-        for (const id of visible.keys()) {
-          const el = document.querySelector<HTMLElement>(`[data-tool-section="${id}"]`);
-          if (!el) continue;
-          const top = el.getBoundingClientRect().top;
-          if (best === null || top < best.top) best = { id, top };
-        }
-        if (best) setActive(best.id);
-      },
-      { rootMargin: '-100px 0px -50% 0px', threshold: [0, 0.1, 0.5, 1] },
-    );
-    sections.forEach((s) => io.observe(s));
-  }
-
   // Gauge calculator
   const gaugeForm = document.querySelector<HTMLFormElement>('[data-gauge]');
   const gaugeOut = document.querySelector<HTMLElement>('[data-gauge-result]');

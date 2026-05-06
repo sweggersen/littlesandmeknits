@@ -12,12 +12,10 @@ const t = useTranslations(lang);
 const items = [
   { href: '/studio', label: t('studio.nav.overview'), match: /^\/studio\/?$/ },
   { href: '/studio/prosjekter', label: t('studio.nav.projects'), match: /^\/studio\/prosjekter/ },
-  { href: '/studio/garn', label: t('studio.nav.stash'), match: /^\/studio\/garn/ },
-  { href: '/studio/pinner', label: t('studio.nav.needles'), match: /^\/studio\/pinner/ },
-  { href: '/studio/mine-oppskrifter', label: t('studio.nav.library'), match: /^\/studio\/mine-oppskrifter/ },
+  { href: '/studio/garn', label: t('studio.nav.stash'), match: /^\/studio\/(garn|pinner)/ },
   { href: '/studio/verktoy', label: t('studio.nav.tools'), match: /^\/studio\/verktoy/ },
-  { href: '/studio/kjop', label: t('studio.nav.purchases'), match: /^\/studio\/kjop/ },
-  { href: '/studio/profil', label: t('studio.nav.profile'), match: /^\/studio\/profil/ },
+  { href: '/studio/laer', label: t('studio.nav.learn'), match: /^\/studio\/laer/ },
+  { href: '/studio/profil', label: t('studio.nav.profile'), match: /^\/studio\/(profil|mine-oppskrifter|kjop)/ },
 ];
 ---
 

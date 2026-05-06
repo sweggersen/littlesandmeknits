@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioSubNav from '../../../components/StudioSubNav.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 
 type NeedleRow = {
@@ -18,12 +19,21 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data } = await supabase
-  .from('needles')
-  .select('id, needle_type, size_mm, length_cm, material, brand')
-  .order('size_mm', { ascending: true });
+const [needlesRes, yarnsRes] = await Promise.all([
+  supabase
+    .from('needles')
+    .select('id, needle_type, size_mm, length_cm, material, brand')
+    .order('size_mm', { ascending: true }),
+  supabase.from('yarns').select('id', { count: 'exact', head: true }),
+]);
 
-const needles = (data ?? []) as NeedleRow[];
+const needles = (needlesRes.data ?? []) as NeedleRow[];
+const yarnCount = yarnsRes.count ?? 0;
+
+const lagerTabs = [
+  { key: 'garn', label: 'Garn', href: '/studio/garn', count: yarnCount },
+  { key: 'pinner', label: 'Pinner', href: '/studio/pinner', count: needles.length },
+];
 
 // Group by size_mm for the list view (most natural way to find a pinne is "do I have a 4mm circular?").
 const grouped = new Map<string, NeedleRow[]>();
@@ -36,6 +46,8 @@ const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - pa
 ---
 
 <StudioLayout title="Pinner — Littles and Me" lang="nb">
+  <StudioSubNav items={lagerTabs} active="pinner" />
+
   <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
     <div>
       <h1 class="font-serif text-3xl sm:text-4xl">Pinner</h1>
