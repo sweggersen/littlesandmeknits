@@ -23,20 +23,34 @@
   </button>
 </div>
 
-<!-- iOS instructions modal — hidden until triggered. -->
+<!-- Fallback instructions modal — used when the browser has no
+     programmatic install API. Shown for iOS Safari/Chrome/Firefox and
+     any other browser that doesn't fire beforeinstallprompt. -->
 <div
-  data-install-ios
-  class="hidden fixed inset-0 z-50 bg-charcoal/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-4"
+  data-install-help
+  class="hidden fixed inset-0 z-[80] bg-charcoal/40 backdrop-blur-sm items-end sm:items-center justify-center p-4"
 >
   <div class="bg-linen rounded-3xl p-6 max-w-sm w-full">
     <h2 class="font-serif text-2xl mb-2">Legg til på Hjem-skjerm</h2>
-    <p class="text-sm text-charcoal/70 mb-4">
-      Trykk på <strong>Del</strong>-ikonet (firkant med pil opp) i nettleseren, og velg deretter <strong>«Legg til på Hjem-skjerm»</strong>.
-    </p>
+    <div data-install-help-ios class="hidden">
+      <p class="text-sm text-charcoal/70 mb-3">
+        Trykk på <strong>Del</strong>-ikonet (firkant med pil opp) nederst i nettleseren, og velg deretter <strong>«Legg til på Hjem-skjerm»</strong>.
+      </p>
+    </div>
+    <div data-install-help-android class="hidden">
+      <p class="text-sm text-charcoal/70 mb-3">
+        Åpne meny-ikonet (⋮) i nettleseren og velg <strong>«Installer app»</strong> eller <strong>«Legg til på Hjem-skjerm»</strong>.
+      </p>
+    </div>
+    <div data-install-help-generic class="hidden">
+      <p class="text-sm text-charcoal/70 mb-3">
+        I nettleserens meny finner du et alternativ for å installere siden eller legge den til på skjermen.
+      </p>
+    </div>
     <p class="text-xs text-charcoal/55 mb-5">Etter installasjon åpnes Littles and Me som en egen app uten nettleserlinje.</p>
     <button
       type="button"
-      data-install-ios-close
+      data-install-help-close
       class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
     >
       Skjønner
@@ -52,59 +66,74 @@
 
   const root = document.querySelector<HTMLElement>('[data-install-root]');
   const trigger = document.querySelector<HTMLButtonElement>('[data-install-trigger]');
-  const iosModal = document.querySelector<HTMLElement>('[data-install-ios]');
-  const iosClose = document.querySelector<HTMLButtonElement>('[data-install-ios-close]');
+  const help = document.querySelector<HTMLElement>('[data-install-help]');
+  const helpClose = document.querySelector<HTMLButtonElement>('[data-install-help-close]');
+  const helpIos = document.querySelector<HTMLElement>('[data-install-help-ios]');
+  const helpAndroid = document.querySelector<HTMLElement>('[data-install-help-android]');
+  const helpGeneric = document.querySelector<HTMLElement>('[data-install-help-generic]');
 
-  if (!root || !trigger || !iosModal || !iosClose) {
-    // No-op when component isn't mounted on this page.
-  } else {
+  if (root && trigger && help && helpClose) {
     let deferred: BeforeInstallPromptEvent | null = null;
 
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
-      // Older iOS — Safari exposes navigator.standalone.
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
-    const ua = navigator.userAgent.toLowerCase();
-    const isIOS = /iphone|ipad|ipod/.test(ua) && !/crios|fxios/.test(ua);
+    const ua = navigator.userAgent;
+    // Modern iPad reports as "Macintosh" — disambiguate via touch points.
+    const isIOSLike =
+      /iPhone|iPad|iPod/i.test(ua) ||
+      (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
 
-    if (isStandalone) {
-      // Already installed — keep hidden.
-    } else if (isIOS) {
+    if (!isStandalone) {
+      // Always reveal the button. Programmatic install is optional —
+      // the help modal is the fallback for browsers that lack it.
       root.classList.remove('hidden');
-      trigger.addEventListener('click', () => {
-        iosModal.classList.remove('hidden');
-        iosModal.classList.add('flex');
-      });
-      iosClose.addEventListener('click', () => {
-        iosModal.classList.add('hidden');
-        iosModal.classList.remove('flex');
-      });
-      iosModal.addEventListener('click', (e) => {
-        if (e.target === iosModal) {
-          iosModal.classList.add('hidden');
-          iosModal.classList.remove('flex');
-        }
-      });
-    } else {
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferred = e as BeforeInstallPromptEvent;
-        root.classList.remove('hidden');
-      });
-      window.addEventListener('appinstalled', () => {
-        root.classList.add('hidden');
-        deferred = null;
-      });
-      trigger.addEventListener('click', async () => {
-        if (!deferred) return;
-        await deferred.prompt();
-        const choice = await deferred.userChoice;
-        if (choice.outcome === 'accepted') {
-          root.classList.add('hidden');
-        }
-        deferred = null;
-      });
     }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferred = e as BeforeInstallPromptEvent;
+    });
+    window.addEventListener('appinstalled', () => {
+      root.classList.add('hidden');
+      deferred = null;
+    });
+
+    function openHelp() {
+      // Pick the right copy based on device. Hide siblings, show one.
+      [helpIos, helpAndroid, helpGeneric].forEach((el) => el?.classList.add('hidden'));
+      const target = isIOSLike ? helpIos : isAndroid ? helpAndroid : helpGeneric;
+      target?.classList.remove('hidden');
+      help!.classList.remove('hidden');
+      help!.classList.add('flex');
+    }
+    function closeHelp() {
+      help!.classList.add('hidden');
+      help!.classList.remove('flex');
+    }
+
+    trigger.addEventListener('click', async () => {
+      if (deferred) {
+        try {
+          await deferred.prompt();
+          const choice = await deferred.userChoice;
+          if (choice.outcome === 'accepted') root.classList.add('hidden');
+          deferred = null;
+          return;
+        } catch {
+          /* fall through to help */
+        }
+      }
+      openHelp();
+    });
+    helpClose.addEventListener('click', closeHelp);
+    help.addEventListener('click', (e) => {
+      if (e.target === help) closeHelp();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeHelp();
+    });
   }
 </script>
