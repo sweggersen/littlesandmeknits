@@ -24,7 +24,32 @@ const { data } = await supabase
   .select('id, title, summary, status, recipient, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, public_slug')
   .order('created_at', { ascending: false });
 
-const projects = (data ?? []) as ProjectRow[];
+const allProjects = (data ?? []) as ProjectRow[];
+
+const VALID_FILTERS = ['alle', 'active', 'planning', 'finished', 'frogged'] as const;
+type Filter = (typeof VALID_FILTERS)[number];
+const filterParam = Astro.url.searchParams.get('status');
+const filter: Filter = (VALID_FILTERS as readonly string[]).includes(filterParam ?? '')
+  ? (filterParam as Filter)
+  : 'alle';
+
+const projects = filter === 'alle' ? allProjects : allProjects.filter((p) => p.status === filter);
+
+const counts = {
+  alle: allProjects.length,
+  active: allProjects.filter((p) => p.status === 'active').length,
+  planning: allProjects.filter((p) => p.status === 'planning').length,
+  finished: allProjects.filter((p) => p.status === 'finished').length,
+  frogged: allProjects.filter((p) => p.status === 'frogged').length,
+} as const;
+
+const filterTabs: Array<{ key: Filter; label: string; count: number }> = [
+  { key: 'alle', label: 'Alle', count: counts.alle },
+  { key: 'active', label: 'Pågående', count: counts.active },
+  { key: 'planning', label: 'Planlagte', count: counts.planning },
+  { key: 'finished', label: 'Ferdige', count: counts.finished },
+  { key: 'frogged', label: 'Røket opp', count: counts.frogged },
+];
 
 const statusLabels: Record<ProjectRow['status'], string> = {
   planning: 'Planlegges',
@@ -42,7 +67,7 @@ const statusClass: Record<ProjectRow['status'], string> = {
 ---
 
 <StudioLayout title="Prosjekter — Littles and Me" lang="nb">
-  <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
+  <div class="flex items-center justify-between mb-6 gap-4 flex-wrap">
     <h1 class="font-serif text-3xl sm:text-4xl">Prosjekter</h1>
     <a
       href="/studio/prosjekter/ny"
@@ -52,7 +77,35 @@ const statusClass: Record<ProjectRow['status'], string> = {
     </a>
   </div>
 
-  {projects.length === 0 ? (
+  {allProjects.length > 0 && (
+    <nav class="sticky top-0 sm:top-[64px] -mx-4 sm:-mx-6 px-4 sm:px-6 mb-6 bg-linen/90 backdrop-blur-md z-20">
+      <ul class="flex gap-5 sm:gap-7 overflow-x-auto py-2 -mb-px text-sm font-medium">
+        {filterTabs.map((tab) => {
+          const isActive = filter === tab.key;
+          const href = tab.key === 'alle' ? '/studio/prosjekter' : `/studio/prosjekter?status=${tab.key}`;
+          return (
+            <li>
+              <a
+                href={href}
+                class:list={[
+                  'inline-flex items-center gap-2 py-2 border-b-2 whitespace-nowrap transition-colors',
+                  isActive ? 'border-terracotta-500 text-charcoal' : 'border-transparent text-charcoal/55 hover:text-charcoal',
+                ]}
+              >
+                <span>{tab.label}</span>
+                <span class:list={[
+                  'text-[10px] font-bold rounded-full px-1.5 py-0.5',
+                  isActive ? 'bg-terracotta-500/15 text-terracotta-500' : 'bg-sage-500/10 text-charcoal/55',
+                ]}>{tab.count}</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  )}
+
+  {allProjects.length === 0 ? (
     <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">Ingen prosjekter ennå. Start ditt første for å samle bilder, fremgang og notater på ett sted.</p>
       <a
@@ -61,6 +114,10 @@ const statusClass: Record<ProjectRow['status'], string> = {
       >
         Start et prosjekt
       </a>
+    </div>
+  ) : projects.length === 0 ? (
+    <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
+      <p class="text-charcoal/55">Ingen prosjekter med denne statusen.</p>
     </div>
   ) : (
     <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

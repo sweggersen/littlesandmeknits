@@ -94,6 +94,28 @@ body [data-studio-tabbar] {
 [data-studio-tabbar] > * svg { width: 24px; height: 24px; }
 [data-studio-tabbar] > *.is-active { color: var(--color-terracotta-500); }
 
+/* Circular avatar in the rightmost tab — uses the user's first
+   initial. Sized to match the icon footprint of sibling tabs. */
+[data-studio-tabbar] [data-tab-avatar] {
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--color-sage-100);
+  color: var(--color-sage-900);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
+}
+[data-studio-tabbar] > .is-active [data-tab-avatar],
+[data-studio-tabbar] > *[data-tab-more].is-active [data-tab-avatar] {
+  background: rgb(from var(--color-terracotta-500) r g b / 0.15);
+  color: var(--color-terracotta-500);
+}
+
 [data-tab-sheet] {
   position: fixed;
   inset: 0;
@@ -123,12 +145,27 @@ body [data-studio-tabbar] {
   box-shadow: 0 -10px 40px rgb(from var(--color-charcoal) r g b / 0.1);
 }
 [data-tab-sheet][data-open] [data-tab-sheet-card] { transform: translateY(0); }
+/* Drag handle: 4px-tall pill is purely visual, but a 28px-tall
+   transparent hit area lets the gesture feel reliable on phones. */
 [data-tab-sheet-handle] {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  margin: -8px 0 4px;
+  cursor: grab;
+  touch-action: none;
+}
+[data-tab-sheet-handle]:active { cursor: grabbing; }
+[data-tab-sheet-handle]::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
   width: 36px;
   height: 4px;
   border-radius: 999px;
   background: rgb(from var(--color-charcoal) r g b / 0.2);
-  margin: 0 auto 12px;
 }
 [data-tab-sheet-card] ul { display: flex; flex-direction: column; gap: 2px; }
 [data-tab-sheet-card] a {

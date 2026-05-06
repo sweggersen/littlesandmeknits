@@ -1,48 +1,62 @@
 ---
+import { getCurrentUser } from '../lib/auth';
+
 // Native-app-style bottom tab bar. Renders only when the site is
 // running as an installed PWA (`display-mode: standalone`); on the web
 // the existing top StudioNav stays in place.
 //
-// Four fixed primary tabs + "Mer" → opens a sheet with the rest. The
-// content area gets bottom padding equal to the tab bar height plus the
-// iOS safe area so nothing hides behind it.
+// Four primary tabs + a circular avatar that opens a slide-up sheet
+// holding the secondary surfaces (Pinner, Bibliotek, Kjøp, Profil).
+// The sheet handle is draggable: drag it down past 80px to dismiss.
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const meta = (user?.user_metadata ?? {}) as { display_name?: string };
+
+function initial(): string {
+  const name = (meta.display_name ?? '').trim();
+  if (name) return name.charAt(0).toUpperCase();
+  const local = user?.email?.split('@')[0] ?? '';
+  return (local.charAt(0) || '·').toUpperCase();
+}
+const avatarInitial = initial();
 ---
 
 <nav data-studio-tabbar>
-  <a href="/studio" data-tab="/studio" data-tab-match="^/studio/?$">
+  <a href="/studio" data-tab-match="^/studio/?$">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 11 12 4l9 7" />
       <path d="M5 10v10h14V10" />
     </svg>
     <span>Hjem</span>
   </a>
-  <a href="/studio/prosjekter" data-tab="/studio/prosjekter" data-tab-match="^/studio/prosjekter">
+  <a href="/studio/prosjekter" data-tab-match="^/studio/prosjekter">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <rect x="4" y="5" width="16" height="14" rx="2" />
       <path d="M8 9h8M8 13h8M8 17h5" />
     </svg>
     <span>Prosjekter</span>
   </a>
-  <a href="/studio/garn" data-tab="/studio/garn" data-tab-match="^/studio/garn">
+  <a href="/studio/garn" data-tab-match="^/studio/garn">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="8" />
       <path d="M5 9c4 4 10 4 14 0M5 15c4 4 10 4 14 0M9 5c4 4 4 10 0 14M15 5c4 4 4 10 0 14" />
     </svg>
     <span>Garn</span>
   </a>
-  <a href="/studio/verktoy" data-tab="/studio/verktoy" data-tab-match="^/studio/verktoy">
+  <a href="/studio/verktoy" data-tab-match="^/studio/verktoy">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 19 19 3l2 2L5 21z" />
       <path d="M6 8l2 2M9 5l2 2M12 14l2 2M15 11l2 2" />
     </svg>
     <span>Verktøy</span>
   </a>
-  <button type="button" data-tab-more data-tab-match="^/studio/(pinner|mine-oppskrifter|kjop|profil)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <circle cx="6" cy="12" r="1.4" fill="currentColor" />
-      <circle cx="12" cy="12" r="1.4" fill="currentColor" />
-      <circle cx="18" cy="12" r="1.4" fill="currentColor" />
-    </svg>
+  <button
+    type="button"
+    data-tab-more
+    data-tab-match="^/studio/(pinner|mine-oppskrifter|kjop|profil)"
+    aria-label="Mer"
+  >
+    <span data-tab-avatar>{avatarInitial}</span>
     <span>Mer</span>
   </button>
 </nav>
@@ -51,7 +65,7 @@
 <div data-tab-sheet>
   <div data-tab-sheet-backdrop></div>
   <div data-tab-sheet-card>
-    <div data-tab-sheet-handle></div>
+    <div data-tab-sheet-handle aria-label="Lukk meny" role="button" tabindex="0"></div>
     <ul>
       <li><a href="/studio/pinner" data-tab-match="^/studio/pinner">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
@@ -99,6 +113,8 @@
   }
 
   const sheet = document.querySelector<HTMLElement>('[data-tab-sheet]');
+  const card = document.querySelector<HTMLElement>('[data-tab-sheet-card]');
+  const handle = document.querySelector<HTMLElement>('[data-tab-sheet-handle]');
   const moreBtn = document.querySelector<HTMLButtonElement>('[data-tab-more]');
   const backdrop = document.querySelector<HTMLElement>('[data-tab-sheet-backdrop]');
 
@@ -109,6 +125,10 @@
   function closeSheet() {
     sheet?.removeAttribute('data-open');
     document.documentElement.style.overflow = '';
+    if (card) {
+      card.style.transition = '';
+      card.style.transform = '';
+    }
   }
 
   moreBtn?.addEventListener('click', () => {
@@ -119,10 +139,76 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeSheet();
   });
-  // Sheet links should close it on click (the navigation will replace the page,
-  // but in case the link is the same page we should still tidy up).
+  // Sheet links close the sheet on click; navigation replaces the page,
+  // but if the link is the same page we still need to clean up.
   document.querySelectorAll('[data-tab-sheet-card] a').forEach((a) => {
     a.addEventListener('click', closeSheet);
+  });
+
+  // Drag-to-close on the handle. Tracks Y delta during touchmove and
+  // either snaps the card back into place or fires closeSheet() if the
+  // user dragged past the threshold (or flicked downward fast).
+  let dragStartY: number | null = null;
+  let dragLastY = 0;
+  let dragStartTime = 0;
+  const DRAG_CLOSE_PX = 80;
+  const FLICK_VELOCITY = 0.5; // px per ms
+
+  function startDrag(y: number) {
+    dragStartY = y;
+    dragLastY = y;
+    dragStartTime = performance.now();
+    if (card) card.style.transition = 'none';
+  }
+  function moveDrag(y: number) {
+    if (dragStartY === null || !card) return;
+    dragLastY = y;
+    const delta = Math.max(0, y - dragStartY);
+    card.style.transform = `translateY(${delta}px)`;
+  }
+  function endDrag() {
+    if (dragStartY === null || !card) return;
+    const delta = dragLastY - dragStartY;
+    const elapsed = performance.now() - dragStartTime;
+    const velocity = elapsed > 0 ? delta / elapsed : 0;
+    card.style.transition = '';
+    if (delta > DRAG_CLOSE_PX || velocity > FLICK_VELOCITY) {
+      closeSheet();
+    } else {
+      card.style.transform = '';
+    }
+    dragStartY = null;
+  }
+
+  handle?.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) startDrag(e.touches[0].clientY);
+  }, { passive: true });
+  handle?.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 1) moveDrag(e.touches[0].clientY);
+  }, { passive: true });
+  handle?.addEventListener('touchend', endDrag);
+  handle?.addEventListener('touchcancel', endDrag);
+
+  // Mouse drag (desktop / DevTools). Use document-level listeners so the
+  // user can drag past the handle and still complete the gesture.
+  handle?.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    startDrag(e.clientY);
+    const onMove = (m: MouseEvent) => moveDrag(m.clientY);
+    const onUp = () => {
+      endDrag();
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  // Keyboard: Enter / Space on the handle closes the sheet.
+  handle?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      closeSheet();
+    }
   });
 
   syncActive();
