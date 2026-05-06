@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioBackLink from '../../../components/StudioBackLink.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 
@@ -47,11 +48,7 @@ const weights = [
 ---
 
 <StudioLayout title={`${y.brand} ${y.name} — Littles and Me`} lang="nb">
-  <nav class="text-xs text-charcoal/50 mb-4">
-    <a href="/studio/garn" class="hover:text-charcoal transition-colors">Garnlager</a>
-    <span class="mx-2">/</span>
-    <span>{y.brand} {y.name}</span>
-  </nav>
+  <StudioBackLink href="/studio/garn">Garnlager</StudioBackLink>
 
   <div class="max-w-4xl grid grid-cols-1 lg:grid-cols-5 gap-8">
     <div class="lg:col-span-2">

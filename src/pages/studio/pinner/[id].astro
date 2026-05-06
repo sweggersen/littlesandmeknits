@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioBackLink from '../../../components/StudioBackLink.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 
 const { id } = Astro.params;
@@ -37,11 +38,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 <StudioLayout title={`${sizeNum} mm ${TYPE_LABEL[n.needle_type] ?? n.needle_type} — Littles and Me`} lang="nb">
   <div class="max-w-2xl">
-    <nav class="text-xs text-charcoal/50 mb-4">
-      <a href="/studio/pinner" class="hover:text-charcoal transition-colors">Pinner</a>
-      <span class="mx-2">/</span>
-      <span>{sizeNum} mm {TYPE_LABEL[n.needle_type] ?? n.needle_type}</span>
-    </nav>
+    <StudioBackLink href="/studio/pinner">Pinner</StudioBackLink>
     <h1 class="font-serif text-3xl sm:text-4xl mb-2">{sizeNum} mm</h1>
     <p class="text-charcoal/65 mb-8">{TYPE_LABEL[n.needle_type] ?? n.needle_type}{n.length_cm ? ` · ${n.length_cm} cm` : ''}</p>
 

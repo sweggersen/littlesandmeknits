@@ -1,0 +1,24 @@
+---
+// App-style back affordance for studio detail pages. Renders a
+// chevron-left + parent label; sized as a comfortable tap target so
+// it works on phone PWA without relying on the OS back gesture.
+//
+// Usage:
+//   <StudioBackLink href="/studio/garn">Garnlager</StudioBackLink>
+
+interface Props {
+  href: string;
+}
+
+const { href } = Astro.props;
+---
+
+<a
+  href={href}
+  class="inline-flex items-center gap-1.5 -ml-1 mb-4 px-1 py-1 text-sm font-medium text-charcoal/65 hover:text-terracotta-500 transition-colors"
+>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+  <slot />
+</a>

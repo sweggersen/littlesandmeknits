@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioBackLink from '../../../components/StudioBackLink.astro';
 
 const sizes = [
   '2.0', '2.25', '2.5', '2.75', '3.0', '3.25', '3.5', '3.75',
@@ -10,11 +11,7 @@ const sizes = [
 
 <StudioLayout title="Ny pinne — Littles and Me" lang="nb">
   <div class="max-w-2xl">
-    <nav class="text-xs text-charcoal/50 mb-4">
-      <a href="/studio/pinner" class="hover:text-charcoal transition-colors">Pinner</a>
-      <span class="mx-2">/</span>
-      <span>Ny</span>
-    </nav>
+    <StudioBackLink href="/studio/pinner">Pinner</StudioBackLink>
     <h1 class="font-serif text-3xl sm:text-4xl mb-8">Ny pinne</h1>
 
     <form method="post" action="/api/needles/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">

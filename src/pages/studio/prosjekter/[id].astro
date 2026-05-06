@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioBackLink from '../../../components/StudioBackLink.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getEntry } from 'astro:content';
 import { projectPhotoUrl } from '../../../lib/storage';
@@ -155,11 +156,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
 ---
 
 <StudioLayout title={`${p.title} — Littles and Me`} lang="nb">
-  <nav class="text-xs text-charcoal/50 mb-4">
-    <a href="/studio/prosjekter" class="hover:text-charcoal transition-colors">Prosjekter</a>
-    <span class="mx-2">/</span>
-    <span>{p.title}</span>
-  </nav>
+  <StudioBackLink href="/studio/prosjekter">Prosjekter</StudioBackLink>
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Main column -->

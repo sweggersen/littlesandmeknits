@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
+import StudioBackLink from '../../../components/StudioBackLink.astro';
 
 const weights = [
   'Lace (Tråd)',
@@ -15,11 +16,7 @@ const weights = [
 
 <StudioLayout title="Nytt garn — Littles and Me" lang="nb">
   <div class="max-w-2xl">
-    <nav class="text-xs text-charcoal/50 mb-4">
-      <a href="/studio/garn" class="hover:text-charcoal transition-colors">Garnlager</a>
-      <span class="mx-2">/</span>
-      <span>Nytt</span>
-    </nav>
+    <StudioBackLink href="/studio/garn">Garnlager</StudioBackLink>
     <h1 class="font-serif text-3xl sm:text-4xl mb-8">Nytt garn</h1>
 
     <form method="post" action="/api/yarns/create" enctype="multipart/form-data" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
