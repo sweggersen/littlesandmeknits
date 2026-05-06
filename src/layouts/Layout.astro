@@ -29,6 +29,24 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
     <meta name="apple-mobile-web-app-title" content="Littles" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
+    <script is:inline>
+      // PWA preview mode: visiting any URL with ?pwa=1 (or returning from a
+      // page that set it) makes the browser render as if it were in
+      // standalone display-mode. Useful for showing the bottom tab bar +
+      // collapsed chrome to anyone before they install the app. ?pwa=0
+      // clears the flag.
+      (function () {
+        try {
+          var url = new URL(window.location.href);
+          var pwa = url.searchParams.get('pwa');
+          if (pwa === '1') sessionStorage.setItem('lm-pwa-preview', '1');
+          else if (pwa === '0') sessionStorage.removeItem('lm-pwa-preview');
+          if (sessionStorage.getItem('lm-pwa-preview') === '1') {
+            document.documentElement.classList.add('pwa-preview');
+          }
+        } catch (_) {}
+      })();
+    </script>
   </head>
   <body class="min-h-screen bg-linen text-charcoal flex flex-col">
     <Navbar lang={lang} />
@@ -36,12 +54,26 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
       <slot />
     </main>
     <Footer lang={lang} />
+
+    <a
+      data-pwa-preview-exit
+      href="?pwa=0"
+      class="fixed left-3 z-[80] hidden bg-charcoal text-linen px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-terracotta-500 transition-colors"
+      style="bottom: calc(64px + env(safe-area-inset-bottom) + 12px);"
+    >
+      PWA preview · avslutt
+    </a>
+
     <script>
       // Register the PWA service worker on supported browsers.
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
+      }
+      // Surface the "exit preview" pill only when the preview class is set.
+      if (document.documentElement.classList.contains('pwa-preview')) {
+        document.querySelector('[data-pwa-preview-exit]')?.classList.remove('hidden');
       }
     </script>
   </body>

@@ -51,9 +51,13 @@
 /* Hide marketing chrome (footer + language switcher) when the site is
    launched as an installed PWA. In standalone mode users are inside the
    app shell; the brand pitch + outbound links would feel out of place
-   and the locale switcher is irrelevant once the studio is the home. */
+   and the locale switcher is irrelevant once the studio is the home.
+   `html.pwa-preview` mirrors the same rules so the experience can be
+   inspected in any browser via ?pwa=1. */
 @media all and (display-mode: standalone) {
   body > footer { display: none; }
   [data-public-only] { display: none; }
 }
+html.pwa-preview body > footer { display: none; }
+html.pwa-preview [data-public-only] { display: none; }
 

@@ -213,6 +213,21 @@
       display: none;
     }
   }
+
+  /* Preview mirror: `?pwa=1` (or sessionStorage flag) sets html.pwa-preview
+     so the same chrome shows up in any browser without installing. */
+  html.pwa-preview [data-studio-tabbar] {
+    display: flex;
+  }
+  html.pwa-preview body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+  html.pwa-preview [data-studio-topnav] {
+    display: none;
+  }
+  html.pwa-preview body > nav:first-of-type {
+    display: none;
+  }
 </style>
 
 <script>
