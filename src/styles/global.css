@@ -56,14 +56,12 @@
    scoped and would never match `body > nav` or [data-studio-topnav]. */
 @media all and (display-mode: standalone) {
   body > footer { display: none; }
-  body > nav:first-of-type { display: none; }
   [data-studio-topnav] { display: none; }
   [data-public-only] { display: none; }
   body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   [data-studio-tabbar] { display: flex; }
 }
 html.pwa-preview body > footer { display: none; }
-html.pwa-preview body > nav:first-of-type { display: none; }
 html.pwa-preview [data-studio-topnav] { display: none; }
 html.pwa-preview [data-public-only] { display: none; }
 html.pwa-preview body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
