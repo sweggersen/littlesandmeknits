@@ -1,0 +1,162 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { createServerSupabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/marked/mine');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [{ data: listings }, { data: conversations }] = await Promise.all([
+  supabase
+    .from('listings')
+    .select('id, title, price_nok, status, kind, hero_photo_path, created_at')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false }),
+  supabase
+    .from('marketplace_conversations')
+    .select('id, updated_at, listing_id')
+    .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+    .order('updated_at', { ascending: false })
+    .limit(5),
+]);
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Utkast',
+  active: 'Aktiv',
+  sold: 'Solgt',
+  removed: 'Fjernet',
+};
+
+const drafts = (listings ?? []).filter((l) => l.status === 'draft');
+const live = (listings ?? []).filter((l) => l.status === 'active');
+const sold = (listings ?? []).filter((l) => l.status === 'sold');
+const unreadConvos = (conversations ?? []).length;
+---
+
+<Layout title="Mine annonser — Strikketorget" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
+        <div>
+          <nav class="text-xs text-charcoal/50 mb-3">
+            <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
+            <span class="mx-2">/</span>
+            <span>Mine annonser</span>
+          </nav>
+          <h1 class="font-serif text-3xl sm:text-4xl">Mine annonser</h1>
+        </div>
+        <a
+          href="/marked/listing/ny"
+          class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          + Ny annonse
+        </a>
+      </div>
+
+      {unreadConvos > 0 && (
+        <section class="mb-8">
+          <a
+            href="/marked/meldinger"
+            class="block bg-white rounded-2xl p-4 border border-terracotta-500/30 hover:border-terracotta-500/50 transition-colors"
+          >
+            <div class="flex items-center justify-between gap-4">
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Meldinger</p>
+                <p class="text-sm text-charcoal/70">Du har {unreadConvos} {unreadConvos === 1 ? 'samtale' : 'samtaler'}</p>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/40">
+                <path d="m9 18 6-6-6-6" />
+              </svg>
+            </div>
+          </a>
+        </section>
+      )}
+
+      {drafts.length > 0 && (
+        <section class="mb-8">
+          <h2 class="font-serif text-xl mb-3">Utkast</h2>
+          <ul class="space-y-2">
+            {drafts.map((l) => (
+              <li>
+                <a
+                  href={`/marked/listing/${l.id}`}
+                  class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
+                >
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
+                        {KIND_LABEL[l.kind] ?? l.kind} · {STATUS_LABEL[l.status]}
+                      </p>
+                      <p class="font-medium">{l.title}</p>
+                    </div>
+                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section class="mb-8">
+        <h2 class="font-serif text-xl mb-3">Aktive annonser</h2>
+        {live.length === 0 ? (
+          <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
+            <p class="text-charcoal/55 text-sm mb-4">Ingen aktive annonser ennå.</p>
+            <a href="/marked/listing/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+              Legg ut din første annonse
+            </a>
+          </div>
+        ) : (
+          <ul class="space-y-2">
+            {live.map((l) => (
+              <li>
+                <a
+                  href={`/marked/listing/${l.id}`}
+                  class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
+                >
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">
+                        {KIND_LABEL[l.kind] ?? l.kind} · {STATUS_LABEL[l.status]}
+                      </p>
+                      <p class="font-medium">{l.title}</p>
+                    </div>
+                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {sold.length > 0 && (
+        <section>
+          <h2 class="font-serif text-xl mb-3 text-charcoal/55">Solgt</h2>
+          <ul class="space-y-2">
+            {sold.map((l) => (
+              <li>
+                <div class="bg-oatmeal/40 rounded-2xl p-4 border border-sage-500/10">
+                  <div class="flex items-center justify-between gap-4">
+                    <p class="font-medium text-charcoal/65">{l.title}</p>
+                    <p class="font-mono tabular-nums text-sm text-charcoal/55">{l.price_nok} NOK</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <p class="mt-12 text-center text-[11px] text-charcoal/45">
+        <a href="/marked/meldinger" class="hover:text-charcoal transition-colors">Meldinger</a>
+        <span class="mx-2">·</span>
+        <a href="/marked" class="hover:text-charcoal transition-colors">Se markedet</a>
+      </p>
+    </div>
+  </div>
+</Layout>

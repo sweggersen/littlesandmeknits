@@ -1,0 +1,78 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: latest } = await supabase
+  .from('listings')
+  .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at')
+  .eq('status', 'active')
+  .order('published_at', { ascending: false })
+  .limit(8);
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+---
+
+<Layout title="Strikketorget — Littles and Me Knits" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <h1 class="font-serif text-4xl sm:text-5xl mb-1">Strikketorget</h1>
+      <p class="text-[11px] uppercase tracking-widest text-charcoal/40 mb-4">by Littles and Me Knits</p>
+      <p class="text-charcoal/65 max-w-xl mb-10">
+        Kjøp brukt og nytt strikket fra fellesskapet, eller bestill at noen strikker for deg.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-12">
+        <a href="/marked/brukt" class="block bg-white rounded-3xl p-6 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Brukt</p>
+          <h2 class="font-serif text-2xl mb-2">Pre-loved</h2>
+          <p class="text-sm text-charcoal/65">Plagg ungene har vokst fra. Som regel under 500 NOK.</p>
+        </a>
+        <a href="/marked/nytt" class="block bg-white rounded-3xl p-6 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-2">Nytt</p>
+          <h2 class="font-serif text-2xl mb-2">Ferdigstrikket</h2>
+          <p class="text-sm text-charcoal/65">Strikkere selger plagg de har strikket på spec.</p>
+        </a>
+        <div class="block bg-oatmeal/40 rounded-3xl p-6 border border-sage-500/10">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Kommer snart</p>
+          <h2 class="font-serif text-2xl mb-2">Strikk for meg</h2>
+          <p class="text-sm text-charcoal/55">Bestill et plagg fra en strikker.</p>
+        </div>
+      </div>
+
+      <h2 class="font-serif text-2xl mb-4">Nyeste annonser</h2>
+      {(latest ?? []).length === 0 ? (
+        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+          <p class="text-charcoal/55">Ingen annonser ennå. Kom tilbake snart.</p>
+        </div>
+      ) : (
+        <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          {(latest ?? []).map((l) => (
+            <li>
+              <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
+                {projectPhotoUrl(l.hero_photo_path) ? (
+                  <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
+                ) : (
+                  <div class="aspect-square bg-oatmeal/40"></div>
+                )}
+                <div class="p-3">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
+                    {KIND_LABEL[l.kind] ?? l.kind} · str. {l.size_label}
+                  </p>
+                  <p class="text-sm font-medium line-clamp-2">{l.title}</p>
+                  <p class="font-mono tabular-nums text-sm mt-1">{l.price_nok} NOK</p>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p class="mt-12 text-center text-[11px] text-charcoal/45">
+        <a href="/marked/mine" class="hover:text-charcoal transition-colors" data-auth-link="studio">Mine annonser</a>
+        <span class="mx-2" data-auth-link="studio">·</span>
+        <a href="/marked/listing/ny" class="hover:text-charcoal transition-colors" data-auth-link="studio">Legg ut annonse</a>
+      </p>
+    </div>
+  </div>
+</Layout>

@@ -1,0 +1,117 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser } from '../../../lib/auth';
+import { createServerSupabase } from '../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/marked/meldinger');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/marked/meldinger');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const { data: conversation } = await supabase
+  .from('marketplace_conversations')
+  .select('id, buyer_id, seller_id, listing_id, listings!inner(title, id)')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!conversation) return Astro.redirect('/marked/meldinger');
+if (conversation.buyer_id !== user.id && conversation.seller_id !== user.id) {
+  return Astro.redirect('/marked/meldinger');
+}
+
+const { data: messages } = await supabase
+  .from('marketplace_messages')
+  .select('id, sender_id, body, created_at')
+  .eq('conversation_id', id)
+  .order('created_at', { ascending: true });
+
+const otherId = conversation.buyer_id === user.id ? conversation.seller_id : conversation.buyer_id;
+const { data: otherProfile } = await supabase
+  .from('profiles')
+  .select('display_name')
+  .eq('id', otherId)
+  .maybeSingle();
+
+const otherName = otherProfile?.display_name ?? 'Anonym';
+const listingTitle = (conversation.listings as any)?.title ?? 'Annonse';
+const listingId = (conversation.listings as any)?.id;
+const isSeller = conversation.seller_id === user.id;
+---
+
+<Layout title={`${listingTitle} — Strikketorget`} lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <nav class="text-xs text-charcoal/50 mb-4">
+        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
+        <span class="mx-2">/</span>
+        <a href="/marked/meldinger" class="hover:text-charcoal transition-colors">Meldinger</a>
+        <span class="mx-2">/</span>
+        <span>{otherName}</span>
+      </nav>
+
+      <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+            {isSeller ? 'Kjøper' : 'Selger'}: {otherName}
+          </p>
+          <h1 class="font-serif text-2xl sm:text-3xl">{listingTitle}</h1>
+        </div>
+        {listingId && (
+          <a
+            href={`/marked/listing/${listingId}`}
+            class="text-xs text-charcoal/55 hover:text-charcoal transition-colors underline shrink-0"
+          >
+            Se annonse
+          </a>
+        )}
+      </div>
+
+      <div class="bg-white rounded-3xl border border-sage-500/10 divide-y divide-sage-500/10 mb-6">
+        {(!messages || messages.length === 0) ? (
+          <div class="p-6 text-center text-sm text-charcoal/55">Ingen meldinger ennå.</div>
+        ) : (
+          messages.map((m) => (
+            <div class={`p-4 sm:p-5 ${m.sender_id === user.id ? 'bg-sage-50/50' : ''}`}>
+              <div class="flex items-center justify-between gap-2 mb-1">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                  {m.sender_id === user.id ? 'Deg' : otherName}
+                </p>
+                <time class="text-[10px] text-charcoal/35" datetime={m.created_at}>
+                  {new Date(m.created_at).toLocaleString('nb-NO', {
+                    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                  })}
+                </time>
+              </div>
+              <p class="text-sm leading-relaxed whitespace-pre-line">{m.body}</p>
+            </div>
+          ))
+        )}
+      </div>
+
+      <form method="post" action="/api/marketplace/conversations/reply" class="bg-white rounded-3xl p-5 border border-sage-500/10">
+        <input type="hidden" name="conversation_id" value={conversation.id} />
+        <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Svar
+        </label>
+        <textarea
+          id="message"
+          name="message"
+          required
+          rows="3"
+          maxlength="1000"
+          placeholder="Skriv en melding…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"
+        ></textarea>
+        <button
+          type="submit"
+          class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        >
+          Send
+        </button>
+      </form>
+    </div>
+  </div>
+</Layout>

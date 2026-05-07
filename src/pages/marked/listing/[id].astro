@@ -1,0 +1,206 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+import { getCurrentUser } from '../../../lib/auth';
+import { projectPhotoUrl } from '../../../lib/storage';
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/marked');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+
+const { data: listing } = await supabase
+  .from('listings')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, location, shipping_info, published_at, listing_fee_nok')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!listing) return Astro.redirect('/marked');
+
+const isOwner = user?.id === listing.seller_id;
+if (!isOwner && listing.status !== 'active') return Astro.redirect('/marked');
+
+const { data: sellerProfile } = await supabase
+  .from('profiles')
+  .select('display_name')
+  .eq('id', listing.seller_id)
+  .maybeSingle();
+
+const heroUrl = projectPhotoUrl(listing.hero_photo_path);
+const justPublished = Astro.url.searchParams.get('published') === '1';
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const STATUS_LABEL: Record<string, string> = { draft: 'Utkast', active: 'Aktiv', sold: 'Solgt', removed: 'Fjernet' };
+const CONDITION_LABEL: Record<string, string> = {
+  som_ny: 'Som ny', lite_brukt: 'Lite brukt', brukt: 'Brukt', slitt: 'Slitt',
+};
+---
+
+<Layout title={`${listing.title} — Strikketorget`} lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <nav class="text-xs text-charcoal/50 mb-4">
+        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
+        <span class="mx-2">/</span>
+        <a href={`/marked/${listing.kind === 'pre_loved' ? 'brukt' : 'nytt'}`} class="hover:text-charcoal transition-colors">
+          {KIND_LABEL[listing.kind]}
+        </a>
+        {isOwner && (
+          <>
+            <span class="mx-2">/</span>
+            <a href="/marked/mine" class="hover:text-charcoal transition-colors">Mine</a>
+          </>
+        )}
+      </nav>
+
+      {justPublished && isOwner && (
+        <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 mb-6 text-sm">
+          Annonsen er publisert og synlig for alle.
+        </div>
+      )}
+
+      {isOwner && listing.status !== 'active' && (
+        <div class="inline-block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 bg-oatmeal/60 rounded-full px-3 py-1 mb-4">
+          {STATUS_LABEL[listing.status]}
+        </div>
+      )}
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div>
+          {heroUrl ? (
+            <img src={heroUrl} alt={listing.title} class="w-full rounded-3xl aspect-square object-cover" />
+          ) : (
+            <div class="bg-oatmeal/40 rounded-3xl aspect-square flex items-center justify-center text-charcoal/30">
+              <p class="text-xs">{isOwner ? 'Legg til bilde nedenfor' : 'Ingen bilde'}</p>
+            </div>
+          )}
+          {isOwner && (
+            <form method="post" action={`/api/marketplace/listings/${listing.id}/photo`} enctype="multipart/form-data" class="mt-3">
+              <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                {heroUrl ? 'Bytt bilde' : 'Last opp bilde'}
+              </label>
+              <div class="flex items-center gap-2">
+                <input name="hero_photo" type="file" accept="image/*" required class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
+                <button type="submit" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                  Last opp
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">
+            {KIND_LABEL[listing.kind]}
+          </p>
+          <h1 class="font-serif text-3xl sm:text-4xl mb-4">{listing.title}</h1>
+          <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} NOK</p>
+
+          <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
+              <dd>{listing.size_label}</dd>
+            </div>
+            {isOwner && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kategori</dt>
+                <dd>{listing.category}</dd>
+              </div>
+            )}
+            {listing.condition && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Tilstand</dt>
+                <dd>{CONDITION_LABEL[listing.condition] ?? listing.condition}</dd>
+              </div>
+            )}
+            {listing.colorway && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Farge</dt>
+                <dd>{listing.colorway}</dd>
+              </div>
+            )}
+            {listing.location && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Sted</dt>
+                <dd>{listing.location}</dd>
+              </div>
+            )}
+            {listing.shipping_info && (
+              <div class="col-span-2">
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Frakt</dt>
+                <dd>{listing.shipping_info}</dd>
+              </div>
+            )}
+            {listing.pattern_external_title && (
+              <div class="col-span-2">
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
+                <dd>{listing.pattern_external_title}</dd>
+              </div>
+            )}
+          </dl>
+
+          {listing.description && (
+            <p class="text-sm text-charcoal/75 leading-relaxed whitespace-pre-line mb-6">{listing.description}</p>
+          )}
+
+          {isOwner ? (
+            <div class="space-y-4">
+              {listing.status === 'draft' && (
+                <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
+                  <h2 class="font-serif text-xl mb-2">Publiser</h2>
+                  <p class="text-sm text-charcoal/65 mb-4">
+                    Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med én gang.
+                  </p>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
+                    <button
+                      type="submit"
+                      class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+                    >
+                      Betal og publiser (29 NOK)
+                    </button>
+                  </form>
+                </section>
+              )}
+              {listing.status === 'active' && (
+                <div class="bg-sage-100 rounded-2xl p-4 text-sm text-sage-900">
+                  Annonsen er publisert og synlig for alle.
+                </div>
+              )}
+            </div>
+          ) : (
+            <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
+              <input type="hidden" name="listing_id" value={listing.id} />
+              <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                Send melding til selger
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                required
+                rows="3"
+                maxlength="1000"
+                placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"
+              ></textarea>
+              <button
+                type="submit"
+                class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors"
+              >
+                Send melding
+              </button>
+              <p class="text-[11px] text-charcoal/45 mt-3 text-center">
+                Dere avtaler betaling og frakt dere imellom.
+              </p>
+            </form>
+          )}
+
+          <div class="mt-6 pt-6 border-t border-sage-500/10">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger</p>
+            <p class="font-medium">{sellerProfile?.display_name ?? 'Anonym'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>

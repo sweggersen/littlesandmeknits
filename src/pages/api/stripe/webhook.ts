@@ -25,15 +25,35 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
+    const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // ── Marketplace listing fee ──────────────────────────────────
+    const listingId = session.metadata?.listing_id;
+    if (listingId && session.metadata?.type === 'listing_fee') {
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          status: 'active',
+          published_at: new Date().toISOString(),
+          listing_fee_session_id: session.id,
+          listing_fee_nok: session.amount_total ? Math.round(session.amount_total / 100) : 0,
+        })
+        .eq('id', listingId)
+        .eq('status', 'draft');
+      if (error) {
+        console.error('Listing fee publish failed', error, { listingId });
+        return new Response('DB error', { status: 500 });
+      }
+      return new Response('ok', { status: 200 });
+    }
+
+    // ── Pattern PDF checkout (existing flow) ─────────────────────
     const userId = session.client_reference_id ?? session.metadata?.user_id;
     const slug = session.metadata?.pattern_slug;
-
     if (!userId || !slug) {
       console.error('Webhook missing metadata', { userId, slug, sessionId: session.id });
       return new Response('Missing metadata', { status: 400 });
     }
-
-    const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
     const { error } = await supabase
       .from('purchases')
       .upsert(
@@ -49,7 +69,6 @@ export const POST: APIRoute = async ({ request }) => {
         },
         { onConflict: 'stripe_session_id' }
       );
-
     if (error) {
       console.error('Purchase upsert failed', error);
       return new Response('DB error', { status: 500 });
