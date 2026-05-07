@@ -1,10 +1,10 @@
--- Marketplace listings: pre-loved (brukt) and ready-made (nytt) garments
--- offered for sale. Commission requests are a separate concept and live
--- in their own migration. One listing = one physical item (inventory of
--- one); selling moves status to 'sold'.
+-- Marketplace listings: classifieds-style ads for pre-loved (brukt) and
+-- ready-made (nytt) knitted garments. Any registered user can post.
+-- Publishing requires a small listing fee paid via Stripe Checkout.
+-- Buyer and seller arrange payment and shipping themselves.
 
 create type public.listing_kind as enum ('pre_loved', 'ready_made');
-create type public.listing_status as enum ('draft', 'active', 'reserved', 'sold', 'removed');
+create type public.listing_status as enum ('draft', 'active', 'sold', 'removed');
 create type public.listing_condition as enum ('som_ny', 'lite_brukt', 'brukt', 'slitt');
 create type public.listing_category as enum (
   'genser', 'cardigan', 'lue', 'votter', 'sokker',
@@ -26,7 +26,6 @@ create table public.listings (
   size_age_months_min int,
   size_age_months_max int,
   category public.listing_category not null,
-  -- condition required for pre_loved, must be null for ready_made
   condition public.listing_condition,
   constraint listings_condition_for_pre_loved
     check ((kind = 'pre_loved' and condition is not null)
@@ -37,13 +36,14 @@ create table public.listings (
   yarn_ids uuid[] not null default '{}',
   colorway text,
 
-  -- Storage paths in the marketplace bucket. hero_photo_path is the
-  -- denormalized first photo for fast list-view rendering.
   photos text[] not null default '{}',
   hero_photo_path text,
 
-  -- Array of {carrier, service, price_nok, days} chosen by the seller.
-  shipping_options jsonb not null default '[]'::jsonb,
+  location text,
+  shipping_info text,
+
+  listing_fee_session_id text unique,
+  listing_fee_nok int,
 
   status public.listing_status not null default 'draft',
   published_at timestamptz,

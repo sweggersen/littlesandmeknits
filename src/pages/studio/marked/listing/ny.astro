@@ -1,19 +1,9 @@
 ---
 import StudioLayout from '../../../../layouts/StudioLayout.astro';
 import { getCurrentUser } from '../../../../lib/auth';
-import { createServerSupabase } from '../../../../lib/supabase';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/logg-inn?next=/studio/marked/listing/ny');
-
-const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data: knitter } = await supabase
-  .from('knitter_profiles')
-  .select('stripe_charges_enabled')
-  .eq('user_id', user.id)
-  .maybeSingle();
-
-const isReady = !!knitter?.stripe_charges_enabled;
 ---
 
 <StudioLayout title="Ny annonse — Marked" lang="nb">
@@ -27,12 +17,6 @@ const isReady = !!knitter?.stripe_charges_enabled;
     <p class="text-sm text-charcoal/55 mb-8">
       Lagre som utkast først, så kan du legge til bilder og publisere etterpå.
     </p>
-
-    {!isReady && (
-      <div class="bg-terracotta-500/10 text-terracotta-500 rounded-2xl p-4 mb-6 text-sm">
-        Du kan opprette utkast nå, men må fullføre <a href="/studio/marked/innstillinger" class="underline">Stripe-oppsettet</a> før du kan publisere.
-      </div>
-    )}
 
     <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
       <div>
@@ -164,7 +148,34 @@ const isReady = !!knitter?.stripe_charges_enabled;
           placeholder="350"
           class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
         />
-        <p class="text-[11px] text-charcoal/45 mt-1">Frakt legges til separat (Posten Småpakke ~80 NOK).</p>
+      </div>
+
+      <div>
+        <label for="location" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Sted
+        </label>
+        <input
+          id="location"
+          name="location"
+          type="text"
+          maxlength="80"
+          placeholder="Oslo, Bergen, Tromsø…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+
+      <div>
+        <label for="shipping_info" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          Frakt / henting
+        </label>
+        <input
+          id="shipping_info"
+          name="shipping_info"
+          type="text"
+          maxlength="200"
+          placeholder="Sender med Posten, kan hentes i Oslo…"
+          class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
       </div>
 
       <div>

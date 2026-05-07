@@ -8,38 +8,32 @@ if (!user) return Astro.redirect('/logg-inn?next=/studio/marked');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-const [{ data: knitter }, { data: listings }, { data: openOrders }] = await Promise.all([
-  supabase
-    .from('knitter_profiles')
-    .select('user_id, slug, availability, stripe_charges_enabled, stripe_payouts_enabled')
-    .eq('user_id', user.id)
-    .maybeSingle(),
+const [{ data: listings }, { data: conversations }] = await Promise.all([
   supabase
     .from('listings')
     .select('id, title, price_nok, status, kind, hero_photo_path, created_at')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false }),
   supabase
-    .from('marketplace_orders')
-    .select('id, status, gross_nok, created_at, listing_id')
+    .from('marketplace_conversations')
+    .select('id, updated_at, listing_id')
     .eq('seller_id', user.id)
-    .in('status', ['paid', 'shipped'])
-    .order('created_at', { ascending: false }),
+    .order('updated_at', { ascending: false })
+    .limit(5),
 ]);
 
 const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Utkast',
   active: 'Aktiv',
-  reserved: 'Reservert',
   sold: 'Solgt',
   removed: 'Fjernet',
 };
 
-const isOnboarded = !!knitter?.stripe_charges_enabled;
 const drafts = (listings ?? []).filter((l) => l.status === 'draft');
-const live = (listings ?? []).filter((l) => l.status === 'active' || l.status === 'reserved');
+const live = (listings ?? []).filter((l) => l.status === 'active');
 const sold = (listings ?? []).filter((l) => l.status === 'sold');
+const unreadConvos = (conversations ?? []).length;
 ---
 
 <StudioLayout title="Marked — Littles and Me" lang="nb">
@@ -47,61 +41,33 @@ const sold = (listings ?? []).filter((l) => l.status === 'sold');
     <div>
       <h1 class="font-serif text-3xl sm:text-4xl">Marked</h1>
       <p class="text-charcoal/55 text-sm mt-2 max-w-xl">
-        Selg brukt og nytt strikket, eller ta imot oppdrag fra andre.
+        Legg ut annonser for brukt og nytt strikket.
       </p>
     </div>
-    {isOnboarded && (
-      <a
-        href="/studio/marked/listing/ny"
-        class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-      >
-        + Ny annonse
-      </a>
-    )}
+    <a
+      href="/studio/marked/listing/ny"
+      class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+    >
+      + Ny annonse
+    </a>
   </div>
 
-  {!isOnboarded && (
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/15 mb-8">
-      <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">
-        Kom i gang
-      </p>
-      <h2 class="font-serif text-2xl mb-3">Bli strikker på Littles and Me</h2>
-      <p class="text-sm text-charcoal/70 leading-relaxed mb-5 max-w-xl">
-        For å selge må du koble til en utbetalingskonto via Stripe. Det
-        tar et par minutter — du trenger BankID og kontonummer.
-      </p>
-      <a
-        href="/studio/marked/innstillinger"
-        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-      >
-        Sett opp utbetalinger
-      </a>
-    </section>
-  )}
-
-  {(openOrders ?? []).length > 0 && (
+  {unreadConvos > 0 && (
     <section class="mb-8">
-      <h2 class="font-serif text-xl mb-3">Ordre å sende</h2>
-      <ul class="space-y-2">
-        {(openOrders ?? []).map((o) => (
-          <li>
-            <a
-              href={`/studio/marked/ordrer/${o.id}`}
-              class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors"
-            >
-              <div class="flex items-center justify-between gap-4">
-                <div>
-                  <p class="text-xs font-bold uppercase tracking-widest text-terracotta-500 mb-1">
-                    {o.status === 'paid' ? 'Send i dag' : 'Sendt'}
-                  </p>
-                  <p class="text-sm text-charcoal/70">Ordre {o.id.slice(0, 8)}</p>
-                </div>
-                <p class="font-mono tabular-nums text-sm">{o.gross_nok} NOK</p>
-              </div>
-            </a>
-          </li>
-        ))}
-      </ul>
+      <a
+        href="/studio/marked/meldinger"
+        class="block bg-white rounded-2xl p-4 border border-terracotta-500/30 hover:border-terracotta-500/50 transition-colors"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Meldinger</p>
+            <p class="text-sm text-charcoal/70">Du har {unreadConvos} {unreadConvos === 1 ? 'samtale' : 'samtaler'} fra kjøpere</p>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/40">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </div>
+      </a>
     </section>
   )}
 
@@ -135,7 +101,10 @@ const sold = (listings ?? []).filter((l) => l.status === 'sold');
     <h2 class="font-serif text-xl mb-3">Aktive annonser</h2>
     {live.length === 0 ? (
       <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
-        <p class="text-charcoal/55 text-sm">Ingen aktive annonser ennå.</p>
+        <p class="text-charcoal/55 text-sm mb-4">Ingen aktive annonser ennå.</p>
+        <a href="/studio/marked/listing/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Legg ut din første annonse
+        </a>
       </div>
     ) : (
       <ul class="space-y-2">
@@ -180,7 +149,7 @@ const sold = (listings ?? []).filter((l) => l.status === 'sold');
   )}
 
   <p class="mt-12 text-center text-[11px] text-charcoal/45">
-    <a href="/studio/marked/innstillinger" class="hover:text-charcoal transition-colors">Innstillinger</a>
+    <a href="/studio/marked/meldinger" class="hover:text-charcoal transition-colors">Meldinger</a>
     <span class="mx-2">·</span>
     <a href="/marked" class="hover:text-charcoal transition-colors">Se markedet som kjøper</a>
   </p>

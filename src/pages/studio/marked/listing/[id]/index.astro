@@ -12,7 +12,7 @@ if (!id) return Astro.redirect('/studio/marked');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, shipping_options, published_at')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, location, shipping_info, hero_photo_path, photos, published_at, listing_fee_nok')
   .eq('id', id)
   .maybeSingle();
 
@@ -20,17 +20,10 @@ if (!listing || listing.seller_id !== user.id) {
   return Astro.redirect('/studio/marked');
 }
 
-const { data: knitter } = await supabase
-  .from('knitter_profiles')
-  .select('stripe_charges_enabled')
-  .eq('user_id', user.id)
-  .maybeSingle();
-
 const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Utkast',
   active: 'Aktiv',
-  reserved: 'Reservert',
   sold: 'Solgt',
   removed: 'Fjernet',
 };
@@ -41,7 +34,7 @@ const CONDITION_LABEL: Record<string, string> = {
   slitt: 'Slitt',
 };
 
-const canPublish = listing.status === 'draft' && !!knitter?.stripe_charges_enabled;
+const justPublished = Astro.url.searchParams.get('published') === '1';
 ---
 
 <StudioLayout title={`${listing.title} — Marked`} lang="nb">
@@ -51,6 +44,12 @@ const canPublish = listing.status === 'draft' && !!knitter?.stripe_charges_enabl
       <span class="mx-2">/</span>
       <span>Annonse</span>
     </nav>
+
+    {justPublished && (
+      <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 mb-6 text-sm">
+        Annonsen er publisert og synlig for alle.
+      </div>
+    )}
 
     <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
       <div>
@@ -84,6 +83,18 @@ const canPublish = listing.status === 'draft' && !!knitter?.stripe_charges_enabl
             <dd>{listing.colorway}</dd>
           </div>
         )}
+        {listing.location && (
+          <div>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Sted</dt>
+            <dd>{listing.location}</dd>
+          </div>
+        )}
+        {listing.shipping_info && (
+          <div>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Frakt</dt>
+            <dd>{listing.shipping_info}</dd>
+          </div>
+        )}
         {listing.pattern_external_title && (
           <div class="col-span-2">
             <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
@@ -96,31 +107,20 @@ const canPublish = listing.status === 'draft' && !!knitter?.stripe_charges_enabl
       )}
     </section>
 
-    <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
-      <h2 class="font-serif text-xl mb-2">Bilder</h2>
-      <p class="text-sm text-charcoal/55">
-        Bildelasting kommer i neste runde. Fram til da kan du publisere
-        annonser uten bilder, men du vil sannsynligvis ikke få salg.
-      </p>
-    </section>
-
     {listing.status === 'draft' && (
       <section class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 mb-6">
         <h2 class="font-serif text-xl mb-2">Publiser</h2>
-        {canPublish ? (
-          <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
-            <button
-              type="submit"
-              class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-            >
-              Publiser annonsen
-            </button>
-          </form>
-        ) : (
-          <p class="text-sm text-charcoal/65">
-            Du må fullføre <a href="/studio/marked/innstillinger" class="underline">Stripe-oppsettet</a> før du kan publisere.
-          </p>
-        )}
+        <p class="text-sm text-charcoal/65 mb-4">
+          Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med én gang.
+        </p>
+        <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
+          <button
+            type="submit"
+            class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Betal og publiser (29 NOK)
+          </button>
+        </form>
       </section>
     )}
 

@@ -23,45 +23,31 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response('Invalid signature', { status: 400 });
   }
 
-  const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-
-  // ─────────────────────────────────────────────────────────────────
-  // Pattern PDF checkout (existing flow)
-  // ─────────────────────────────────────────────────────────────────
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const orderId = session.metadata?.marketplace_order_id;
+    const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-    // Marketplace order purchased via Checkout (pre-loved / ready-made flow).
-    if (orderId) {
+    // ── Marketplace listing fee ──────────────────────────────────
+    const listingId = session.metadata?.listing_id;
+    if (listingId && session.metadata?.type === 'listing_fee') {
       const { error } = await supabase
-        .from('marketplace_orders')
+        .from('listings')
         .update({
-          status: 'paid',
-          paid_at: new Date().toISOString(),
-          stripe_payment_intent_id: typeof session.payment_intent === 'string'
-            ? session.payment_intent
-            : session.payment_intent?.id ?? null,
+          status: 'active',
+          published_at: new Date().toISOString(),
+          listing_fee_session_id: session.id,
+          listing_fee_nok: session.amount_total ? Math.round(session.amount_total / 100) : 0,
         })
-        .eq('id', orderId)
-        .eq('status', 'pending_payment');
+        .eq('id', listingId)
+        .eq('status', 'draft');
       if (error) {
-        console.error('Order paid update failed', error, { orderId });
+        console.error('Listing fee publish failed', error, { listingId });
         return new Response('DB error', { status: 500 });
-      }
-      // Reserve the listing so it disappears from the public list.
-      const listingId = session.metadata?.listing_id;
-      if (listingId) {
-        await supabase
-          .from('listings')
-          .update({ status: 'reserved' })
-          .eq('id', listingId)
-          .eq('status', 'active');
       }
       return new Response('ok', { status: 200 });
     }
 
-    // Otherwise: pattern PDF checkout (legacy/existing path).
+    // ── Pattern PDF checkout (existing flow) ─────────────────────
     const userId = session.client_reference_id ?? session.metadata?.user_id;
     const slug = session.metadata?.pattern_slug;
     if (!userId || !slug) {
@@ -87,58 +73,6 @@ export const POST: APIRoute = async ({ request }) => {
       console.error('Purchase upsert failed', error);
       return new Response('DB error', { status: 500 });
     }
-    return new Response('ok', { status: 200 });
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // Connect account status changes
-  // ─────────────────────────────────────────────────────────────────
-  if (event.type === 'account.updated') {
-    const account = event.data.object as Stripe.Account;
-    const { error } = await supabase
-      .from('knitter_profiles')
-      .update({
-        stripe_charges_enabled: !!account.charges_enabled,
-        stripe_payouts_enabled: !!account.payouts_enabled,
-      })
-      .eq('stripe_account_id', account.id);
-    if (error) console.error('Connect status update failed', error);
-    return new Response('ok', { status: 200 });
-  }
-
-  // ─────────────────────────────────────────────────────────────────
-  // Marketplace refund / dispute hooks
-  // ─────────────────────────────────────────────────────────────────
-  if (event.type === 'charge.refunded') {
-    const charge = event.data.object as Stripe.Charge;
-    const piId = typeof charge.payment_intent === 'string'
-      ? charge.payment_intent
-      : charge.payment_intent?.id;
-    if (piId) {
-      await supabase
-        .from('marketplace_orders')
-        .update({ status: 'refunded', refunded_at: new Date().toISOString() })
-        .eq('stripe_payment_intent_id', piId);
-    }
-    return new Response('ok', { status: 200 });
-  }
-
-  if (event.type === 'charge.dispute.created') {
-    const dispute = event.data.object as Stripe.Dispute;
-    const piId = typeof dispute.payment_intent === 'string'
-      ? dispute.payment_intent
-      : dispute.payment_intent?.id;
-    if (piId) {
-      await supabase
-        .from('marketplace_orders')
-        .update({
-          status: 'disputed',
-          disputed_at: new Date().toISOString(),
-          dispute_reason: dispute.reason ?? null,
-        })
-        .eq('stripe_payment_intent_id', piId);
-    }
-    return new Response('ok', { status: 200 });
   }
 
   return new Response('ok', { status: 200 });

@@ -1,11 +1,14 @@
 import type { APIRoute } from 'astro';
+import { env } from 'cloudflare:workers';
 import { getCurrentUser } from '../../../../../lib/auth';
 import { createServerSupabase } from '../../../../../lib/supabase';
+import { createStripe } from '../../../../../lib/stripe';
 
 // POST /api/marketplace/listings/:id/publish
-// Move a draft listing to active. Gates on the seller having Stripe
-// Connect charges enabled — otherwise we can't accept money on their
-// behalf.
+// Creates a Stripe Checkout session for the listing fee (29 NOK).
+// On successful payment, the webhook flips status from draft → active.
+
+const LISTING_FEE_NOK = 29;
 
 export const POST: APIRoute = async ({ params, request, cookies, redirect }) => {
   const user = await getCurrentUser({ request, cookies });
@@ -13,39 +16,48 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
   const id = params.id;
   if (!id) return new Response('Missing id', { status: 400 });
 
+  if (!env.STRIPE_SECRET_KEY) return new Response('Stripe not configured', { status: 503 });
+
   const supabase = createServerSupabase({ request, cookies });
-  const { data: knitter } = await supabase
-    .from('knitter_profiles')
-    .select('stripe_charges_enabled, availability')
-    .eq('user_id', user.id)
+  const { data: listing } = await supabase
+    .from('listings')
+    .select('id, seller_id, title, status')
+    .eq('id', id)
     .maybeSingle();
 
-  if (!knitter || !knitter.stripe_charges_enabled) {
-    return redirect('/studio/marked/innstillinger?need_connect=1');
+  if (!listing || listing.seller_id !== user.id) {
+    return new Response('Not found', { status: 404 });
+  }
+  if (listing.status !== 'draft') {
+    return redirect(`/studio/marked/listing/${id}`, 303);
   }
 
-  const { error } = await supabase
-    .from('listings')
-    .update({
-      status: 'active',
-      published_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .eq('seller_id', user.id)
-    .eq('status', 'draft');
+  const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
+  const stripe = createStripe(env.STRIPE_SECRET_KEY);
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [
+      {
+        price_data: {
+          currency: 'nok',
+          unit_amount: LISTING_FEE_NOK * 100,
+          product_data: { name: `Annonsegebyr: ${listing.title}` },
+        },
+        quantity: 1,
+      },
+    ],
+    success_url: `${siteUrl}/studio/marked/listing/${id}?published=1`,
+    cancel_url: `${siteUrl}/studio/marked/listing/${id}`,
+    customer_email: user.email ?? undefined,
+    client_reference_id: user.id,
+    metadata: {
+      type: 'listing_fee',
+      listing_id: id,
+      user_id: user.id,
+    },
+    locale: 'nb',
+  });
 
-  if (error) {
-    console.error('Listing publish failed', error);
-    return new Response('Could not publish listing', { status: 500 });
-  }
-
-  // First publish: open the seller's availability if still closed.
-  if (knitter.availability === 'closed') {
-    await supabase
-      .from('knitter_profiles')
-      .update({ availability: 'open' })
-      .eq('user_id', user.id);
-  }
-
-  return redirect(`/studio/marked/listing/${id}`, 303);
+  if (!session.url) return new Response('Checkout URL missing', { status: 500 });
+  return redirect(session.url, 303);
 };

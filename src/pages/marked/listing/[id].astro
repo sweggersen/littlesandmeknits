@@ -9,18 +9,18 @@ if (!id) return Astro.redirect('/marked');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, shipping_options, published_at')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, location, shipping_info, published_at')
   .eq('id', id)
   .maybeSingle();
 
-if (!listing || (listing.status !== 'active' && listing.status !== 'reserved')) {
+if (!listing || listing.status !== 'active') {
   return Astro.redirect('/marked');
 }
 
-const { data: seller } = await supabase
-  .from('knitter_profiles')
-  .select('slug, bio, availability')
-  .eq('user_id', listing.seller_id)
+const { data: sellerProfile } = await supabase
+  .from('profiles')
+  .select('display_name')
+  .eq('id', listing.seller_id)
   .maybeSingle();
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
@@ -30,9 +30,6 @@ const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Ny
 const CONDITION_LABEL: Record<string, string> = {
   som_ny: 'Som ny', lite_brukt: 'Lite brukt', brukt: 'Brukt', slitt: 'Slitt',
 };
-const shippingOpts = (listing.shipping_options ?? []) as Array<{ carrier: string; price_nok: number; days: string }>;
-const minShipping = shippingOpts.length ? Math.min(...shippingOpts.map((o) => o.price_nok)) : 0;
-const total = listing.price_nok + minShipping;
 ---
 
 <Layout title={`${listing.title} — Marked`} lang="nb">
@@ -56,7 +53,6 @@ const total = listing.price_nok + minShipping;
             {KIND_LABEL[listing.kind]}
           </p>
           <h1 class="font-serif text-3xl sm:text-4xl mb-4">{listing.title}</h1>
-
           <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} NOK</p>
 
           <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
@@ -76,6 +72,18 @@ const total = listing.price_nok + minShipping;
                 <dd>{listing.colorway}</dd>
               </div>
             )}
+            {listing.location && (
+              <div>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Sted</dt>
+                <dd>{listing.location}</dd>
+              </div>
+            )}
+            {listing.shipping_info && (
+              <div class="col-span-2">
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Frakt</dt>
+                <dd>{listing.shipping_info}</dd>
+              </div>
+            )}
             {listing.pattern_external_title && (
               <div class="col-span-2">
                 <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
@@ -88,48 +96,41 @@ const total = listing.price_nok + minShipping;
             <p class="text-sm text-charcoal/75 leading-relaxed whitespace-pre-line mb-6">{listing.description}</p>
           )}
 
-          <div class="bg-white rounded-3xl p-5 border border-sage-500/10 mb-4 text-sm">
-            <p class="flex items-center justify-between mb-2">
-              <span class="text-charcoal/65">Pris</span>
-              <span class="font-mono tabular-nums">{listing.price_nok} NOK</span>
-            </p>
-            <p class="flex items-center justify-between mb-2">
-              <span class="text-charcoal/65">Frakt</span>
-              <span class="font-mono tabular-nums">{minShipping} NOK</span>
-            </p>
-            <p class="flex items-center justify-between font-medium border-t border-sage-500/10 pt-2 mt-2">
-              <span>Totalt</span>
-              <span class="font-mono tabular-nums">{total} NOK</span>
-            </p>
-          </div>
-
           {isOwn ? (
             <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm text-charcoal/65">
               Dette er din egen annonse. <a href={`/studio/marked/listing/${listing.id}`} class="underline">Rediger ↗</a>
             </div>
-          ) : listing.status === 'reserved' ? (
-            <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm text-charcoal/65">
-              Reservert — venter på betaling fra annen kjøper.
-            </div>
           ) : (
-            <form method="post" action="/api/marketplace/orders/create">
+            <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
               <input type="hidden" name="listing_id" value={listing.id} />
+              <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                Send melding til selger
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                required
+                rows="3"
+                maxlength="1000"
+                placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"
+              ></textarea>
               <button
                 type="submit"
                 class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors"
               >
-                Kjøp nå
+                Send melding
               </button>
+              <p class="text-[11px] text-charcoal/45 mt-3 text-center">
+                Dere avtaler betaling og frakt dere imellom.
+              </p>
             </form>
           )}
 
-          {seller && (
-            <div class="mt-6 pt-6 border-t border-sage-500/10">
-              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger</p>
-              <p class="font-medium">{seller.slug}</p>
-              {seller.bio && <p class="text-sm text-charcoal/65 mt-1">{seller.bio}</p>}
-            </div>
-          )}
+          <div class="mt-6 pt-6 border-t border-sage-500/10">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger</p>
+            <p class="font-medium">{sellerProfile?.display_name ?? 'Anonym'}</p>
+          </div>
         </div>
       </div>
     </div>

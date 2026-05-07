@@ -50,12 +50,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const pattern_external_title = form.get('pattern_external_title')?.toString().trim() || null;
   const size_age_months_min = toIntOrNull(form.get('size_age_months_min'));
   const size_age_months_max = toIntOrNull(form.get('size_age_months_max'));
-
-  // Default shipping option: Posten Småpakke ~80 NOK, 2–4 days.
-  // Sellers can override later (UI for that lives in edit, not create).
-  const shipping_options = [
-    { carrier: 'posten', service: 'smaapakke', price_nok: 80, days: '2-4' },
-  ];
+  const location = form.get('location')?.toString().trim() || null;
+  const shipping_info = form.get('shipping_info')?.toString().trim() || null;
 
   const supabase = createServerSupabase({ request, cookies });
   const { data, error } = await supabase
@@ -74,7 +70,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       pattern_slug,
       pattern_external_title,
       colorway,
-      shipping_options,
+      location,
+      shipping_info,
       status: 'draft',
     })
     .select('id')
