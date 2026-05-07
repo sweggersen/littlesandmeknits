@@ -41,11 +41,11 @@ const listingId = (conversation.listings as any)?.id;
 const isSeller = conversation.seller_id === user.id;
 ---
 
-<Layout title={`Melding — ${listingTitle}`} lang="nb">
+<Layout title={`${listingTitle} — Strikketorget`} lang="nb">
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
       <nav class="text-xs text-charcoal/50 mb-4">
-        <a href="/marked" class="hover:text-charcoal transition-colors">Marked</a>
+        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
         <span class="mx-2">/</span>
         <a href="/marked/meldinger" class="hover:text-charcoal transition-colors">Meldinger</a>
         <span class="mx-2">/</span>

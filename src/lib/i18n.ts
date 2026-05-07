@@ -10,10 +10,10 @@ export const defaultLang: Lang = 'nb';
 export const ui = {
   nb: {
     'nav.shop': 'Oppskrifter',
-    'nav.marketplace': 'Marked',
+    'nav.marketplace': 'Strikketorget',
     'nav.projects': 'Prosjekter',
     'nav.about': 'Om oss',
-    'nav.studio': 'Studio',
+    'nav.studio': 'Strikkestua',
     'nav.login': 'Logg inn',
     'nav.cart': 'Handlekurv',
     'nav.search': 'Søk i oppskrifter…',
@@ -34,7 +34,7 @@ export const ui = {
     'home.tools.counter': 'Maskeradeteller',
     'home.tools.gauge': 'Strikkfasthet',
     'home.tools.stash': 'Garnlager',
-    'home.tools.cta': 'Åpne studio',
+    'home.tools.cta': 'Åpne Strikkestua',
 
     'home.projects.title': 'Siste prosjekter',
     'home.projects.cta': 'Se alle prosjekter',
@@ -88,7 +88,7 @@ export const ui = {
     'login.loading': 'Sender…',
     'login.tos': 'Ved å logge inn godtar du vilkårene våre.',
 
-    'studio.welcome': 'Velkommen tilbake',
+    'studio.welcome': 'Velkommen tilbake til Strikkestua',
     'studio.nav.overview': 'Oversikt',
     'studio.nav.projects': 'Prosjekter',
     'studio.nav.stash': 'Garn',
@@ -105,7 +105,7 @@ export const ui = {
     'studio.empty.purchases': 'Ingen kjøp ennå.',
     'studio.cta.browsePatterns': 'Bla gjennom oppskrifter',
 
-    'footer.studio': 'Studio',
+    'footer.studio': 'Strikkestua',
     'footer.studio.projects': 'Mine prosjekter',
     'footer.studio.stash': 'Garnlager',
     'footer.connect': 'Følg oss',
@@ -130,10 +130,10 @@ export const ui = {
   },
   en: {
     'nav.shop': 'Patterns',
-    'nav.marketplace': 'Marketplace',
+    'nav.marketplace': 'Yarn Market',
     'nav.projects': 'Projects',
     'nav.about': 'About',
-    'nav.studio': 'Studio',
+    'nav.studio': 'The Knitting Room',
     'nav.login': 'Log in',
     'nav.cart': 'Cart',
     'nav.search': 'Search patterns…',
@@ -154,7 +154,7 @@ export const ui = {
     'home.tools.counter': 'Row counter',
     'home.tools.gauge': 'Gauge calculator',
     'home.tools.stash': 'Yarn stash',
-    'home.tools.cta': 'Open studio',
+    'home.tools.cta': 'Enter The Knitting Room',
 
     'home.projects.title': 'Latest projects',
     'home.projects.cta': 'See all projects',
@@ -208,7 +208,7 @@ export const ui = {
     'login.loading': 'Sending…',
     'login.tos': 'By logging in you agree to our terms.',
 
-    'studio.welcome': 'Welcome back',
+    'studio.welcome': 'Welcome back to The Knitting Room',
     'studio.nav.overview': 'Overview',
     'studio.nav.projects': 'Projects',
     'studio.nav.stash': 'Yarn',
@@ -225,7 +225,7 @@ export const ui = {
     'studio.empty.purchases': 'No purchases yet.',
     'studio.cta.browsePatterns': 'Browse patterns',
 
-    'footer.studio': 'Studio',
+    'footer.studio': 'The Knitting Room',
     'footer.studio.projects': 'My projects',
     'footer.studio.stash': 'Yarn stash',
     'footer.connect': 'Connect',
