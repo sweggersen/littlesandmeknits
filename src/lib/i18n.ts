@@ -10,6 +10,7 @@ export const defaultLang: Lang = 'nb';
 export const ui = {
   nb: {
     'nav.shop': 'Oppskrifter',
+    'nav.marketplace': 'Marked',
     'nav.projects': 'Prosjekter',
     'nav.about': 'Om oss',
     'nav.studio': 'Studio',
@@ -129,6 +130,7 @@ export const ui = {
   },
   en: {
     'nav.shop': 'Patterns',
+    'nav.marketplace': 'Marketplace',
     'nav.projects': 'Projects',
     'nav.about': 'About',
     'nav.studio': 'Studio',

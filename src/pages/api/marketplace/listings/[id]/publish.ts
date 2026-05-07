@@ -29,7 +29,7 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     return new Response('Not found', { status: 404 });
   }
   if (listing.status !== 'draft') {
-    return redirect(`/studio/marked/listing/${id}`, 303);
+    return redirect(`/marked/listing/${id}`, 303);
   }
 
   const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
@@ -46,8 +46,8 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
         quantity: 1,
       },
     ],
-    success_url: `${siteUrl}/studio/marked/listing/${id}?published=1`,
-    cancel_url: `${siteUrl}/studio/marked/listing/${id}`,
+    success_url: `${siteUrl}/marked/listing/${id}?published=1`,
+    cancel_url: `${siteUrl}/marked/listing/${id}`,
     customer_email: user.email ?? undefined,
     client_reference_id: user.id,
     metadata: {

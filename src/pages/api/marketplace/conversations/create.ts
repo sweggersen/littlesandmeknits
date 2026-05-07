@@ -71,5 +71,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return new Response('Could not send message', { status: 500 });
   }
 
-  return redirect(`/studio/marked/meldinger/${conversationId}`, 303);
+  return redirect(`/marked/meldinger/${conversationId}`, 303);
 };

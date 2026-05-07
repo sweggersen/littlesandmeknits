@@ -17,7 +17,7 @@ const toIntOrNull = (v: FormDataEntryValue | null): number | null => {
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const user = await getCurrentUser({ request, cookies });
-  if (!user) return redirect('/logg-inn?next=/studio/marked/listing/ny');
+  if (!user) return redirect('/logg-inn?next=/marked/listing/ny');
 
   const form = await request.formData();
   const kind = form.get('kind')?.toString() ?? '';
@@ -82,5 +82,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return new Response('Could not create listing', { status: 500 });
   }
 
-  return redirect(`/studio/marked/listing/${data.id}`, 303);
+  return redirect(`/marked/listing/${data.id}`, 303);
 };

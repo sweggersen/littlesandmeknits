@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: latest } = await supabase
@@ -49,7 +50,11 @@ const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Ny
           {(latest ?? []).map((l) => (
             <li>
               <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                <div class="aspect-square bg-oatmeal/40"></div>
+                {projectPhotoUrl(l.hero_photo_path) ? (
+                  <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
+                ) : (
+                  <div class="aspect-square bg-oatmeal/40"></div>
+                )}
                 <div class="p-3">
                   <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
                     {KIND_LABEL[l.kind] ?? l.kind} · str. {l.size_label}
@@ -62,6 +67,11 @@ const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Ny
           ))}
         </ul>
       )}
+      <p class="mt-12 text-center text-[11px] text-charcoal/45">
+        <a href="/marked/mine" class="hover:text-charcoal transition-colors" data-auth-link="studio">Mine annonser</a>
+        <span class="mx-2" data-auth-link="studio">·</span>
+        <a href="/marked/listing/ny" class="hover:text-charcoal transition-colors" data-auth-link="studio">Legg ut annonse</a>
+      </p>
     </div>
   </div>
 </Layout>

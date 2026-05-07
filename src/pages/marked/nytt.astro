@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
 
 const url = Astro.url;
 const category = url.searchParams.get('kategori');
@@ -56,7 +57,11 @@ const CATEGORY_LABEL: Record<string, string> = {
           {(listings ?? []).map((l) => (
             <li>
               <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                <div class="aspect-square bg-oatmeal/40"></div>
+                {projectPhotoUrl(l.hero_photo_path) ? (
+                  <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
+                ) : (
+                  <div class="aspect-square bg-oatmeal/40"></div>
+                )}
                 <div class="p-3">
                   <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
                     {CATEGORY_LABEL[l.category] ?? l.category} · str. {l.size_label}
