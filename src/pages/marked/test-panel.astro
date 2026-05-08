@@ -1,0 +1,154 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createAdminSupabase } from '../../lib/supabase';
+import { env } from 'cloudflare:workers';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user || user.email !== 'ammon.weggersen@gmail.com') {
+  return Astro.redirect('/marked');
+}
+
+if (!env.SUPABASE_SERVICE_ROLE_KEY) {
+  return new Response('Service role key not configured', { status: 503 });
+}
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+const EMAIL_DOMAIN = '@test.strikketorget.no';
+
+const { data: authUsers } = await admin.auth.admin.listUsers({ perPage: 1000 });
+const testUsers = (authUsers?.users ?? [])
+  .filter(u => u.email?.endsWith(EMAIL_DOMAIN))
+  .sort((a, b) => (a.email ?? '').localeCompare(b.email ?? ''));
+
+interface PersonaStats {
+  id: string;
+  email: string;
+  displayName: string;
+  listingsActive: number;
+  listingsDraft: number;
+  listingsSold: number;
+  conversations: number;
+}
+
+const stats: PersonaStats[] = [];
+
+for (const u of testUsers) {
+  const [
+    { data: profile },
+    { count: active },
+    { count: draft },
+    { count: sold },
+    { count: convosAsSeller },
+    { count: convosAsBuyer },
+  ] = await Promise.all([
+    admin.from('profiles').select('display_name').eq('id', u.id).maybeSingle(),
+    admin.from('listings').select('*', { count: 'exact', head: true }).eq('seller_id', u.id).eq('status', 'active'),
+    admin.from('listings').select('*', { count: 'exact', head: true }).eq('seller_id', u.id).eq('status', 'draft'),
+    admin.from('listings').select('*', { count: 'exact', head: true }).eq('seller_id', u.id).eq('status', 'sold'),
+    admin.from('marketplace_conversations').select('*', { count: 'exact', head: true }).eq('seller_id', u.id),
+    admin.from('marketplace_conversations').select('*', { count: 'exact', head: true }).eq('buyer_id', u.id),
+  ]);
+
+  stats.push({
+    id: u.id,
+    email: u.email!,
+    displayName: profile?.display_name ?? u.email!.split('@')[0],
+    listingsActive: active ?? 0,
+    listingsDraft: draft ?? 0,
+    listingsSold: sold ?? 0,
+    conversations: (convosAsSeller ?? 0) + (convosAsBuyer ?? 0),
+  });
+}
+---
+
+<Layout title="Test Panel — Strikketorget" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Dev tool</p>
+          <h1 class="font-serif text-3xl sm:text-4xl">Test Panel</h1>
+          <p class="text-sm text-charcoal/55 mt-2">
+            {stats.length} test personas — klikk for å logge inn som en av dem.
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <a href="/marked" class="text-sm text-charcoal/55 hover:text-charcoal transition-colors underline">
+            Strikketorget
+          </a>
+          <span class="text-charcoal/30">·</span>
+          <a href="/marked/mine" class="text-sm text-charcoal/55 hover:text-charcoal transition-colors underline">
+            Mine annonser
+          </a>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-sage-500/10 mb-6">
+        <p class="text-xs text-charcoal/55 mb-3">
+          Logget inn som: <strong>{user.email}</strong>
+        </p>
+        <p class="text-xs text-charcoal/45">
+          Passord for alle testkontoer: <code class="bg-oatmeal/60 px-2 py-0.5 rounded">strikke-test-2026</code>
+        </p>
+      </div>
+
+      {stats.length === 0 ? (
+        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+          <p class="text-charcoal/55 mb-4">Ingen testkontoer funnet.</p>
+          <p class="text-sm text-charcoal/45">Kjør <code class="bg-oatmeal/60 px-2 py-0.5 rounded">npx tsx scripts/marketplace-seed.ts</code></p>
+        </div>
+      ) : (
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {stats.map((p) => (
+            <form method="post" action="/api/dev/impersonate" class="block">
+              <input type="hidden" name="email" value={p.email} />
+              <button
+                type="submit"
+                class="w-full text-left bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors cursor-pointer"
+              >
+                <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sage-900 font-serif text-lg mb-3">
+                  {p.displayName[0]}
+                </div>
+                <p class="font-medium text-base">{p.displayName}</p>
+                <p class="text-[10px] text-charcoal/45 mb-3">{p.email}</p>
+                <div class="grid grid-cols-3 gap-1 text-center">
+                  <div>
+                    <p class="font-mono text-lg">{p.listingsActive}</p>
+                    <p class="text-[9px] uppercase tracking-widest text-charcoal/45">Aktive</p>
+                  </div>
+                  <div>
+                    <p class="font-mono text-lg">{p.listingsSold}</p>
+                    <p class="text-[9px] uppercase tracking-widest text-charcoal/45">Solgt</p>
+                  </div>
+                  <div>
+                    <p class="font-mono text-lg">{p.conversations}</p>
+                    <p class="text-[9px] uppercase tracking-widest text-charcoal/45">Chat</p>
+                  </div>
+                </div>
+                {p.listingsDraft > 0 && (
+                  <p class="text-[10px] text-terracotta-500 mt-2">{p.listingsDraft} utkast</p>
+                )}
+              </button>
+            </form>
+          ))}
+        </div>
+      )}
+
+      <div class="mt-10 bg-oatmeal/40 rounded-2xl p-5">
+        <h2 class="font-serif text-lg mb-3">Quick links per persona</h2>
+        <div class="space-y-2 text-sm">
+          {stats.map((p) => (
+            <div class="flex items-center gap-3 flex-wrap">
+              <span class="font-medium w-16">{p.displayName}</span>
+              <a href="/marked" class="text-charcoal/55 hover:text-charcoal underline">Browse</a>
+              <a href="/marked/mine" class="text-charcoal/55 hover:text-charcoal underline">Mine</a>
+              <a href="/marked/meldinger" class="text-charcoal/55 hover:text-charcoal underline">Meldinger</a>
+              <a href="/marked/listing/ny" class="text-charcoal/55 hover:text-charcoal underline">Ny annonse</a>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
