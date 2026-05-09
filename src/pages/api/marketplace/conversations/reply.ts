@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCurrentUser } from '../../../../lib/auth';
-import { createServerSupabase } from '../../../../lib/supabase';
+import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { createNotification } from '../../../../lib/notify';
 
 // POST /api/marketplace/conversations/reply
 // Either participant sends a message in an existing conversation.
@@ -35,6 +36,19 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     console.error('Reply failed', error);
     return new Response('Could not send', { status: 500 });
   }
+
+  const recipientId = conv.buyer_id === user.id ? conv.seller_id : conv.buyer_id;
+  const env = import.meta.env;
+  const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+  await createNotification(admin, {
+    userId: recipientId,
+    type: 'new_message',
+    title: 'Ny melding',
+    body: body.length > 80 ? body.slice(0, 77) + '…' : body,
+    url: `/marked/meldinger/${conversationId}`,
+    actorId: user.id,
+    referenceId: conversationId,
+  }, env);
 
   return redirect(`/marked/meldinger/${conversationId}`, 303);
 };

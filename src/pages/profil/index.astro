@@ -1,0 +1,378 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
+import { getEntry } from 'astro:content';
+import { formatNok } from '../../lib/format';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/profil');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [
+  { data: profile },
+  { data: listings },
+  { data: projects },
+  { data: myRequests },
+  { data: myOffers },
+  { data: unreadMessages },
+  { data: purchases },
+] = await Promise.all([
+  supabase
+    .from('profiles')
+    .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible')
+    .eq('id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('listings')
+    .select('id, title, price_nok, status, kind, hero_photo_path')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('projects')
+    .select('id, title, status, hero_photo_path, current_rows, target_rows, commission_offer_id, commission_offers(price_nok, commission_requests!commission_offers_request_id_fkey(title, buyer_id, profiles!commission_requests_buyer_id_fkey(display_name)))')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('commission_requests')
+    .select('id, title, category, status, offer_count, budget_nok_min, budget_nok_max')
+    .eq('buyer_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('commission_offers')
+    .select('id, price_nok, turnaround_weeks, status, request_id, commission_requests!commission_offers_request_id_fkey(id, title, status)')
+    .eq('knitter_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('marketplace_messages')
+    .select('id, conversation_id')
+    .is('read_at', null)
+    .neq('sender_id', user.id)
+    .limit(100),
+  supabase
+    .from('purchases')
+    .select('id, pattern_slug, amount_nok, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(6),
+]);
+
+const allPurchases = await Promise.all(
+  (purchases ?? []).map(async (p: any) => {
+    const entry = await getEntry('patterns', p.pattern_slug);
+    return { ...p, title: entry?.data.title.nb ?? p.pattern_slug };
+  })
+);
+
+const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
+const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? 'Anonym';
+const initial = displayName[0]?.toUpperCase() ?? '?';
+
+const allListings = listings ?? [];
+const allProjects = projects ?? [];
+const allRequests = myRequests ?? [];
+const allOffers = myOffers ?? [];
+const unreadCount = (unreadMessages ?? []).length;
+
+const activeListings = allListings.filter(l => l.status === 'active').length;
+const activeProjects = allProjects.filter(p => p.status === 'active').length;
+const pendingOffers = allOffers.filter(o => o.status === 'pending').length;
+const acceptedOffers = allOffers.filter(o => o.status === 'accepted').length;
+const openRequests = allRequests.filter(r => r.status === 'open').length;
+const awaitingPayment = allRequests.filter(r => r.status === 'awaiting_payment').length;
+
+const subtitleParts: string[] = [];
+if (unreadCount > 0) subtitleParts.push(`${unreadCount} ulest${unreadCount === 1 ? '' : 'e'} melding${unreadCount === 1 ? '' : 'er'}`);
+if (awaitingPayment > 0) subtitleParts.push(`${awaitingPayment} venter på betaling`);
+if (acceptedOffers > 0) subtitleParts.push(`${acceptedOffers} akseptert${acceptedOffers === 1 ? '' : 'e'} tilbud`);
+if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ventende tilbud`);
+if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
+if (subtitleParts.length === 0) subtitleParts.push('Alt i orden');
+
+const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const PROJECT_STATUS: Record<string, string> = {
+  planning: 'Planlegger', active: 'Pågår', finished: 'Ferdig', frogged: 'Røket opp',
+};
+const CATEGORY_LABEL: Record<string, string> = {
+  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
+  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
+};
+const REQUEST_STATUS: Record<string, string> = {
+  open: 'Åpen', awaiting_payment: 'Venter på betaling', awarded: 'Tildelt', cancelled: 'Avbrutt', expired: 'Utløpt',
+};
+const OFFER_STATUS: Record<string, string> = {
+  pending: 'Venter', accepted: 'Akseptert', declined: 'Avslått', withdrawn: 'Trukket',
+};
+---
+
+<Layout title="Min profil — Littles and Me Knits" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+      <!-- Profile header -->
+      <div class="flex items-center gap-5 mb-10">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="" class="w-20 h-20 rounded-full object-cover shrink-0" />
+        ) : (
+          <div class="w-20 h-20 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
+            <span class="font-serif text-3xl text-sage-700">{initial}</span>
+          </div>
+        )}
+        <div class="min-w-0">
+          <h1 class="font-serif text-3xl truncate">{displayName}</h1>
+          <p class="text-sm text-charcoal/55 mt-0.5">{subtitleParts.join(' · ')}</p>
+        </div>
+        <a href="/profil/rediger" class="shrink-0 ml-auto text-sm font-medium text-charcoal/45 hover:text-terracotta-500 transition-colors">
+          Rediger profil
+        </a>
+      </div>
+
+      <div class="space-y-10">
+
+        <!-- Messages -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-xl">
+              Meldinger
+              {unreadCount > 0 && (
+                <span class="inline-flex items-center justify-center ml-2 w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{unreadCount}</span>
+              )}
+            </h2>
+            <a href="/marked/meldinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+          </div>
+          {unreadCount === 0 ? (
+            <p class="text-sm text-charcoal/45 bg-white rounded-2xl p-5 border border-sage-500/10">Ingen uleste meldinger.</p>
+          ) : (
+            <a href="/marked/meldinger" class="block bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+              <p class="text-sm font-medium">{unreadCount} ulest{unreadCount === 1 ? '' : 'e'} melding{unreadCount === 1 ? '' : 'er'}</p>
+              <p class="text-xs text-charcoal/45 mt-1">Åpne innboksen for å svare.</p>
+            </a>
+          )}
+        </section>
+
+        <!-- Oppdrag: requests + offers -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-xl">Oppdrag</h2>
+            <a href="/marked/oppdrag/mine" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+          </div>
+          {allRequests.length === 0 && allOffers.length === 0 ? (
+            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen aktive oppdrag ennå.</p>
+              <a href="/marked/oppdrag" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                Se forespørsler →
+              </a>
+            </div>
+          ) : (
+            <div class="space-y-2">
+              {allRequests.map((r) => (
+                <a href={`/marked/oppdrag/${r.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
+                      <span class="text-[10px] text-charcoal/30">·</span>
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Bestiller</span>
+                      <span class:list={[
+                        'text-[10px] font-bold uppercase tracking-widest',
+                        r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                      ]}>{REQUEST_STATUS[r.status]}</span>
+                    </div>
+                    <p class="text-sm font-medium line-clamp-1">{r.title}</p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <p class="font-mono tabular-nums text-xs">{r.budget_nok_min}–{r.budget_nok_max} NOK</p>
+                    <p class="text-xs text-charcoal/45">{r.offer_count} tilbud</p>
+                  </div>
+                </a>
+              ))}
+              {allOffers.map((o) => {
+                const reqData = (o as any).commission_requests;
+                if (!reqData) return null;
+                return (
+                  <a href={`/marked/oppdrag/${reqData.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Strikker</span>
+                        <span class:list={[
+                          'text-[10px] font-bold uppercase tracking-widest',
+                          o.status === 'pending' ? 'text-sage-700' : o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/35',
+                        ]}>{OFFER_STATUS[o.status]}</span>
+                      </div>
+                      <p class="text-sm font-medium line-clamp-1">{reqData.title}</p>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <p class="font-mono tabular-nums text-xs">{o.price_nok} NOK</p>
+                      <p class="text-xs text-charcoal/45">{o.turnaround_weeks} uker</p>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <!-- Listings -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-xl">Mine annonser</h2>
+            {allListings.length > 0 && (
+              <a href="/marked/mine" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+            )}
+          </div>
+          {allListings.length === 0 ? (
+            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+              <p class="text-sm text-charcoal/45 mb-3">Du har ingen annonser ennå.</p>
+              <a href="/marked/listing/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                Opprett annonse →
+              </a>
+            </div>
+          ) : (
+            <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {allListings.map((l) => (
+                <li>
+                  <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
+                    {l.hero_photo_path ? (
+                      <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
+                    ) : (
+                      <div class="aspect-square bg-oatmeal/40"></div>
+                    )}
+                    <div class="p-3">
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">{KIND_LABEL[l.kind]} · {l.status === 'active' ? 'Aktiv' : l.status === 'sold' ? 'Solgt' : 'Utkast'}</p>
+                      <p class="text-sm font-medium line-clamp-1">{l.title}</p>
+                      <p class="font-mono tabular-nums text-xs mt-1">{l.price_nok} NOK</p>
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <!-- Purchased patterns -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-xl">Mine oppskrifter</h2>
+            {allPurchases.length > 0 && (
+              <a href="/studio/kjop" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+            )}
+          </div>
+          {allPurchases.length === 0 ? (
+            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+              <p class="text-sm text-charcoal/45 mb-3">Du har ikke kjøpt noen oppskrifter ennå.</p>
+              <a href="/oppskrifter" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                Se oppskrifter →
+              </a>
+            </div>
+          ) : (
+            <div class="space-y-2">
+              {allPurchases.map((p: any) => (
+                <div class="flex items-center justify-between gap-4 bg-white rounded-2xl p-4 border border-sage-500/10">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium line-clamp-1">{p.title}</p>
+                    <p class="text-xs text-charcoal/45 mt-0.5">
+                      {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
+                    </p>
+                  </div>
+                  <a href={`/api/download/${p.id}`} target="_blank" rel="noopener"
+                    class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                    Last ned
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <!-- Projects -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-xl">Prosjekter</h2>
+            {allProjects.length > 0 && (
+              <a href="/studio" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
+            )}
+          </div>
+          {allProjects.length === 0 ? (
+            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen prosjekter ennå.</p>
+              <a href="/studio/prosjekter/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                Start et prosjekt →
+              </a>
+            </div>
+          ) : (
+            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {allProjects.map((p) => {
+                const isCommission = !!p.commission_offer_id;
+                const commissionData = isCommission ? (p as any).commission_offers : null;
+                const reqData = commissionData?.commission_requests;
+                const buyerName = reqData?.profiles?.display_name;
+                return (
+                  <li>
+                    <a href={`/studio/prosjekter/${p.id}`} class:list={[
+                      'block bg-white rounded-2xl border transition-colors overflow-hidden',
+                      isCommission ? 'border-terracotta-500/20 hover:border-terracotta-500/40' : 'border-sage-500/10 hover:border-sage-500/30',
+                    ]}>
+                      <div class="flex gap-3">
+                        {p.hero_photo_path ? (
+                          <img src={projectPhotoUrl(p.hero_photo_path)!} alt={p.title} class="w-20 h-20 object-cover shrink-0 rounded-l-2xl" />
+                        ) : (
+                          <div class="w-20 h-20 bg-oatmeal/40 shrink-0 rounded-l-2xl"></div>
+                        )}
+                        <div class="py-3 pr-3 min-w-0 flex-1">
+                          <div class="flex items-center gap-2 mb-1">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{PROJECT_STATUS[p.status]}</span>
+                            {isCommission && (
+                              <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
+                            )}
+                          </div>
+                          <p class="text-sm font-medium line-clamp-1">{p.title}</p>
+                          {isCommission && buyerName && (
+                            <p class="text-xs text-charcoal/45 mt-0.5">for {buyerName} · {commissionData.price_nok} NOK</p>
+                          )}
+                          {p.target_rows && p.target_rows > 0 && (
+                            <div class="mt-2">
+                              <div class="h-1.5 bg-oatmeal/60 rounded-full overflow-hidden">
+                                <div class="h-full bg-terracotta-500 rounded-full" style={`width: ${Math.min(100, Math.round(((p.current_rows ?? 0) / p.target_rows) * 100))}%`}></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <!-- Settings & account -->
+        <section class="pt-4 border-t border-sage-500/10">
+          <div class="flex flex-wrap gap-3">
+            <a href="/profil/rediger" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
+              Rediger profil →
+            </a>
+            <a href={`/marked/selger/${user.id}`} class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
+              Offentlig profil →
+            </a>
+          </div>
+          <form method="post" action="/api/auth/signout" data-signout-form class="mt-4">
+            <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">
+              Logg ut →
+            </button>
+          </form>
+          <script is:inline>
+            document.querySelector('[data-signout-form]')?.addEventListener('submit', function() {
+              sessionStorage.removeItem('lm-auth');
+            });
+          </script>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</Layout>

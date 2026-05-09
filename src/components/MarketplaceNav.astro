@@ -1,0 +1,84 @@
+---
+interface Props {
+  current?: 'home' | 'brukt' | 'nytt' | 'oppdrag' | 'mine' | 'mine-oppdrag' | 'meldinger' | 'ny' | 'listing' | 'profil';
+}
+const { current } = Astro.props;
+
+const links = [
+  { href: '/marked', key: 'home', label: 'Strikketorget' },
+  { href: '/marked/brukt', key: 'brukt', label: 'Brukt' },
+  { href: '/marked/nytt', key: 'nytt', label: 'Nytt' },
+  { href: '/marked/oppdrag', key: 'oppdrag', label: 'Strikk for meg' },
+];
+
+const authLinks = [
+  { href: '/marked/mine', key: 'mine', label: 'Mine annonser' },
+  { href: '/marked/meldinger', key: 'meldinger', label: 'Meldinger' },
+  { href: '/marked/oppdrag/mine', key: 'mine-oppdrag', label: 'Mine oppdrag' },
+  { href: '/marked/listing/ny', key: 'ny', label: '+ Ny annonse' },
+];
+---
+
+<nav class="bg-linen border-b border-sage-500/10" transition:animate="none">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6">
+    <div class="flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
+      {links.map((l) => (
+        <a
+          href={l.href}
+          class:list={[
+            'shrink-0 px-3 py-3 text-sm font-medium border-b-2 transition-colors',
+            current === l.key
+              ? 'border-terracotta-500 text-terracotta-500'
+              : 'border-transparent text-charcoal/55 hover:text-charcoal hover:border-charcoal/20',
+          ]}
+        >
+          {l.label}
+        </a>
+      ))}
+
+      <div class="flex-1" />
+
+      {authLinks.map((l) => (
+        <a
+          href={l.href}
+          class:list={[
+            'shrink-0 px-3 py-3 text-sm font-medium border-b-2 transition-colors hidden',
+            current === l.key
+              ? 'border-terracotta-500 text-terracotta-500'
+              : 'border-transparent text-charcoal/55 hover:text-charcoal hover:border-charcoal/20',
+          ]}
+          data-marketplace-auth
+        >
+          {l.label}
+        </a>
+      ))}
+    </div>
+  </div>
+</nav>
+
+<style>
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
+
+<script is:inline>
+  // Apply cached auth state synchronously — no flash
+  if (sessionStorage.getItem('lm-auth') === '1') {
+    document.querySelectorAll('[data-marketplace-auth]').forEach(function(el) {
+      el.classList.remove('hidden');
+    });
+  }
+</script>
+
+<script>
+  function initMarketplaceAuth() {
+    if (sessionStorage.getItem('lm-auth') === '1') {
+      document.querySelectorAll<HTMLElement>('[data-marketplace-auth]').forEach((el) => {
+        el.classList.remove('hidden');
+      });
+    }
+  }
+
+  initMarketplaceAuth();
+  document.addEventListener('astro:page-load', initMarketplaceAuth);
+</script>

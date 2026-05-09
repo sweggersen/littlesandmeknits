@@ -4,7 +4,7 @@ import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
 
 const EMAIL_DOMAIN = '@test.strikketorget.no';
-const ADMIN_EMAIL = 'ammon.weggersen@gmail.com';
+const ADMIN_EMAIL = 'sam.mathias.weggersen@gmail.com';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const user = await getCurrentUser({ request, cookies });

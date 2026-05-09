@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import MarketplaceNav from '../../../components/MarketplaceNav.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
@@ -12,7 +13,7 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 
 const { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, photos, location, shipping_info, published_at, listing_fee_nok')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
   .eq('id', id)
   .maybeSingle();
 
@@ -21,15 +22,19 @@ if (!listing) return Astro.redirect('/marked');
 const isOwner = user?.id === listing.seller_id;
 if (!isOwner && listing.status !== 'active') return Astro.redirect('/marked');
 
-const { data: sellerProfile } = await supabase
-  .from('profiles')
-  .select('display_name')
-  .eq('id', listing.seller_id)
-  .maybeSingle();
+const [{ data: sellerProfile }, { data: photoRows }] = await Promise.all([
+  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags').eq('id', listing.seller_id).maybeSingle(),
+  supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
+]);
 
-const heroUrl = projectPhotoUrl(listing.hero_photo_path);
+const photos = (photoRows ?? []).length > 0
+  ? photoRows!
+  : listing.hero_photo_path
+    ? [{ id: 'legacy', path: listing.hero_photo_path, caption: null, position: 0 }]
+    : [];
+const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as string[];
+
 const justPublished = Astro.url.searchParams.get('published') === '1';
-
 const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
 const STATUS_LABEL: Record<string, string> = { draft: 'Utkast', active: 'Aktiv', sold: 'Solgt', removed: 'Fjernet' };
 const CONDITION_LABEL: Record<string, string> = {
@@ -38,22 +43,9 @@ const CONDITION_LABEL: Record<string, string> = {
 ---
 
 <Layout title={`${listing.title} — Strikketorget`} lang="nb">
+  <MarketplaceNav current="listing" />
   <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <nav class="text-xs text-charcoal/50 mb-4">
-        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
-        <span class="mx-2">/</span>
-        <a href={`/marked/${listing.kind === 'pre_loved' ? 'brukt' : 'nytt'}`} class="hover:text-charcoal transition-colors">
-          {KIND_LABEL[listing.kind]}
-        </a>
-        {isOwner && (
-          <>
-            <span class="mx-2">/</span>
-            <a href="/marked/mine" class="hover:text-charcoal transition-colors">Mine</a>
-          </>
-        )}
-      </nav>
-
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       {justPublished && isOwner && (
         <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 mb-6 text-sm">
           Annonsen er publisert og synlig for alle.
@@ -67,29 +59,124 @@ const CONDITION_LABEL: Record<string, string> = {
       )}
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Photo gallery -->
         <div>
-          {heroUrl ? (
-            <img src={heroUrl} alt={listing.title} class="w-full rounded-3xl aspect-square object-cover" />
+          {photoUrls.length > 0 ? (
+            <div>
+              <div
+                class="relative overflow-hidden rounded-3xl aspect-square bg-oatmeal/40 cursor-zoom-in"
+                data-lightbox-trigger
+              >
+                <img
+                  id="main-photo"
+                  src={photoUrls[0]}
+                  alt={listing.title}
+                  class="w-full h-full object-cover"
+                />
+                {photoUrls.length > 1 && (
+                  <>
+                    <button type="button" data-gallery-prev class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-charcoal/70 hover:bg-white transition-colors" aria-label="Forrige">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button type="button" data-gallery-next class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-charcoal/70 hover:bg-white transition-colors" aria-label="Neste">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </>
+                )}
+                <div class="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-sm text-white text-xs px-3 py-1 rounded-full" data-gallery-counter>
+                  1 / {photoUrls.length}
+                </div>
+              </div>
+              {photoUrls.length > 1 && (
+                <div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                  {photos.map((p, i) => (
+                    <button
+                      type="button"
+                      data-thumb-idx={i}
+                      class:list={[
+                        'shrink-0 w-16 h-16 rounded-xl overflow-hidden border-2 transition-colors',
+                        i === 0 ? 'border-terracotta-500' : 'border-transparent hover:border-charcoal/20',
+                      ]}
+                    >
+                      <img src={projectPhotoUrl(p.path)!} alt={p.caption || `Bilde ${i + 1}`} class="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              {photos[0]?.caption && (
+                <p class="text-sm text-charcoal/55 mt-2" data-photo-caption>{photos[0].caption}</p>
+              )}
+            </div>
           ) : (
             <div class="bg-oatmeal/40 rounded-3xl aspect-square flex items-center justify-center text-charcoal/30">
-              <p class="text-xs">{isOwner ? 'Legg til bilde nedenfor' : 'Ingen bilde'}</p>
+              <p class="text-xs">{isOwner ? 'Legg til bilder nedenfor' : 'Ingen bilder'}</p>
             </div>
           )}
+
           {isOwner && (
-            <form method="post" action={`/api/marketplace/listings/${listing.id}/photo`} enctype="multipart/form-data" class="mt-3">
-              <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                {heroUrl ? 'Bytt bilde' : 'Last opp bilde'}
-              </label>
-              <div class="flex items-center gap-2">
-                <input name="hero_photo" type="file" accept="image/*" required class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
-                <button type="submit" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
-                  Last opp
-                </button>
-              </div>
-            </form>
+            <div class="mt-4 space-y-4">
+              <form method="post" action={`/api/marketplace/listings/${listing.id}/photo`} enctype="multipart/form-data">
+                <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                  {photos.length > 0 ? `Legg til bilder (${photos.length}/6)` : 'Last opp bilder (maks 6)'}
+                </label>
+                <div class="flex items-center gap-2">
+                  <input name="photos" type="file" accept="image/*" multiple required
+                    class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
+                  <button type="submit" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                    Last opp
+                  </button>
+                </div>
+              </form>
+
+              {photos.length > 0 && (
+                <div class="space-y-2" id="photo-manager">
+                  <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55">Administrer bilder</p>
+                  {photos.map((p, i) => (
+                    <div class="flex items-start gap-3 bg-white rounded-xl p-3 border border-sage-500/10" data-photo-row={p.id}>
+                      <img src={projectPhotoUrl(p.path)!} alt="" class="w-14 h-14 rounded-lg object-cover shrink-0" />
+                      <div class="flex-1 min-w-0 space-y-2">
+                        <form method="post" action={`/api/marketplace/listings/${listing.id}/photo`} class="flex gap-2">
+                          <input type="hidden" name="action" value="caption" />
+                          <input type="hidden" name="photo_id" value={p.id} />
+                          <input
+                            name="caption"
+                            type="text"
+                            maxlength="120"
+                            placeholder="Bildetekst…"
+                            value={p.caption ?? ''}
+                            class="flex-1 min-w-0 bg-linen rounded-lg px-3 py-1.5 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+                          />
+                          <button type="submit" class="text-xs text-charcoal/55 hover:text-charcoal transition-colors px-2">Lagre</button>
+                        </form>
+                      </div>
+                      <div class="flex flex-col gap-1 shrink-0">
+                        {i > 0 && (
+                          <button type="button" data-move-up={p.id} class="w-7 h-7 rounded-lg bg-oatmeal/60 flex items-center justify-center text-charcoal/55 hover:text-charcoal hover:bg-oatmeal transition-colors" title="Flytt opp">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m18 15-6-6-6 6"/></svg>
+                          </button>
+                        )}
+                        {i < photos.length - 1 && (
+                          <button type="button" data-move-down={p.id} class="w-7 h-7 rounded-lg bg-oatmeal/60 flex items-center justify-center text-charcoal/55 hover:text-charcoal hover:bg-oatmeal transition-colors" title="Flytt ned">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+                          </button>
+                        )}
+                        <form method="post" action={`/api/marketplace/listings/${listing.id}/photo`}>
+                          <input type="hidden" name="action" value="delete" />
+                          <input type="hidden" name="photo_id" value={p.id} />
+                          <button type="submit" class="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center text-red-500 hover:bg-red-100 transition-colors" title="Slett">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                          </button>
+                        </form>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
 
+        <!-- Listing details -->
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">
             {KIND_LABEL[listing.kind]}
@@ -102,12 +189,10 @@ const CONDITION_LABEL: Record<string, string> = {
               <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
               <dd>{listing.size_label}</dd>
             </div>
-            {isOwner && (
-              <div>
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kategori</dt>
-                <dd>{listing.category}</dd>
-              </div>
-            )}
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kategori</dt>
+              <dd>{listing.category}</dd>
+            </div>
             {listing.condition && (
               <div>
                 <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Tilstand</dt>
@@ -150,13 +235,10 @@ const CONDITION_LABEL: Record<string, string> = {
                 <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
                   <h2 class="font-serif text-xl mb-2">Publiser</h2>
                   <p class="text-sm text-charcoal/65 mb-4">
-                    Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med én gang.
+                    Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med en gang.
                   </p>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
-                    <button
-                      type="submit"
-                      class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-                    >
+                    <button type="submit" class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
                       Betal og publiser (29 NOK)
                     </button>
                   </form>
@@ -172,35 +254,283 @@ const CONDITION_LABEL: Record<string, string> = {
             <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
               <input type="hidden" name="listing_id" value={listing.id} />
               <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                Send melding til selger
+                Send melding til {sellerProfile?.display_name ?? 'selger'}
               </label>
-              <textarea
-                id="message"
-                name="message"
-                required
-                rows="3"
-                maxlength="1000"
-                placeholder="Hei! Er denne fortsatt tilgjengelig?"
-                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"
-              ></textarea>
-              <button
-                type="submit"
-                class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors"
-              >
+              <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>
+              <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
                 Send melding
               </button>
-              <p class="text-[11px] text-charcoal/45 mt-3 text-center">
-                Dere avtaler betaling og frakt dere imellom.
-              </p>
+              <p class="text-[11px] text-charcoal/45 mt-3 text-center">Dere avtaler betaling og frakt dere imellom.</p>
             </form>
           )}
 
-          <div class="mt-6 pt-6 border-t border-sage-500/10">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger</p>
-            <p class="font-medium">{sellerProfile?.display_name ?? 'Anonym'}</p>
-          </div>
+          <a href={`/marked/selger/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
+            {sellerProfile?.avatar_path ? (
+              <img src={projectPhotoUrl(sellerProfile.avatar_path)!} alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />
+            ) : (
+              <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
+                <span class="font-serif text-base text-sage-700">{(sellerProfile?.display_name ?? '?')[0].toUpperCase()}</span>
+              </div>
+            )}
+            <div class="min-w-0">
+              <p class="font-medium group-hover:text-terracotta-500 transition-colors">
+                {sellerProfile?.display_name ?? 'Anonym'}
+              </p>
+              <p class="text-xs text-charcoal/45">
+                {sellerProfile?.location ?? listing.location ?? 'Selger'}
+              </p>
+            </div>
+          </a>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Fullscreen lightbox -->
+  <div id="lightbox" class="fixed inset-0 z-[100] bg-black/95 hidden items-center justify-center" role="dialog" aria-modal="true">
+    <button type="button" data-lb-close class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Lukk">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+    <button type="button" data-lb-prev class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Forrige">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+    </button>
+    <button type="button" data-lb-next class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Neste">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+    </button>
+    <div class="w-full h-full flex flex-col items-center px-4 pt-14 pb-4">
+      <div class="flex-1 min-h-0 flex items-center justify-center w-full">
+        <img id="lb-image" src="" alt="" class="max-h-full max-w-full object-contain rounded-lg" />
+      </div>
+      <p id="lb-caption" class="text-white/70 text-sm mt-3 text-center max-w-xl shrink-0"></p>
+      <p id="lb-counter" class="text-white/40 text-xs mt-1 shrink-0"></p>
+      <div class="flex gap-2 mt-3 overflow-x-auto max-w-[90vw] no-scrollbar shrink-0" id="lb-thumbs"></div>
+    </div>
+  </div>
+
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+
+  <script define:vars={{ photoData: photos.map((p) => ({ url: projectPhotoUrl(p.path), caption: p.caption, id: p.id })), listingId: listing.id }}>
+    const mainPhoto = document.getElementById('main-photo');
+    const thumbs = document.querySelectorAll('[data-thumb-idx]');
+    const counter = document.querySelector('[data-gallery-counter]');
+    const captionEl = document.querySelector('[data-photo-caption]');
+    const prevBtn = document.querySelector('[data-gallery-prev]');
+    const nextBtn = document.querySelector('[data-gallery-next]');
+
+    let current = 0;
+    const urls = photoData.map(p => p.url);
+    const captions = photoData.map(p => p.caption || '');
+
+    function showInline(idx) {
+      current = (idx + urls.length) % urls.length;
+      if (mainPhoto) mainPhoto.src = urls[current];
+      if (counter) counter.textContent = `${current + 1} / ${urls.length}`;
+      if (captionEl) captionEl.textContent = captions[current] || '';
+      thumbs.forEach((t, i) => {
+        t.classList.toggle('border-terracotta-500', i === current);
+        t.classList.toggle('border-transparent', i !== current);
+      });
+    }
+
+    if (thumbs.length > 1) {
+      thumbs.forEach(t => t.addEventListener('click', () => showInline(parseInt(t.dataset.thumbIdx, 10))));
+      prevBtn?.addEventListener('click', (e) => { e.stopPropagation(); showInline(current - 1); });
+      nextBtn?.addEventListener('click', (e) => { e.stopPropagation(); showInline(current + 1); });
+    }
+
+    // Lightbox
+    const lb = document.getElementById('lightbox');
+    const lbImg = document.getElementById('lb-image');
+    const lbCaption = document.getElementById('lb-caption');
+    const lbCounter = document.getElementById('lb-counter');
+    const lbThumbs = document.getElementById('lb-thumbs');
+
+    function openLightbox(idx) {
+      current = idx;
+      lb.classList.remove('hidden');
+      lb.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      showLightbox(idx);
+    }
+
+    function closeLightbox() {
+      lb.classList.add('hidden');
+      lb.classList.remove('flex');
+      document.body.style.overflow = '';
+    }
+
+    function showLightbox(idx) {
+      current = (idx + urls.length) % urls.length;
+      lbImg.src = urls[current];
+      lbImg.alt = captions[current] || '';
+      lbCaption.textContent = captions[current] || '';
+      lbCounter.textContent = `${current + 1} / ${urls.length}`;
+      showInline(current);
+
+      // Update lightbox thumbnails
+      lbThumbs.innerHTML = '';
+      urls.forEach((url, i) => {
+        const btn = document.createElement('button');
+        btn.className = `shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-colors ${i === current ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'}`;
+        btn.innerHTML = `<img src="${url}" class="w-full h-full object-cover" />`;
+        btn.addEventListener('click', () => showLightbox(i));
+        lbThumbs.appendChild(btn);
+      });
+    }
+
+    document.querySelector('[data-lightbox-trigger]')?.addEventListener('click', (e) => {
+      if (e.target.closest('[data-gallery-prev]') || e.target.closest('[data-gallery-next]')) return;
+      openLightbox(current);
+    });
+
+    thumbs.forEach(t => t.addEventListener('dblclick', () => openLightbox(parseInt(t.dataset.thumbIdx, 10))));
+
+    document.querySelector('[data-lb-close]')?.addEventListener('click', closeLightbox);
+    document.querySelector('[data-lb-prev]')?.addEventListener('click', () => showLightbox(current - 1));
+    document.querySelector('[data-lb-next]')?.addEventListener('click', () => showLightbox(current + 1));
+
+    lb?.addEventListener('click', (e) => {
+      if (e.target === lb) closeLightbox();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (lb.classList.contains('hidden')) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') showLightbox(current - 1);
+      if (e.key === 'ArrowRight') showLightbox(current + 1);
+    });
+
+    const apiUrl = `/api/marketplace/listings/${listingId}/photo`;
+    const manager = document.getElementById('photo-manager');
+
+    function postAction(body) {
+      return fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body,
+        credentials: 'same-origin',
+      });
+    }
+
+    function swapRows(idA, idB) {
+      const rowA = manager?.querySelector(`[data-photo-row="${idA}"]`);
+      const rowB = manager?.querySelector(`[data-photo-row="${idB}"]`);
+      if (!rowA || !rowB) return;
+      const parent = rowA.parentNode;
+      const placeholder = document.createElement('div');
+      parent.insertBefore(placeholder, rowA);
+      parent.insertBefore(rowA, rowB.nextSibling);
+      parent.insertBefore(rowB, placeholder);
+      placeholder.remove();
+      rebuildMoveButtons();
+    }
+
+    function rebuildMoveButtons() {
+      if (!manager) return;
+      const rows = [...manager.querySelectorAll('[data-photo-row]')];
+      rows.forEach((row, i) => {
+        const col = row.querySelector('.flex.flex-col');
+        if (!col) return;
+        const pid = row.dataset.photoRow;
+        col.querySelectorAll('[data-move-up],[data-move-down]').forEach(b => b.remove());
+        if (i > 0) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.moveUp = pid;
+          btn.className = 'w-7 h-7 rounded-lg bg-oatmeal/60 flex items-center justify-center text-charcoal/55 hover:text-charcoal hover:bg-oatmeal transition-colors';
+          btn.title = 'Flytt opp';
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m18 15-6-6-6 6"/></svg>';
+          btn.addEventListener('click', () => reorder(pid, -1));
+          col.insertBefore(btn, col.firstChild);
+        }
+        if (i < rows.length - 1) {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.dataset.moveDown = pid;
+          btn.className = 'w-7 h-7 rounded-lg bg-oatmeal/60 flex items-center justify-center text-charcoal/55 hover:text-charcoal hover:bg-oatmeal transition-colors';
+          btn.title = 'Flytt ned';
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>';
+          const deleteForm = col.querySelector('form');
+          col.insertBefore(btn, deleteForm);
+          btn.addEventListener('click', () => reorder(pid, 1));
+        }
+      });
+    }
+
+    async function reorder(photoId, direction) {
+      const idx = photoData.findIndex(p => p.id === photoId);
+      if (idx < 0) return;
+      const swapIdx = idx + direction;
+      if (swapIdx < 0 || swapIdx >= photoData.length) return;
+
+      [photoData[idx], photoData[swapIdx]] = [photoData[swapIdx], photoData[idx]];
+      swapRows(photoData[idx].id, photoData[swapIdx].id);
+
+      urls.length = 0;
+      captions.length = 0;
+      photoData.forEach(p => { urls.push(p.url); captions.push(p.caption || ''); });
+      showInline(current);
+
+      const body = new FormData();
+      body.set('action', 'reorder');
+      body.set('order', JSON.stringify(photoData.map(p => p.id)));
+      await postAction(body);
+    }
+
+    document.querySelectorAll('[data-move-up]').forEach(btn => {
+      btn.addEventListener('click', () => reorder(btn.dataset.moveUp, -1));
+    });
+    document.querySelectorAll('[data-move-down]').forEach(btn => {
+      btn.addEventListener('click', () => reorder(btn.dataset.moveDown, 1));
+    });
+
+    // Inline caption save
+    manager?.querySelectorAll('form').forEach(form => {
+      const actionInput = form.querySelector('input[name="action"][value="caption"]');
+      if (!actionInput) return;
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = new FormData(form);
+        const photoId = body.get('photo_id');
+        const caption = body.get('caption')?.toString() ?? '';
+        const pd = photoData.find(p => p.id === photoId);
+        if (pd) {
+          pd.caption = caption;
+          captions[photoData.indexOf(pd)] = caption;
+          if (captionEl && photoData.indexOf(pd) === current) captionEl.textContent = caption;
+        }
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.textContent = '✓';
+        await postAction(body);
+        setTimeout(() => { if (btn) btn.textContent = 'Lagre'; }, 1500);
+      });
+    });
+
+    // Inline delete
+    manager?.querySelectorAll('form').forEach(form => {
+      const actionInput = form.querySelector('input[name="action"][value="delete"]');
+      if (!actionInput) return;
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const body = new FormData(form);
+        const photoId = body.get('photo_id');
+        const row = manager.querySelector(`[data-photo-row="${photoId}"]`);
+        if (row) row.remove();
+        const idx = photoData.findIndex(p => p.id === photoId);
+        if (idx >= 0) {
+          photoData.splice(idx, 1);
+          urls.splice(idx, 1);
+          captions.splice(idx, 1);
+          if (current >= urls.length) current = Math.max(0, urls.length - 1);
+          if (urls.length > 0) showInline(current);
+        }
+        rebuildMoveButtons();
+        await postAction(body);
+      });
+    });
+  </script>
 </Layout>

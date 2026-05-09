@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import MarketplaceNav from '../../components/MarketplaceNav.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 
@@ -32,13 +33,9 @@ const CONDITION_LABEL: Record<string, string> = {
 ---
 
 <Layout title="Brukt — Strikketorget" lang="nb">
+  <MarketplaceNav current="brukt" />
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <nav class="text-xs text-charcoal/50 mb-4">
-        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
-        <span class="mx-2">/</span>
-        <span>Brukt</span>
-      </nav>
       <h1 class="font-serif text-4xl sm:text-5xl mb-2">Brukt</h1>
       <p class="text-charcoal/65 mb-8">Strikket av et menneske, vokst fra av et annet.</p>
 

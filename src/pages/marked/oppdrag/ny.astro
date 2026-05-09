@@ -1,0 +1,133 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import { getCurrentUser } from '../../../lib/auth';
+import { createServerSupabase } from '../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/marked/oppdrag/ny');
+
+const targetKnitterId = Astro.url.searchParams.get('strikker') || null;
+let targetKnitterName: string | null = null;
+if (targetKnitterId) {
+  const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+  const { data: knitter } = await supabase
+    .from('profiles')
+    .select('display_name')
+    .eq('id', targetKnitterId)
+    .maybeSingle();
+  targetKnitterName = knitter?.display_name ?? null;
+}
+
+const CATEGORIES = [
+  { value: 'genser', label: 'Genser' },
+  { value: 'cardigan', label: 'Cardigan' },
+  { value: 'lue', label: 'Lue' },
+  { value: 'votter', label: 'Votter' },
+  { value: 'sokker', label: 'Sokker' },
+  { value: 'teppe', label: 'Teppe' },
+  { value: 'kjole', label: 'Kjole' },
+  { value: 'bukser', label: 'Bukser' },
+  { value: 'annet', label: 'Annet' },
+];
+---
+
+<Layout title="Ny forespørsel — Strikk for meg" lang="nb">
+  <MarketplaceNav current="oppdrag" />
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <h1 class="font-serif text-3xl mb-2">Ny forespørsel</h1>
+      <p class="text-sm text-charcoal/55 mb-8">Beskriv hva du ønsker strikket — strikkere kan gi tilbud på pris og leveringstid.</p>
+
+      {targetKnitterName && (
+        <div class="bg-sage-100/50 rounded-2xl p-4 border border-sage-500/15 mb-6">
+          <p class="text-sm text-charcoal/65">
+            Privat forespørsel til <span class="font-medium text-charcoal">{targetKnitterName}</span> — kun denne strikkeren ser forespørselen.
+          </p>
+        </div>
+      )}
+
+      <form method="post" action="/api/marketplace/commissions/create" data-astro-reload class="space-y-5">
+        {targetKnitterId && <input type="hidden" name="target_knitter_id" value={targetKnitterId} />}
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tittel *</span>
+          <input name="title" type="text" required maxlength="80" placeholder="F.eks. Sondre cardigan i str. 92"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <div class="grid grid-cols-2 gap-4">
+          <label class="block">
+            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kategori *</span>
+            <select name="category" required class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+              <option value="">Velg…</option>
+              {CATEGORIES.map((c) => (
+                <option value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Størrelse *</span>
+            <input name="size_label" type="text" required maxlength="20" placeholder="F.eks. 92, 2 år, M"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          </label>
+        </div>
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Farge / fargevalg</span>
+          <input name="colorway" type="text" maxlength="100" placeholder="F.eks. naturhvit, lys rosa, terracotta"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Oppskrift</span>
+          <input name="pattern_external_title" type="text" maxlength="120" placeholder="Navn på oppskrift, om du har en spesifikk"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garnpreferanse</span>
+          <input name="yarn_preference" type="text" maxlength="200" placeholder="F.eks. Sandnes Peer Gynt, merinoull"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="yarn_provided_by_buyer" value="1"
+            class="w-5 h-5 rounded border-sage-500/30 text-terracotta-500 focus:ring-terracotta-500/30" />
+          <span class="text-sm">Jeg sender garnet selv</span>
+        </label>
+
+        <div class="grid grid-cols-2 gap-4">
+          <label class="block">
+            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Budsjett min (NOK) *</span>
+            <input name="budget_nok_min" type="number" required min="0" step="50" placeholder="300"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Budsjett maks (NOK) *</span>
+            <input name="budget_nok_max" type="number" required min="0" step="50" placeholder="800"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          </label>
+        </div>
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Trengs innen</span>
+          <input name="needed_by" type="date"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Beskrivelse</span>
+          <textarea name="description" rows="4" maxlength="2000" placeholder="Ekstra detaljer om hva du ønsker — mønster, garntype, spesielle ønsker…"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+        </label>
+
+        <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+          Publiser forespørsel
+        </button>
+        <p class="text-[11px] text-charcoal/45 text-center">Forespørselen er åpen i 30 dager. Du kan avbryte når som helst.</p>
+      </form>
+    </div>
+  </div>
+</Layout>

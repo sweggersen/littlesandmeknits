@@ -1,0 +1,176 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCurrentUser } from '../lib/auth';
+import { createServerSupabase } from '../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/innstillinger');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const { data: prefs } = await supabase
+  .from('notification_preferences')
+  .select('*')
+  .eq('user_id', user.id)
+  .maybeSingle();
+
+const fields = [
+  { key: 'email_new_offer', label: 'Nye tilbud på oppdragene dine' },
+  { key: 'email_offer_accepted', label: 'Tilbudet ditt ble akseptert' },
+  { key: 'email_offer_declined', label: 'Tilbudet ditt ble ikke valgt' },
+  { key: 'email_payment_received', label: 'Betaling mottatt' },
+  { key: 'email_project_update', label: 'Oppdateringer på prosjektet' },
+  { key: 'email_new_message', label: 'Nye meldinger' },
+  { key: 'email_yarn_shipped', label: 'Garn sendt' },
+  { key: 'email_yarn_received', label: 'Garn mottatt' },
+  { key: 'email_commission_completed', label: 'Oppdrag ferdigstrikket' },
+  { key: 'email_commission_delivered', label: 'Levering bekreftet' },
+  { key: 'email_request_expired', label: 'Forespørsel utløpt' },
+] as const;
+---
+
+<Layout title="Innstillinger" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <h1 class="font-serif text-3xl sm:text-4xl mb-8">Innstillinger</h1>
+
+      <section class="bg-white rounded-3xl border border-sage-500/10 p-6 sm:p-8 mb-6">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-4">Push-varsler</h2>
+        <p class="text-sm text-charcoal/55 mb-4">Motta varsler direkte på enheten din.</p>
+        <div class="flex items-center gap-3">
+          <button
+            id="push-toggle"
+            type="button"
+            class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Slå på push-varsler
+          </button>
+          <span id="push-status" class="text-sm text-charcoal/55"></span>
+        </div>
+      </section>
+
+      <section class="bg-white rounded-3xl border border-sage-500/10 p-6 sm:p-8">
+        <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-4">E-postvarsler</h2>
+        <p class="text-sm text-charcoal/55 mb-6">Velg hvilke hendelser du vil motta e-post om.</p>
+
+        <form id="prefs-form" class="space-y-3">
+          {fields.map(({ key, label }) => (
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                name={key}
+                checked={prefs ? (prefs as Record<string, boolean>)[key] !== false : true}
+                class="w-4 h-4 rounded border-sage-500/30 text-sage-600 focus:ring-sage-500"
+              />
+              <span class="text-sm group-hover:text-charcoal transition-colors">{label}</span>
+            </label>
+          ))}
+
+          <div class="pt-4">
+            <button
+              type="submit"
+              class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+            >
+              Lagre
+            </button>
+            <span data-save-status class="ml-3 text-sm text-sage-600 hidden">Lagret!</span>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+</Layout>
+
+<script is:inline>
+  (async function initPush() {
+    var btn = document.getElementById('push-toggle');
+    var status = document.getElementById('push-status');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      btn.style.display = 'none';
+      status.textContent = 'Push-varsler støttes ikke av denne nettleseren.';
+      return;
+    }
+
+    var reg = await navigator.serviceWorker.ready;
+    var sub = await reg.pushManager.getSubscription();
+
+    function updateUI(active) {
+      btn.textContent = active ? 'Slå av push-varsler' : 'Slå på push-varsler';
+      status.textContent = active ? 'Push-varsler er aktivert.' : '';
+    }
+    updateUI(!!sub);
+
+    btn.addEventListener('click', async function() {
+      btn.disabled = true;
+      try {
+        if (sub) {
+          await fetch('/api/push/unsubscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+          await sub.unsubscribe();
+          sub = null;
+          updateUI(false);
+        } else {
+          var res = await fetch('/api/push/vapid-key');
+          var data = await res.json();
+          var raw = Uint8Array.from(atob(data.publicKey.replace(/-/g, '+').replace(/_/g, '/')), function(c) { return c.charCodeAt(0); });
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: raw,
+          });
+          var key = sub.getKey('p256dh');
+          var auth = sub.getKey('auth');
+          function toBase64Url(buf) {
+            var bytes = new Uint8Array(buf);
+            var str = '';
+            for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+            return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+          }
+          await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              endpoint: sub.endpoint,
+              keys: { p256dh: toBase64Url(key), auth: toBase64Url(auth) },
+            }),
+          });
+          await fetch('/api/notifications/preferences', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ push_enabled: true }),
+          });
+          updateUI(true);
+        }
+      } catch (err) {
+        status.textContent = 'Noe gikk galt: ' + err.message;
+      }
+      btn.disabled = false;
+    });
+  })();
+
+  document.getElementById('prefs-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var checkboxes = form.querySelectorAll('input[type="checkbox"]');
+    var body = {};
+    checkboxes.forEach(function(cb) { body[cb.name] = cb.checked; });
+
+    var res = await fetch('/api/notifications/preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    var status = form.querySelector('[data-save-status]');
+    if (res.ok) {
+      status.textContent = 'Lagret!';
+      status.classList.remove('hidden');
+      setTimeout(function() { status.classList.add('hidden'); }, 2000);
+    } else {
+      status.textContent = 'Noe gikk galt';
+      status.classList.remove('hidden');
+    }
+  });
+</script>

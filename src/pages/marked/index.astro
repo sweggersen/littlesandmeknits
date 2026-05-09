@@ -1,24 +1,36 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import MarketplaceNav from '../../components/MarketplaceNav.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data: latest } = await supabase
-  .from('listings')
-  .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at')
-  .eq('status', 'active')
-  .order('published_at', { ascending: false })
-  .limit(8);
+const [{ data: latest }, { data: latestRequests }] = await Promise.all([
+  supabase
+    .from('listings')
+    .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at')
+    .eq('status', 'active')
+    .order('published_at', { ascending: false })
+    .limit(8),
+  supabase
+    .from('commission_requests')
+    .select('id, title, category, size_label, budget_nok_min, budget_nok_max, offer_count, needed_by')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(4),
+]);
 
 const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
+const CATEGORY_LABEL: Record<string, string> = {
+  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
+  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
+};
 ---
 
 <Layout title="Strikketorget — Littles and Me Knits" lang="nb">
+  <MarketplaceNav current="home" />
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <h1 class="font-serif text-4xl sm:text-5xl mb-1">Strikketorget</h1>
-      <p class="text-[11px] uppercase tracking-widest text-charcoal/40 mb-4">by Littles and Me Knits</p>
       <p class="text-charcoal/65 max-w-xl mb-10">
         Kjøp brukt og nytt strikket fra fellesskapet, eller bestill at noen strikker for deg.
       </p>
@@ -34,11 +46,11 @@ const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Ny
           <h2 class="font-serif text-2xl mb-2">Ferdigstrikket</h2>
           <p class="text-sm text-charcoal/65">Strikkere selger plagg de har strikket på spec.</p>
         </a>
-        <div class="block bg-oatmeal/40 rounded-3xl p-6 border border-sage-500/10">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Kommer snart</p>
+        <a href="/marked/oppdrag" class="block bg-white rounded-3xl p-6 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Nytt</p>
           <h2 class="font-serif text-2xl mb-2">Strikk for meg</h2>
-          <p class="text-sm text-charcoal/55">Bestill et plagg fra en strikker.</p>
-        </div>
+          <p class="text-sm text-charcoal/65">Bestill et plagg fra en strikker i fellesskapet.</p>
+        </a>
       </div>
 
       <h2 class="font-serif text-2xl mb-4">Nyeste annonser</h2>
@@ -68,11 +80,34 @@ const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Ny
           ))}
         </ul>
       )}
-      <p class="mt-12 text-center text-[11px] text-charcoal/45">
-        <a href="/marked/mine" class="hover:text-charcoal transition-colors" data-auth-link="studio">Mine annonser</a>
-        <span class="mx-2" data-auth-link="studio">·</span>
-        <a href="/marked/listing/ny" class="hover:text-charcoal transition-colors" data-auth-link="studio">Legg ut annonse</a>
-      </p>
+      {(latestRequests ?? []).length > 0 && (
+        <>
+          <h2 class="font-serif text-2xl mb-4 mt-12">Nyeste forespørsler</h2>
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            {(latestRequests ?? []).map((r) => (
+              <li>
+                <a href={`/marked/oppdrag/${r.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-4">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">
+                      {CATEGORY_LABEL[r.category] ?? r.category}
+                    </span>
+                    <span class="text-[10px] text-charcoal/40">·</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">str. {r.size_label}</span>
+                  </div>
+                  <p class="text-sm font-medium line-clamp-1">{r.title}</p>
+                  <div class="flex items-center justify-between mt-2 text-xs text-charcoal/45">
+                    <span class="font-mono tabular-nums">{r.budget_nok_min}–{r.budget_nok_max} NOK</span>
+                    <span>{r.offer_count} tilbud</span>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <a href="/marked/oppdrag" class="inline-block mt-4 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
+            Se alle forespørsler →
+          </a>
+        </>
+      )}
     </div>
   </div>
 </Layout>

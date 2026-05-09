@@ -75,5 +75,16 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
+  if (event.type === 'account.updated') {
+    const account = event.data.object as Stripe.Account;
+    if (account.charges_enabled && account.payouts_enabled) {
+      const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+      await supabase
+        .from('profiles')
+        .update({ stripe_onboarded: true })
+        .eq('stripe_account_id', account.id);
+    }
+  }
+
   return new Response('ok', { status: 200 });
 };

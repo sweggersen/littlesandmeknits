@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import MarketplaceNav from '../../../components/MarketplaceNav.astro';
 import { getCurrentUser } from '../../../lib/auth';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
@@ -7,15 +8,9 @@ if (!user) return Astro.redirect('/logg-inn?next=/marked/listing/ny');
 ---
 
 <Layout title="Ny annonse — Strikketorget" lang="nb">
+  <MarketplaceNav current="ny" />
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <nav class="text-xs text-charcoal/50 mb-4">
-        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
-        <span class="mx-2">/</span>
-        <a href="/marked/mine" class="hover:text-charcoal transition-colors">Mine annonser</a>
-        <span class="mx-2">/</span>
-        <span>Ny annonse</span>
-      </nav>
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
       <p class="text-sm text-charcoal/55 mb-8">
         Lagre som utkast først, så kan du legge til bilder og publisere etterpå.

@@ -1,0 +1,64 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+if (import.meta.env.PROD) {
+  return Astro.redirect('/logg-inn');
+}
+
+const accounts = [
+  { email: 'sam.mathias.weggersen@gmail.com', name: 'Sam (admin)', role: 'Admin' },
+  { email: 'eline@test.strikketorget.no', name: 'Eline Berge', role: 'Selger pre-loved · Bergen' },
+  { email: 'maja@test.strikketorget.no', name: 'Maja Holm', role: 'Ferdigstrikket-selger · Oslo' },
+  { email: 'ingrid@test.strikketorget.no', name: 'Ingrid Nordahl', role: 'Kjøper og selger · Trondheim' },
+  { email: 'sigrid@test.strikketorget.no', name: 'Sigrid Dahl', role: 'Babyklær-spesialist · Stavanger' },
+  { email: 'hanne@test.strikketorget.no', name: 'Hanne Solberg', role: 'Vinterplagg-selger · Tromsø' },
+  { email: 'liv@test.strikketorget.no', name: 'Liv Eriksen', role: 'Ny bruker, kjøper · Drammen' },
+  { email: 'astrid@test.strikketorget.no', name: 'Astrid Knutsen', role: 'Blanding kjøp/salg · Kristiansand' },
+  { email: 'tuva@test.strikketorget.no', name: 'Tuva Johansen', role: 'Storselger · Fredrikstad' },
+];
+---
+
+<Layout title="Dev Login" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-lg mx-auto px-4 py-10">
+      <h1 class="font-serif text-3xl mb-2">Dev Login</h1>
+      <p class="text-sm text-charcoal/55 mb-8">Click to sign in instantly. Dev mode only.</p>
+
+      <div class="space-y-2">
+        {accounts.map((a) => (
+          <form method="POST" action="/api/dev/login">
+            <input type="hidden" name="email" value={a.email} />
+            <input type="hidden" name="next" value="/marked" />
+            <button
+              type="submit"
+              class="w-full text-left bg-white rounded-2xl px-5 py-4 border border-sage-500/10 hover:border-terracotta-500/30 transition-colors"
+            >
+              <p class="font-medium">{a.name}</p>
+              <p class="text-xs text-charcoal/50 mt-0.5">{a.role} · {a.email}</p>
+            </button>
+          </form>
+        ))}
+      </div>
+
+      <div class="mt-8 pt-6 border-t border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Custom email</p>
+        <form method="POST" action="/api/dev/login" class="flex gap-2">
+          <input
+            type="email"
+            name="email"
+            placeholder="any@email.com"
+            required
+            class="flex-1 bg-white rounded-xl px-4 py-2.5 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500"
+          />
+          <input type="hidden" name="next" value="/marked" />
+          <button
+            type="submit"
+            class="bg-charcoal text-linen px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Logg inn
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</Layout>

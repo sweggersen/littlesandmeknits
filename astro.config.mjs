@@ -10,6 +10,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   site: 'https://littlesandmeknits.com',
 
+  security: { checkOrigin: false },
   output: 'server',
   adapter: cloudflare({
     imageService: 'compile',

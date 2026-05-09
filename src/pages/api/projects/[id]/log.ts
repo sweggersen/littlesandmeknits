@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCurrentUser } from '../../../../lib/auth';
-import { createServerSupabase } from '../../../../lib/supabase';
+import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { createNotification } from '../../../../lib/notify';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../../../../lib/storage';
 
 const MAX_PHOTOS_PER_LOG = 6;
@@ -75,6 +76,35 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     const prev = (existing?.current_rows as number | null) ?? 0;
     if ((rows_at as number) > prev) {
       await supabase.from('projects').update({ current_rows: rows_at }).eq('id', projectId);
+    }
+  }
+
+  // Notify buyer if this is a commission project
+  const { data: proj } = await supabase
+    .from('projects')
+    .select('title, commission_offer_id')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (proj?.commission_offer_id) {
+    const env = import.meta.env;
+    const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data: offerData } = await admin
+      .from('commission_offers')
+      .select('request_id, commission_requests!commission_offers_request_id_fkey(buyer_id)')
+      .eq('id', proj.commission_offer_id)
+      .maybeSingle();
+    const reqInfo = (offerData as any)?.commission_requests;
+    if (reqInfo?.buyer_id) {
+      await createNotification(admin, {
+        userId: reqInfo.buyer_id,
+        type: 'project_update',
+        title: 'Ny oppdatering!',
+        body: `Strikkeren har lagt til en oppdatering på «${proj.title}».`,
+        url: `/marked/oppdrag/${offerData!.request_id}`,
+        actorId: user.id,
+        referenceId: projectId,
+      }, env);
     }
   }
 

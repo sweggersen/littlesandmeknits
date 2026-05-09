@@ -1,0 +1,174 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/profil/rediger');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, stripe_onboarded, stripe_account_id')
+  .eq('id', user.id)
+  .maybeSingle();
+
+const meta = (user.user_metadata ?? {}) as { language?: 'nb' | 'en' };
+const language = meta.language ?? 'nb';
+
+const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
+const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? '';
+
+const ALL_TAGS = [
+  { value: 'knitter', label: 'Strikker' },
+  { value: 'sells_pre_loved', label: 'Selger brukt' },
+  { value: 'sells_ready_made', label: 'Selger ferdigstrikket' },
+  { value: 'open_for_requests', label: 'Åpen for bestillinger' },
+  { value: 'dyer', label: 'Farger garn' },
+];
+const currentTags = profile?.seller_tags ?? [];
+const saved = Astro.url.searchParams.get('saved') === '1';
+---
+
+<Layout title="Rediger profil — Littles and Me Knits" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <a href="/profil" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 block">← Tilbake til profil</a>
+      <h1 class="font-serif text-3xl mb-2">Rediger profil</h1>
+      <p class="text-sm text-charcoal/55 mb-8">
+        Dine innstillinger for Strikketorget og Strikkestua.
+      </p>
+
+      {saved && (
+        <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 mb-6 text-sm">
+          Profilen er oppdatert.
+        </div>
+      )}
+
+      <form method="post" action="/api/profile/edit" enctype="multipart/form-data" data-astro-reload class="space-y-6">
+
+        <!-- Avatar -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Profilbilde</label>
+          <div class="flex items-center gap-4">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" class="w-16 h-16 rounded-full object-cover shrink-0" />
+            ) : (
+              <div class="w-16 h-16 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
+                <span class="font-serif text-xl text-sage-700">
+                  {(displayName || '?')[0].toUpperCase()}
+                </span>
+              </div>
+            )}
+            <input name="avatar" type="file" accept="image/*"
+              class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
+          </div>
+        </div>
+
+        <!-- Display name -->
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Visningsnavn</span>
+          <input name="display_name" type="text" maxlength="60" value={displayName}
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <!-- Bio -->
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Om deg</span>
+          <textarea name="bio" rows="3" maxlength="500" placeholder="Fortell litt om deg selv og hva du strikker…"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+          >{profile?.bio ?? ''}</textarea>
+        </label>
+
+        <!-- Location -->
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Sted</span>
+          <input name="location" type="text" maxlength="100" placeholder="F.eks. Oslo, Bergen, Tromsø…" value={profile?.location ?? ''}
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+        </label>
+
+        <!-- Instagram -->
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Instagram</span>
+          <div class="flex items-center bg-white rounded-xl border border-sage-500/15 focus-within:border-sage-500 transition-colors">
+            <span class="pl-4 text-charcoal/40">@</span>
+            <input name="instagram_handle" type="text" maxlength="30" value={profile?.instagram_handle ?? user.user_metadata?.instagram_handle ?? ''}
+              class="flex-1 bg-transparent px-2 py-3 text-base focus:outline-none" />
+          </div>
+        </label>
+
+        <!-- Language -->
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Språk</span>
+          <select name="language"
+            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+            <option value="nb" selected={language === 'nb'}>Norsk (bokmål)</option>
+            <option value="en" selected={language === 'en'}>English</option>
+          </select>
+        </label>
+
+        <!-- Seller tags -->
+        <fieldset>
+          <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Hva beskriver deg?</legend>
+          <div class="flex flex-wrap gap-2">
+            {ALL_TAGS.map((tag) => (
+              <label class="cursor-pointer">
+                <input type="checkbox" name="seller_tags" value={tag.value} checked={currentTags.includes(tag.value)} class="peer sr-only" />
+                <span class="inline-block text-sm font-medium px-3 py-1.5 rounded-full border border-sage-500/20 text-charcoal/60 peer-checked:bg-terracotta-500/10 peer-checked:border-terracotta-500/30 peer-checked:text-terracotta-500 transition-colors">
+                  {tag.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <!-- Visibility -->
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="profile_visible" value="1" checked={profile?.profile_visible !== false}
+            class="w-5 h-5 rounded border-sage-500/30 text-terracotta-500 focus:ring-terracotta-500/30" />
+          <span class="text-sm">Vis profilen min offentlig på Strikketorget</span>
+        </label>
+
+        <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+          Lagre profil
+        </button>
+      </form>
+
+      <!-- Stripe Connect for sellers -->
+      {currentTags.includes('open_for_requests') && (
+        <div class="mt-8 bg-white rounded-3xl p-6 border border-sage-500/10">
+          <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-3">Utbetalinger</h2>
+          {profile?.stripe_onboarded ? (
+            <div>
+              <p class="text-sm text-sage-600 mb-3">Stripe-konto er koblet til. Du kan motta utbetalinger.</p>
+              <a href="/api/stripe/connect/dashboard" class="text-sm text-charcoal/55 hover:text-charcoal underline">
+                Åpne Stripe-dashbord
+              </a>
+            </div>
+          ) : (
+            <div>
+              <p class="text-sm text-charcoal/55 mb-3">Koble til Stripe for å motta betaling for oppdrag.</p>
+              <form method="post" action="/api/stripe/connect/onboard" data-astro-reload>
+                <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                  Koble til Stripe
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
+
+      <!-- Account details -->
+      <details class="mt-8">
+        <summary class="text-xs text-charcoal/55 cursor-pointer hover:text-charcoal">Konto-detaljer</summary>
+        <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm mt-4 bg-white rounded-2xl p-5 border border-sage-500/10">
+          <dt class="text-charcoal/50">Epost</dt>
+          <dd class="text-charcoal break-all">{user.email}</dd>
+          <dt class="text-charcoal/50">Bruker-ID</dt>
+          <dd class="text-charcoal/70 font-mono text-xs break-all">{user.id}</dd>
+        </dl>
+      </details>
+    </div>
+  </div>
+</Layout>

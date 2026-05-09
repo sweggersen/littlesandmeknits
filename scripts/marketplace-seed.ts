@@ -62,14 +62,14 @@ interface Persona {
 }
 
 const PERSONAS: Persona[] = [
-  { slug: 'eline', email: `eline${EMAIL_DOMAIN}`, displayName: 'Eline', location: 'Bergen', role: 'Selger pre-loved' },
-  { slug: 'maja', email: `maja${EMAIL_DOMAIN}`, displayName: 'Maja', location: 'Oslo', role: 'Ferdigstrikket-selger' },
-  { slug: 'ingrid', email: `ingrid${EMAIL_DOMAIN}`, displayName: 'Ingrid', location: 'Trondheim', role: 'Kjøper og selger' },
-  { slug: 'sigrid', email: `sigrid${EMAIL_DOMAIN}`, displayName: 'Sigrid', location: 'Stavanger', role: 'Babyklær-spesialist' },
-  { slug: 'hanne', email: `hanne${EMAIL_DOMAIN}`, displayName: 'Hanne', location: 'Tromsø', role: 'Vinterplagg-selger' },
-  { slug: 'liv', email: `liv${EMAIL_DOMAIN}`, displayName: 'Liv', location: 'Drammen', role: 'Ny bruker, kjøper' },
-  { slug: 'astrid', email: `astrid${EMAIL_DOMAIN}`, displayName: 'Astrid', location: 'Kristiansand', role: 'Blanding kjøp/salg' },
-  { slug: 'tuva', email: `tuva${EMAIL_DOMAIN}`, displayName: 'Tuva', location: 'Fredrikstad', role: 'Storselger' },
+  { slug: 'eline', email: `eline${EMAIL_DOMAIN}`, displayName: 'Eline Berge', location: 'Bergen', role: 'Selger pre-loved' },
+  { slug: 'maja', email: `maja${EMAIL_DOMAIN}`, displayName: 'Maja Holm', location: 'Oslo', role: 'Ferdigstrikket-selger' },
+  { slug: 'ingrid', email: `ingrid${EMAIL_DOMAIN}`, displayName: 'Ingrid Nordahl', location: 'Trondheim', role: 'Kjøper og selger' },
+  { slug: 'sigrid', email: `sigrid${EMAIL_DOMAIN}`, displayName: 'Sigrid Dahl', location: 'Stavanger', role: 'Babyklær-spesialist' },
+  { slug: 'hanne', email: `hanne${EMAIL_DOMAIN}`, displayName: 'Hanne Solberg', location: 'Tromsø', role: 'Vinterplagg-selger' },
+  { slug: 'liv', email: `liv${EMAIL_DOMAIN}`, displayName: 'Liv Eriksen', location: 'Drammen', role: 'Ny bruker, kjøper' },
+  { slug: 'astrid', email: `astrid${EMAIL_DOMAIN}`, displayName: 'Astrid Knutsen', location: 'Kristiansand', role: 'Blanding kjøp/salg' },
+  { slug: 'tuva', email: `tuva${EMAIL_DOMAIN}`, displayName: 'Tuva Johansen', location: 'Fredrikstad', role: 'Storselger' },
 ];
 
 // ─── Listings ─────────────────────────────────────────────────

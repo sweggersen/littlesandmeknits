@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import MarketplaceNav from '../../../components/MarketplaceNav.astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 
@@ -13,7 +14,7 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 
 const { data: conversation } = await supabase
   .from('marketplace_conversations')
-  .select('id, buyer_id, seller_id, listing_id, listings!inner(title, id)')
+  .select('id, buyer_id, seller_id, listing_id, commission_request_id, listings(title, id), commission_requests(title, id)')
   .eq('id', id)
   .maybeSingle();
 
@@ -36,35 +37,36 @@ const { data: otherProfile } = await supabase
   .maybeSingle();
 
 const otherName = otherProfile?.display_name ?? 'Anonym';
-const listingTitle = (conversation.listings as any)?.title ?? 'Annonse';
-const listingId = (conversation.listings as any)?.id;
+const isCommission = !!conversation.commission_request_id;
+const listingTitle = isCommission
+  ? (conversation.commission_requests as any)?.title ?? 'Oppdrag'
+  : (conversation.listings as any)?.title ?? 'Annonse';
+const contextId = isCommission
+  ? (conversation.commission_requests as any)?.id
+  : (conversation.listings as any)?.id;
+const contextUrl = isCommission
+  ? `/marked/oppdrag/${contextId}`
+  : `/marked/listing/${contextId}`;
 const isSeller = conversation.seller_id === user.id;
 ---
 
-<Layout title={`${listingTitle} — Strikketorget`} lang="nb">
+<Layout title={`${isCommission ? 'Oppdrag: ' : ''}${listingTitle} — Strikketorget`} lang="nb">
+  <MarketplaceNav current="meldinger" />
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <nav class="text-xs text-charcoal/50 mb-4">
-        <a href="/marked" class="hover:text-charcoal transition-colors">Strikketorget</a>
-        <span class="mx-2">/</span>
-        <a href="/marked/meldinger" class="hover:text-charcoal transition-colors">Meldinger</a>
-        <span class="mx-2">/</span>
-        <span>{otherName}</span>
-      </nav>
-
       <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
             {isSeller ? 'Kjøper' : 'Selger'}: {otherName}
           </p>
-          <h1 class="font-serif text-2xl sm:text-3xl">{listingTitle}</h1>
+          <h1 class="font-serif text-2xl sm:text-3xl">{isCommission ? `Oppdrag: ${listingTitle}` : listingTitle}</h1>
         </div>
-        {listingId && (
+        {contextId && (
           <a
-            href={`/marked/listing/${listingId}`}
+            href={contextUrl}
             class="text-xs text-charcoal/55 hover:text-charcoal transition-colors underline shrink-0"
           >
-            Se annonse
+            {isCommission ? 'Se oppdrag' : 'Se annonse'}
           </a>
         )}
       </div>

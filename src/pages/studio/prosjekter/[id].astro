@@ -30,11 +30,12 @@ type ProjectRow = {
   public_slug: string | null;
   target_rows: number | null;
   current_rows: number | null;
+  commission_offer_id: string | null;
 };
 
 const { data: project, error } = await supabase
   .from('projects')
-  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug, target_rows, current_rows')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, updated_at, public_slug, target_rows, current_rows, commission_offer_id')
   .eq('id', id)
   .maybeSingle();
 
@@ -43,6 +44,24 @@ if (error || !project) {
 }
 
 const p = project as ProjectRow;
+
+let commissionInfo: { requestId: string; requestTitle: string; buyerName: string; priceNok: number } | null = null;
+if (p.commission_offer_id) {
+  const { data: offerData } = await supabase
+    .from('commission_offers')
+    .select('price_nok, commission_requests!commission_offers_request_id_fkey(id, title, profiles!commission_requests_buyer_id_fkey(display_name))')
+    .eq('id', p.commission_offer_id)
+    .maybeSingle();
+  if (offerData) {
+    const req = (offerData as any).commission_requests;
+    commissionInfo = {
+      requestId: req?.id,
+      requestTitle: req?.title ?? '',
+      buyerName: req?.profiles?.display_name ?? 'Bestiller',
+      priceNok: offerData.price_nok,
+    };
+  }
+}
 
 type LogRow = {
   id: string;
@@ -157,6 +176,24 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
 
 <StudioLayout title={`${p.title} — Littles and Me`} lang="nb">
   <StudioBackLink href="/studio/prosjekter">Prosjekter</StudioBackLink>
+
+  {commissionInfo && (
+    <div class="bg-terracotta-500/5 border border-terracotta-500/20 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
+          <span class="text-[10px] text-charcoal/40">·</span>
+          <span class="font-mono tabular-nums text-xs text-charcoal/70">{commissionInfo.priceNok} NOK</span>
+        </div>
+        <p class="text-sm text-charcoal/70">
+          Strikkes for <span class="font-medium text-charcoal">{commissionInfo.buyerName}</span> — bestiller kan se fremdrift, bilder og logger.
+        </p>
+      </div>
+      <a href={`/marked/oppdrag/${commissionInfo.requestId}`} class="shrink-0 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 transition-colors">
+        Se forespørsel →
+      </a>
+    </div>
+  )}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Main column -->

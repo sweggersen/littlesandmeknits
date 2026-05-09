@@ -1,0 +1,32 @@
+---
+import { createServerSupabase } from '../../../../lib/supabase';
+import { getCurrentUser } from '../../../../lib/auth';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/marked/oppdrag');
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const { data: project } = await supabase
+  .from('projects')
+  .select('commission_offer_id')
+  .eq('id', id)
+  .maybeSingle();
+
+if (project?.commission_offer_id) {
+  const { data: offer } = await supabase
+    .from('commission_offers')
+    .select('request_id')
+    .eq('id', project.commission_offer_id)
+    .maybeSingle();
+
+  if (offer?.request_id) {
+    return Astro.redirect(`/marked/oppdrag/${offer.request_id}`, 301);
+  }
+}
+
+return Astro.redirect('/marked/oppdrag');
+---

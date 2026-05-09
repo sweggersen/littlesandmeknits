@@ -1,0 +1,128 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import { getCurrentUser } from '../../../lib/auth';
+import { createServerSupabase } from '../../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/marked/oppdrag/mine');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
+  supabase
+    .from('commission_requests')
+    .select('id, title, category, size_label, budget_nok_min, budget_nok_max, status, offer_count, created_at')
+    .eq('buyer_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(30),
+  supabase
+    .from('commission_offers')
+    .select('id, price_nok, turnaround_weeks, status, created_at, request_id, commission_requests!commission_offers_request_id_fkey(id, title, category, size_label, status)')
+    .eq('knitter_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(30),
+]);
+
+const CATEGORY_LABEL: Record<string, string> = {
+  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
+  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
+};
+const STATUS_LABEL: Record<string, string> = {
+  open: 'Åpen', awaiting_payment: 'Venter på betaling', awaiting_yarn: 'Venter på garn', awarded: 'Pågår', completed: 'Ferdigstrikket', delivered: 'Levert', cancelled: 'Avbrutt', expired: 'Utløpt',
+};
+const OFFER_STATUS: Record<string, string> = {
+  pending: 'Venter', accepted: 'Akseptert', declined: 'Avslått', withdrawn: 'Trukket',
+};
+---
+
+<Layout title="Mine oppdrag — Strikketorget" lang="nb">
+  <MarketplaceNav current="mine-oppdrag" />
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div class="flex items-start justify-between gap-4 mb-8">
+        <h1 class="font-serif text-3xl">Mine oppdrag</h1>
+        <a href="/marked/oppdrag/ny" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          + Ny forespørsel
+        </a>
+      </div>
+
+      <!-- My requests (as buyer) -->
+      <section class="mb-12">
+        <h2 class="font-serif text-2xl mb-4">Mine forespørsler</h2>
+        {(myRequests ?? []).length === 0 ? (
+          <div class="bg-white rounded-3xl p-8 text-center border border-sage-500/10">
+            <p class="text-charcoal/55">Du har ikke opprettet noen forespørsler ennå.</p>
+          </div>
+        ) : (
+          <div class="space-y-2">
+            {(myRequests ?? []).map((r) => (
+              <a href={`/marked/oppdrag/${r.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                      {CATEGORY_LABEL[r.category]} · str. {r.size_label}
+                    </span>
+                    <span class:list={[
+                      'text-[10px] font-bold uppercase tracking-widest',
+                      r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                    ]}>
+                      {STATUS_LABEL[r.status]}
+                    </span>
+                  </div>
+                  <p class="font-medium line-clamp-1">{r.title}</p>
+                </div>
+                <div class="text-right shrink-0">
+                  <p class="font-mono tabular-nums text-sm">{r.budget_nok_min}–{r.budget_nok_max} NOK</p>
+                  <p class="text-xs text-charcoal/45">{r.offer_count} tilbud</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <!-- My offers (as knitter) -->
+      <section>
+        <h2 class="font-serif text-2xl mb-4">Mine tilbud</h2>
+        {(myOffers ?? []).length === 0 ? (
+          <div class="bg-white rounded-3xl p-8 text-center border border-sage-500/10">
+            <p class="text-charcoal/55">Du har ikke sendt noen tilbud ennå.</p>
+            <a href="/marked/oppdrag" class="inline-block mt-3 text-sm text-terracotta-500 hover:underline">
+              Se åpne forespørsler →
+            </a>
+          </div>
+        ) : (
+          <div class="space-y-2">
+            {(myOffers ?? []).map((o) => {
+              const reqData = (o as any).commission_requests;
+              if (!reqData) return null;
+              return (
+                <a href={`/marked/oppdrag/${reqData.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                        {CATEGORY_LABEL[reqData.category]} · str. {reqData.size_label}
+                      </span>
+                      <span class:list={[
+                        'text-[10px] font-bold uppercase tracking-widest',
+                        o.status === 'pending' ? 'text-sage-700' : o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/35',
+                      ]}>
+                        {OFFER_STATUS[o.status]}
+                      </span>
+                    </div>
+                    <p class="font-medium line-clamp-1">{reqData.title}</p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <p class="font-mono tabular-nums text-sm">{o.price_nok} NOK</p>
+                    <p class="text-xs text-charcoal/45">{o.turnaround_weeks} uker</p>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </div>
+  </div>
+</Layout>

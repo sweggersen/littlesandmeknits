@@ -1,0 +1,99 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import { createServerSupabase } from '../../../lib/supabase';
+
+const url = Astro.url;
+const category = url.searchParams.get('kategori');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+let q = supabase
+  .from('commission_requests')
+  .select('id, title, category, size_label, budget_nok_min, budget_nok_max, needed_by, offer_count, created_at, buyer_id, profiles!commission_requests_buyer_id_fkey(display_name)')
+  .eq('status', 'open')
+  .order('created_at', { ascending: false });
+
+if (category) q = q.eq('category', category);
+
+const { data: requests } = await q.limit(40);
+
+const CATEGORY_LABEL: Record<string, string> = {
+  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
+  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
+};
+---
+
+<Layout title="Strikk for meg — Strikketorget" lang="nb">
+  <MarketplaceNav current="oppdrag" />
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <div class="flex items-start justify-between gap-4 mb-2">
+        <h1 class="font-serif text-4xl sm:text-5xl">Strikk for meg</h1>
+        <a href="/marked/oppdrag/ny" class="shrink-0 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          + Ny forespørsel
+        </a>
+      </div>
+      <p class="text-charcoal/65 mb-8">Bestill et plagg strikket av en dyktig strikker fra fellesskapet.</p>
+
+      <form method="get" class="bg-white rounded-3xl p-4 sm:p-5 border border-sage-500/10 mb-8 flex flex-wrap gap-3 items-end">
+        <div class="flex-1 min-w-[140px]">
+          <label for="kategori" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kategori</label>
+          <select id="kategori" name="kategori" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
+            <option value="">Alle</option>
+            {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
+              <option value={k} selected={category === k}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <button type="submit" class="bg-charcoal text-linen px-5 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Filtrer
+        </button>
+      </form>
+
+      {(requests ?? []).length === 0 ? (
+        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+          <p class="text-charcoal/55 mb-4">Ingen åpne forespørsler ennå.</p>
+          <a href="/marked/oppdrag/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            Opprett den første
+          </a>
+        </div>
+      ) : (
+        <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {(requests ?? []).map((r) => {
+            const buyerName = (r as any).profiles?.display_name ?? 'Anonym';
+            return (
+              <li>
+                <a href={`/marked/oppdrag/${r.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-5">
+                  <div class="flex items-center gap-2 mb-3">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">
+                      {CATEGORY_LABEL[r.category] ?? r.category}
+                    </span>
+                    <span class="text-[10px] text-charcoal/40">·</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                      str. {r.size_label}
+                    </span>
+                  </div>
+                  <h2 class="font-serif text-lg mb-2 line-clamp-2">{r.title}</h2>
+                  <p class="font-mono tabular-nums text-sm text-charcoal/70 mb-3">
+                    {r.budget_nok_min}–{r.budget_nok_max} NOK
+                  </p>
+                  <div class="flex items-center justify-between text-xs text-charcoal/45">
+                    <span>{buyerName}</span>
+                    <div class="flex items-center gap-3">
+                      {r.needed_by && (
+                        <span>Innen {new Date(r.needed_by).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</span>
+                      )}
+                      <span class="font-medium text-charcoal/60">
+                        {r.offer_count} {r.offer_count === 1 ? 'tilbud' : 'tilbud'}
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  </div>
+</Layout>
