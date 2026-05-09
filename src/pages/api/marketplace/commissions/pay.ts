@@ -85,9 +85,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
         req.pattern_external_title ? `Oppskrift: ${req.pattern_external_title}` : null,
         req.colorway ? `Farge: ${req.colorway}` : null,
       ].filter(Boolean).join('\n') || null,
-      status: needsYarn ? 'planning' : 'active',
+      status: 'planning',
       commission_offer_id: offer.id,
-      started_at: needsYarn ? undefined : new Date().toISOString().slice(0, 10),
     })
     .select('id')
     .single();

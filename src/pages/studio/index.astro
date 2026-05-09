@@ -14,7 +14,7 @@ const now = new Date();
 const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
 
 const [projectsRes, yarnsRes, needlesRes, externalRes, deductionsRes] = await Promise.all([
-  supabase.from('projects').select('id, status, started_at, finished_at, created_at'),
+  supabase.from('projects').select('id, status, started_at, finished_at, created_at').eq('user_id', user!.id),
   supabase.from('yarns').select('id, total_grams'),
   supabase.from('needles').select('id'),
   supabase.from('external_patterns').select('id'),
