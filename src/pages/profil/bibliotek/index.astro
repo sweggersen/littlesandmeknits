@@ -45,7 +45,7 @@ const tabs = [
             href={tab.href}
             class:list={[
               'inline-block py-3 text-sm font-medium border-b-2 transition-colors',
-              currentPath.startsWith(tab.href.replace(/\/$/, ''))
+              (tab.key === 'profil' ? currentPath === '/profil' : currentPath.startsWith(tab.href))
                 ? 'border-terracotta-500 text-charcoal'
                 : 'border-transparent text-charcoal/55 hover:text-charcoal',
             ]}
