@@ -2,6 +2,7 @@
 import StudioLayout from '../../../layouts/StudioLayout.astro';
 import StudioSubNav from '../../../components/StudioSubNav.astro';
 import { createServerSupabase } from '../../../lib/supabase';
+import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 
 type ProjectRow = {
@@ -19,10 +20,14 @@ type ProjectRow = {
   public_slug: string | null;
 };
 
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/studio/prosjekter');
+
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data } = await supabase
   .from('projects')
   .select('id, title, summary, status, recipient, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, public_slug')
+  .eq('user_id', user.id)
   .order('created_at', { ascending: false });
 
 const allProjects = (data ?? []) as ProjectRow[];

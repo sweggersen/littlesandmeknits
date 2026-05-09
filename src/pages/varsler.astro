@@ -63,7 +63,7 @@ function timeAgo(dateStr: string): string {
       ) : (
         <ul class="space-y-2">
           {allNotifs.map((n) => (
-            <li>
+            <li class="group relative">
               <a
                 href={n.url ?? '#'}
                 class:list={[
@@ -87,6 +87,10 @@ function timeAgo(dateStr: string): string {
                   <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0 mt-2"></span>
                 )}
               </a>
+              <form method="post" action="/api/notifications/delete" data-astro-reload class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <input type="hidden" name="id" value={n.id} />
+                <button type="submit" class="text-[11px] text-charcoal/30 hover:text-terracotta-500 transition-colors p-1" title="Fjern varsel">✕</button>
+              </form>
             </li>
           ))}
         </ul>

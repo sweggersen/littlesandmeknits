@@ -40,7 +40,7 @@ let projectLogs: any[] = [];
 if (acceptedOffer?.project_id) {
   const { data: proj } = await supabase
     .from('projects')
-    .select('id, title, status, hero_photo_path, current_rows, target_rows, started_at, finished_at')
+    .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_external, hero_photo_path, current_rows, target_rows, started_at, finished_at')
     .eq('id', acceptedOffer.project_id)
     .maybeSingle();
   linkedProject = proj;
@@ -48,10 +48,10 @@ if (acceptedOffer?.project_id) {
   if (proj) {
     const { data: logs } = await supabase
       .from('project_logs')
-      .select('id, body, photos, rows_at, logged_at')
+      .select('id, body, log_date, photos, rows_at, created_at')
       .eq('project_id', proj.id)
-      .order('logged_at', { ascending: false })
-      .limit(5);
+      .order('log_date', { ascending: false })
+      .order('created_at', { ascending: false });
     projectLogs = logs ?? [];
   }
 }
@@ -93,6 +93,10 @@ const PROJECT_STATUS: Record<string, string> = {
   planning: 'Planlegger', active: 'Pågår', finished: 'Ferdig', frogged: 'Røket opp',
 };
 const buyerProfile = (req as any).profiles;
+
+const projectProgressPct = linkedProject?.target_rows && linkedProject.target_rows > 0 && linkedProject.current_rows !== null
+  ? Math.min(100, Math.round((linkedProject.current_rows / linkedProject.target_rows) * 100))
+  : null;
 ---
 
 <Layout title={`${req.title} — Strikk for meg`} lang="nb">
@@ -207,6 +211,109 @@ const buyerProfile = (req as any).profiles;
                   </form>
                 </details>
               )}
+            </div>
+          )}
+
+          <!-- Read-only project view for buyer (shown once knitter has posted logs) -->
+          {isBuyer && acceptedOffer && linkedProject && projectLogs.length > 0 && ['awarded', 'awaiting_yarn', 'completed', 'delivered'].includes(req.status) && (
+            <div class="mt-8 pt-8 border-t border-sage-500/10">
+              {linkedProject.hero_photo_path && (
+                <div class="aspect-[16/10] rounded-3xl overflow-hidden bg-oatmeal mb-6 border border-sage-500/10">
+                  <img src={projectPhotoUrl(linkedProject.hero_photo_path)!} alt={linkedProject.title} class="w-full h-full object-cover" loading="lazy" />
+                </div>
+              )}
+
+              <div class="flex items-start gap-3 mb-4">
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0',
+                  linkedProject.status === 'finished' ? 'bg-terracotta-500/10 text-terracotta-500'
+                    : linkedProject.status === 'active' ? 'bg-sage-100 text-sage-900'
+                    : 'bg-oatmeal text-charcoal/70',
+                ]}>
+                  {PROJECT_STATUS[linkedProject.status]}
+                </span>
+              </div>
+              <h2 class="font-serif text-2xl sm:text-3xl mb-2">{linkedProject.title}</h2>
+              {linkedProject.summary && (
+                <p class="text-charcoal/65 leading-relaxed mb-4">{linkedProject.summary}</p>
+              )}
+
+              {projectProgressPct !== null && (
+                <div class="bg-white rounded-2xl p-4 border border-sage-500/10 mb-4">
+                  <div class="flex items-center justify-between text-xs text-charcoal/55 mb-2">
+                    <span class="font-bold uppercase tracking-widest">Fremdrift</span>
+                    <span>{linkedProject.current_rows} / {linkedProject.target_rows} rader · {projectProgressPct}%</span>
+                  </div>
+                  <div class="h-2 bg-sage-500/10 rounded-full overflow-hidden">
+                    <div class="h-full bg-sage-500 rounded-full transition-all" style={`width: ${projectProgressPct}%`}></div>
+                  </div>
+                </div>
+              )}
+
+              {(linkedProject.recipient || linkedProject.yarn || linkedProject.needles || linkedProject.target_size || linkedProject.pattern_external) && (
+                <div class="bg-white rounded-2xl p-4 border border-sage-500/10 mb-6">
+                  <dl class="grid grid-cols-2 gap-3 text-sm">
+                    {linkedProject.recipient && (
+                      <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">For</dt>
+                        <dd>{linkedProject.recipient}</dd>
+                      </div>
+                    )}
+                    {linkedProject.target_size && (
+                      <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Størrelse</dt>
+                        <dd>{linkedProject.target_size}</dd>
+                      </div>
+                    )}
+                    {linkedProject.pattern_external && (
+                      <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Oppskrift</dt>
+                        <dd>{linkedProject.pattern_external}</dd>
+                      </div>
+                    )}
+                    {linkedProject.yarn && (
+                      <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Garn</dt>
+                        <dd>{linkedProject.yarn}</dd>
+                      </div>
+                    )}
+                    {linkedProject.needles && (
+                      <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Pinner</dt>
+                        <dd>{linkedProject.needles}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
+
+              <h3 class="font-serif text-lg mb-4">Tidslinje</h3>
+              <ol class="space-y-4">
+                {projectLogs.map((log) => (
+                  <li class="bg-white rounded-2xl p-5 border border-sage-500/10">
+                    <div class="flex items-baseline gap-3 flex-wrap mb-2">
+                      <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
+                        {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </time>
+                      {log.rows_at !== null && log.rows_at !== undefined && (
+                        <span class="text-[10px] font-medium uppercase tracking-wider text-charcoal/45">
+                          Rad {log.rows_at}
+                        </span>
+                      )}
+                    </div>
+                    {log.body && <p class="text-sm text-charcoal/80 leading-relaxed whitespace-pre-wrap">{log.body}</p>}
+                    {log.photos?.length > 0 && (
+                      <div class={`mt-4 grid gap-2 ${log.photos.length === 1 ? 'grid-cols-1' : log.photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {log.photos.map((photo: string) => (
+                          <a href={projectPhotoUrl(photo)} target="_blank" rel="noopener" class="aspect-square rounded-xl overflow-hidden bg-oatmeal hover:opacity-90 transition-opacity">
+                            <img src={projectPhotoUrl(photo)!} alt="" class="w-full h-full object-cover" loading="lazy" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ol>
             </div>
           )}
 
@@ -495,70 +602,15 @@ const buyerProfile = (req as any).profiles;
             )}
           </div>
 
-          <!-- Project progress (visible to buyer after acceptance) -->
-          {isBuyer && acceptedOffer && linkedProject && ['awarded', 'awaiting_yarn', 'completed', 'delivered'].includes(req.status) && (
+          <!-- Buyer status card (awarded, no progress yet) -->
+          {isBuyer && req.status === 'awarded' && (!linkedProject || projectLogs.length === 0) && (
             <div class="bg-white rounded-3xl p-5 border border-sage-500/10">
-              <h2 class="font-serif text-xl mb-3">Prosjekt</h2>
-
-              {linkedProject.hero_photo_path && (
-                <img src={projectPhotoUrl(linkedProject.hero_photo_path)!} alt="" class="w-full aspect-video object-cover rounded-2xl mb-3" />
-              )}
-
-              <div class="flex items-center gap-2 mb-1">
-                <span class:list={[
-                  'text-[10px] font-bold uppercase tracking-widest',
-                  linkedProject.status === 'active' ? 'text-sage-700' : linkedProject.status === 'finished' ? 'text-terracotta-500' : 'text-charcoal/45',
-                ]}>{PROJECT_STATUS[linkedProject.status]}</span>
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-charcoal/30 text-lg">&#9676;</span>
+                <h2 class="font-serif text-xl">Oppdraget pågår</h2>
               </div>
-              <p class="font-medium">{linkedProject.title}</p>
-
-              {linkedProject.target_rows && linkedProject.target_rows > 0 ? (
-                <div class="mt-3">
-                  <div class="flex items-center justify-between text-xs text-charcoal/55 mb-1">
-                    <span>Fremdrift</span>
-                    <span>{linkedProject.current_rows ?? 0} / {linkedProject.target_rows} rader · {Math.min(100, Math.round(((linkedProject.current_rows ?? 0) / linkedProject.target_rows) * 100))}%</span>
-                  </div>
-                  <div class="h-2 bg-oatmeal/60 rounded-full overflow-hidden">
-                    <div class="h-full bg-terracotta-500 rounded-full transition-all" style={`width: ${Math.min(100, Math.round(((linkedProject.current_rows ?? 0) / linkedProject.target_rows) * 100))}%`}></div>
-                  </div>
-                </div>
-              ) : projectLogs.length === 0 ? (
-                <p class="text-xs text-charcoal/45 mt-3">
-                  Oppdraget er akseptert og betalt. Strikkeren har ikke lagt til oppdateringer ennå — det kan ta litt tid før arbeidet starter. Du får beskjed når det skjer noe nytt.
-                </p>
-              ) : null}
-
-              {projectLogs.length > 0 && (
-                <div class="mt-4 pt-4 border-t border-sage-500/10 space-y-3">
-                  <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45">Oppdateringer</p>
-                  {projectLogs.map((log) => (
-                    <div class="text-sm">
-                      <p class="text-xs text-charcoal/40 mb-0.5">
-                        {new Date(log.logged_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })}
-                        {log.rows_at !== null && log.rows_at !== undefined && (
-                          <span class="ml-2 text-charcoal/35">rad {log.rows_at}</span>
-                        )}
-                      </p>
-                      {log.body && <p class="text-charcoal/70 whitespace-pre-line">{log.body}</p>}
-                      {log.photos?.length > 0 && (
-                        <div class="flex gap-1.5 mt-2">
-                          {log.photos.slice(0, 4).map((photo: string) => (
-                            <img src={projectPhotoUrl(photo)!} alt="" class="w-14 h-14 rounded-xl object-cover" />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {isBuyer && acceptedOffer && !linkedProject && ['awarded', 'awaiting_yarn'].includes(req.status) && (
-            <div class="bg-white rounded-3xl p-5 border border-sage-500/10">
-              <h2 class="font-serif text-xl mb-2">Prosjekt</h2>
-              <p class="text-xs text-charcoal/45">
-                Oppdraget er akseptert og betalt. Strikkeren forbereder prosjektet — du får beskjed når det er oppdateringer.
+              <p class="text-sm text-charcoal/55">
+                Strikkeren jobber med bestillingen din. Du får beskjed når det er oppdateringer.
               </p>
             </div>
           )}
