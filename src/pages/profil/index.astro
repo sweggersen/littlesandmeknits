@@ -257,9 +257,12 @@ const OFFER_STATUS: Record<string, string> = {
         <section>
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-xl">Mine oppskrifter</h2>
-            {allPurchases.length > 0 && (
-              <a href="/studio/kjop" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
-            )}
+            <div class="flex items-center gap-4">
+              <a href="/oppskrifter" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Kjøp oppskrifter →</a>
+              {allPurchases.length > 0 && (
+                <a href="/studio/kjop" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              )}
+            </div>
           </div>
           {allPurchases.length === 0 ? (
             <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">

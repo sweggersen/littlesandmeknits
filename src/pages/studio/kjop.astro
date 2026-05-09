@@ -35,7 +35,12 @@ const enriched = await Promise.all(
 ---
 
 <StudioLayout title="Kjøp — Littles and Me" lang="nb">
-  <h1 class="font-serif text-3xl sm:text-4xl mb-8">{t('studio.nav.purchases')}</h1>
+  <div class="flex items-center justify-between mb-8 gap-4">
+    <h1 class="font-serif text-3xl sm:text-4xl">{t('studio.nav.purchases')}</h1>
+    <a href="/oppskrifter" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+      Kjøp oppskrifter
+    </a>
+  </div>
 
   {enriched.length === 0 ? (
     <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
