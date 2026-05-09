@@ -353,11 +353,20 @@ const OFFER_STATUS: Record<string, string> = {
         <!-- Settings & account -->
         <section class="pt-4 border-t border-sage-500/10">
           <div class="flex flex-wrap gap-3">
+            <a href="/studio/mine-oppskrifter" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
+              Bibliotek →
+            </a>
+            <a href="/studio/kjop" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
+              Kjøp →
+            </a>
             <a href="/profil/rediger" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
               Rediger profil →
             </a>
             <a href={`/marked/selger/${user.id}`} class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
               Offentlig profil →
+            </a>
+            <a href="/innstillinger" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
+              Innstillinger →
             </a>
           </div>
           <form method="post" action="/api/auth/signout" data-signout-form class="mt-4">
