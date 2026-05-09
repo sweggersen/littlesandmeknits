@@ -19,6 +19,7 @@ const [
   { data: myOffers },
   { data: unreadMessages },
   { data: purchases },
+  { data: externalPatterns },
 ] = await Promise.all([
   supabase
     .from('profiles')
@@ -59,7 +60,12 @@ const [
     .from('purchases')
     .select('id, pattern_slug, amount_nok, status, created_at')
     .order('created_at', { ascending: false })
-    .limit(6),
+    .limit(5),
+  supabase
+    .from('external_patterns')
+    .select('id, title, designer, cover_path, file_path, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5),
 ]);
 
 const allPurchases = await Promise.all(
@@ -68,6 +74,8 @@ const allPurchases = await Promise.all(
     return { ...p, title: entry?.data.title.nb ?? p.pattern_slug };
   })
 );
+
+const allBibliotek = externalPatterns ?? [];
 
 const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
 const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? 'Anonym';
@@ -79,11 +87,9 @@ const allRequests = myRequests ?? [];
 const allOffers = myOffers ?? [];
 const unreadCount = (unreadMessages ?? []).length;
 
-const activeListings = allListings.filter(l => l.status === 'active').length;
 const activeProjects = allProjects.filter(p => p.status === 'active').length;
 const pendingOffers = allOffers.filter(o => o.status === 'pending').length;
 const acceptedOffers = allOffers.filter(o => o.status === 'accepted').length;
-const openRequests = allRequests.filter(r => r.status === 'open').length;
 const awaitingPayment = allRequests.filter(r => r.status === 'awaiting_payment').length;
 
 const subtitleParts: string[] = [];
@@ -108,16 +114,15 @@ const REQUEST_STATUS: Record<string, string> = {
 const OFFER_STATUS: Record<string, string> = {
   pending: 'Venter', accepted: 'Akseptert', declined: 'Avslått', withdrawn: 'Trukket',
 };
+
+function isPdf(path: string | null): boolean {
+  return !!path && path.toLowerCase().endsWith('.pdf');
+}
 ---
 
 <Layout title="Min profil — Littles and Me Knits" lang="nb">
   <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <nav class="flex gap-5 mb-8 border-b border-sage-500/10 -mt-2">
-        <a href="/profil" class="inline-block py-3 text-sm font-medium border-b-2 border-terracotta-500 text-charcoal">Profil</a>
-        <a href="/profil/bibliotek" class="inline-block py-3 text-sm font-medium border-b-2 border-transparent text-charcoal/55 hover:text-charcoal transition-colors">Bibliotek</a>
-        <a href="/profil/kjop" class="inline-block py-3 text-sm font-medium border-b-2 border-transparent text-charcoal/55 hover:text-charcoal transition-colors">Kjøp</a>
-      </nav>
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
       <!-- Profile header -->
       <div class="flex items-center gap-5 mb-10">
@@ -137,83 +142,76 @@ const OFFER_STATUS: Record<string, string> = {
         </a>
       </div>
 
-      <div class="space-y-10">
+      <!-- Two-column staggered layout -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         <!-- Messages -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-serif text-xl">
+        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-serif text-lg">
               Meldinger
               {unreadCount > 0 && (
-                <span class="inline-flex items-center justify-center ml-2 w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{unreadCount}</span>
+                <span class="inline-flex items-center justify-center ml-1.5 w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{unreadCount}</span>
               )}
             </h2>
-            <a href="/marked/meldinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+            <a href="/marked/meldinger" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
           </div>
           {unreadCount === 0 ? (
-            <p class="text-sm text-charcoal/45 bg-white rounded-2xl p-5 border border-sage-500/10">Ingen uleste meldinger.</p>
+            <p class="text-sm text-charcoal/45">Ingen uleste meldinger.</p>
           ) : (
-            <a href="/marked/meldinger" class="block bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+            <a href="/marked/meldinger" class="block bg-linen rounded-xl p-4 hover:bg-oatmeal/60 transition-colors">
               <p class="text-sm font-medium">{unreadCount} ulest{unreadCount === 1 ? '' : 'e'} melding{unreadCount === 1 ? '' : 'er'}</p>
               <p class="text-xs text-charcoal/45 mt-1">Åpne innboksen for å svare.</p>
             </a>
           )}
         </section>
 
-        <!-- Oppdrag: requests + offers -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-serif text-xl">Oppdrag</h2>
-            <a href="/marked/oppdrag/mine" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+        <!-- Oppdrag -->
+        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-serif text-lg">Oppdrag</h2>
+            <a href="/marked/oppdrag/mine" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
           </div>
           {allRequests.length === 0 && allOffers.length === 0 ? (
-            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
-              <p class="text-sm text-charcoal/45 mb-3">Ingen aktive oppdrag ennå.</p>
-              <a href="/marked/oppdrag" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen aktive oppdrag.</p>
+              <a href="/marked/oppdrag" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
                 Se forespørsler →
               </a>
             </div>
           ) : (
             <div class="space-y-2">
-              {allRequests.map((r) => (
-                <a href={`/marked/oppdrag/${r.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
-                      <span class="text-[10px] text-charcoal/30">·</span>
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Bestiller</span>
+              {allRequests.slice(0, 3).map((r) => (
+                <a href={`/marked/oppdrag/${r.id}`} class="flex items-center justify-between gap-3 bg-linen rounded-xl p-3 hover:bg-oatmeal/60 transition-colors">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
                       <span class:list={[
-                        'text-[10px] font-bold uppercase tracking-widest',
-                        r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                        'text-[9px] font-bold uppercase tracking-widest',
+                        r.status === 'open' ? 'text-sage-700' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
                       ]}>{REQUEST_STATUS[r.status]}</span>
                     </div>
                     <p class="text-sm font-medium line-clamp-1">{r.title}</p>
                   </div>
-                  <div class="text-right shrink-0">
-                    <p class="font-mono tabular-nums text-xs">{r.budget_nok_min}–{r.budget_nok_max} NOK</p>
-                    <p class="text-xs text-charcoal/45">{r.offer_count} tilbud</p>
-                  </div>
+                  <p class="font-mono tabular-nums text-xs shrink-0">{r.budget_nok_min}–{r.budget_nok_max}</p>
                 </a>
               ))}
-              {allOffers.map((o) => {
+              {allOffers.slice(0, 3).map((o) => {
                 const reqData = (o as any).commission_requests;
                 if (!reqData) return null;
                 return (
-                  <a href={`/marked/oppdrag/${reqData.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2 mb-1">
-                        <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Strikker</span>
+                  <a href={`/marked/oppdrag/${reqData.id}`} class="flex items-center justify-between gap-3 bg-linen rounded-xl p-3 hover:bg-oatmeal/60 transition-colors">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">Strikker</span>
                         <span class:list={[
-                          'text-[10px] font-bold uppercase tracking-widest',
-                          o.status === 'pending' ? 'text-sage-700' : o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/35',
+                          'text-[9px] font-bold uppercase tracking-widest',
+                          o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/35',
                         ]}>{OFFER_STATUS[o.status]}</span>
                       </div>
                       <p class="text-sm font-medium line-clamp-1">{reqData.title}</p>
                     </div>
-                    <div class="text-right shrink-0">
-                      <p class="font-mono tabular-nums text-xs">{o.price_nok} NOK</p>
-                      <p class="text-xs text-charcoal/45">{o.turnaround_weeks} uker</p>
-                    </div>
+                    <p class="font-mono tabular-nums text-xs shrink-0">{o.price_nok} NOK</p>
                   </a>
                 );
               })}
@@ -221,73 +219,36 @@ const OFFER_STATUS: Record<string, string> = {
           )}
         </section>
 
-        <!-- Listings -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-serif text-xl">Mine annonser</h2>
-            {allListings.length > 0 && (
-              <a href="/marked/mine" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
-            )}
-          </div>
-          {allListings.length === 0 ? (
-            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
-              <p class="text-sm text-charcoal/45 mb-3">Du har ingen annonser ennå.</p>
-              <a href="/marked/listing/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
-                Opprett annonse →
-              </a>
-            </div>
-          ) : (
-            <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {allListings.map((l) => (
-                <li>
-                  <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                    {l.hero_photo_path ? (
-                      <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
-                    ) : (
-                      <div class="aspect-square bg-oatmeal/40"></div>
-                    )}
-                    <div class="p-3">
-                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">{KIND_LABEL[l.kind]} · {l.status === 'active' ? 'Aktiv' : l.status === 'sold' ? 'Solgt' : 'Utkast'}</p>
-                      <p class="text-sm font-medium line-clamp-1">{l.title}</p>
-                      <p class="font-mono tabular-nums text-xs mt-1">{l.price_nok} NOK</p>
-                    </div>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <!-- Purchased patterns -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-serif text-xl">Mine oppskrifter</h2>
-            <div class="flex items-center gap-4">
-              <a href="/oppskrifter" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Kjøp oppskrifter →</a>
+        <!-- Kjøpte oppskrifter -->
+        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
+            <div class="flex items-center gap-3">
+              <a href="/oppskrifter" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Kjøp →</a>
               {allPurchases.length > 0 && (
-                <a href="/profil/kjop" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+                <a href="/profil/kjop" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
               )}
             </div>
           </div>
           {allPurchases.length === 0 ? (
-            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
-              <p class="text-sm text-charcoal/45 mb-3">Du har ikke kjøpt noen oppskrifter ennå.</p>
-              <a href="/oppskrifter" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen kjøpte oppskrifter.</p>
+              <a href="/oppskrifter" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
                 Se oppskrifter →
               </a>
             </div>
           ) : (
             <div class="space-y-2">
               {allPurchases.map((p: any) => (
-                <div class="flex items-center justify-between gap-4 bg-white rounded-2xl p-4 border border-sage-500/10">
+                <div class="flex items-center justify-between gap-3 bg-linen rounded-xl p-3">
                   <div class="min-w-0">
                     <p class="text-sm font-medium line-clamp-1">{p.title}</p>
-                    <p class="text-xs text-charcoal/45 mt-0.5">
+                    <p class="text-[11px] text-charcoal/45 mt-0.5">
                       {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
                     </p>
                   </div>
                   <a href={`/api/download/${p.id}`} target="_blank" rel="noopener"
-                    class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                    class="shrink-0 bg-charcoal text-linen px-3 py-1.5 rounded-full text-[11px] font-medium hover:bg-terracotta-500 transition-colors">
                     Last ned
                   </a>
                 </div>
@@ -296,23 +257,65 @@ const OFFER_STATUS: Record<string, string> = {
           )}
         </section>
 
-        <!-- Projects -->
-        <section>
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-serif text-xl">Prosjekter</h2>
-            {allProjects.length > 0 && (
-              <a href="/studio" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
-            )}
+        <!-- Bibliotek -->
+        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-serif text-lg">Bibliotek</h2>
+            <div class="flex items-center gap-3">
+              <a href="/profil/bibliotek/ny" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny →</a>
+              {allBibliotek.length > 0 && (
+                <a href="/profil/bibliotek" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              )}
+            </div>
+          </div>
+          {allBibliotek.length === 0 ? (
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen oppskrifter i biblioteket.</p>
+              <a href="/profil/bibliotek/ny" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                Last opp oppskrift →
+              </a>
+            </div>
+          ) : (
+            <div class="grid grid-cols-3 gap-2">
+              {allBibliotek.map((pat: any) => {
+                const cover = projectPhotoUrl(pat.cover_path);
+                return (
+                  <a href={`/profil/bibliotek/${pat.id}`} class="block rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                    {cover ? (
+                      <img src={cover} alt={pat.title} class="aspect-[3/4] object-cover w-full rounded-xl" loading="lazy" />
+                    ) : (
+                      <div class="aspect-[3/4] bg-gradient-to-br from-sage-100 to-oatmeal rounded-xl flex items-center justify-center">
+                        <span class="font-serif text-lg text-sage-900/50">{isPdf(pat.file_path) ? 'PDF' : '✎'}</span>
+                      </div>
+                    )}
+                    <p class="text-[11px] font-medium line-clamp-1 mt-1.5">{pat.title}</p>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <!-- Prosjekter (full width) -->
+        <section class="bg-white rounded-3xl p-6 border border-sage-500/10 md:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-serif text-lg">Prosjekter</h2>
+            <div class="flex items-center gap-3">
+              <a href="/studio/prosjekter/ny" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Nytt →</a>
+              {allProjects.length > 0 && (
+                <a href="/studio/prosjekter" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
+              )}
+            </div>
           </div>
           {allProjects.length === 0 ? (
-            <div class="bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+            <div class="text-center py-2">
               <p class="text-sm text-charcoal/45 mb-3">Ingen prosjekter ennå.</p>
-              <a href="/studio/prosjekter/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+              <a href="/studio/prosjekter/ny" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
                 Start et prosjekt →
               </a>
             </div>
           ) : (
-            <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {allProjects.map((p) => {
                 const isCommission = !!p.commission_offer_id;
                 const commissionData = isCommission ? (p as any).commission_offers : null;
@@ -321,32 +324,25 @@ const OFFER_STATUS: Record<string, string> = {
                 return (
                   <li>
                     <a href={`/studio/prosjekter/${p.id}`} class:list={[
-                      'block bg-white rounded-2xl border transition-colors overflow-hidden',
+                      'block bg-linen rounded-xl border transition-colors overflow-hidden',
                       isCommission ? 'border-terracotta-500/20 hover:border-terracotta-500/40' : 'border-sage-500/10 hover:border-sage-500/30',
                     ]}>
                       <div class="flex gap-3">
                         {p.hero_photo_path ? (
-                          <img src={projectPhotoUrl(p.hero_photo_path)!} alt={p.title} class="w-20 h-20 object-cover shrink-0 rounded-l-2xl" />
+                          <img src={projectPhotoUrl(p.hero_photo_path)!} alt={p.title} class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
                         ) : (
-                          <div class="w-20 h-20 bg-oatmeal/40 shrink-0 rounded-l-2xl"></div>
+                          <div class="w-16 h-16 bg-oatmeal/40 shrink-0 rounded-l-xl"></div>
                         )}
-                        <div class="py-3 pr-3 min-w-0 flex-1">
-                          <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{PROJECT_STATUS[p.status]}</span>
+                        <div class="py-2.5 pr-3 min-w-0 flex-1">
+                          <div class="flex items-center gap-1.5 mb-0.5">
+                            <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{PROJECT_STATUS[p.status]}</span>
                             {isCommission && (
-                              <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
+                              <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
                             )}
                           </div>
                           <p class="text-sm font-medium line-clamp-1">{p.title}</p>
                           {isCommission && buyerName && (
-                            <p class="text-xs text-charcoal/45 mt-0.5">for {buyerName} · {commissionData.price_nok} NOK</p>
-                          )}
-                          {p.target_rows && p.target_rows > 0 && (
-                            <div class="mt-2">
-                              <div class="h-1.5 bg-oatmeal/60 rounded-full overflow-hidden">
-                                <div class="h-full bg-terracotta-500 rounded-full" style={`width: ${Math.min(100, Math.round(((p.current_rows ?? 0) / p.target_rows) * 100))}%`}></div>
-                              </div>
-                            </div>
+                            <p class="text-[11px] text-charcoal/45">for {buyerName}</p>
                           )}
                         </div>
                       </div>
@@ -358,32 +354,63 @@ const OFFER_STATUS: Record<string, string> = {
           )}
         </section>
 
-        <!-- Settings & account -->
-        <section class="pt-4 border-t border-sage-500/10">
-          <div class="flex flex-wrap gap-3">
-            <a href="/profil/rediger" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
-              Rediger profil →
-            </a>
-            <a href={`/marked/selger/${user.id}`} class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
-              Offentlig profil →
-            </a>
-            <a href="/innstillinger" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
-              Innstillinger →
-            </a>
+        <!-- Annonser (full width) -->
+        <section class="bg-white rounded-3xl p-6 border border-sage-500/10 md:col-span-2">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-serif text-lg">Mine annonser</h2>
+            <div class="flex items-center gap-3">
+              <a href="/marked/listing/ny" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny →</a>
+              {allListings.length > 0 && (
+                <a href="/marked/mine" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              )}
+            </div>
           </div>
-          <form method="post" action="/api/auth/signout" data-signout-form class="mt-4">
-            <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">
-              Logg ut →
-            </button>
-          </form>
-          <script is:inline>
-            document.querySelector('[data-signout-form]')?.addEventListener('submit', function() {
-              sessionStorage.removeItem('lm-auth');
-            });
-          </script>
+          {allListings.length === 0 ? (
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Du har ingen annonser ennå.</p>
+              <a href="/marked/listing/ny" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                Opprett annonse →
+              </a>
+            </div>
+          ) : (
+            <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {allListings.map((l) => (
+                <li>
+                  <a href={`/marked/listing/${l.id}`} class="block bg-linen rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
+                    {l.hero_photo_path ? (
+                      <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
+                    ) : (
+                      <div class="aspect-square bg-oatmeal/40"></div>
+                    )}
+                    <div class="p-2.5">
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">{KIND_LABEL[l.kind]}</p>
+                      <p class="text-sm font-medium line-clamp-1">{l.title}</p>
+                      <p class="font-mono tabular-nums text-xs mt-0.5">{l.price_nok} NOK</p>
+                    </div>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
       </div>
+
+      <!-- Account links -->
+      <div class="mt-8 pt-6 border-t border-sage-500/10 flex flex-wrap gap-4">
+        <a href="/profil/rediger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger profil →</a>
+        <a href={`/marked/selger/${user.id}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Offentlig profil →</a>
+        <a href="/innstillinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Innstillinger →</a>
+        <form method="post" action="/api/auth/signout" data-signout-form class="inline">
+          <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Logg ut →</button>
+        </form>
+      </div>
+      <script is:inline>
+        document.querySelector('[data-signout-form]')?.addEventListener('submit', function() {
+          sessionStorage.removeItem('lm-auth');
+        });
+      </script>
+
     </div>
   </div>
 </Layout>

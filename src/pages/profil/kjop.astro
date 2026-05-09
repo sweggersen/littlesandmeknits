@@ -37,32 +37,15 @@ const enriched = await Promise.all(
   })
 );
 
-const currentPath = Astro.url.pathname.replace(/\/$/, '');
-const tabs = [
-  { key: 'profil', label: 'Profil', href: '/profil' },
-  { key: 'bibliotek', label: 'Bibliotek', href: '/profil/bibliotek' },
-  { key: 'kjop', label: 'Kjøp', href: '/profil/kjop' },
-];
 ---
 
 <Layout title="Kjøp — Littles and Me" lang="nb">
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      <nav class="flex gap-5 mb-8 border-b border-sage-500/10 -mt-2">
-        {tabs.map((tab) => (
-          <a
-            href={tab.href}
-            class:list={[
-              'inline-block py-3 text-sm font-medium border-b-2 transition-colors',
-              currentPath === tab.href.replace(/\/$/, '')
-                ? 'border-terracotta-500 text-charcoal'
-                : 'border-transparent text-charcoal/55 hover:text-charcoal',
-            ]}
-          >
-            {tab.label}
-          </a>
-        ))}
-      </nav>
+      <a href="/profil" class="inline-flex items-center gap-1 text-sm text-charcoal/55 hover:text-charcoal mb-6 transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        Profil
+      </a>
 
       <div class="flex items-center justify-between mb-8 gap-4">
         <h1 class="font-serif text-3xl sm:text-4xl">Kjøp</h1>

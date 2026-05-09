@@ -7,9 +7,7 @@ import { getCurrentUser } from '../lib/auth';
 //
 // Five fixed tabs:
 //   Hjem · Prosjekter · Garn (also covers /pinner) · Verktøy · Avatar
-// The avatar tab links straight to /studio/profil. Profil, Bibliotek,
-// and Kjøp share a sub-tab strip on those pages, so no slide-up sheet
-// is needed.
+// The avatar tab links to /profil (top-level profile page).
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 const meta = (user?.user_metadata ?? {}) as { display_name?: string };
@@ -53,8 +51,8 @@ const avatarInitial = initial();
     <span>Verktøy</span>
   </a>
   <a
-    href="/studio/profil"
-    data-tab-match="^/studio/profil"
+    href="/profil"
+    data-tab-match="^/profil"
     aria-label="Profil"
   >
     <span data-tab-avatar>{avatarInitial}</span>
