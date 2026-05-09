@@ -113,6 +113,11 @@ const OFFER_STATUS: Record<string, string> = {
 <Layout title="Min profil — Littles and Me Knits" lang="nb">
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <nav class="flex gap-5 mb-8 border-b border-sage-500/10 -mt-2">
+        <a href="/profil" class="inline-block py-3 text-sm font-medium border-b-2 border-terracotta-500 text-charcoal">Profil</a>
+        <a href="/profil/bibliotek" class="inline-block py-3 text-sm font-medium border-b-2 border-transparent text-charcoal/55 hover:text-charcoal transition-colors">Bibliotek</a>
+        <a href="/profil/kjop" class="inline-block py-3 text-sm font-medium border-b-2 border-transparent text-charcoal/55 hover:text-charcoal transition-colors">Kjøp</a>
+      </nav>
 
       <!-- Profile header -->
       <div class="flex items-center gap-5 mb-10">
@@ -260,7 +265,7 @@ const OFFER_STATUS: Record<string, string> = {
             <div class="flex items-center gap-4">
               <a href="/oppskrifter" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Kjøp oppskrifter →</a>
               {allPurchases.length > 0 && (
-                <a href="/studio/kjop" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+                <a href="/profil/kjop" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
               )}
             </div>
           </div>
@@ -356,12 +361,6 @@ const OFFER_STATUS: Record<string, string> = {
         <!-- Settings & account -->
         <section class="pt-4 border-t border-sage-500/10">
           <div class="flex flex-wrap gap-3">
-            <a href="/studio/mine-oppskrifter" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
-              Bibliotek →
-            </a>
-            <a href="/studio/kjop" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
-              Kjøp →
-            </a>
             <a href="/profil/rediger" class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
               Rediger profil →
             </a>

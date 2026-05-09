@@ -35,5 +35,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     return new Response('Could not delete', { status: 500 });
   }
 
-  return redirect('/studio/mine-oppskrifter', 303);
+  return redirect('/profil/bibliotek', 303);
 };

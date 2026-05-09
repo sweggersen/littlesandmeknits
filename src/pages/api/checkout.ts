@@ -45,7 +45,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
         quantity: 1,
       },
     ],
-    success_url: `${siteUrl}/studio/kjop?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${siteUrl}/profil/kjop?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}${patternPath}`,
     customer_email: user.email ?? undefined,
     client_reference_id: user.id,

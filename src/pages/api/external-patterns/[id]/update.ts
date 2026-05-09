@@ -67,5 +67,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     return new Response('Could not update', { status: 500 });
   }
 
-  return redirect(`/studio/mine-oppskrifter/${id}`, 303);
+  return redirect(`/profil/bibliotek/${id}`, 303);
 };

@@ -12,7 +12,7 @@ import {
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const user = await getCurrentUser({ request, cookies });
-  if (!user) return redirect('/logg-inn?next=/studio/mine-oppskrifter/ny');
+  if (!user) return redirect('/logg-inn?next=/profil/bibliotek/ny');
 
   const form = await request.formData();
   const title = form.get('title')?.toString().trim();
@@ -79,5 +79,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
       .eq('id', id);
   }
 
-  return redirect(`/studio/mine-oppskrifter/${id}`, 303);
+  return redirect(`/profil/bibliotek/${id}`, 303);
 };
