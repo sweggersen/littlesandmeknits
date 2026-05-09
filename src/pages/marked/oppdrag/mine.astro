@@ -12,8 +12,9 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
   supabase
     .from('commission_requests')
-    .select('id, title, category, size_label, budget_nok_min, budget_nok_max, status, offer_count, created_at')
+    .select('id, title, category, size_label, budget_nok_min, budget_nok_max, status, offer_count, created_at, commission_offers!commission_offers_request_id_fkey(price_nok, profiles!commission_offers_knitter_id_fkey(display_name))')
     .eq('buyer_id', user.id)
+    .eq('commission_offers.status', 'accepted')
     .order('created_at', { ascending: false })
     .limit(30),
   supabase
@@ -56,28 +57,42 @@ const OFFER_STATUS: Record<string, string> = {
           </div>
         ) : (
           <div class="space-y-2">
-            {(myRequests ?? []).map((r) => (
-              <a href={`/marked/oppdrag/${r.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-1">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
-                      {CATEGORY_LABEL[r.category]} · str. {r.size_label}
-                    </span>
-                    <span class:list={[
-                      'text-[10px] font-bold uppercase tracking-widest',
-                      r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
-                    ]}>
-                      {STATUS_LABEL[r.status]}
-                    </span>
+            {(myRequests ?? []).map((r) => {
+              const accepted = ((r as any).commission_offers ?? [])[0];
+              const knitterName = accepted?.profiles?.display_name;
+              const isAwarded = ['awaiting_payment', 'awaiting_yarn', 'awarded', 'completed', 'delivered'].includes(r.status);
+              return (
+                <a href={`/marked/oppdrag/${r.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                        {CATEGORY_LABEL[r.category]} · str. {r.size_label}
+                      </span>
+                      <span class:list={[
+                        'text-[10px] font-bold uppercase tracking-widest',
+                        r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                      ]}>
+                        {STATUS_LABEL[r.status]}
+                      </span>
+                    </div>
+                    <p class="font-medium line-clamp-1">{r.title}</p>
                   </div>
-                  <p class="font-medium line-clamp-1">{r.title}</p>
-                </div>
-                <div class="text-right shrink-0">
-                  <p class="font-mono tabular-nums text-sm">{r.budget_nok_min}–{r.budget_nok_max} NOK</p>
-                  <p class="text-xs text-charcoal/45">{r.offer_count} tilbud</p>
-                </div>
-              </a>
-            ))}
+                  <div class="text-right shrink-0">
+                    {isAwarded && accepted ? (
+                      <>
+                        <p class="font-mono tabular-nums text-sm">{accepted.price_nok} NOK</p>
+                        <p class="text-xs text-charcoal/45">{knitterName}</p>
+                      </>
+                    ) : (
+                      <>
+                        <p class="font-mono tabular-nums text-sm">{r.budget_nok_min}–{r.budget_nok_max} NOK</p>
+                        <p class="text-xs text-charcoal/45">{r.offer_count} tilbud</p>
+                      </>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
           </div>
         )}
       </section>

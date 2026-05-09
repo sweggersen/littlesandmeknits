@@ -135,9 +135,15 @@ const projectProgressPct = linkedProject?.target_rows && linkedProject.target_ro
           </div>
           <h1 class="font-serif text-3xl sm:text-4xl mb-4">{req.title}</h1>
 
-          <p class="font-mono tabular-nums text-2xl mb-6">
-            {req.budget_nok_min}–{req.budget_nok_max} NOK
-          </p>
+          {acceptedOffer && ['awaiting_payment', 'awaiting_yarn', 'awarded', 'completed', 'delivered'].includes(req.status) ? (
+            <p class="font-mono tabular-nums text-2xl mb-6">
+              {acceptedOffer.price_nok} NOK
+            </p>
+          ) : (
+            <p class="font-mono tabular-nums text-2xl mb-6">
+              {req.budget_nok_min}–{req.budget_nok_max} NOK
+            </p>
+          )}
 
           <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
             {req.colorway && (
