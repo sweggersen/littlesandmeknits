@@ -143,11 +143,11 @@ function isPdf(path: string | null): boolean {
       </div>
 
       <!-- Two-column staggered layout -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-10">
 
         <!-- Messages -->
-        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
-          <div class="flex items-center justify-between mb-4">
+        <section>
+          <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-lg">
               Meldinger
               {unreadCount > 0 && (
@@ -167,8 +167,8 @@ function isPdf(path: string | null): boolean {
         </section>
 
         <!-- Oppdrag -->
-        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
-          <div class="flex items-center justify-between mb-4">
+        <section>
+          <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-lg">Oppdrag</h2>
             <a href="/marked/oppdrag/mine" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
           </div>
@@ -220,8 +220,8 @@ function isPdf(path: string | null): boolean {
         </section>
 
         <!-- Kjøpte oppskrifter -->
-        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
-          <div class="flex items-center justify-between mb-4">
+        <section>
+          <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
             <div class="flex items-center gap-3">
               <a href="/oppskrifter" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Kjøp →</a>
@@ -258,8 +258,8 @@ function isPdf(path: string | null): boolean {
         </section>
 
         <!-- Bibliotek -->
-        <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
-          <div class="flex items-center justify-between mb-4">
+        <section>
+          <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-lg">Bibliotek</h2>
             <div class="flex items-center gap-3">
               <a href="/profil/bibliotek/ny" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny →</a>
@@ -297,8 +297,8 @@ function isPdf(path: string | null): boolean {
         </section>
 
         <!-- Prosjekter (full width) -->
-        <section class="bg-white rounded-3xl p-6 border border-sage-500/10 md:col-span-2">
-          <div class="flex items-center justify-between mb-4">
+        <section class="md:col-span-2">
+          <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-lg">Prosjekter</h2>
             <div class="flex items-center gap-3">
               <a href="/studio/prosjekter/ny" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Nytt →</a>
@@ -355,8 +355,8 @@ function isPdf(path: string | null): boolean {
         </section>
 
         <!-- Annonser (full width) -->
-        <section class="bg-white rounded-3xl p-6 border border-sage-500/10 md:col-span-2">
-          <div class="flex items-center justify-between mb-4">
+        <section class="md:col-span-2">
+          <div class="flex items-center justify-between mb-3">
             <h2 class="font-serif text-lg">Mine annonser</h2>
             <div class="flex items-center gap-3">
               <a href="/marked/listing/ny" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny →</a>
