@@ -159,7 +159,7 @@ function isPdf(path: string | null): boolean {
           {unreadCount === 0 ? (
             <p class="text-sm text-charcoal/45">Ingen uleste meldinger.</p>
           ) : (
-            <a href="/marked/meldinger" class="block bg-linen rounded-xl p-4 hover:bg-oatmeal/60 transition-colors">
+            <a href="/marked/meldinger" class="block bg-white rounded-xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
               <p class="text-sm font-medium">{unreadCount} ulest{unreadCount === 1 ? '' : 'e'} melding{unreadCount === 1 ? '' : 'er'}</p>
               <p class="text-xs text-charcoal/45 mt-1">Åpne innboksen for å svare.</p>
             </a>
@@ -182,7 +182,7 @@ function isPdf(path: string | null): boolean {
           ) : (
             <div class="space-y-2">
               {allRequests.slice(0, 3).map((r) => (
-                <a href={`/marked/oppdrag/${r.id}`} class="flex items-center justify-between gap-3 bg-linen rounded-xl p-3 hover:bg-oatmeal/60 transition-colors">
+                <a href={`/marked/oppdrag/${r.id}`} class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="min-w-0">
                     <div class="flex items-center gap-1.5 mb-0.5">
                       <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
@@ -200,7 +200,7 @@ function isPdf(path: string | null): boolean {
                 const reqData = (o as any).commission_requests;
                 if (!reqData) return null;
                 return (
-                  <a href={`/marked/oppdrag/${reqData.id}`} class="flex items-center justify-between gap-3 bg-linen rounded-xl p-3 hover:bg-oatmeal/60 transition-colors">
+                  <a href={`/marked/oppdrag/${reqData.id}`} class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                     <div class="min-w-0">
                       <div class="flex items-center gap-1.5 mb-0.5">
                         <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">Strikker</span>
@@ -240,7 +240,7 @@ function isPdf(path: string | null): boolean {
           ) : (
             <div class="space-y-2">
               {allPurchases.map((p: any) => (
-                <div class="flex items-center justify-between gap-3 bg-linen rounded-xl p-3">
+                <div class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10">
                   <div class="min-w-0">
                     <p class="text-sm font-medium line-clamp-1">{p.title}</p>
                     <p class="text-[11px] text-charcoal/45 mt-0.5">
@@ -324,7 +324,7 @@ function isPdf(path: string | null): boolean {
                 return (
                   <li>
                     <a href={`/studio/prosjekter/${p.id}`} class:list={[
-                      'block bg-linen rounded-xl border transition-colors overflow-hidden',
+                      'block bg-white rounded-xl border transition-colors overflow-hidden',
                       isCommission ? 'border-terracotta-500/20 hover:border-terracotta-500/40' : 'border-sage-500/10 hover:border-sage-500/30',
                     ]}>
                       <div class="flex gap-3">
@@ -376,7 +376,7 @@ function isPdf(path: string | null): boolean {
             <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {allListings.map((l) => (
                 <li>
-                  <a href={`/marked/listing/${l.id}`} class="block bg-linen rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
+                  <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
                     {l.hero_photo_path ? (
                       <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
                     ) : (
