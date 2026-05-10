@@ -1,0 +1,749 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].includes(user.email ?? '')) {
+  return Astro.redirect('/marked');
+}
+---
+
+<Layout title="Test Control Tower" lang="nb">
+  <div id="tower" class="min-h-[calc(100vh-64px)] bg-charcoal/[0.03]">
+    <!-- Desktop only -->
+    <div class="hidden lg:block">
+      <!-- Sticky control bar -->
+      <div class="bg-white border-b border-sage-500/10 sticky top-[64px] z-20">
+        <div class="max-w-[1400px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-6">
+            <div>
+              <p class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5">Dev Tool</p>
+              <h1 class="font-mono text-base font-bold leading-tight">Test Control Tower</h1>
+            </div>
+            <div id="scenario-tabs" class="flex gap-1"></div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-reset" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">Reset</button>
+            <button id="btn-step" class="px-3 py-1.5 text-xs font-medium text-charcoal bg-sage-100 hover:bg-sage-200 rounded-lg transition-colors">Step &#9654;</button>
+            <button id="btn-run" class="px-3 py-1.5 text-xs font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">Run All &#9654;&#9654;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <div class="max-w-[1400px] mx-auto px-6 py-6 flex gap-6 items-start">
+        <div id="steps-panel" class="flex-1 min-w-0"></div>
+        <div id="state-panel" class="w-[340px] shrink-0 sticky top-[130px]"></div>
+      </div>
+    </div>
+
+    <!-- Mobile fallback -->
+    <div class="lg:hidden flex items-center justify-center min-h-[60vh] p-8">
+      <p class="text-charcoal/55 text-center">Test Control Tower krever en bred skjerm (1024px+).</p>
+    </div>
+  </div>
+
+  <style>
+    .step-connector { position: relative; }
+    .step-connector::before {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 40px;
+      bottom: 0;
+      width: 2px;
+      background: #e5e7eb;
+    }
+    .step-connector.done::before { background: #86B681; }
+
+    .step-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 2.5px solid #d1d5db;
+      background: white;
+      position: absolute;
+      left: 13px;
+      top: 16px;
+      z-index: 1;
+    }
+    .step-dot.done { border-color: #86B681; background: #86B681; }
+    .step-dot.ready { border-color: #374151; }
+    .step-dot.running { border-color: #C75B39; animation: dot-pulse 1.2s infinite; }
+    .step-dot.failed { border-color: #ef4444; background: #ef4444; }
+
+    @keyframes dot-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(199, 91, 57, 0.4); }
+      50% { box-shadow: 0 0 0 6px rgba(199, 91, 57, 0); }
+    }
+
+    .bp-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: transparent;
+      border: 1.5px solid #d1d5db;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: absolute;
+      left: 0;
+      top: 19px;
+    }
+    .bp-dot:hover { border-color: #ef4444; background: #fecaca; }
+    .bp-dot.active { border-color: #ef4444; background: #ef4444; }
+
+    .role-buyer { background: #DBEAFE; color: #1E40AF; }
+    .role-knitter { background: #FDE8E0; color: #9A3412; }
+    .role-seller { background: #DCFCE7; color: #166534; }
+
+    .state-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .state-badge.open { background: #DCFCE7; color: #166534; }
+    .state-badge.awaiting_payment { background: #FEF3C7; color: #92400E; }
+    .state-badge.awaiting_yarn { background: #FEF3C7; color: #92400E; }
+    .state-badge.awarded { background: #DBEAFE; color: #1E40AF; }
+    .state-badge.completed { background: #E0E7FF; color: #3730A3; }
+    .state-badge.delivered { background: #D1FAE5; color: #065F46; }
+    .state-badge.pending { background: #F3F4F6; color: #4B5563; }
+    .state-badge.accepted { background: #DCFCE7; color: #166534; }
+    .state-badge.declined { background: #FEE2E2; color: #991B1B; }
+    .state-badge.active { background: #DBEAFE; color: #1E40AF; }
+    .state-badge.planning { background: #F3F4F6; color: #4B5563; }
+    .state-badge.draft { background: #F3F4F6; color: #4B5563; }
+
+    #state-panel details summary { cursor: pointer; user-select: none; }
+    #state-panel details summary::-webkit-details-marker { display: none; }
+  </style>
+
+  <script is:inline>
+  (function() {
+    // ═══════════════════════════════════════════════
+    // PERSONAS
+    // ═══════════════════════════════════════════════
+
+    const P = {
+      liv:    { email: 'liv@test.strikketorget.no',    name: 'Liv',    role: 'buyer',   roleLabel: 'Kjøper' },
+      eline:  { email: 'eline@test.strikketorget.no',  name: 'Eline',  role: 'knitter', roleLabel: 'Strikker' },
+      maja:   { email: 'maja@test.strikketorget.no',    name: 'Maja',   role: 'knitter', roleLabel: 'Strikker' },
+      ingrid: { email: 'ingrid@test.strikketorget.no',  name: 'Ingrid', role: 'knitter', roleLabel: 'Strikker' },
+    };
+
+    // ═══════════════════════════════════════════════
+    // SCENARIOS
+    // ═══════════════════════════════════════════════
+
+    const SCENARIOS = {
+      'commission': {
+        title: 'Strikke-oppdrag',
+        desc: 'Standard oppdragsflyt: forespørsel, tilbud, betaling, ferdigstilling.',
+        track: 'request',
+        personas: ['liv', 'eline'],
+        steps: [
+          {
+            id: 'create-request', actor: 'liv', action: 'create-request',
+            label: 'Opprett forespørsel',
+            desc: 'Liv vil ha en mariusgenser strikket til datteren.',
+            params: { title: 'Mariusgenser i str 2 år', category: 'genser', size_label: '2 år', budget_nok_min: 800, budget_nok_max: 1500, description: 'Klassisk Mariusgenser i hvitt og rødt, str 2 år.' },
+            editable: ['title', 'budget_nok_min', 'budget_nok_max'],
+            viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+          },
+          {
+            id: 'offer-eline', actor: 'eline', action: 'make-offer',
+            label: 'Eline gir tilbud',
+            desc: 'Eline ser oppdraget og sender tilbud.',
+            params: { request_id: '$create-request.id', price_nok: 1200, turnaround_weeks: 3, message: 'Hei! Jeg har strikket mange mariusgensere.' },
+            editable: ['price_nok', 'turnaround_weeks'],
+            viewUrl: (r) => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+          },
+          {
+            id: 'accept', actor: 'liv', action: 'accept-offer',
+            label: 'Aksepter tilbudet',
+            desc: 'Liv velger Elines tilbud.',
+            params: { offer_id: '$offer-eline.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+          },
+          {
+            id: 'pay', actor: 'liv', action: 'pay',
+            label: 'Betal for oppdraget',
+            desc: 'Liv betaler. Prosjekt opprettes automatisk for Eline.',
+            params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+          },
+          {
+            id: 'complete', actor: 'eline', action: 'mark-completed',
+            label: 'Merk som ferdig',
+            desc: 'Eline markerer oppdraget som ferdigstilt. 14-dagers frist starter.',
+            params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+          },
+          {
+            id: 'deliver', actor: 'liv', action: 'confirm-delivery',
+            label: 'Bekreft mottak',
+            desc: 'Liv bekrefter at hun har mottatt genseren. Pengene frigis.',
+            params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+          },
+        ],
+      },
+
+      'commission-yarn': {
+        title: 'Oppdrag + garn + konkurranse',
+        desc: 'Kjøper sender garn, flere strikkere gir tilbud, en vinner.',
+        track: 'request',
+        personas: ['liv', 'eline', 'maja'],
+        steps: [
+          {
+            id: 'create-request', actor: 'liv', action: 'create-request',
+            label: 'Opprett forespørsel med eget garn',
+            desc: 'Liv lager forespørsel og vil sende garnet selv.',
+            params: { title: 'Babyteppe i merinoull', category: 'teppe', size_label: '70x90 cm', budget_nok_min: 600, budget_nok_max: 1200, description: 'Babyteppe i pastell, 70x90 cm.', yarn_provided_by_buyer: true, yarn_preference: 'Sandnes Garn Merino' },
+            editable: ['title', 'budget_nok_min', 'budget_nok_max'],
+            viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+          },
+          {
+            id: 'offer-eline', actor: 'eline', action: 'make-offer',
+            label: 'Eline gir tilbud',
+            desc: 'Eline tilbyr seg å strikke teppet.',
+            params: { request_id: '$create-request.id', price_nok: 900, turnaround_weeks: 4, message: 'Jeg elsker å strikke babyteppe!' },
+            editable: ['price_nok', 'turnaround_weeks'],
+          },
+          {
+            id: 'offer-maja', actor: 'maja', action: 'make-offer',
+            label: 'Maja gir konkurrerende tilbud',
+            desc: 'Maja tilbyr seg også — dyrere men raskere.',
+            params: { request_id: '$create-request.id', price_nok: 1100, turnaround_weeks: 2, message: 'Kan levere på 2 uker!' },
+            editable: ['price_nok', 'turnaround_weeks'],
+          },
+          {
+            id: 'accept', actor: 'liv', action: 'accept-offer',
+            label: 'Aksepter Elines tilbud',
+            desc: 'Liv velger Eline. Majas tilbud avslås automatisk.',
+            params: { offer_id: '$offer-eline.id' },
+            branch: { label: 'Aksepter Maja i stedet', swapRef: 'offer-maja' },
+          },
+          {
+            id: 'pay', actor: 'liv', action: 'pay',
+            label: 'Betal for oppdraget',
+            desc: 'Status: awaiting_yarn (fordi garn sendes av kjøper).',
+            params: { request_id: '$create-request.id' },
+          },
+          {
+            id: 'ship-yarn', actor: 'liv', action: 'ship-yarn',
+            label: 'Send garn til strikker',
+            desc: 'Liv sender garnet med sporing.',
+            params: { request_id: '$create-request.id', tracking_code: 'POSTEN-12345' },
+            editable: ['tracking_code'],
+          },
+          {
+            id: 'receive-yarn', actor: 'eline', action: 'receive-yarn',
+            label: 'Bekreft garn mottatt',
+            desc: 'Eline bekrefter at hun har fått garnet. Prosjekt settes til aktiv.',
+            params: { request_id: '$create-request.id' },
+          },
+          {
+            id: 'complete', actor: 'eline', action: 'mark-completed',
+            label: 'Merk som ferdig',
+            desc: 'Eline markerer oppdraget som ferdig.',
+            params: { request_id: '$create-request.id' },
+          },
+          {
+            id: 'deliver', actor: 'liv', action: 'confirm-delivery',
+            label: 'Bekreft mottak',
+            desc: 'Liv bekrefter levering. Pengene frigis til Eline.',
+            params: { request_id: '$create-request.id' },
+          },
+        ],
+      },
+
+      'listing': {
+        title: 'Annonse & melding',
+        desc: 'Selger oppretter annonse, kjøper sender melding, samtale starter.',
+        track: 'listing',
+        personas: ['eline', 'liv'],
+        steps: [
+          {
+            id: 'create-listing', actor: 'eline', action: 'create-listing',
+            label: 'Opprett annonse',
+            desc: 'Eline legger ut en brukt barnegenser.',
+            params: { title: 'Strikket genser str 3 år', kind: 'pre_loved', category: 'genser', size_label: '3 år', price_nok: 249, condition: 'lite_brukt', description: 'Fin strikket genser i merinoull, lite brukt.' },
+            editable: ['title', 'price_nok'],
+            viewUrl: (r) => `/marked/listing/${r?.id}`,
+          },
+          {
+            id: 'publish', actor: 'eline', action: 'publish-listing',
+            label: 'Publiser annonse',
+            desc: 'Eline publiserer annonsen slik at den blir synlig.',
+            params: { listing_id: '$create-listing.id' },
+            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+          },
+          {
+            id: 'message', actor: 'liv', action: 'send-message',
+            label: 'Liv sender melding',
+            desc: 'Liv finner annonsen og sender en melding.',
+            params: { listing_id: '$create-listing.id', message: 'Hei! Er denne fortsatt tilgjengelig? Kan du sende til Oslo?' },
+            editable: ['message'],
+            viewUrl: (r) => `/marked/meldinger/${r?.conversationId}`,
+          },
+          {
+            id: 'reply-1', actor: 'eline', action: 'reply',
+            label: 'Eline svarer',
+            desc: 'Eline svarer på Livs melding.',
+            params: { conversation_id: '$message.conversationId', message: 'Hei! Ja, den er tilgjengelig. Jeg sender med Posten, 69 kr frakt.' },
+            editable: ['message'],
+            viewUrl: (r) => `/marked/meldinger/${resolve('message', 'conversationId')}`,
+          },
+          {
+            id: 'reply-2', actor: 'liv', action: 'reply',
+            label: 'Liv svarer tilbake',
+            desc: 'Liv fortsetter samtalen.',
+            params: { conversation_id: '$message.conversationId', message: 'Perfekt! Jeg tar den. Kan du sende Vipps-link?' },
+            editable: ['message'],
+            viewUrl: () => `/marked/meldinger/${resolve('message', 'conversationId')}`,
+          },
+        ],
+      },
+    };
+
+    // ═══════════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════════
+
+    let activeScenario = 'commission';
+    let results = {};      // stepId → { ok, data, error }
+    let breakpoints = {};  // stepId → true
+    let running = false;
+    let stateData = null;
+
+    function resolve(stepId, field) {
+      const r = results[stepId];
+      if (!r?.data) return undefined;
+      return r.data[field];
+    }
+
+    function resolveParams(params) {
+      const out = {};
+      for (const [k, v] of Object.entries(params)) {
+        if (typeof v === 'string' && v.startsWith('$')) {
+          const [sid, f] = v.slice(1).split('.');
+          out[k] = resolve(sid, f);
+        } else {
+          out[k] = v;
+        }
+      }
+      return out;
+    }
+
+    function getScenario() { return SCENARIOS[activeScenario]; }
+
+    function isPrevDone(idx) {
+      if (idx === 0) return true;
+      const prev = getScenario().steps[idx - 1];
+      return results[prev.id]?.ok === true;
+    }
+
+    function nextStepIndex() {
+      const steps = getScenario().steps;
+      for (let i = 0; i < steps.length; i++) {
+        if (!results[steps[i].id]?.ok) return i;
+      }
+      return -1;
+    }
+
+    // ═══════════════════════════════════════════════
+    // API
+    // ═══════════════════════════════════════════════
+
+    async function api(body) {
+      const res = await fetch('/api/dev/test-exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      return res.json();
+    }
+
+    async function execStep(step) {
+      const persona = P[step.actor];
+      const editedParams = getEditedParams(step.id, step.params);
+      const params = resolveParams(editedParams);
+      return api({ action: step.action, actor: persona.email, params });
+    }
+
+    async function fetchState() {
+      const s = getScenario();
+      const params = { user_emails: s.personas.map(k => P[k].email) };
+      if (s.track === 'request' && resolve('create-request', 'id')) {
+        params.request_id = resolve('create-request', 'id');
+      }
+      if (s.track === 'listing' && resolve('create-listing', 'id')) {
+        params.listing_id = resolve('create-listing', 'id');
+      }
+      const res = await api({ action: 'get-state', params });
+      if (res.ok) stateData = res.data;
+      return res;
+    }
+
+    async function cleanup() {
+      const params = { clean_notifications: true };
+      const reqId = resolve('create-request', 'id');
+      const listId = resolve('create-listing', 'id');
+      if (reqId) params.request_ids = [reqId];
+      if (listId) params.listing_ids = [listId];
+      return api({ action: 'cleanup', params });
+    }
+
+    // ═══════════════════════════════════════════════
+    // EDITABLE PARAMS
+    // ═══════════════════════════════════════════════
+
+    let editedValues = {};
+
+    function getEditedParams(stepId, defaults) {
+      const edits = editedValues[stepId] || {};
+      return { ...defaults, ...edits };
+    }
+
+    function setEditedParam(stepId, key, value) {
+      if (!editedValues[stepId]) editedValues[stepId] = {};
+      editedValues[stepId][key] = isNaN(Number(value)) ? value : Number(value);
+    }
+
+    // ═══════════════════════════════════════════════
+    // RENDERING
+    // ═══════════════════════════════════════════════
+
+    function renderTabs() {
+      const el = document.getElementById('scenario-tabs');
+      el.innerHTML = Object.entries(SCENARIOS).map(([key, s]) =>
+        `<button data-scenario="${key}" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+          key === activeScenario
+            ? 'bg-charcoal text-linen'
+            : 'text-charcoal/60 hover:bg-sage-100/50'
+        }">${s.title}</button>`
+      ).join('');
+    }
+
+    function renderSteps() {
+      const s = getScenario();
+      const el = document.getElementById('steps-panel');
+
+      el.innerHTML = `
+        <p class="text-sm text-charcoal/55 mb-6">${s.desc}</p>
+        ${s.steps.map((step, i) => renderStep(step, i, s.steps.length)).join('')}
+      `;
+    }
+
+    function renderStep(step, idx, total) {
+      const r = results[step.id];
+      const done = r?.ok === true;
+      const failed = r?.ok === false;
+      const ready = !done && !failed && isPrevDone(idx);
+      const isRunning = running === step.id;
+      const persona = P[step.actor];
+      const hasBP = breakpoints[step.id];
+      const isLast = idx === total - 1;
+
+      const dotClass = done ? 'done' : failed ? 'failed' : isRunning ? 'running' : ready ? 'ready' : '';
+      const lineClass = done ? 'done' : '';
+
+      let editableHtml = '';
+      if ((ready || done) && step.editable?.length) {
+        const params = getEditedParams(step.id, step.params);
+        editableHtml = `<div class="flex flex-wrap gap-2 mt-3 ml-8">
+          ${step.editable.map(key => {
+            const val = params[key] ?? '';
+            const label = key.replace(/_/g, ' ');
+            return `<label class="text-[10px] text-charcoal/50">
+              <span class="uppercase tracking-wider">${label}</span>
+              <input type="text" value="${val}" data-edit-step="${step.id}" data-edit-key="${key}"
+                class="block mt-0.5 w-28 bg-linen border border-sage-500/15 rounded px-2 py-1 text-xs font-mono focus:outline-none focus:border-charcoal/30"
+                ${done ? 'disabled' : ''} />
+            </label>`;
+          }).join('')}
+        </div>`;
+      }
+
+      let resultHtml = '';
+      if (done && r.data) {
+        const preview = JSON.stringify(r.data, null, 2);
+        const short = preview.length > 120 ? preview.slice(0, 120) + '...' : preview;
+        resultHtml = `<details class="mt-3 ml-8">
+          <summary class="text-[10px] text-green-700 font-medium cursor-pointer select-none">&#10003; Utført — vis resultat</summary>
+          <pre class="mt-1 text-[10px] text-charcoal/60 bg-sage-100/30 rounded p-2 overflow-x-auto max-h-32 font-mono">${escHtml(preview)}</pre>
+        </details>`;
+      }
+      if (failed) {
+        resultHtml = `<p class="mt-2 ml-8 text-xs text-red-600">&#10007; ${escHtml(r.error || 'Ukjent feil')}</p>`;
+      }
+
+      const viewUrl = step.viewUrl && done ? step.viewUrl(r.data) : null;
+      let actionsHtml = '';
+      if (ready && !isRunning) {
+        actionsHtml = `<div class="flex items-center gap-2 mt-3 ml-8">
+          <button data-exec="${step.id}" class="px-3 py-1.5 text-[11px] font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">&#9654; Kjør</button>
+          ${step.branch ? `<button data-exec="${step.id}" data-branch="true" class="px-3 py-1.5 text-[11px] font-medium text-charcoal/70 border border-sage-500/15 hover:bg-sage-100/50 rounded-lg transition-colors">${step.branch.label}</button>` : ''}
+        </div>`;
+      }
+      if (isRunning) {
+        actionsHtml = `<p class="mt-3 ml-8 text-xs text-terracotta-500 animate-pulse">Kjører...</p>`;
+      }
+
+      let viewHtml = '';
+      if (viewUrl) {
+        viewHtml = `<a href="${viewUrl}" target="_blank" class="inline-block mt-2 ml-8 text-[10px] text-charcoal/40 hover:text-terracotta-500 transition-colors">Se som ${persona.name} &rarr; ${viewUrl}</a>`;
+      }
+
+      return `
+        <div class="relative pl-11 pb-1 ${!isLast ? 'step-connector ' + lineClass : ''}" data-step-row="${step.id}">
+          <div class="bp-dot ${hasBP ? 'active' : ''}" data-bp="${step.id}" title="Breakpoint"></div>
+          <div class="step-dot ${dotClass}"></div>
+
+          <div class="bg-white rounded-xl border ${ready ? 'border-charcoal/15 shadow-sm' : done ? 'border-sage-500/10' : 'border-sage-500/10 opacity-60'} p-4 mb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="font-mono text-[11px] text-charcoal/30 w-5 text-right shrink-0">${idx + 1}</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full role-${persona.role}">${persona.name} &middot; ${persona.roleLabel}</span>
+              <span class="text-sm font-medium flex-1">${step.label}</span>
+            </div>
+            <p class="text-xs text-charcoal/50 mt-1.5 ml-8">${step.desc}</p>
+            ${editableHtml}
+            ${actionsHtml}
+            ${resultHtml}
+            ${viewHtml}
+          </div>
+        </div>`;
+    }
+
+    function renderState() {
+      const el = document.getElementById('state-panel');
+      const s = getScenario();
+
+      if (!stateData) {
+        el.innerHTML = `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">State Inspector</p>
+          <p class="text-xs text-charcoal/40">Kjør et steg for å se tilstand.</p>
+        </div>`;
+        return;
+      }
+
+      let html = `<div class="space-y-4">`;
+
+      // Request state
+      if (stateData.request) {
+        const req = stateData.request;
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Forespørsel</p>
+          <p class="font-medium text-sm mb-1">${escHtml(req.title)}</p>
+          <p class="mb-2"><span class="state-badge ${req.status}">${req.status}</span></p>
+          <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+            <span class="text-charcoal/40">Budget</span><span class="font-mono">${req.budget_nok_min}–${req.budget_nok_max}</span>
+            <span class="text-charcoal/40">Kategori</span><span>${req.category}</span>
+            <span class="text-charcoal/40">Størrelse</span><span>${req.size_label}</span>
+            <span class="text-charcoal/40">Eget garn</span><span>${req.yarn_provided_by_buyer ? 'Ja' : 'Nei'}</span>
+            ${req.yarn_shipped_at ? `<span class="text-charcoal/40">Garn sendt</span><span>&#10003;</span>` : ''}
+            ${req.yarn_received_at ? `<span class="text-charcoal/40">Garn mottatt</span><span>&#10003;</span>` : ''}
+            ${req.completed_at ? `<span class="text-charcoal/40">Ferdigstilt</span><span>${new Date(req.completed_at).toLocaleDateString('nb')}</span>` : ''}
+            ${req.delivered_at ? `<span class="text-charcoal/40">Levert</span><span>${new Date(req.delivered_at).toLocaleDateString('nb')}</span>` : ''}
+          </div>
+        </div>`;
+      }
+
+      // Offers
+      if (stateData.offers?.length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Tilbud (${stateData.offers.length})</p>
+          <div class="space-y-2">
+            ${stateData.offers.map(o => `
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <div>
+                  <span class="font-medium">${o.profiles?.display_name || '?'}</span>
+                  <span class="text-charcoal/40 ml-1">${o.price_nok} kr &middot; ${o.turnaround_weeks}u</span>
+                </div>
+                <span class="state-badge ${o.status}">${o.status}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+      }
+
+      // Project
+      if (stateData.project) {
+        const proj = stateData.project;
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Prosjekt</p>
+          <p class="text-sm font-medium mb-1">${escHtml(proj.title)}</p>
+          <p><span class="state-badge ${proj.status}">${proj.status}</span></p>
+          ${proj.started_at ? `<p class="text-[11px] text-charcoal/40 mt-1">Startet: ${proj.started_at}</p>` : ''}
+        </div>`;
+      }
+
+      // Listing
+      if (stateData.listing) {
+        const l = stateData.listing;
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Annonse</p>
+          <p class="text-sm font-medium mb-1">${escHtml(l.title)}</p>
+          <p class="mb-1"><span class="state-badge ${l.status}">${l.status}</span></p>
+          <p class="text-[11px] text-charcoal/40">${l.price_nok} kr &middot; ${l.category} &middot; ${l.size_label}</p>
+        </div>`;
+      }
+
+      // Conversations
+      if (stateData.conversations?.length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Meldinger</p>
+          ${stateData.conversations.map(c => `
+            <div class="space-y-1.5">
+              ${(c.marketplace_messages || []).map(m => `
+                <div class="text-[11px]">
+                  <span class="font-medium">${m.sender_id.slice(0, 8)}...</span>
+                  <span class="text-charcoal/50 ml-1">${escHtml(m.body?.slice(0, 60))}</span>
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>`;
+      }
+
+      // Notifications
+      if (stateData.notifications) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Varsler</p>
+          ${Object.entries(stateData.notifications).map(([email, notifs]) => {
+            const name = Object.values(P).find(p => p.email === email)?.name || email;
+            return `<details class="mb-2" ${notifs.length ? 'open' : ''}>
+              <summary class="text-xs font-medium flex items-center gap-2">
+                ${name} <span class="text-charcoal/30 font-mono">${notifs.length}</span>
+              </summary>
+              <div class="mt-1 space-y-1 pl-2 border-l-2 border-sage-500/10">
+                ${notifs.map(n => `<p class="text-[10px] text-charcoal/55">${escHtml(n.title)}</p>`).join('')}
+              </div>
+            </details>`;
+          }).join('')}
+        </div>`;
+      }
+
+      html += `</div>`;
+      el.innerHTML = html;
+    }
+
+    function escHtml(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ═══════════════════════════════════════════════
+    // ACTIONS
+    // ═══════════════════════════════════════════════
+
+    async function doExecuteStep(stepId, useBranch) {
+      const s = getScenario();
+      const step = s.steps.find(st => st.id === stepId);
+      if (!step) return;
+
+      // Handle branch (swap offer reference)
+      let actualStep = step;
+      if (useBranch && step.branch?.swapRef) {
+        actualStep = { ...step, params: { ...step.params, offer_id: `$${step.branch.swapRef}.id` } };
+      }
+
+      running = stepId;
+      renderSteps();
+
+      const res = await execStep(actualStep);
+      results[stepId] = res;
+      running = false;
+
+      await fetchState();
+      renderSteps();
+      renderState();
+    }
+
+    async function doStepNext() {
+      const idx = nextStepIndex();
+      if (idx < 0) return;
+      await doExecuteStep(getScenario().steps[idx].id);
+    }
+
+    async function doRunAll() {
+      const steps = getScenario().steps;
+      for (let i = 0; i < steps.length; i++) {
+        if (results[steps[i].id]?.ok) continue;
+        if (breakpoints[steps[i].id] && i > 0) break; // stop at breakpoint (but not the first step)
+        await doExecuteStep(steps[i].id);
+        if (results[steps[i].id]?.ok === false) break; // stop on error
+      }
+    }
+
+    async function doReset() {
+      if (!confirm('Reset scenario? Sletter testdata fra databasen.')) return;
+      await cleanup();
+      results = {};
+      editedValues = {};
+      stateData = null;
+      renderSteps();
+      renderState();
+    }
+
+    function switchScenario(key) {
+      activeScenario = key;
+      results = {};
+      editedValues = {};
+      stateData = null;
+      renderTabs();
+      renderSteps();
+      renderState();
+    }
+
+    // ═══════════════════════════════════════════════
+    // EVENTS
+    // ═══════════════════════════════════════════════
+
+    document.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-scenario]');
+      if (target) {
+        switchScenario(target.dataset.scenario);
+        return;
+      }
+
+      const exec = e.target.closest('[data-exec]');
+      if (exec && !running) {
+        doExecuteStep(exec.dataset.exec, exec.dataset.branch === 'true');
+        return;
+      }
+
+      const bp = e.target.closest('[data-bp]');
+      if (bp) {
+        const id = bp.dataset.bp;
+        breakpoints[id] = !breakpoints[id];
+        bp.classList.toggle('active', breakpoints[id]);
+        return;
+      }
+    });
+
+    document.addEventListener('input', (e) => {
+      const input = e.target.closest('[data-edit-step]');
+      if (input) {
+        setEditedParam(input.dataset.editStep, input.dataset.editKey, input.value);
+      }
+    });
+
+    document.getElementById('btn-reset')?.addEventListener('click', doReset);
+    document.getElementById('btn-step')?.addEventListener('click', doStepNext);
+    document.getElementById('btn-run')?.addEventListener('click', doRunAll);
+
+    // ═══════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════
+
+    renderTabs();
+    renderSteps();
+    renderState();
+
+  })();
+  </script>
+</Layout>

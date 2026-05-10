@@ -4,16 +4,17 @@ import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
 
 const EMAIL_DOMAIN = '@test.strikketorget.no';
-const ADMIN_EMAIL = 'sam.mathias.weggersen@gmail.com';
+const ADMIN_EMAILS = ['sam.mathias.weggersen@gmail.com', 'ammon.weggersen@gmail.com'];
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const user = await getCurrentUser({ request, cookies });
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user || !ADMIN_EMAILS.includes(user.email ?? '')) {
     return new Response('Forbidden', { status: 403 });
   }
 
   const form = await request.formData();
   const email = form.get('email')?.toString();
+  const next = form.get('next')?.toString() ?? '/marked';
   if (!email?.endsWith(EMAIL_DOMAIN)) {
     return new Response('Only test accounts can be impersonated', { status: 400 });
   }
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email,
-    options: { redirectTo: `${siteUrl}/marked` },
+    options: { redirectTo: `${siteUrl}${next}` },
   });
 
   if (error || !data?.properties?.action_link) {
