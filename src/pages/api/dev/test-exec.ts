@@ -165,7 +165,7 @@ async function handle(
     case 'pay': {
       if (!actorId) throw new Error('Actor required');
       const { data: req } = await db.from('commission_requests')
-        .select('*, commission_offers!commission_requests_awarded_offer_id_fkey(knitter_id, price_nok)')
+        .select('*, commission_offers!commission_requests_awarded_offer_fkey(knitter_id, price_nok)')
         .eq('id', p.request_id)
         .single();
       if (!req) throw new Error('Request not found');
@@ -216,7 +216,7 @@ async function handle(
         .eq('id', p.request_id);
 
       const { data: req } = await db.from('commission_requests')
-        .select('title, commission_offers!commission_requests_awarded_offer_id_fkey(knitter_id)')
+        .select('title, commission_offers!commission_requests_awarded_offer_fkey(knitter_id)')
         .eq('id', p.request_id)
         .single();
 
@@ -305,7 +305,7 @@ async function handle(
         .eq('id', p.request_id);
 
       const { data: req } = await db.from('commission_requests')
-        .select('title, commission_offers!commission_requests_awarded_offer_id_fkey(knitter_id)')
+        .select('title, commission_offers!commission_requests_awarded_offer_fkey(knitter_id)')
         .eq('id', p.request_id)
         .single();
 
