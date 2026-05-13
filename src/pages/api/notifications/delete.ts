@@ -1,17 +1,13 @@
 import type { APIRoute } from 'astro';
-import { createServerSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
+import { buildServiceContext } from '../../../lib/services/context';
+import { deleteNotification } from '../../../lib/services/notifications';
+import { toResponse } from '../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-  const user = await getCurrentUser({ request, cookies });
-  if (!user) return redirect('/logg-inn');
+  const ctx = await buildServiceContext(request, cookies);
+  if (!ctx) return redirect('/logg-inn');
 
   const form = await request.formData();
-  const id = form.get('id')?.toString();
-  if (!id) return new Response('Missing id', { status: 400 });
-
-  const supabase = createServerSupabase({ request, cookies });
-  await supabase.from('notifications').delete().eq('id', id);
-
-  return redirect('/varsler', 303);
+  const result = await deleteNotification(ctx, { notificationId: form.get('id')?.toString() ?? '' });
+  return toResponse(result, redirect);
 };

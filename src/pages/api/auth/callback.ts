@@ -3,7 +3,8 @@ import { createServerSupabase } from '../../../lib/supabase';
 
 export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
   const code = url.searchParams.get('code');
-  const next = url.searchParams.get('next') ?? '/studio';
+  const raw = url.searchParams.get('next') ?? '/studio';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/studio';
 
   if (!code) {
     return redirect('/logg-inn?error=missing_code');

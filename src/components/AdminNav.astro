@@ -1,0 +1,44 @@
+---
+interface Props {
+  current?: string;
+  isAdmin: boolean;
+}
+
+const { current = '', isAdmin } = Astro.props;
+
+const modLinks = [
+  { href: '/admin', label: 'Oversikt', id: 'dashboard' },
+  { href: '/admin/moderering', label: 'Modereringskø', id: 'moderering' },
+  { href: '/admin/rapporter', label: 'Rapporter', id: 'rapporter' },
+];
+
+const adminLinks = [
+  { href: '/admin/brukere', label: 'Brukere', id: 'brukere' },
+  { href: '/admin/moderatorer', label: 'Moderatorer', id: 'moderatorer' },
+  { href: '/admin/utbetalinger', label: 'Utbetalinger', id: 'utbetalinger' },
+  { href: '/admin/logg', label: 'Aktivitetslogg', id: 'logg' },
+];
+---
+
+<nav class="space-y-1">
+  <p class="text-[9px] font-bold uppercase tracking-widest text-charcoal/30 px-3 mb-2">Moderering</p>
+  {modLinks.map(link => (
+    <a href={link.href} class:list={[
+      'block px-3 py-2 text-sm rounded-lg transition-colors',
+      current === link.id ? 'bg-charcoal text-linen font-medium' : 'text-charcoal/70 hover:bg-sage-100/50',
+    ]}>{link.label}</a>
+  ))}
+
+  {isAdmin && (
+    <>
+      <div class="border-t border-sage-500/10 my-3"></div>
+      <p class="text-[9px] font-bold uppercase tracking-widest text-charcoal/30 px-3 mb-2">Admin</p>
+      {adminLinks.map(link => (
+        <a href={link.href} class:list={[
+          'block px-3 py-2 text-sm rounded-lg transition-colors',
+          current === link.id ? 'bg-charcoal text-linen font-medium' : 'text-charcoal/70 hover:bg-sage-100/50',
+        ]}>{link.label}</a>
+      ))}
+    </>
+  )}
+</nav>

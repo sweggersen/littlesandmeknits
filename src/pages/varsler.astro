@@ -8,14 +8,39 @@ if (!user) return Astro.redirect('/logg-inn?next=/varsler');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-const { data: notifications } = await supabase
-  .from('notifications')
-  .select('id, type, title, body, url, read_at, created_at')
-  .order('created_at', { ascending: false })
-  .limit(50);
+const [{ data: notifications }, { data: profile }] = await Promise.all([
+  supabase
+    .from('notifications')
+    .select('id, type, title, body, url, read_at, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50),
+  supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle(),
+]);
 
 const allNotifs = notifications ?? [];
 const hasUnread = allNotifs.some((n) => !n.read_at);
+
+const isStaff = profile?.role === 'admin' || profile?.role === 'moderator';
+let pendingQueueCount = 0;
+let openReportCount = 0;
+if (isStaff) {
+  const [{ count: qc }, { count: rc }] = await Promise.all([
+    supabase
+      .from('moderation_queue')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['pending', 'escalated']),
+    supabase
+      .from('reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'open'),
+  ]);
+  pendingQueueCount = qc ?? 0;
+  openReportCount = rc ?? 0;
+}
 
 const TYPE_ICON: Record<string, string> = {
   new_offer: '💬',
@@ -45,6 +70,28 @@ function timeAgo(dateStr: string): string {
 <Layout title="Varsler" lang="nb">
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      {isStaff && (pendingQueueCount > 0 || openReportCount > 0) && (
+        <div class="mb-6 rounded-2xl border border-amber-500/20 bg-amber-50/50 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-3">Moderering</p>
+          <div class="flex flex-wrap gap-2">
+            {pendingQueueCount > 0 && (
+              <a href="/admin/moderering" class="inline-flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 border border-amber-500/20 hover:border-amber-500/40 transition-colors">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span class="text-sm font-medium">{pendingQueueCount} i modereringskø</span>
+              </a>
+            )}
+            {openReportCount > 0 && (
+              <a href="/admin/rapporter" class="inline-flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 border border-amber-500/20 hover:border-amber-500/40 transition-colors">
+                <span class="text-sm font-medium">{openReportCount} åpne rapporter</span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       <div class="flex items-center justify-between mb-6">
         <h1 class="font-serif text-3xl">Varsler</h1>
         {hasUnread && (

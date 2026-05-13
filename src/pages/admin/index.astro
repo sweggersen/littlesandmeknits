@@ -1,0 +1,59 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../lib/admin-auth';
+import { createServerSupabase } from '../../lib/supabase';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/marked');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const { count: pendingCount } = await supabase
+  .from('moderation_queue')
+  .select('id', { count: 'exact', head: true })
+  .eq('status', 'pending');
+
+const { count: shadowCount } = await supabase
+  .from('moderation_queue')
+  .select('id', { count: 'exact', head: true })
+  .eq('shadow_review', true)
+  .is('shadow_confirmed_at', null)
+  .in('status', ['approved', 'rejected']);
+
+const { count: spotCheckCount } = await supabase
+  .from('moderation_queue')
+  .select('id', { count: 'exact', head: true })
+  .eq('spot_check', true)
+  .is('spot_check_at', null);
+
+const { count: openReports } = await supabase
+  .from('reports')
+  .select('id', { count: 'exact', head: true })
+  .eq('status', 'open');
+
+const stats = [
+  { label: 'Ventende i kø', value: pendingCount ?? 0, href: '/admin/moderering', color: 'terracotta' },
+  { label: 'Skyggevurdering', value: shadowCount ?? 0, href: '/admin/moderering?tab=shadow', color: 'amber' },
+  { label: 'Stikkprøver', value: spotCheckCount ?? 0, href: '/admin/moderering?tab=spot', color: 'blue' },
+  { label: 'Åpne rapporter', value: openReports ?? 0, href: '/admin/rapporter', color: 'red' },
+];
+---
+
+<AdminLayout title="Admin — Oversikt" current="dashboard">
+  <h1 class="font-serif text-2xl mb-6">Oversikt</h1>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    {stats.map(s => (
+      <a href={s.href} class="bg-white rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">{s.label}</p>
+        <p class="font-mono text-3xl tabular-nums">{s.value}</p>
+      </a>
+    ))}
+  </div>
+
+  {(pendingCount ?? 0) > 0 && (
+    <a href="/admin/moderering" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+      Start moderering &rarr;
+    </a>
+  )}
+</AdminLayout>

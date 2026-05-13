@@ -14,7 +14,13 @@ export type NotificationType =
   | 'yarn_received'
   | 'commission_completed'
   | 'commission_delivered'
-  | 'request_expired';
+  | 'request_expired'
+  | 'item_approved'
+  | 'item_rejected'
+  | 'item_reported'
+  | 'moderation_assigned'
+  | 'role_changed'
+  | 'review_received';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -28,6 +34,12 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   commission_completed: 'email_commission_completed',
   commission_delivered: 'email_commission_delivered',
   request_expired: 'email_request_expired',
+  item_approved: 'email_item_approved',
+  item_rejected: 'email_item_rejected',
+  item_reported: 'email_item_approved',
+  moderation_assigned: 'email_item_approved',
+  role_changed: 'email_item_approved',
+  review_received: 'email_review_received',
 };
 
 interface NotifyEnv {

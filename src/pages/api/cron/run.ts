@@ -3,17 +3,21 @@ import { env as cfEnv } from 'cloudflare:workers';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { createStripe } from '../../../lib/stripe';
+import { recalculateTrust } from '../../../lib/trust';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
   const secret = request.headers.get('x-cron-secret');
   const expectedSecret = (cfEnv as any).CRON_SECRET ?? env.CRON_SECRET;
-  if (!secret || secret !== expectedSecret) {
+  const encoder = new TextEncoder();
+  const a = encoder.encode(secret ?? '');
+  const b = encoder.encode(expectedSecret ?? '');
+  if (!secret || a.byteLength !== b.byteLength || !(await crypto.subtle.timingSafeEqual(a, b))) {
     return new Response('Unauthorized', { status: 401 });
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const results = { expired: 0, released: 0, nudged: 0 };
+  const results: Record<string, number> = { expired: 0, released: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, staleShadowAlerts: 0 };
 
   // 1. Expire open requests older than 30 days with no offers
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000).toISOString();
@@ -61,7 +65,11 @@ export const POST: APIRoute = async ({ request }) => {
     const stripe = createStripe(env.STRIPE_SECRET_KEY);
     for (const req of releasable) {
       if (req.stripe_payment_intent_id) {
-        try { await stripe.paymentIntents.capture(req.stripe_payment_intent_id); } catch {}
+        try {
+          await stripe.paymentIntents.capture(req.stripe_payment_intent_id);
+        } catch (e) {
+          console.error(`Stripe capture failed for PI ${req.stripe_payment_intent_id}`, e);
+        }
       }
 
       await admin
@@ -134,6 +142,81 @@ export const POST: APIRoute = async ({ request }) => {
         results.nudged++;
       }
     }
+  }
+
+  // 4. Reveal reviews after review deadline (both parties visible even if one didn't submit)
+  const { data: pastDeadline } = await admin
+    .from('commission_requests')
+    .select('id')
+    .eq('status', 'delivered')
+    .lt('review_deadline_at', now)
+    .not('review_deadline_at', 'is', null);
+
+  if (pastDeadline?.length) {
+    for (const req of pastDeadline) {
+      const { data: reviews } = await admin
+        .from('transaction_reviews')
+        .select('id, visible')
+        .eq('commission_request_id', req.id)
+        .eq('visible', false);
+
+      if (reviews?.length) {
+        await admin
+          .from('transaction_reviews')
+          .update({ visible: true })
+          .eq('commission_request_id', req.id);
+        results.reviewsRevealed += reviews.length;
+      }
+    }
+
+    await admin
+      .from('commission_requests')
+      .update({ review_deadline_at: null })
+      .in('id', pastDeadline.map(r => r.id));
+  }
+
+  // 5. Recalculate trust scores for recently active users (buyers + knitters)
+  const oneDayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+  const [{ data: recentBuyers }, { data: recentKnitters }] = await Promise.all([
+    admin.from('commission_requests').select('buyer_id').gte('updated_at', oneDayAgo).limit(50),
+    admin.from('commission_offers').select('knitter_id').gte('updated_at', oneDayAgo).limit(50),
+  ]);
+
+  const activeUserIds = [...new Set([
+    ...(recentBuyers ?? []).map(r => r.buyer_id),
+    ...(recentKnitters ?? []).map(r => r.knitter_id),
+  ])];
+  for (const uid of activeUserIds) {
+    await recalculateTrust(admin, uid);
+    results.trustRecalculated++;
+  }
+
+  // 6. Alert admins about stale shadow reviews (> 48h without confirmation)
+  const twoDaysAgo = new Date(Date.now() - 48 * 3600_000).toISOString();
+  const { data: staleShadows } = await admin
+    .from('moderation_queue')
+    .select('id')
+    .eq('shadow_review', true)
+    .is('shadow_confirmed_at', null)
+    .lt('created_at', twoDaysAgo)
+    .in('status', ['approved', 'rejected']);
+
+  if (staleShadows?.length) {
+    const { data: admins } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'admin');
+
+    for (const a of admins ?? []) {
+      await createNotification(admin, {
+        userId: a.id,
+        type: 'moderation_assigned',
+        title: `${staleShadows.length} skyggevurdering${staleShadows.length === 1 ? '' : 'er'} venter`,
+        body: 'Skyggevurderinger har ventet over 48 timer på bekreftelse.',
+        url: '/admin/moderering',
+      }, env);
+    }
+    results.staleShadowAlerts = staleShadows.length;
   }
 
   return new Response(JSON.stringify(results), {

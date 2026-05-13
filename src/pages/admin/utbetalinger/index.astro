@@ -1,0 +1,93 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/admin');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: payouts } = await admin
+  .from('moderator_payouts')
+  .select('*, profiles(display_name)')
+  .order('created_at', { ascending: false })
+  .limit(100);
+
+const allPayouts = payouts ?? [];
+const pendingPayouts = allPayouts.filter(p => p.status === 'pending');
+const paidPayouts = allPayouts.filter(p => p.status === 'paid');
+
+const totalPending = pendingPayouts.reduce((s, p) => s + (p.amount_nok ?? 0), 0);
+
+const now = new Date();
+const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+const periodStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
+---
+
+<AdminLayout title="Utbetalinger" current="utbetalinger" adminOnly>
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="font-serif text-2xl">Utbetalinger</h1>
+    {!hasCurrentPeriod && (
+      <form method="post" action="/api/admin/payouts/create" data-astro-reload>
+        <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-lg text-xs font-medium hover:bg-terracotta-500 transition-colors">
+          Generer for denne måneden
+        </button>
+      </form>
+    )}
+  </div>
+
+  {totalPending > 0 && (
+    <div class="bg-amber-50 rounded-xl border border-amber-200 p-4 mb-6">
+      <p class="text-sm"><strong>{pendingPayouts.length}</strong> ventende utbetalinger — totalt <strong>{totalPending.toFixed(2)} NOK</strong></p>
+    </div>
+  )}
+
+  {allPayouts.length === 0 ? (
+    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+      <p class="text-sm text-charcoal/45">Ingen utbetalinger generert ennå.</p>
+    </div>
+  ) : (
+    <div class="bg-white rounded-xl border border-sage-500/10 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-sage-500/10">
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Moderator</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Periode</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Vurderinger</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Beløp</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Status</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {allPayouts.map(p => (
+            <tr class="border-b border-sage-500/5 hover:bg-sage-100/20 transition-colors">
+              <td class="px-4 py-3 font-medium">{p.profiles?.display_name ?? anonymizeUser(p.moderator_id)}</td>
+              <td class="px-4 py-3 font-mono text-xs">{p.period_start} — {p.period_end}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{p.review_count}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{p.amount_nok?.toFixed(2)} NOK</td>
+              <td class="px-4 py-3">
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                  p.status === 'pending' ? 'text-amber-600 bg-amber-50' : p.status === 'paid' ? 'text-sage-700 bg-sage-100' : 'text-charcoal/40 bg-oatmeal/60',
+                ]}>{p.status === 'pending' ? 'Ventende' : p.status === 'paid' ? 'Betalt' : p.status}</span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                {p.status === 'pending' && (
+                  <form method="post" action="/api/admin/payouts/mark-paid" data-astro-reload class="inline">
+                    <input type="hidden" name="payout_id" value={p.id} />
+                    <button type="submit" class="text-[10px] text-sage-700 hover:text-sage-900 font-medium">Merk betalt</button>
+                  </form>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>

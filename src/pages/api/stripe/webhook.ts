@@ -30,11 +30,25 @@ export const POST: APIRoute = async ({ request }) => {
     // ── Marketplace listing fee ──────────────────────────────────
     const listingId = session.metadata?.listing_id;
     if (listingId && session.metadata?.type === 'listing_fee') {
+      const sellerId = session.metadata?.seller_id;
+
+      // Check seller trust tier for auto-approve
+      let autoApprove = false;
+      if (sellerId) {
+        const { data: seller } = await supabase
+          .from('profiles')
+          .select('trust_tier')
+          .eq('id', sellerId)
+          .maybeSingle();
+        autoApprove = seller?.trust_tier === 'trusted';
+      }
+
+      const newStatus = autoApprove ? 'active' : 'pending_review';
       const { error } = await supabase
         .from('listings')
         .update({
-          status: 'active',
-          published_at: new Date().toISOString(),
+          status: newStatus,
+          published_at: autoApprove ? new Date().toISOString() : null,
           listing_fee_session_id: session.id,
           listing_fee_nok: session.amount_total ? Math.round(session.amount_total / 100) : 0,
         })
@@ -44,6 +58,15 @@ export const POST: APIRoute = async ({ request }) => {
         console.error('Listing fee publish failed', error, { listingId });
         return new Response('DB error', { status: 500 });
       }
+
+      if (!autoApprove && sellerId) {
+        await supabase.from('moderation_queue').insert({
+          item_type: 'listing',
+          item_id: listingId,
+          submitter_id: sellerId,
+        });
+      }
+
       return new Response('ok', { status: 200 });
     }
 

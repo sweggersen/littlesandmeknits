@@ -9,7 +9,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const form = await request.formData();
   const email = form.get('email')?.toString();
-  const next = form.get('next')?.toString() ?? '/marked';
+  const rawNext = form.get('next')?.toString() ?? '/marked';
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/marked';
 
   if (!email) {
     return new Response('Email required', { status: 400 });
@@ -59,6 +60,17 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   if (verifyErr) {
     return new Response(`Verify failed: ${verifyErr.message}`, { status: 500 });
+  }
+
+  // Auto-assign roles for known dev accounts
+  const DEV_ROLES: Record<string, string> = {
+    'sam.mathias.weggersen@gmail.com': 'admin',
+    'nora@test.strikketorget.no': 'admin',
+    'kari@test.strikketorget.no': 'moderator',
+  };
+  const devRole = DEV_ROLES[email.toLowerCase()];
+  if (devRole && data.user?.id) {
+    await admin.from('profiles').update({ role: devRole }).eq('id', data.user.id);
   }
 
   return redirect(next, 303);

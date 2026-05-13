@@ -1,0 +1,277 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../../lib/admin-auth';
+import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { computeConfidenceScore, getReviewStats } from '../../../lib/moderation';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { projectPhotoUrl } from '../../../lib/storage';
+import { CATEGORY_LABEL } from '../../../lib/labels';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/marked');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/admin/moderering');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: queueItem } = await supabase
+  .from('moderation_queue')
+  .select('*')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!queueItem) return Astro.redirect('/admin/moderering');
+
+// Fetch submitter profile
+const { data: submitter } = await admin
+  .from('profiles')
+  .select('id, stripe_onboarded, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+  .eq('id', queueItem.submitter_id)
+  .single();
+
+// Fetch the actual item
+let itemData: any = null;
+if (queueItem.item_type === 'listing') {
+  const { data } = await admin.from('listings').select('*').eq('id', queueItem.item_id).maybeSingle();
+  itemData = data;
+} else {
+  const { data } = await admin.from('commission_requests').select('*').eq('id', queueItem.item_id).maybeSingle();
+  itemData = data;
+}
+
+// Fetch listing photos
+let photoUrls: string[] = [];
+if (queueItem.item_type === 'listing') {
+  const { data: photoRows } = await admin
+    .from('listing_photos')
+    .select('path, position')
+    .eq('listing_id', queueItem.item_id)
+    .order('position');
+  const photos = (photoRows ?? []).length > 0
+    ? photoRows!
+    : itemData?.hero_photo_path
+      ? [{ path: itemData.hero_photo_path, position: 0 }]
+      : [];
+  photoUrls = photos.map(p => projectPhotoUrl(p.path)).filter(Boolean) as string[];
+}
+
+// Compute confidence score
+const reviewStats = submitter ? await getReviewStats(admin, submitter.id) : { avg_rating: 0, review_count: 0 };
+const confidence = submitter && itemData
+  ? computeConfidenceScore(submitter, {
+      title: itemData.title,
+      description: itemData.description,
+      price_nok: itemData.price_nok,
+      budget_nok_min: itemData.budget_nok_min,
+      budget_nok_max: itemData.budget_nok_max,
+      category: itemData.category,
+    }, reviewStats)
+  : { total: 0, breakdown: [] };
+
+// Previous moderation history for submitter
+const { data: prevQueue } = await supabase
+  .from('moderation_queue')
+  .select('id, item_type, status, decision_at')
+  .eq('submitter_id', queueItem.submitter_id)
+  .neq('id', id)
+  .in('status', ['approved', 'rejected'])
+  .order('decision_at', { ascending: false })
+  .limit(10);
+
+const isAdmin = auth.role === 'admin';
+const isShadowPending = queueItem.shadow_review && !queueItem.shadow_confirmed_at && ['approved', 'rejected'].includes(queueItem.status);
+const isSpotCheckPending = queueItem.spot_check && !queueItem.spot_check_at && ['approved', 'rejected'].includes(queueItem.status);
+const canDecide = ['pending', 'assigned', 'escalated'].includes(queueItem.status) && queueItem.submitter_id !== auth.user.id;
+
+function scoreColor(s: number) {
+  if (s >= 60) return 'text-sage-700 bg-sage-100';
+  if (s >= 30) return 'text-amber-700 bg-amber-50';
+  return 'text-red-700 bg-red-50';
+}
+---
+
+<AdminLayout title="Vurder element" current="moderering">
+  <a href="/admin/moderering" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-4 inline-block">&larr; Tilbake til kø</a>
+
+  <div class="grid lg:grid-cols-[1fr_340px] gap-6">
+    <!-- Left: Item details -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{queueItem.item_type === 'listing' ? 'Annonse' : 'Oppdrag'}</span>
+            {queueItem.submitter_id === auth.user.id && (
+              <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Ditt eget — kan ikke vurdere</span>
+            )}
+          </div>
+          <a href={queueItem.item_type === 'listing' ? `/marked/listing/${queueItem.item_id}` : `/marked/oppdrag/${queueItem.item_id}`} target="_blank" class="text-[10px] font-medium text-charcoal/50 hover:text-terracotta-500 transition-colors border border-sage-500/15 rounded-lg px-2.5 py-1">
+            Se offentlig visning &nearr;
+          </a>
+        </div>
+
+        {itemData ? (
+          <div>
+            <h2 class="font-serif text-xl mb-2">{itemData.title}</h2>
+            {photoUrls.length > 0 && (
+              <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+                {photoUrls.map((url, i) => (
+                  <a href={url} target="_blank" rel="noopener" class="shrink-0">
+                    <img src={url} alt={`Bilde ${i + 1}`} class="w-24 h-24 object-cover rounded-lg border border-sage-500/10" loading="lazy" />
+                  </a>
+                ))}
+              </div>
+            )}
+            <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Kategori</span>
+                <p>{CATEGORY_LABEL[itemData.category] ?? itemData.category}</p>
+              </div>
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Størrelse</span>
+                <p>{itemData.size_label}</p>
+              </div>
+              {itemData.price_nok != null && (
+                <div>
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Pris</span>
+                  <p class="font-mono">{itemData.price_nok} NOK</p>
+                </div>
+              )}
+              {itemData.budget_nok_min != null && (
+                <div>
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Budsjett</span>
+                  <p class="font-mono">{itemData.budget_nok_min}–{itemData.budget_nok_max} NOK</p>
+                </div>
+              )}
+            </div>
+            {itemData.description && (
+              <div class="bg-linen rounded-lg p-3">
+                <p class="text-sm text-charcoal/75 whitespace-pre-line">{itemData.description}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p class="text-sm text-charcoal/45">Element ikke funnet.</p>
+        )}
+      </div>
+
+      <!-- Decision form -->
+      {canDecide && (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+          <h3 class="font-medium text-sm mb-3">Vurdering</h3>
+          <form method="post" action="/api/admin/moderation/review" data-astro-reload class="space-y-3">
+            <input type="hidden" name="queue_id" value={queueItem.id} />
+            <div class="flex gap-2">
+              <button type="submit" name="decision" value="approve" class="flex-1 bg-sage-500 text-white px-4 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-600 transition-colors">Godkjenn</button>
+              <button type="submit" name="decision" value="reject" class="flex-1 bg-red-500 text-white px-4 py-2.5 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors">Avvis</button>
+              <button type="submit" name="decision" value="escalate" class="px-4 py-2.5 border border-sage-500/15 rounded-lg text-xs font-medium text-charcoal/60 hover:bg-sage-100/50 transition-colors">Eskaler</button>
+            </div>
+            <label class="block">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Avvisningsgrunn (valgfritt)</span>
+              <input name="rejection_reason" type="text" maxlength="500" placeholder="F.eks. ikke et strikkeprodukt" class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            </label>
+            <label class="block">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Interne notater</span>
+              <textarea name="internal_notes" rows="2" maxlength="1000" class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+            </label>
+          </form>
+        </div>
+      )}
+
+      <!-- Shadow confirm (admin only) -->
+      {isAdmin && isShadowPending && (
+        <div class="bg-amber-50 rounded-xl border border-amber-200 p-5">
+          <h3 class="font-medium text-sm mb-1">Skyggevurdering — bekreft moderatorens avgjørelse</h3>
+          <p class="text-xs text-charcoal/55 mb-3">Moderator valgte: <strong>{queueItem.status === 'approved' ? 'Godkjent' : 'Avvist'}</strong></p>
+          <form method="post" action="/api/admin/moderation/shadow-confirm" data-astro-reload class="flex gap-2">
+            <input type="hidden" name="queue_id" value={queueItem.id} />
+            <button type="submit" name="action" value="confirm" class="px-4 py-2 bg-sage-500 text-white rounded-lg text-xs font-medium">Bekreft</button>
+            <button type="submit" name="action" value="override" class="px-4 py-2 bg-red-500 text-white rounded-lg text-xs font-medium">Overstyr</button>
+          </form>
+        </div>
+      )}
+
+      <!-- Spot check (admin only) -->
+      {isAdmin && isSpotCheckPending && (
+        <div class="bg-blue-50 rounded-xl border border-blue-200 p-5">
+          <h3 class="font-medium text-sm mb-1">Stikkprøve</h3>
+          <p class="text-xs text-charcoal/55 mb-3">Moderator valgte: <strong>{queueItem.status === 'approved' ? 'Godkjent' : 'Avvist'}</strong></p>
+          <form method="post" action="/api/admin/moderation/spot-check" data-astro-reload class="flex gap-2">
+            <input type="hidden" name="queue_id" value={queueItem.id} />
+            <button type="submit" name="action" value="agree" class="px-4 py-2 bg-sage-500 text-white rounded-lg text-xs font-medium">Enig</button>
+            <button type="submit" name="action" value="disagree" class="px-4 py-2 bg-red-500 text-white rounded-lg text-xs font-medium">Uenig</button>
+          </form>
+        </div>
+      )}
+    </div>
+
+    <!-- Right: Score + Submitter -->
+    <div class="space-y-4">
+      <!-- Confidence score -->
+      <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tillitsscore</p>
+        <div class="flex items-center gap-3 mb-3">
+          <span class:list={['font-mono text-3xl font-bold tabular-nums rounded-lg px-3 py-1', scoreColor(confidence.total)]}>
+            {confidence.total}
+          </span>
+          <span class="text-xs text-charcoal/40">/ 100</span>
+        </div>
+        <div class="space-y-1">
+          {confidence.breakdown.map(b => (
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-charcoal/55">{b.label}</span>
+              <span class:list={['font-mono tabular-nums', b.points < 0 ? 'text-red-600' : b.points > 0 ? 'text-sage-700' : 'text-charcoal/30']}>
+                {b.points > 0 ? '+' : ''}{b.points}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Submitter profile -->
+      {submitter && (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Innmelder</p>
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-8 h-8 rounded-full bg-sage-100 flex items-center justify-center">
+              <span class="font-serif text-sm text-sage-700">#</span>
+            </div>
+            <div>
+              <p class="text-sm font-medium">{anonymizeUser(submitter.id)}</p>
+              <p class="text-[10px] text-charcoal/40">
+                {submitter.trust_tier} · score {submitter.trust_score} · {submitter.total_completed_transactions} fullførte
+              </p>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-1 text-[11px]">
+            <span class="text-charcoal/40">Registrert</span>
+            <span>{new Date(submitter.created_at).toLocaleDateString('nb-NO')}</span>
+            <span class="text-charcoal/40">Stripe</span>
+            <span>{submitter.stripe_onboarded ? 'Verifisert' : 'Nei'}</span>
+            <span class="text-charcoal/40">Avvisninger</span>
+            <span class:list={[submitter.total_rejections > 0 ? 'text-red-600 font-medium' : '']}>{submitter.total_rejections}</span>
+          </div>
+        </div>
+      )}
+
+      <!-- Previous history -->
+      {prevQueue && prevQueue.length > 0 && (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tidligere vurderinger</p>
+          <div class="space-y-1">
+            {prevQueue.map(pq => (
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-charcoal/55">{pq.item_type === 'listing' ? 'Annonse' : 'Oppdrag'}</span>
+                <span class:list={[pq.status === 'approved' ? 'text-sage-700' : 'text-red-600']}>
+                  {pq.status === 'approved' ? 'Godkjent' : 'Avvist'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</AdminLayout>

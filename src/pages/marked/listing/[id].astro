@@ -1,9 +1,12 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceNav from '../../../components/MarketplaceNav.astro';
-import { createServerSupabase } from '../../../lib/supabase';
+import ReportButton from '../../../components/ReportButton.astro';
+import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
+import { env } from 'cloudflare:workers';
+import { KIND_LABEL, LISTING_STATUS, CONDITION_LABEL } from '../../../lib/labels';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/marked');
@@ -11,16 +14,29 @@ if (!id) return Astro.redirect('/marked');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 
-const { data: listing } = await supabase
+let { data: listing } = await supabase
   .from('listings')
   .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
   .eq('id', id)
   .maybeSingle();
 
+const { data: viewerProfile } = user ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle() : { data: null };
+const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
+
+if (!listing && isStaff) {
+  const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data } = await admin
+    .from('listings')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+    .eq('id', id)
+    .maybeSingle();
+  listing = data;
+}
+
 if (!listing) return Astro.redirect('/marked');
 
 const isOwner = user?.id === listing.seller_id;
-if (!isOwner && listing.status !== 'active') return Astro.redirect('/marked');
+if (!isOwner && !isStaff && listing.status !== 'active') return Astro.redirect('/marked');
 
 const [{ data: sellerProfile }, { data: photoRows }] = await Promise.all([
   supabase.from('profiles').select('display_name, avatar_path, location, seller_tags').eq('id', listing.seller_id).maybeSingle(),
@@ -35,11 +51,6 @@ const photos = (photoRows ?? []).length > 0
 const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as string[];
 
 const justPublished = Astro.url.searchParams.get('published') === '1';
-const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
-const STATUS_LABEL: Record<string, string> = { draft: 'Utkast', active: 'Aktiv', sold: 'Solgt', removed: 'Fjernet' };
-const CONDITION_LABEL: Record<string, string> = {
-  som_ny: 'Som ny', lite_brukt: 'Lite brukt', brukt: 'Brukt', slitt: 'Slitt',
-};
 ---
 
 <Layout title={`${listing.title} — Strikketorget`} lang="nb">
@@ -52,9 +63,22 @@ const CONDITION_LABEL: Record<string, string> = {
         </div>
       )}
 
-      {isOwner && listing.status !== 'active' && (
+      {isOwner && listing.status === 'pending_review' && (
+        <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 mb-6 text-sm">
+          Annonsen din er under vurdering. Den blir synlig når den er godkjent.
+        </div>
+      )}
+
+      {isOwner && listing.status === 'rejected' && (
+        <div class="bg-red-50 text-red-900 rounded-2xl p-4 mb-6 text-sm">
+          Annonsen ble avvist. {listing.moderation_notes ? `Grunn: ${listing.moderation_notes}` : 'Innholdet oppfyller ikke retningslinjene våre.'}
+          Annonsegebyret er refundert.
+        </div>
+      )}
+
+      {isOwner && listing.status !== 'active' && listing.status !== 'pending_review' && listing.status !== 'rejected' && (
         <div class="inline-block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 bg-oatmeal/60 rounded-full px-3 py-1 mb-4">
-          {STATUS_LABEL[listing.status]}
+          {LISTING_STATUS[listing.status]}
         </div>
       )}
 
@@ -265,6 +289,12 @@ const CONDITION_LABEL: Record<string, string> = {
             </form>
           )}
 
+          {!isOwner && user && listing.status === 'active' && (
+            <div class="mt-4 text-right">
+              <ReportButton targetType="listing" targetId={listing.id} />
+            </div>
+          )}
+
           <a href={`/marked/selger/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
             {sellerProfile?.avatar_path ? (
               <img src={projectPhotoUrl(sellerProfile.avatar_path)!} alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />
@@ -376,7 +406,11 @@ const CONDITION_LABEL: Record<string, string> = {
       urls.forEach((url, i) => {
         const btn = document.createElement('button');
         btn.className = `shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-colors ${i === current ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'}`;
-        btn.innerHTML = `<img src="${url}" class="w-full h-full object-cover" />`;
+        btn.textContent = '';
+        const img = document.createElement('img');
+        img.src = url;
+        img.className = 'w-full h-full object-cover';
+        btn.appendChild(img);
         btn.addEventListener('click', () => showLightbox(i));
         lbThumbs.appendChild(btn);
       });

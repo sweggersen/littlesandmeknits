@@ -2,6 +2,7 @@
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceNav from '../../../components/MarketplaceNav.astro';
 import { createServerSupabase } from '../../../lib/supabase';
+import { CATEGORY_LABEL } from '../../../lib/labels';
 
 const url = Astro.url;
 const category = url.searchParams.get('kategori');
@@ -17,10 +18,6 @@ if (category) q = q.eq('category', category);
 
 const { data: requests } = await q.limit(40);
 
-const CATEGORY_LABEL: Record<string, string> = {
-  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
-  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
-};
 ---
 
 <Layout title="Strikk for meg — Strikketorget" lang="nb">

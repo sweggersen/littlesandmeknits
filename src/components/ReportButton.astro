@@ -1,0 +1,78 @@
+---
+interface Props {
+  targetType: string;
+  targetId: string;
+}
+
+const { targetType, targetId } = Astro.props;
+const formId = `report-${targetId}`;
+---
+
+<div class="relative inline-block" data-report-wrapper>
+  <button
+    type="button"
+    class="text-xs text-charcoal/35 hover:text-terracotta-500 transition-colors"
+    data-report-toggle
+  >
+    Rapporter
+  </button>
+
+  <div class="hidden absolute right-0 bottom-full mb-2 w-64 bg-white rounded-xl border border-sage-500/15 shadow-lg p-4 z-20" data-report-dropdown>
+    <p class="text-xs font-bold uppercase tracking-widest text-charcoal/40 mb-2">Rapporter innhold</p>
+    <form id={formId} data-report-form class="space-y-2">
+      <input type="hidden" name="target_type" value={targetType} />
+      <input type="hidden" name="target_id" value={targetId} />
+      <select name="reason" required class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500">
+        <option value="">Velg grunn…</option>
+        <option value="scam">Svindel</option>
+        <option value="inappropriate">Upassende innhold</option>
+        <option value="wrong_category">Feil kategori</option>
+        <option value="spam">Spam</option>
+        <option value="other">Annet</option>
+      </select>
+      <textarea name="description" rows="2" maxlength="500" placeholder="Beskriv problemet (valgfritt)…" class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+      <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors">Send rapport</button>
+      <p class="text-[10px] text-charcoal/40 hidden" data-report-status></p>
+    </form>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-report-wrapper]').forEach(wrapper => {
+    const toggle = wrapper.querySelector('[data-report-toggle]') as HTMLButtonElement;
+    const dropdown = wrapper.querySelector('[data-report-dropdown]') as HTMLElement;
+    const form = wrapper.querySelector('[data-report-form]') as HTMLFormElement;
+    const status = wrapper.querySelector('[data-report-status]') as HTMLElement;
+
+    toggle.addEventListener('click', () => {
+      dropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrapper.contains(e.target as Node)) dropdown.classList.add('hidden');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const body = new FormData(form);
+      try {
+        const res = await fetch('/api/report', { method: 'POST', body, credentials: 'same-origin' });
+        const data = await res.json();
+        if (data.ok) {
+          status.textContent = 'Rapport sendt. Takk!';
+          status.classList.remove('hidden', 'text-red-600');
+          status.classList.add('text-sage-700');
+          form.querySelector('button[type="submit"]')!.setAttribute('disabled', '');
+        } else if (data.error === 'already_reported') {
+          status.textContent = 'Du har allerede rapportert dette.';
+          status.classList.remove('hidden');
+          status.classList.add('text-red-600');
+        }
+      } catch {
+        status.textContent = 'Noe gikk galt. Prøv igjen.';
+        status.classList.remove('hidden');
+        status.classList.add('text-red-600');
+      }
+    });
+  });
+</script>

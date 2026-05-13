@@ -4,6 +4,8 @@ import { getCurrentUser } from '../../lib/auth';
 import { createAdminSupabase } from '../../lib/supabase';
 import { env } from 'cloudflare:workers';
 
+if (import.meta.env.PROD) return Astro.redirect('/marked');
+
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user || user.email !== 'ammon.weggersen@gmail.com') {
   return Astro.redirect('/marked');

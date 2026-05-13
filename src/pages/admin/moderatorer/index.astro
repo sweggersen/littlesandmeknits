@@ -1,0 +1,80 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/admin');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: mods } = await admin
+  .from('moderator_stats')
+  .select('*, profiles(display_name)')
+  .order('total_reviews', { ascending: false });
+
+const allMods = mods ?? [];
+
+function approvalRate(m: any) {
+  if (!m.total_reviews) return '–';
+  return `${Math.round((m.total_approvals / m.total_reviews) * 100)}%`;
+}
+
+function rateFlag(m: any) {
+  if (m.total_reviews >= 20 && m.total_approvals / m.total_reviews > 0.98) return true;
+  return false;
+}
+---
+
+<AdminLayout title="Moderatorer" current="moderatorer" adminOnly>
+  <h1 class="font-serif text-2xl mb-6">Moderatorer</h1>
+
+  {allMods.length === 0 ? (
+    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+      <p class="text-sm text-charcoal/45">Ingen moderatorer registrert ennå.</p>
+    </div>
+  ) : (
+    <div class="bg-white rounded-xl border border-sage-500/10 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-sage-500/10">
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Moderator</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Totalt</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Godkjent</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Rate</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Overstyr.</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Mnd.</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">NOK/vurd.</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Totalt NOK</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allMods.map(m => (
+            <tr class:list={['border-b border-sage-500/5', rateFlag(m) ? 'bg-red-50/50' : 'hover:bg-sage-100/20']} title={rateFlag(m) ? 'Høy godkjenningsrate — mulig misbruk' : ''}>
+              <td class="px-4 py-3">
+                <a href={`/admin/brukere/${m.user_id}`} class="font-medium hover:text-terracotta-500 transition-colors">
+                  {m.profiles?.display_name ?? anonymizeUser(m.user_id)}
+                </a>
+                {m.total_reviews < 50 && (
+                  <span class="text-[10px] text-amber-600 ml-1">Skygge</span>
+                )}
+                {rateFlag(m) && (
+                  <span class="text-[10px] text-red-600 font-bold ml-1">⚠</span>
+                )}
+              </td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{m.total_reviews}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{m.total_approvals}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{approvalRate(m)}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{m.shadow_overrides ?? 0}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{m.current_month_reviews}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{m.rate_nok_per_review?.toFixed(2) ?? '–'}</td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{m.total_earned_nok?.toFixed(2) ?? '0'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>

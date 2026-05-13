@@ -1,0 +1,151 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { getReviewStats } from '../../../lib/moderation';
+import { computeTrustScore, determineTier } from '../../../lib/trust';
+import { anonymizeUser, staffOrAnon } from '../../../lib/anonymize';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/admin');
+
+const userId = Astro.params.id;
+if (!userId) return Astro.redirect('/admin/brukere');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: profile } = await admin
+  .from('profiles')
+  .select('id, display_name, role, stripe_onboarded, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+  .eq('id', userId)
+  .single();
+
+if (!profile) return Astro.redirect('/admin/brukere');
+
+const reviewStats = await getReviewStats(admin, userId);
+const trustScore = computeTrustScore(profile, reviewStats);
+const trustTier = determineTier(trustScore, profile);
+
+const { data: queueHistory } = await admin
+  .from('moderation_queue')
+  .select('id, item_type, status, decision_at')
+  .eq('submitter_id', userId)
+  .in('status', ['approved', 'rejected'])
+  .order('decision_at', { ascending: false })
+  .limit(10);
+
+const { data: reports } = await admin
+  .from('reports')
+  .select('id, reason, status, created_at')
+  .eq('target_id', userId)
+  .order('created_at', { ascending: false })
+  .limit(10);
+
+const TIER_LABEL: Record<string, string> = { new: 'Ny', established: 'Etablert', trusted: 'Tillitsfull' };
+const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderator', ambassador: 'Ambassadør' };
+
+function tierColor(tier: string) {
+  if (tier === 'trusted') return 'text-sage-700 bg-sage-100';
+  if (tier === 'established') return 'text-amber-700 bg-amber-50';
+  return 'text-charcoal/55 bg-oatmeal/60';
+}
+---
+
+<AdminLayout title={`Bruker — ${staffOrAnon({ id: userId, role: profile.role, display_name: profile.display_name })}`} current="brukere" adminOnly>
+  <a href="/admin/brukere" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-4 inline-block">&larr; Tilbake</a>
+
+  <div class="grid lg:grid-cols-[1fr_340px] gap-6">
+    <div class="space-y-4">
+      <!-- Profile card -->
+      <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
+            <span class="font-serif text-lg text-sage-700">#</span>
+          </div>
+          <div>
+            <h1 class="font-serif text-xl">{staffOrAnon({ id: userId, role: profile.role, display_name: profile.display_name })}</h1>
+            <div class="flex items-center gap-2 mt-1">
+              {profile.role && (
+                <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 rounded-full px-2 py-0.5">{ROLE_LABEL[profile.role] ?? profile.role}</span>
+              )}
+              <span class:list={['text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5', tierColor(trustTier)]}>{TIER_LABEL[trustTier]}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 text-[11px]">
+          <span class="text-charcoal/40">ID</span>
+          <span class="font-mono text-[10px] break-all">{userId}</span>
+          <span class="text-charcoal/40">Registrert</span>
+          <span>{new Date(profile.created_at).toLocaleDateString('nb-NO')}</span>
+          <span class="text-charcoal/40">Stripe</span>
+          <span>{profile.stripe_onboarded ? 'Verifisert' : 'Nei'}</span>
+          <span class="text-charcoal/40">Fullførte</span>
+          <span>{profile.total_completed_transactions}</span>
+          <span class="text-charcoal/40">Avvisninger</span>
+          <span class:list={[profile.total_rejections > 0 ? 'text-red-600 font-medium' : '']}>{profile.total_rejections}</span>
+          <span class="text-charcoal/40">Vurderinger</span>
+          <span>{reviewStats.review_count > 0 ? `${reviewStats.avg_rating.toFixed(1)} (${reviewStats.review_count})` : '–'}</span>
+        </div>
+      </div>
+
+      <!-- Role management -->
+      <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+        <h3 class="font-medium text-sm mb-3">Roller</h3>
+        <form method="post" action="/api/admin/users/role" data-astro-reload class="flex gap-2">
+          <input type="hidden" name="user_id" value={userId} />
+          <select name="role" class="bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 flex-1">
+            <option value="" selected={!profile.role}>Vanlig bruker</option>
+            <option value="moderator" selected={profile.role === 'moderator'}>Moderator</option>
+            <option value="ambassador" selected={profile.role === 'ambassador'}>Ambassadør</option>
+            <option value="admin" selected={profile.role === 'admin'}>Admin</option>
+          </select>
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-lg text-xs font-medium">Oppdater</button>
+        </form>
+      </div>
+
+      <!-- Moderation history -->
+      {(queueHistory?.length ?? 0) > 0 && (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+          <h3 class="font-medium text-sm mb-3">Modereringshistorikk</h3>
+          <div class="space-y-1">
+            {queueHistory!.map(q => (
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-charcoal/55">{q.item_type === 'listing' ? 'Annonse' : 'Oppdrag'}</span>
+                <span class:list={[q.status === 'approved' ? 'text-sage-700' : 'text-red-600']}>
+                  {q.status === 'approved' ? 'Godkjent' : 'Avvist'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="space-y-4">
+      <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tillitsscore</p>
+        <p class="font-mono text-3xl font-bold tabular-nums">{trustScore}</p>
+        <p class="text-xs text-charcoal/40">/ 100</p>
+      </div>
+
+      {(reports?.length ?? 0) > 0 && (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Rapporter mot bruker</p>
+          <div class="space-y-1">
+            {reports!.map(r => (
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-charcoal/55">{r.reason}</span>
+                <span class:list={[r.status === 'open' ? 'text-terracotta-500' : 'text-charcoal/40']}>
+                  {r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</AdminLayout>

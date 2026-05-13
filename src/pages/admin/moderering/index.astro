@@ -1,0 +1,105 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../../lib/admin-auth';
+import { createServerSupabase } from '../../../lib/supabase';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { MODERATION_QUEUE_STATUS } from '../../../lib/labels';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/marked');
+
+const tab = Astro.url.searchParams.get('tab') ?? 'pending';
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const isAdmin = auth.role === 'admin';
+
+let items: any[] = [];
+
+if (tab === 'pending') {
+  const { data } = await supabase
+    .from('moderation_queue')
+    .select('*')
+    .in('status', ['pending', 'escalated'])
+    .order('created_at', { ascending: true })
+    .limit(50);
+  items = data ?? [];
+} else if (tab === 'shadow' && isAdmin) {
+  const { data } = await supabase
+    .from('moderation_queue')
+    .select('*')
+    .eq('shadow_review', true)
+    .is('shadow_confirmed_at', null)
+    .in('status', ['approved', 'rejected'])
+    .order('decision_at', { ascending: true })
+    .limit(50);
+  items = data ?? [];
+} else if (tab === 'spot' && isAdmin) {
+  const { data } = await supabase
+    .from('moderation_queue')
+    .select('*')
+    .eq('spot_check', true)
+    .is('spot_check_at', null)
+    .order('decision_at', { ascending: true })
+    .limit(50);
+  items = data ?? [];
+} else if (tab === 'history') {
+  const { data } = await supabase
+    .from('moderation_queue')
+    .select('*')
+    .in('status', ['approved', 'rejected'])
+    .order('decision_at', { ascending: false })
+    .limit(50);
+  items = data ?? [];
+}
+
+const tabs = [
+  { id: 'pending', label: 'Ventende' },
+  ...(isAdmin ? [{ id: 'shadow', label: 'Skyggevurdering' }] : []),
+  ...(isAdmin ? [{ id: 'spot', label: 'Stikkprøver' }] : []),
+  { id: 'history', label: 'Historikk' },
+];
+
+const TYPE_LABEL: Record<string, string> = {
+  listing: 'Annonse',
+  commission_request: 'Oppdrag',
+};
+---
+
+<AdminLayout title="Modereringskø" current="moderering">
+  <h1 class="font-serif text-2xl mb-4">Modereringskø</h1>
+
+  <div class="flex gap-1 mb-6">
+    {tabs.map(t => (
+      <a href={`/admin/moderering?tab=${t.id}`} class:list={[
+        'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+        tab === t.id ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+      ]}>{t.label}</a>
+    ))}
+  </div>
+
+  {items.length === 0 ? (
+    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+      <p class="text-sm text-charcoal/45">Ingen elementer i køen.</p>
+    </div>
+  ) : (
+    <div class="space-y-2">
+      {items.map(item => (
+        <a href={`/admin/moderering/${item.id}`} class="flex items-center gap-4 bg-white rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TYPE_LABEL[item.item_type] ?? item.item_type}</span>
+              <span class:list={[
+                'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                item.status === 'pending' || item.status === 'escalated' ? 'text-terracotta-500 bg-terracotta-500/10' : item.status === 'approved' ? 'text-sage-700 bg-sage-100' : 'text-red-600 bg-red-50',
+              ]}>{MODERATION_QUEUE_STATUS[item.status] ?? item.status}</span>
+              {item.shadow_review && <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Skygge</span>}
+              {item.spot_check && <span class="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">Stikkprøve</span>}
+            </div>
+            <p class="text-sm font-medium">{anonymizeUser(item.submitter_id)}</p>
+            <p class="text-xs text-charcoal/40">{new Date(item.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+          <span class="text-charcoal/30">&rarr;</span>
+        </a>
+      ))}
+    </div>
+  )}
+</AdminLayout>

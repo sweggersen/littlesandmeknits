@@ -1,25 +1,12 @@
 import type { APIRoute } from 'astro';
-import { getCurrentUser } from '../../../../../../lib/auth';
-import { createServerSupabase } from '../../../../../../lib/supabase';
+import { buildServiceContext } from '../../../../../../lib/services/context';
+import { deleteProgressLog } from '../../../../../../lib/services/projects';
+import { toResponse } from '../../../../../../lib/services/response';
 
 export const POST: APIRoute = async ({ params, request, cookies, redirect }) => {
-  const user = await getCurrentUser({ request, cookies });
-  if (!user) return redirect('/logg-inn');
+  const ctx = await buildServiceContext(request, cookies);
+  if (!ctx) return redirect('/logg-inn');
 
-  const { id: projectId, logId } = params;
-  if (!projectId || !logId) return new Response('Missing id', { status: 400 });
-
-  const supabase = createServerSupabase({ request, cookies });
-  const { error } = await supabase
-    .from('project_logs')
-    .delete()
-    .eq('id', logId)
-    .eq('project_id', projectId);
-
-  if (error) {
-    console.error('Log delete failed', error);
-    return new Response('Could not delete', { status: 500 });
-  }
-
-  return redirect(`/studio/prosjekter/${projectId}`, 303);
+  const result = await deleteProgressLog(ctx, { projectId: params.id ?? '', logId: params.logId ?? '' });
+  return toResponse(result, redirect);
 };

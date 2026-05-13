@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import MarketplaceNav from '../../components/MarketplaceNav.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
+import { KIND_LABEL, LISTING_STATUS } from '../../lib/labels';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/logg-inn?next=/marked/mine');
@@ -22,14 +23,6 @@ const [{ data: listings }, { data: conversations }] = await Promise.all([
     .order('updated_at', { ascending: false })
     .limit(5),
 ]);
-
-const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
-const STATUS_LABEL: Record<string, string> = {
-  draft: 'Utkast',
-  active: 'Aktiv',
-  sold: 'Solgt',
-  removed: 'Fjernet',
-};
 
 const drafts = (listings ?? []).filter((l) => l.status === 'draft');
 const live = (listings ?? []).filter((l) => l.status === 'active');
@@ -85,7 +78,7 @@ const unreadConvos = (conversations ?? []).length;
                   <div class="flex items-center justify-between gap-4">
                     <div>
                       <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
-                        {KIND_LABEL[l.kind] ?? l.kind} · {STATUS_LABEL[l.status]}
+                        {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
                       </p>
                       <p class="font-medium">{l.title}</p>
                     </div>
@@ -118,7 +111,7 @@ const unreadConvos = (conversations ?? []).length;
                   <div class="flex items-center justify-between gap-4">
                     <div>
                       <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">
-                        {KIND_LABEL[l.kind] ?? l.kind} · {STATUS_LABEL[l.status]}
+                        {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
                       </p>
                       <p class="font-medium">{l.title}</p>
                     </div>

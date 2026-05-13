@@ -1,12 +1,15 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 
-if (import.meta.env.PROD) {
+const host = Astro.url.hostname;
+if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
   return Astro.redirect('/logg-inn');
 }
 
 const accounts = [
   { email: 'sam.mathias.weggersen@gmail.com', name: 'Sam (admin)', role: 'Admin' },
+  { email: 'nora@test.strikketorget.no', name: 'Nora (admin)', role: 'Test-admin · Moderering' },
+  { email: 'kari@test.strikketorget.no', name: 'Kari (moderator)', role: 'Test-moderator · Moderering' },
   { email: 'eline@test.strikketorget.no', name: 'Eline Berge', role: 'Selger pre-loved · Bergen' },
   { email: 'maja@test.strikketorget.no', name: 'Maja Holm', role: 'Ferdigstrikket-selger · Oslo' },
   { email: 'ingrid@test.strikketorget.no', name: 'Ingrid Nordahl', role: 'Kjøper og selger · Trondheim' },

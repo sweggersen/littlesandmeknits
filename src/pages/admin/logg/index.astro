@@ -1,0 +1,74 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/admin');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: logs } = await admin
+  .from('moderation_audit_log')
+  .select('*, profiles(display_name)')
+  .order('created_at', { ascending: false })
+  .limit(100);
+
+const allLogs = logs ?? [];
+
+const ACTION_LABEL: Record<string, string> = {
+  approve: 'Godkjent',
+  reject: 'Avvist',
+  escalate: 'Eskalert',
+  shadow_override: 'Skygge-overstyr',
+  spot_check: 'Stikkprøve',
+  report_resolve: 'Rapport løst',
+  report_dismiss: 'Rapport avvist',
+  role_change: 'Rolleendring',
+  payouts_generated: 'Utbetalinger generert',
+};
+---
+
+<AdminLayout title="Aktivitetslogg" current="logg" adminOnly>
+  <h1 class="font-serif text-2xl mb-6">Aktivitetslogg</h1>
+
+  {allLogs.length === 0 ? (
+    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+      <p class="text-sm text-charcoal/45">Ingen aktivitet logget ennå.</p>
+    </div>
+  ) : (
+    <div class="space-y-2">
+      {allLogs.map(log => (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                  log.action === 'approve' ? 'text-sage-700 bg-sage-100' :
+                  log.action === 'reject' ? 'text-red-600 bg-red-50' :
+                  log.action === 'shadow_override' ? 'text-amber-600 bg-amber-50' :
+                  'text-charcoal/55 bg-oatmeal/60',
+                ]}>{ACTION_LABEL[log.action] ?? log.action}</span>
+                {log.target_type && (
+                  <span class="text-[10px] text-charcoal/40">{log.target_type}</span>
+                )}
+              </div>
+              <p class="text-sm">
+                <span class="font-medium">{log.actor_id ? (log.profiles?.display_name ?? anonymizeUser(log.actor_id)) : 'System'}</span>
+              </p>
+              {log.details && (
+                <pre class="text-[10px] text-charcoal/45 mt-1 overflow-x-auto">{JSON.stringify(log.details, null, 2)}</pre>
+              )}
+            </div>
+            <time class="text-[10px] text-charcoal/40 shrink-0 tabular-nums">
+              {new Date(log.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </time>
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</AdminLayout>

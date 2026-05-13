@@ -1,0 +1,94 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { anonymizeUser, staffOrAnon } from '../../../lib/anonymize';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/admin');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+const search = Astro.url.searchParams.get('q') ?? '';
+const roleFilter = Astro.url.searchParams.get('role') ?? '';
+
+let query = admin
+  .from('profiles')
+  .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections, created_at')
+  .order('created_at', { ascending: false })
+  .limit(50);
+
+if (search) {
+  query = query.ilike('id', `%${search}%`);
+}
+if (roleFilter) {
+  query = query.eq('role', roleFilter);
+}
+
+const { data: users } = await query;
+const allUsers = users ?? [];
+
+const TIER_LABEL: Record<string, string> = { new: 'Ny', established: 'Etablert', trusted: 'Tillitsfull' };
+const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderator', ambassador: 'Ambassadør' };
+---
+
+<AdminLayout title="Brukere" current="brukere" adminOnly>
+  <h1 class="font-serif text-2xl mb-4">Brukere</h1>
+
+  <form method="get" class="flex gap-2 mb-6">
+    <input name="q" type="text" value={search} placeholder="Søk etter bruker-ID…" class="bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 flex-1" />
+    <select name="role" class="bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/15">
+      <option value="">Alle roller</option>
+      <option value="admin" selected={roleFilter === 'admin'}>Admin</option>
+      <option value="moderator" selected={roleFilter === 'moderator'}>Moderator</option>
+      <option value="ambassador" selected={roleFilter === 'ambassador'}>Ambassadør</option>
+    </select>
+    <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-lg text-xs font-medium">Søk</button>
+  </form>
+
+  {allUsers.length === 0 ? (
+    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+      <p class="text-sm text-charcoal/45">Ingen brukere funnet.</p>
+    </div>
+  ) : (
+    <div class="bg-white rounded-xl border border-sage-500/10 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-sage-500/10">
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Bruker</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Rolle</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Tillit</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Txn</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Avv.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allUsers.map(u => (
+            <tr class="border-b border-sage-500/5 hover:bg-sage-100/20 transition-colors">
+              <td class="px-4 py-3">
+                <a href={`/admin/brukere/${u.id}`} class="font-medium hover:text-terracotta-500 transition-colors">
+                  {staffOrAnon(u)}
+                </a>
+              </td>
+              <td class="px-4 py-3">
+                {u.role ? (
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{ROLE_LABEL[u.role] ?? u.role}</span>
+                ) : (
+                  <span class="text-charcoal/30">–</span>
+                )}
+              </td>
+              <td class="px-4 py-3">
+                <span class="font-mono tabular-nums">{u.trust_score}</span>
+                <span class="text-[10px] text-charcoal/40 ml-1">{TIER_LABEL[u.trust_tier] ?? u.trust_tier}</span>
+              </td>
+              <td class="px-4 py-3 text-right font-mono tabular-nums">{u.total_completed_transactions}</td>
+              <td class:list={['px-4 py-3 text-right font-mono tabular-nums', u.total_rejections > 0 ? 'text-red-600' : '']}>
+                {u.total_rejections}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</AdminLayout>

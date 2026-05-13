@@ -1,15 +1,24 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getCurrentUser } from '../../lib/auth';
+import { env } from 'cloudflare:workers';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].includes(user.email ?? '')) {
+if (import.meta.env.PROD) return Astro.redirect('/marked');
+
+const host = Astro.url.hostname;
+if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
   return Astro.redirect('/marked');
 }
+
+const encoder = new TextEncoder();
+const keyData = encoder.encode(env.SUPABASE_SERVICE_ROLE_KEY ?? '');
+const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+const today = new Date().toISOString().slice(0, 10);
+const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(`admin-tower-${today}`));
+const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43);
 ---
 
 <Layout title="Test Control Tower" lang="nb">
-  <div id="tower" class="min-h-[calc(100vh-64px)] bg-charcoal/[0.03]">
+  <div id="tower" class="min-h-[calc(100vh-64px)] bg-charcoal/[0.03]" data-admin-token={adminToken}>
     <!-- Desktop only -->
     <div class="hidden lg:block">
       <!-- Sticky control bar -->
@@ -23,6 +32,7 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             <div id="scenario-tabs" class="flex gap-1"></div>
           </div>
           <div class="flex items-center gap-2">
+            <button id="btn-cleanup" class="px-3 py-1.5 text-xs font-medium text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-lg hover:bg-red-50 transition-colors">Slett testdata</button>
             <button id="btn-reset" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">Reset</button>
             <button id="btn-step" class="px-3 py-1.5 text-xs font-medium text-charcoal bg-sage-100 hover:bg-sage-200 rounded-lg transition-colors">Step &#9654;</button>
             <button id="btn-run" class="px-3 py-1.5 text-xs font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">Run All &#9654;&#9654;</button>
@@ -93,6 +103,8 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     .role-buyer { background: #DBEAFE; color: #1E40AF; }
     .role-knitter { background: #FDE8E0; color: #9A3412; }
     .role-seller { background: #DCFCE7; color: #166534; }
+    .role-moderator { background: #FEF3C7; color: #92400E; }
+    .role-admin { background: #E0E7FF; color: #3730A3; }
 
     .state-badge {
       display: inline-block;
@@ -115,6 +127,14 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     .state-badge.active { background: #DBEAFE; color: #1E40AF; }
     .state-badge.planning { background: #F3F4F6; color: #4B5563; }
     .state-badge.draft { background: #F3F4F6; color: #4B5563; }
+    .state-badge.pending_review { background: #FEF3C7; color: #92400E; }
+    .state-badge.rejected { background: #FEE2E2; color: #991B1B; }
+    .state-badge.approved { background: #D1FAE5; color: #065F46; }
+    .state-badge.escalated { background: #E0E7FF; color: #3730A3; }
+    .state-badge.assigned { background: #DBEAFE; color: #1E40AF; }
+    .state-badge.resolved { background: #D1FAE5; color: #065F46; }
+    .state-badge.dismissed { background: #F3F4F6; color: #4B5563; }
+    .state-badge.paid { background: #D1FAE5; color: #065F46; }
 
     #state-panel details summary { cursor: pointer; user-select: none; }
     #state-panel details summary::-webkit-details-marker { display: none; }
@@ -127,10 +147,12 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     // ═══════════════════════════════════════════════
 
     const P = {
-      liv:    { email: 'liv@test.strikketorget.no',    name: 'Liv',    role: 'buyer',   roleLabel: 'Kjøper' },
-      eline:  { email: 'eline@test.strikketorget.no',  name: 'Eline',  role: 'knitter', roleLabel: 'Strikker' },
-      maja:   { email: 'maja@test.strikketorget.no',    name: 'Maja',   role: 'knitter', roleLabel: 'Strikker' },
-      ingrid: { email: 'ingrid@test.strikketorget.no',  name: 'Ingrid', role: 'knitter', roleLabel: 'Strikker' },
+      liv:    { email: 'liv@test.strikketorget.no',    name: 'Liv',    role: 'buyer',     roleLabel: 'Kjøper' },
+      eline:  { email: 'eline@test.strikketorget.no',  name: 'Eline',  role: 'knitter',   roleLabel: 'Strikker' },
+      maja:   { email: 'maja@test.strikketorget.no',    name: 'Maja',   role: 'knitter',   roleLabel: 'Strikker' },
+      ingrid: { email: 'ingrid@test.strikketorget.no',  name: 'Ingrid', role: 'knitter',   roleLabel: 'Strikker' },
+      kari:   { email: 'kari@test.strikketorget.no',   name: 'Kari',   role: 'moderator', roleLabel: 'Moderator' },
+      nora:   { email: 'nora@test.strikketorget.no',   name: 'Nora',   role: 'admin',     roleLabel: 'Admin' },
     };
 
     // ═══════════════════════════════════════════════
@@ -151,6 +173,11 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             params: { title: 'Mariusgenser i str 2 år', category: 'genser', size_label: '2 år', budget_nok_min: 800, budget_nok_max: 1500, description: 'Klassisk Mariusgenser i hvitt og rødt, str 2 år.' },
             editable: ['title', 'budget_nok_min', 'budget_nok_max'],
             viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'open'],
+              ['offer_count', s.request?.offer_count, 0],
+              ['offers.length', s.offers?.length ?? 0, 0],
+            ],
           },
           {
             id: 'offer-eline', actor: 'eline', action: 'make-offer',
@@ -159,6 +186,12 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             params: { request_id: '$create-request.id', price_nok: 1200, turnaround_weeks: 3, message: 'Hei! Jeg har strikket mange mariusgensere.' },
             editable: ['price_nok', 'turnaround_weeks'],
             viewUrl: (r) => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'open'],
+              ['offer_count', s.request?.offer_count, 1],
+              ['offers.length', s.offers?.length ?? 0, 1],
+              ['offer[0].status', s.offers?.[0]?.status, 'pending'],
+            ],
           },
           {
             id: 'accept', actor: 'liv', action: 'accept-offer',
@@ -166,6 +199,11 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Liv velger Elines tilbud.',
             params: { offer_id: '$offer-eline.id' },
             viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'awaiting_payment'],
+              ['accepted offer', s.offers?.filter(o => o.status === 'accepted').length, 1],
+              ['awarded_offer_id set', !!s.request?.awarded_offer_id, true],
+            ],
           },
           {
             id: 'pay', actor: 'liv', action: 'pay',
@@ -173,6 +211,11 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Liv betaler. Prosjekt opprettes automatisk for Eline.',
             params: { request_id: '$create-request.id' },
             viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'awarded'],
+              ['project exists', !!s.project, true],
+              ['project.status', s.project?.status, 'active'],
+            ],
           },
           {
             id: 'complete', actor: 'eline', action: 'mark-completed',
@@ -180,6 +223,10 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Eline markerer oppdraget som ferdigstilt. 14-dagers frist starter.',
             params: { request_id: '$create-request.id' },
             viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'completed'],
+              ['completed_at set', !!s.request?.completed_at, true],
+            ],
           },
           {
             id: 'deliver', actor: 'liv', action: 'confirm-delivery',
@@ -187,6 +234,10 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Liv bekrefter at hun har mottatt genseren. Pengene frigis.',
             params: { request_id: '$create-request.id' },
             viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'delivered'],
+              ['delivered_at set', !!s.request?.delivered_at, true],
+            ],
           },
         ],
       },
@@ -204,6 +255,11 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             params: { title: 'Babyteppe i merinoull', category: 'teppe', size_label: '70x90 cm', budget_nok_min: 600, budget_nok_max: 1200, description: 'Babyteppe i pastell, 70x90 cm.', yarn_provided_by_buyer: true, yarn_preference: 'Sandnes Garn Merino' },
             editable: ['title', 'budget_nok_min', 'budget_nok_max'],
             viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'open'],
+              ['yarn_provided_by_buyer', s.request?.yarn_provided_by_buyer, true],
+              ['offer_count', s.request?.offer_count, 0],
+            ],
           },
           {
             id: 'offer-eline', actor: 'eline', action: 'make-offer',
@@ -211,6 +267,11 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Eline tilbyr seg å strikke teppet.',
             params: { request_id: '$create-request.id', price_nok: 900, turnaround_weeks: 4, message: 'Jeg elsker å strikke babyteppe!' },
             editable: ['price_nok', 'turnaround_weeks'],
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['offer_count', s.request?.offer_count, 1],
+              ['offers.length', s.offers?.length ?? 0, 1],
+            ],
           },
           {
             id: 'offer-maja', actor: 'maja', action: 'make-offer',
@@ -218,6 +279,12 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Maja tilbyr seg også — dyrere men raskere.',
             params: { request_id: '$create-request.id', price_nok: 1100, turnaround_weeks: 2, message: 'Kan levere på 2 uker!' },
             editable: ['price_nok', 'turnaround_weeks'],
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['offer_count', s.request?.offer_count, 2],
+              ['offers.length', s.offers?.length ?? 0, 2],
+              ['all pending', s.offers?.every(o => o.status === 'pending'), true],
+            ],
           },
           {
             id: 'accept', actor: 'liv', action: 'accept-offer',
@@ -225,12 +292,23 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Liv velger Eline. Majas tilbud avslås automatisk.',
             params: { offer_id: '$offer-eline.id' },
             branch: { label: 'Aksepter Maja i stedet', swapRef: 'offer-maja' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'awaiting_payment'],
+              ['1 accepted', s.offers?.filter(o => o.status === 'accepted').length, 1],
+              ['1 declined', s.offers?.filter(o => o.status === 'declined').length, 1],
+            ],
           },
           {
             id: 'pay', actor: 'liv', action: 'pay',
             label: 'Betal for oppdraget',
             desc: 'Status: awaiting_yarn (fordi garn sendes av kjøper).',
             params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'awaiting_yarn'],
+              ['project exists', !!s.project, true],
+            ],
           },
           {
             id: 'ship-yarn', actor: 'liv', action: 'ship-yarn',
@@ -238,24 +316,45 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Liv sender garnet med sporing.',
             params: { request_id: '$create-request.id', tracking_code: 'POSTEN-12345' },
             editable: ['tracking_code'],
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['yarn_shipped_at set', !!s.request?.yarn_shipped_at, true],
+              ['tracking code', s.request?.yarn_tracking_code, 'POSTEN-12345'],
+            ],
           },
           {
             id: 'receive-yarn', actor: 'eline', action: 'receive-yarn',
             label: 'Bekreft garn mottatt',
             desc: 'Eline bekrefter at hun har fått garnet. Prosjekt settes til aktiv.',
             params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'awarded'],
+              ['yarn_received_at set', !!s.request?.yarn_received_at, true],
+              ['project.status', s.project?.status, 'active'],
+            ],
           },
           {
             id: 'complete', actor: 'eline', action: 'mark-completed',
             label: 'Merk som ferdig',
             desc: 'Eline markerer oppdraget som ferdig.',
             params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'completed'],
+              ['completed_at set', !!s.request?.completed_at, true],
+            ],
           },
           {
             id: 'deliver', actor: 'liv', action: 'confirm-delivery',
             label: 'Bekreft mottak',
             desc: 'Liv bekrefter levering. Pengene frigis til Eline.',
             params: { request_id: '$create-request.id' },
+            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'delivered'],
+              ['delivered_at set', !!s.request?.delivered_at, true],
+            ],
           },
         ],
       },
@@ -273,6 +372,10 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             params: { title: 'Strikket genser str 3 år', kind: 'pre_loved', category: 'genser', size_label: '3 år', price_nok: 249, condition: 'lite_brukt', description: 'Fin strikket genser i merinoull, lite brukt.' },
             editable: ['title', 'price_nok'],
             viewUrl: (r) => `/marked/listing/${r?.id}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'draft'],
+              ['listing.kind', s.listing?.kind, 'pre_loved'],
+            ],
           },
           {
             id: 'publish', actor: 'eline', action: 'publish-listing',
@@ -280,6 +383,9 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             desc: 'Eline publiserer annonsen slik at den blir synlig.',
             params: { listing_id: '$create-listing.id' },
             viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'active'],
+            ],
           },
           {
             id: 'message', actor: 'liv', action: 'send-message',
@@ -288,6 +394,10 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             params: { listing_id: '$create-listing.id', message: 'Hei! Er denne fortsatt tilgjengelig? Kan du sende til Oslo?' },
             editable: ['message'],
             viewUrl: (r) => `/marked/meldinger/${r?.conversationId}`,
+            expect: (s) => [
+              ['conversations', s.conversations?.length, 1],
+              ['messages', s.conversations?.[0]?.marketplace_messages?.length, 1],
+            ],
           },
           {
             id: 'reply-1', actor: 'eline', action: 'reply',
@@ -296,14 +406,555 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             params: { conversation_id: '$message.conversationId', message: 'Hei! Ja, den er tilgjengelig. Jeg sender med Posten, 69 kr frakt.' },
             editable: ['message'],
             viewUrl: (r) => `/marked/meldinger/${resolve('message', 'conversationId')}`,
+            expect: (s) => [
+              ['messages', s.conversations?.[0]?.marketplace_messages?.length, 2],
+            ],
           },
           {
             id: 'reply-2', actor: 'liv', action: 'reply',
             label: 'Liv svarer tilbake',
             desc: 'Liv fortsetter samtalen.',
             params: { conversation_id: '$message.conversationId', message: 'Perfekt! Jeg tar den. Kan du sende Vipps-link?' },
+            expect: (s) => [
+              ['messages', s.conversations?.[0]?.marketplace_messages?.length, 3],
+            ],
             editable: ['message'],
             viewUrl: () => `/marked/meldinger/${resolve('message', 'conversationId')}`,
+          },
+        ],
+      },
+
+      'mod-approve': {
+        title: 'Moderering — godkjenn',
+        desc: 'Annonse sendes til moderering. Erfaren moderator godkjenner direkte.',
+        track: 'listing',
+        personas: ['eline', 'kari', 'nora'],
+        steps: [
+          {
+            id: 'setup-nora', actor: 'nora', action: 'set-role',
+            label: 'Sett opp Nora som admin',
+            desc: 'Nora får admin-rollen.',
+            params: { role: 'admin' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            expect: (s) => [
+              ['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin'],
+            ],
+          },
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Sett opp Kari som moderator',
+            desc: 'Kari får moderator-rollen.',
+            params: { role: 'moderator' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            expect: (s) => [
+              ['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator'],
+            ],
+          },
+          {
+            id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats',
+            label: 'Kari: 60 tidligere vurderinger',
+            desc: 'Kari er erfaren (>50) — ingen skyggevurdering.',
+            params: { total_reviews: 60, total_approvals: 55, total_rejections: 5, rate_nok_per_review: 2.00 },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            expect: (s) => [
+              ['kari.total_reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 60],
+            ],
+          },
+          {
+            id: 'create-listing', actor: 'eline', action: 'create-listing-moderated',
+            label: 'Eline publiserer annonse',
+            desc: 'Annonsen går til modereringskø (pending_review).',
+            params: { title: 'Strikket babygenser str 6 mnd', price_nok: 349, category: 'genser', size_label: '6 mnd', description: 'Nystrikket i merinoull, aldri brukt.' },
+            editable: ['title', 'price_nok'],
+            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'pending_review'],
+              ['queue exists', !!s.queue_item, true],
+              ['queue.status', s.queue_item?.status, 'pending'],
+            ],
+          },
+          {
+            id: 'approve', actor: 'kari', action: 'moderate-review',
+            label: 'Kari godkjenner annonsen',
+            desc: 'Erfaren moderator → direkte godkjenning, annonsen blir aktiv.',
+            params: { queue_item_id: '$create-listing.queue_item_id', decision: 'approve', internal_notes: 'Ser bra ut, relevant kategori.' },
+            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'active'],
+              ['queue.status', s.queue_item?.status, 'approved'],
+              ['shadow_review', s.queue_item?.shadow_review, false],
+              ['kari.total_reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 61],
+              ['kari.earned +2', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_earned_nok >= 2, true],
+            ],
+          },
+        ],
+      },
+
+      'mod-reject': {
+        title: 'Moderering — avvis',
+        desc: 'Moderator avviser en oppdragsforespørsel. Innsenderen får avslag + tillit beregnes.',
+        track: 'request',
+        personas: ['liv', 'kari'],
+        steps: [
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Kari blir moderator',
+            params: { role: 'moderator' },
+            desc: 'Kari settes som moderator.',
+            expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
+          },
+          {
+            id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats',
+            label: 'Kari: erfaren moderator',
+            desc: '60 vurderinger — ingen skygge.',
+            params: { total_reviews: 60, total_approvals: 55, total_rejections: 5, rate_nok_per_review: 2.00 },
+            expect: (s) => [['kari.reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 60]],
+          },
+          {
+            id: 'create-request', actor: 'liv', action: 'create-request-moderated',
+            label: 'Liv oppretter forespørsel',
+            desc: 'Forespørselen havner i modereringskø.',
+            params: { title: 'Sko i lær og ull', category: 'annet', size_label: '38', budget_nok_min: 200, budget_nok_max: 400, description: 'Noen som kan lage sko? Helst i skinn.' },
+            editable: ['title'],
+            viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'pending_review'],
+              ['queue.status', s.queue_item?.status, 'pending'],
+            ],
+          },
+          {
+            id: 'reject', actor: 'kari', action: 'moderate-review',
+            label: 'Kari avviser forespørselen',
+            desc: 'Ikke et strikkeprodukt → avvist med begrunnelse.',
+            params: { queue_item_id: '$create-request.queue_item_id', decision: 'reject', rejection_reason: 'Ikke et strikkeprodukt — Strikketorget er kun for strikke- og garnarbeid.' },
+            viewUrl: () => `/admin/moderering/${resolve('create-request', 'queue_item_id')}`,
+            expect: (s) => [
+              ['request.status', s.request?.status, 'rejected'],
+              ['queue.status', s.queue_item?.status, 'rejected'],
+              ['liv.rejections', s.profiles?.['liv@test.strikketorget.no']?.total_rejections >= 1, true],
+              ['kari.total_reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 61],
+            ],
+          },
+        ],
+      },
+
+      'shadow-review': {
+        title: 'Skyggevurdering',
+        desc: 'Ny moderator (<50 vurderinger) — beslutningen holdes for admin-bekreftelse.',
+        track: 'listing',
+        personas: ['eline', 'kari', 'nora'],
+        steps: [
+          {
+            id: 'setup-nora', actor: 'nora', action: 'set-role',
+            label: 'Nora = admin', desc: 'Nora settes som admin.',
+            params: { role: 'admin' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
+          },
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Kari = moderator', desc: 'Kari settes som moderator.',
+            params: { role: 'moderator' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
+          },
+          {
+            id: 'setup-kari-new', actor: 'kari', action: 'set-mod-stats',
+            label: 'Kari: ny moderator (10 vurderinger)',
+            desc: '<50 vurderinger → skyggevurdering aktiveres.',
+            params: { total_reviews: 10, total_approvals: 9, total_rejections: 1, rate_nok_per_review: 1.00 },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            expect: (s) => [['kari.reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 10]],
+          },
+          {
+            id: 'create-listing', actor: 'eline', action: 'create-listing-moderated',
+            label: 'Eline publiserer annonse',
+            desc: 'Annonsen havner i modereringskø.',
+            params: { title: 'Babyvotter i alpakka', price_nok: 129, category: 'votter', size_label: '0-6 mnd' },
+            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'pending_review'],
+              ['queue.status', s.queue_item?.status, 'pending'],
+            ],
+          },
+          {
+            id: 'kari-approves', actor: 'kari', action: 'moderate-review',
+            label: 'Kari godkjenner (skygge)',
+            desc: 'Kari godkjenner, men fordi hun har <50 vurderinger holdes beslutningen. Annonsen forblir pending_review.',
+            params: { queue_item_id: '$create-listing.queue_item_id', decision: 'approve' },
+            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'pending_review'],
+              ['queue.status', s.queue_item?.status, 'approved'],
+              ['shadow_review', s.queue_item?.shadow_review, true],
+              ['shadow_confirmed_at', s.queue_item?.shadow_confirmed_at, null],
+            ],
+          },
+          {
+            id: 'nora-confirms', actor: 'nora', action: 'shadow-confirm',
+            label: 'Nora bekrefter skyggevurderingen',
+            desc: 'Admin bekrefter Karis godkjenning. Annonsen blir aktiv.',
+            params: { queue_item_id: '$create-listing.queue_item_id', action: 'confirm' },
+            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'active'],
+              ['shadow_confirmed_at set', !!s.queue_item?.shadow_confirmed_at, true],
+              ['not overridden', s.queue_item?.shadow_decision_overridden, false],
+            ],
+          },
+        ],
+      },
+
+      'shadow-override': {
+        title: 'Skygge — overstyring',
+        desc: 'Ny moderator avviser feilaktig — admin overstyrer til godkjent.',
+        track: 'listing',
+        personas: ['eline', 'kari', 'nora'],
+        steps: [
+          {
+            id: 'setup-nora', actor: 'nora', action: 'set-role',
+            label: 'Nora = admin', desc: 'Admin-rolle.',
+            params: { role: 'admin' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
+          },
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Kari = moderator', desc: 'Moderator-rolle.',
+            params: { role: 'moderator' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
+          },
+          {
+            id: 'setup-kari-new', actor: 'kari', action: 'set-mod-stats',
+            label: 'Kari: ny moderator (5 vurderinger)',
+            params: { total_reviews: 5, total_approvals: 4, total_rejections: 1, shadow_overrides: 0 },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            desc: 'Ny moderator med skygge.',
+            expect: (s) => [['kari.reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 5]],
+          },
+          {
+            id: 'create-listing', actor: 'eline', action: 'create-listing-moderated',
+            label: 'Eline publiserer annonse',
+            params: { title: 'Strikket lue i ull', price_nok: 199, category: 'lue', size_label: '2-4 år' },
+            desc: 'Annonsen i kø.',
+            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            expect: (s) => [['listing.status', s.listing?.status, 'pending_review']],
+          },
+          {
+            id: 'kari-rejects', actor: 'kari', action: 'moderate-review',
+            label: 'Kari avviser (feilaktig)',
+            desc: 'Kari avviser, men beslutningen holdes som skyggevurdering.',
+            params: { queue_item_id: '$create-listing.queue_item_id', decision: 'reject', rejection_reason: 'Tror dette er spam' },
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'pending_review'],
+              ['queue.status', s.queue_item?.status, 'rejected'],
+              ['shadow', s.queue_item?.shadow_review, true],
+            ],
+          },
+          {
+            id: 'nora-overrides', actor: 'nora', action: 'shadow-confirm',
+            label: 'Nora overstyrer → godkjent',
+            desc: 'Admin er uenig — overstyrer til godkjent. Kari får +1 override.',
+            params: { queue_item_id: '$create-listing.queue_item_id', action: 'override' },
+            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'active'],
+              ['overridden', s.queue_item?.shadow_decision_overridden, true],
+              ['queue.status', s.queue_item?.status, 'approved'],
+              ['kari.overrides', s.mod_stats?.['kari@test.strikketorget.no']?.shadow_overrides >= 1, true],
+            ],
+          },
+        ],
+      },
+
+      'reports': {
+        title: 'Rapporter',
+        desc: 'Brukere rapporterer innhold. Auto-skjuling ved 3 rapporter, moderator behandler.',
+        track: 'listing',
+        personas: ['eline', 'liv', 'maja', 'ingrid', 'kari'],
+        steps: [
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Kari = moderator', desc: 'Moderator-rolle.',
+            params: { role: 'moderator' },
+            expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
+          },
+          {
+            id: 'create-listing', actor: 'eline', action: 'create-listing',
+            label: 'Eline oppretter annonse',
+            desc: 'Aktiv annonse som kan rapporteres.',
+            params: { title: 'Strikket skjerf', price_nok: 99, category: 'annet', size_label: 'One size' },
+            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            expect: (s) => [['listing.status', s.listing?.status, 'draft']],
+          },
+          {
+            id: 'publish', actor: 'eline', action: 'publish-listing',
+            label: 'Publiser',
+            desc: 'Annonsen settes aktiv (direkte, ikke moderert for enkelhets skyld).',
+            params: { listing_id: '$create-listing.id' },
+            expect: (s) => [['listing.status', s.listing?.status, 'active']],
+          },
+          {
+            id: 'report-1', actor: 'liv', action: 'submit-report',
+            label: 'Liv rapporterer (svindel)',
+            desc: 'Første rapport. report_count = 1.',
+            params: { target_type: 'listing', target_id: '$create-listing.id', reason: 'scam', description: 'Ser ut som svindel.' },
+            expect: (s) => [
+              ['reports.length', s.reports?.length >= 1, true],
+              ['listing.report_count', s.listing?.report_count, 1],
+              ['listing.status', s.listing?.status, 'active'],
+            ],
+          },
+          {
+            id: 'report-2', actor: 'maja', action: 'submit-report',
+            label: 'Maja rapporterer (spam)',
+            desc: 'Andre rapport. report_count = 2, fortsatt aktiv.',
+            params: { target_type: 'listing', target_id: '$create-listing.id', reason: 'spam' },
+            expect: (s) => [
+              ['listing.report_count', s.listing?.report_count, 2],
+              ['listing.status', s.listing?.status, 'active'],
+            ],
+          },
+          {
+            id: 'report-3', actor: 'ingrid', action: 'submit-report',
+            label: 'Ingrid rapporterer — auto-skjul!',
+            desc: '3. rapport → trigger auto-skjuler annonsen (status = removed).',
+            params: { target_type: 'listing', target_id: '$create-listing.id', reason: 'inappropriate' },
+            expect: (s) => [
+              ['listing.report_count', s.listing?.report_count, 3],
+              ['listing.status', s.listing?.status, 'removed'],
+            ],
+          },
+          {
+            id: 'resolve', actor: 'kari', action: 'resolve-report',
+            label: 'Kari behandler rapporten',
+            desc: 'Moderator markerer rapporten som løst.',
+            params: { report_id: '$report-1.id', notes: 'Annonse fjernet, bruker kontaktet.' },
+            expect: (s) => [
+              ['report resolved', s.reports?.some(r => r.status === 'resolved'), true],
+            ],
+          },
+        ],
+      },
+
+      'reviews-trust': {
+        title: 'Vurderinger & tillit',
+        desc: 'Etter levering gir begge parter hverandre vurdering. Synlighet og tillitsberegning.',
+        track: 'request',
+        personas: ['liv', 'eline'],
+        steps: [
+          {
+            id: 'create-request', actor: 'liv', action: 'create-request',
+            label: 'Opprett forespørsel',
+            params: { title: 'Babysokker i ull', category: 'sokker', size_label: '0-6 mnd', budget_nok_min: 150, budget_nok_max: 300 },
+            desc: 'Rask forespørsel for å teste vurderinger.',
+            expect: (s) => [['request.status', s.request?.status, 'open']],
+          },
+          {
+            id: 'offer', actor: 'eline', action: 'make-offer',
+            label: 'Eline gir tilbud',
+            params: { request_id: '$create-request.id', price_nok: 200, turnaround_weeks: 1 },
+            desc: 'Eline tilbyr.',
+            expect: (s) => [['offers.length', s.offers?.length, 1]],
+          },
+          {
+            id: 'accept', actor: 'liv', action: 'accept-offer',
+            label: 'Aksepter',
+            params: { offer_id: '$offer.id' },
+            desc: 'Liv aksepterer.',
+            expect: (s) => [['request.status', s.request?.status, 'awaiting_payment']],
+          },
+          {
+            id: 'pay', actor: 'liv', action: 'pay',
+            label: 'Betal',
+            params: { request_id: '$create-request.id' },
+            desc: 'Betaling gjennomført.',
+            expect: (s) => [['request.status', s.request?.status, 'awarded']],
+          },
+          {
+            id: 'complete', actor: 'eline', action: 'mark-completed',
+            label: 'Merk ferdig',
+            params: { request_id: '$create-request.id' },
+            desc: 'Eline er ferdig.',
+            expect: (s) => [['request.status', s.request?.status, 'completed']],
+          },
+          {
+            id: 'deliver', actor: 'liv', action: 'confirm-delivery',
+            label: 'Bekreft mottak',
+            params: { request_id: '$create-request.id' },
+            desc: 'Liv bekrefter. Begge kan nå gi vurdering.',
+            expect: (s) => [['request.status', s.request?.status, 'delivered']],
+          },
+          {
+            id: 'review-buyer', actor: 'liv', action: 'submit-tx-review',
+            label: 'Liv gir vurdering (4 stjerner)',
+            desc: 'Kjøper vurderer strikker. Ikke synlig ennå — venter på begge.',
+            params: { commission_request_id: '$create-request.id', rating: 4, comment: 'Veldig fine sokker, rask levering!' },
+            expect: (s) => [
+              ['tx_reviews.length', s.tx_reviews?.length, 1],
+              ['review.visible', s.tx_reviews?.[0]?.visible, false],
+            ],
+          },
+          {
+            id: 'review-knitter', actor: 'eline', action: 'submit-tx-review',
+            label: 'Eline gir vurdering (5 stjerner)',
+            desc: 'Strikker vurderer kjøper. Nå er BEGGE synlige (trigger)!',
+            params: { commission_request_id: '$create-request.id', rating: 5, comment: 'Hyggelig bestiller, god kommunikasjon.' },
+            expect: (s) => [
+              ['tx_reviews.length', s.tx_reviews?.length, 2],
+              ['all visible', s.tx_reviews?.every(r => r.visible), true],
+            ],
+          },
+        ],
+      },
+
+      'mod-compensation': {
+        title: 'Moderator-godtgjørelse',
+        desc: 'Moderator vurderer elementer, samler godtgjørelse, admin genererer utbetaling.',
+        track: 'listing',
+        personas: ['eline', 'kari', 'nora'],
+        steps: [
+          {
+            id: 'setup-nora', actor: 'nora', action: 'set-role',
+            label: 'Nora = admin', desc: 'Admin.',
+            params: { role: 'admin' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
+          },
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Kari = moderator', desc: 'Moderator.',
+            params: { role: 'moderator' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
+          },
+          {
+            id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats',
+            label: 'Kari: erfaren (60 vurd., 2 kr/stk)',
+            params: { total_reviews: 60, total_approvals: 55, total_rejections: 5, rate_nok_per_review: 2.00, current_month_reviews: 0, current_month_earned_nok: 0, total_earned_nok: 100 },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            desc: 'Erfaren moderator med 2 kr/vurdering.',
+            expect: (s) => [
+              ['kari.rate', s.mod_stats?.['kari@test.strikketorget.no']?.rate_nok_per_review, 2],
+              ['kari.total_earned', s.mod_stats?.['kari@test.strikketorget.no']?.total_earned_nok, 100],
+            ],
+          },
+          {
+            id: 'item-1', actor: 'eline', action: 'create-listing-moderated',
+            label: 'Eline: annonse #1',
+            params: { title: 'Strikket lue #1', price_nok: 149, category: 'lue', size_label: '2 år' },
+            desc: 'Første element i køen.',
+            expect: (s) => [['listing.status', s.listing?.status, 'pending_review']],
+          },
+          {
+            id: 'review-1', actor: 'kari', action: 'moderate-review',
+            label: 'Kari godkjenner #1',
+            params: { queue_item_id: '$item-1.queue_item_id', decision: 'approve' },
+            desc: 'Kari godkjenner. +2 kr opptjent.',
+            expect: (s) => [
+              ['kari.month_reviews', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_reviews, 1],
+              ['kari.month_earned', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_earned_nok >= 2, true],
+              ['listing.status', s.listing?.status, 'active'],
+            ],
+          },
+          {
+            id: 'item-2', actor: 'eline', action: 'create-listing-moderated',
+            label: 'Eline: annonse #2',
+            params: { title: 'Strikket lue #2', price_nok: 199, category: 'lue', size_label: '4 år' },
+            desc: 'Enda et element.',
+            expect: (s) => [['queue pending', true, true]],
+          },
+          {
+            id: 'review-2', actor: 'kari', action: 'moderate-review',
+            label: 'Kari godkjenner #2',
+            params: { queue_item_id: '$item-2.queue_item_id', decision: 'approve' },
+            desc: '+2 kr til. Totalt 4 kr denne måneden.',
+            expect: (s) => [
+              ['kari.month_reviews', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_reviews, 2],
+              ['kari.month_earned', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_earned_nok >= 4, true],
+            ],
+          },
+          {
+            id: 'generate-payouts', actor: 'nora', action: 'generate-payouts',
+            label: 'Nora genererer utbetalinger',
+            desc: 'Admin lager utbetalingspost for måneden.',
+            params: {},
+            viewUrl: () => '/admin/utbetalinger',
+            expect: (s) => [
+              ['payouts exist', s.payouts?.length >= 1, true],
+              ['payout.status', s.payouts?.[0]?.status, 'pending'],
+              ['payout.amount', s.payouts?.[0]?.amount_nok >= 4, true],
+            ],
+          },
+          {
+            id: 'mark-paid', actor: 'nora', action: 'mark-payout-paid',
+            label: 'Nora markerer utbetalt',
+            desc: 'Admin bekrefter betaling til Kari.',
+            params: { payout_id: '$generate-payouts.first_payout_id' },
+            viewUrl: () => '/admin/utbetalinger',
+            expect: (s) => [
+              ['payout.status', s.payouts?.some(p => p.status === 'paid'), true],
+            ],
+          },
+        ],
+      },
+
+      'self-review-block': {
+        title: 'Anti-misbruk',
+        desc: 'Moderator kan ikke vurdere eget innhold. Ambassadør-rabatt testes.',
+        track: 'request',
+        personas: ['kari', 'nora'],
+        steps: [
+          {
+            id: 'setup-kari', actor: 'kari', action: 'set-role',
+            label: 'Kari = moderator', desc: 'Moderator-rolle.',
+            params: { role: 'moderator' },
+            expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
+          },
+          {
+            id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats',
+            label: 'Kari: 60 vurderinger',
+            params: { total_reviews: 60 },
+            desc: 'Erfaren moderator.',
+            expect: (s) => [['kari.reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 60]],
+          },
+          {
+            id: 'kari-submits', actor: 'kari', action: 'create-request-moderated',
+            label: 'Kari oppretter eget oppdrag',
+            desc: 'Moderator sender inn forespørsel selv.',
+            params: { title: 'Strikket cardigan til meg selv', category: 'cardigan', size_label: 'M', budget_nok_min: 500, budget_nok_max: 1000 },
+            expect: (s) => [
+              ['request.status', s.request?.status, 'pending_review'],
+              ['queue exists', !!s.queue_item, true],
+            ],
+          },
+          {
+            id: 'self-review-fails', actor: 'kari', action: 'moderate-review',
+            label: 'Kari prøver å godkjenne eget innhold',
+            desc: 'Bør FEILE — kan ikke vurdere eget innhold.',
+            expectFail: true,
+            params: { queue_item_id: '$kari-submits.queue_item_id', decision: 'approve' },
+            expect: (s) => [
+              ['request still pending', s.request?.status, 'pending_review'],
+            ],
+          },
+          {
+            id: 'setup-nora', actor: 'nora', action: 'set-role',
+            label: 'Nora = admin', desc: 'Admin tar over.',
+            params: { role: 'admin' },
+            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
+          },
+          {
+            id: 'nora-approves', actor: 'nora', action: 'moderate-review',
+            label: 'Nora godkjenner (ikke eget)',
+            desc: 'Admin kan godkjenne Karis innhold.',
+            params: { queue_item_id: '$kari-submits.queue_item_id', decision: 'approve' },
+            expect: (s) => [
+              ['request.status', s.request?.status, 'open'],
+              ['queue.status', s.queue_item?.status, 'approved'],
+            ],
           },
         ],
       },
@@ -340,16 +991,24 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
 
     function getScenario() { return SCENARIOS[activeScenario]; }
 
+    function isStepDone(stepId) {
+      const s = getScenario();
+      const step = s.steps.find(st => st.id === stepId);
+      const r = results[stepId];
+      if (!r) return false;
+      if (step?.expectFail) return r.ok === false;
+      return r.ok === true;
+    }
+
     function isPrevDone(idx) {
       if (idx === 0) return true;
-      const prev = getScenario().steps[idx - 1];
-      return results[prev.id]?.ok === true;
+      return isStepDone(getScenario().steps[idx - 1].id);
     }
 
     function nextStepIndex() {
       const steps = getScenario().steps;
       for (let i = 0; i < steps.length; i++) {
-        if (!results[steps[i].id]?.ok) return i;
+        if (!isStepDone(steps[i].id)) return i;
       }
       return -1;
     }
@@ -358,10 +1017,12 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     // API
     // ═══════════════════════════════════════════════
 
+    const ADMIN_TOKEN = document.getElementById('tower').dataset.adminToken;
+
     async function api(body) {
       const res = await fetch('/api/dev/test-exec', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': ADMIN_TOKEN },
         body: JSON.stringify(body),
       });
       return res.json();
@@ -377,12 +1038,43 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     async function fetchState() {
       const s = getScenario();
       const params = { user_emails: s.personas.map(k => P[k].email) };
-      if (s.track === 'request' && resolve('create-request', 'id')) {
-        params.request_id = resolve('create-request', 'id');
+
+      const reqActions = ['create-request', 'create-request-moderated'];
+      const listActions = ['create-listing', 'create-listing-moderated'];
+
+      if (s.track === 'request') {
+        for (const step of s.steps) {
+          const r = results[step.id];
+          if (r?.ok && r.data?.id && reqActions.includes(step.action)) {
+            params.request_id = r.data.id;
+          }
+        }
       }
-      if (s.track === 'listing' && resolve('create-listing', 'id')) {
-        params.listing_id = resolve('create-listing', 'id');
+      if (s.track === 'listing') {
+        for (const step of s.steps) {
+          const r = results[step.id];
+          if (r?.ok && r.data?.id && listActions.includes(step.action)) {
+            params.listing_id = r.data.id;
+          }
+        }
       }
+
+      for (const step of s.steps) {
+        const r = results[step.id];
+        if (r?.ok && r.data?.queue_item_id) {
+          params.queue_item_id = r.data.queue_item_id;
+        }
+      }
+
+      const modScenarios = ['mod-approve', 'mod-reject', 'shadow-review', 'shadow-override', 'reports', 'reviews-trust', 'mod-compensation', 'self-review-block'];
+      if (modScenarios.includes(activeScenario)) {
+        params.include_mod_stats = true;
+        params.include_profiles = true;
+      }
+      if (activeScenario === 'reports') params.include_reports = true;
+      if (activeScenario === 'reviews-trust') params.include_tx_reviews = true;
+      if (activeScenario === 'mod-compensation') params.include_payouts = true;
+
       const res = await api({ action: 'get-state', params });
       if (res.ok) stateData = res.data;
       return res;
@@ -440,8 +1132,8 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
 
     function renderStep(step, idx, total) {
       const r = results[step.id];
-      const done = r?.ok === true;
-      const failed = r?.ok === false;
+      const done = isStepDone(step.id);
+      const failed = r && !done;
       const ready = !done && !failed && isPrevDone(idx);
       const isRunning = running === step.id;
       const persona = P[step.actor];
@@ -469,9 +1161,10 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
       }
 
       let resultHtml = '';
-      if (done && r.data) {
+      if (done && step.expectFail) {
+        resultHtml = `<p class="mt-2 ml-8 text-xs text-green-700">&#10003; Feilet som forventet: ${escHtml(r.error || '')}</p>`;
+      } else if (done && r.data) {
         const preview = JSON.stringify(r.data, null, 2);
-        const short = preview.length > 120 ? preview.slice(0, 120) + '...' : preview;
         resultHtml = `<details class="mt-3 ml-8">
           <summary class="text-[10px] text-green-700 font-medium cursor-pointer select-none">&#10003; Utført — vis resultat</summary>
           <pre class="mt-1 text-[10px] text-charcoal/60 bg-sage-100/30 rounded p-2 overflow-x-auto max-h-32 font-mono">${escHtml(preview)}</pre>
@@ -481,12 +1174,37 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
         resultHtml = `<p class="mt-2 ml-8 text-xs text-red-600">&#10007; ${escHtml(r.error || 'Ukjent feil')}</p>`;
       }
 
+      let assertHtml = '';
+      const checks = assertions[step.id];
+      if (checks) {
+        const pass = checks.filter(c => c.pass).length;
+        const fail = checks.filter(c => !c.pass).length;
+        const allPass = fail === 0;
+        assertHtml = `<details class="mt-2 ml-8">
+          <summary class="text-[10px] font-bold ${allPass ? 'text-green-700' : 'text-red-600'} cursor-pointer select-none">
+            ${allPass ? '&#10003;' : '&#10007;'} ${pass}/${checks.length} sjekker bestått
+          </summary>
+          <div class="mt-1 space-y-0.5">
+            ${checks.map(c => c.pass
+              ? `<p class="text-[10px] text-green-700 font-mono">&#10003; ${escHtml(c.label)} = ${escHtml(c.actual)}</p>`
+              : `<p class="text-[10px] text-red-600 font-mono">&#10007; ${escHtml(c.label)}: fikk <b>${escHtml(c.actual)}</b>, forventet <b>${escHtml(c.expected)}</b></p>`
+            ).join('')}
+          </div>
+        </details>`;
+      }
+
       const viewUrl = step.viewUrl && done ? step.viewUrl(r.data) : null;
+      const canRunTo = !done && idx > 0;
       let actionsHtml = '';
       if (ready && !isRunning) {
         actionsHtml = `<div class="flex items-center gap-2 mt-3 ml-8">
           <button data-exec="${step.id}" class="px-3 py-1.5 text-[11px] font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">&#9654; Kjør</button>
           ${step.branch ? `<button data-exec="${step.id}" data-branch="true" class="px-3 py-1.5 text-[11px] font-medium text-charcoal/70 border border-sage-500/15 hover:bg-sage-100/50 rounded-lg transition-colors">${step.branch.label}</button>` : ''}
+          ${canRunTo ? `<button data-run-to="${step.id}" class="px-3 py-1.5 text-[11px] font-medium text-charcoal/50 hover:text-charcoal border border-sage-500/15 hover:bg-sage-100/50 rounded-lg transition-colors">&#9654;&#9654; Kjør hit</button>` : ''}
+        </div>`;
+      } else if (!done && !isRunning && !ready) {
+        actionsHtml = `<div class="flex items-center gap-2 mt-3 ml-8">
+          ${canRunTo ? `<button data-run-to="${step.id}" class="px-3 py-1.5 text-[11px] font-medium text-charcoal/50 hover:text-charcoal border border-sage-500/15 hover:bg-sage-100/50 rounded-lg transition-colors">&#9654;&#9654; Kjør hit</button>` : ''}
         </div>`;
       }
       if (isRunning) {
@@ -495,7 +1213,13 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
 
       let viewHtml = '';
       if (viewUrl) {
-        viewHtml = `<a href="${viewUrl}" target="_blank" class="inline-block mt-2 ml-8 text-[10px] text-charcoal/40 hover:text-terracotta-500 transition-colors">Se som ${persona.name} &rarr; ${viewUrl}</a>`;
+        const viewPersona = step.viewAs ? P[step.viewAs] : persona;
+        const formId = `view-${step.id}`;
+        viewHtml = `<form id="${formId}" method="post" action="/api/dev/impersonate" target="_blank" class="inline mt-2 ml-8">
+          <input type="hidden" name="email" value="${viewPersona.email}">
+          <input type="hidden" name="next" value="${viewUrl}">
+          <button type="submit" class="text-[10px] text-charcoal/40 hover:text-terracotta-500 transition-colors cursor-pointer">Se som ${viewPersona.name} &rarr; ${viewUrl}</button>
+        </form>`;
       }
 
       return `
@@ -513,6 +1237,7 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
             ${editableHtml}
             ${actionsHtml}
             ${resultHtml}
+            ${assertHtml}
             ${viewHtml}
           </div>
         </div>`;
@@ -609,6 +1334,108 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
         </div>`;
       }
 
+      // Queue item
+      if (stateData.queue_item) {
+        const qi = stateData.queue_item;
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Modereringskø</p>
+          <p class="mb-2"><span class="state-badge ${qi.status}">${qi.status}</span></p>
+          <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+            <span class="text-charcoal/40">Type</span><span>${qi.item_type}</span>
+            <span class="text-charcoal/40">Shadow</span><span>${qi.shadow_review ? 'Ja' : 'Nei'}</span>
+            <span class="text-charcoal/40">Spot-check</span><span>${qi.spot_check ? 'Ja' : 'Nei'}</span>
+            ${qi.rejection_reason ? '<span class="text-charcoal/40">Avslag</span><span>' + escHtml(qi.rejection_reason) + '</span>' : ''}
+            ${qi.shadow_confirmed_at ? '<span class="text-charcoal/40">Shadow bekreftet</span><span>&#10003;</span>' : ''}
+            ${qi.shadow_decision_overridden ? '<span class="text-charcoal/40">Overstyrt</span><span>Ja</span>' : ''}
+            ${qi.spot_check_agreed != null ? '<span class="text-charcoal/40">Spot enig</span><span>' + (qi.spot_check_agreed ? 'Ja' : 'Nei') + '</span>' : ''}
+          </div>
+        </div>`;
+      }
+
+      // Moderator stats
+      if (stateData.mod_stats && Object.keys(stateData.mod_stats).length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Moderator-statistikk</p>
+          ${Object.entries(stateData.mod_stats).map(([email, ms]) => {
+            const name = Object.values(P).find(p => p.email === email)?.name || email;
+            return '<details class="mb-2" open>' +
+              '<summary class="text-xs font-medium">' + name + '</summary>' +
+              '<div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] mt-1 pl-2">' +
+              '<span class="text-charcoal/40">Vurderinger</span><span class="font-mono">' + ms.total_reviews + '</span>' +
+              '<span class="text-charcoal/40">Godkjent</span><span class="font-mono">' + ms.total_approvals + '</span>' +
+              '<span class="text-charcoal/40">Avvist</span><span class="font-mono">' + ms.total_rejections + '</span>' +
+              '<span class="text-charcoal/40">Denne mnd</span><span class="font-mono">' + ms.current_month_reviews + ' (' + ms.current_month_earned_nok + ' kr)</span>' +
+              '<span class="text-charcoal/40">Sats</span><span class="font-mono">' + ms.rate_nok_per_review + ' kr/stk</span>' +
+              '<span class="text-charcoal/40">Totalt tjent</span><span class="font-mono">' + ms.total_earned_nok + ' kr</span>' +
+              (ms.shadow_overrides ? '<span class="text-charcoal/40">Overstyrte</span><span class="font-mono text-amber-600">' + ms.shadow_overrides + '</span>' : '') +
+              '</div></details>';
+          }).join('')}
+        </div>`;
+      }
+
+      // Profiles & trust
+      if (stateData.profiles && Object.keys(stateData.profiles).length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Profiler &amp; tillit</p>
+          ${Object.entries(stateData.profiles).map(([email, pr]) => {
+            const name = Object.values(P).find(p => p.email === email)?.name || email;
+            return '<div class="mb-2 text-[11px]">' +
+              '<span class="font-medium">' + name + '</span>' +
+              (pr.role ? ' <span class="state-badge" style="background:#E0E7FF;color:#3730A3">' + pr.role + '</span>' : '') +
+              ' <span class="state-badge">' + pr.trust_tier + '</span>' +
+              '<div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-0.5 pl-2">' +
+              '<span class="text-charcoal/40">Trust</span><span class="font-mono">' + pr.trust_score + '</span>' +
+              '<span class="text-charcoal/40">Transaksjoner</span><span class="font-mono">' + pr.total_completed_transactions + '</span>' +
+              '<span class="text-charcoal/40">Avvisninger</span><span class="font-mono">' + pr.total_rejections + '</span>' +
+              '</div></div>';
+          }).join('')}
+        </div>`;
+      }
+
+      // Reports
+      if (stateData.reports?.length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Rapporter (${stateData.reports.length})</p>
+          <div class="space-y-1.5">
+            ${stateData.reports.map(r => '<div class="text-[11px] flex items-center justify-between">' +
+              '<span>' + escHtml(r.reason) + '</span>' +
+              '<span class="state-badge ' + r.status + '">' + r.status + '</span>' +
+              '</div>'
+            ).join('')}
+          </div>
+        </div>`;
+      }
+
+      // Transaction reviews
+      if (stateData.tx_reviews?.length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Vurderinger (${stateData.tx_reviews.length})</p>
+          <div class="space-y-1.5">
+            ${stateData.tx_reviews.map(r => '<div class="text-[11px]">' +
+              '<span class="font-medium">' + r.reviewer_role + '</span> ' +
+              '<span class="font-mono">' + '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating) + '</span> ' +
+              '<span class="state-badge ' + (r.visible ? 'active' : 'pending') + '">' + (r.visible ? 'Synlig' : 'Skjult') + '</span>' +
+              (r.comment ? '<p class="text-charcoal/50 pl-2">' + escHtml(r.comment) + '</p>' : '') +
+              '</div>'
+            ).join('')}
+          </div>
+        </div>`;
+      }
+
+      // Payouts
+      if (stateData.payouts?.length) {
+        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Utbetalinger (${stateData.payouts.length})</p>
+          <div class="space-y-1.5">
+            ${stateData.payouts.map(p => '<div class="text-[11px] flex items-center justify-between">' +
+              '<span class="font-mono">' + p.amount_nok + ' kr (' + p.review_count + ' vurd.)</span>' +
+              '<span class="state-badge ' + p.status + '">' + p.status + '</span>' +
+              '</div>'
+            ).join('')}
+          </div>
+        </div>`;
+      }
+
       // Notifications
       if (stateData.notifications) {
         html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
@@ -640,12 +1467,24 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     // ACTIONS
     // ═══════════════════════════════════════════════
 
+    let assertions = {};
+
+    function runAssertions(step) {
+      if (!step.expect || !stateData) return null;
+      const checks = step.expect(stateData);
+      return checks.map(([label, actual, expected]) => ({
+        label,
+        pass: actual === expected,
+        actual: String(actual ?? 'undefined'),
+        expected: String(expected),
+      }));
+    }
+
     async function doExecuteStep(stepId, useBranch) {
       const s = getScenario();
       const step = s.steps.find(st => st.id === stepId);
       if (!step) return;
 
-      // Handle branch (swap offer reference)
       let actualStep = step;
       if (useBranch && step.branch?.swapRef) {
         actualStep = { ...step, params: { ...step.params, offer_id: `$${step.branch.swapRef}.id` } };
@@ -659,6 +1498,9 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
       running = false;
 
       await fetchState();
+      if (isStepDone(stepId) && step.expect) {
+        assertions[stepId] = runAssertions(step);
+      }
       renderSteps();
       renderState();
     }
@@ -672,10 +1514,21 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     async function doRunAll() {
       const steps = getScenario().steps;
       for (let i = 0; i < steps.length; i++) {
-        if (results[steps[i].id]?.ok) continue;
-        if (breakpoints[steps[i].id] && i > 0) break; // stop at breakpoint (but not the first step)
+        if (isStepDone(steps[i].id)) continue;
+        if (breakpoints[steps[i].id] && i > 0) break;
         await doExecuteStep(steps[i].id);
-        if (results[steps[i].id]?.ok === false) break; // stop on error
+        if (!isStepDone(steps[i].id)) break;
+      }
+    }
+
+    async function doRunTo(targetId) {
+      const steps = getScenario().steps;
+      const targetIdx = steps.findIndex(s => s.id === targetId);
+      if (targetIdx < 0) return;
+      for (let i = 0; i <= targetIdx; i++) {
+        if (isStepDone(steps[i].id)) continue;
+        await doExecuteStep(steps[i].id);
+        if (!isStepDone(steps[i].id)) break;
       }
     }
 
@@ -684,6 +1537,7 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
       await cleanup();
       results = {};
       editedValues = {};
+      assertions = {};
       stateData = null;
       renderSteps();
       renderState();
@@ -693,6 +1547,7 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
       activeScenario = key;
       results = {};
       editedValues = {};
+      assertions = {};
       stateData = null;
       renderTabs();
       renderSteps();
@@ -707,6 +1562,12 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
       const target = e.target.closest('[data-scenario]');
       if (target) {
         switchScenario(target.dataset.scenario);
+        return;
+      }
+
+      const runTo = e.target.closest('[data-run-to]');
+      if (runTo && !running) {
+        doRunTo(runTo.dataset.runTo);
         return;
       }
 
@@ -735,6 +1596,17 @@ if (!user || !['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'].i
     document.getElementById('btn-reset')?.addEventListener('click', doReset);
     document.getElementById('btn-step')?.addEventListener('click', doStepNext);
     document.getElementById('btn-run')?.addEventListener('click', doRunAll);
+    document.getElementById('btn-cleanup')?.addEventListener('click', async () => {
+      if (!confirm('Slett ALL testdata (opprettet av @test.strikketorget.no-kontoer)?\n\nDette sletter forespørsler, tilbud, prosjekter, annonser, samtaler, meldinger og varsler.')) return;
+      const btn = document.getElementById('btn-cleanup');
+      btn.textContent = 'Sletter…';
+      btn.disabled = true;
+      const r = await api({ action: 'cleanup', actor: P.liv.email, params: {} });
+      btn.textContent = r.ok ? 'Slettet!' : 'Feil!';
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = 'Slett testdata'; }, 2000);
+      if (r.ok) { doReset(); }
+    });
 
     // ═══════════════════════════════════════════════
     // INIT

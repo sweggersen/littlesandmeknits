@@ -5,6 +5,7 @@ import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { getEntry } from 'astro:content';
 import { formatNok } from '../../lib/format';
+import { KIND_LABEL, PROJECT_STATUS, CATEGORY_LABEL, COMMISSION_STATUS, OFFER_STATUS } from '../../lib/labels';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/logg-inn?next=/profil');
@@ -23,7 +24,7 @@ const [
 ] = await Promise.all([
   supabase
     .from('profiles')
-    .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible')
+    .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, role')
     .eq('id', user.id)
     .maybeSingle(),
   supabase
@@ -77,6 +78,20 @@ const allPurchases = await Promise.all(
 
 const allBibliotek = externalPatterns ?? [];
 
+const userRole = profile?.role as string | null;
+const isAdmin = userRole === 'admin';
+const isModerator = userRole === 'moderator';
+const isStaff = isAdmin || isModerator;
+
+let pendingQueueCount = 0;
+if (isStaff) {
+  const { count } = await supabase
+    .from('moderation_queue')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['pending', 'escalated']);
+  pendingQueueCount = count ?? 0;
+}
+
 const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
 const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? 'Anonym';
 const initial = displayName[0]?.toUpperCase() ?? '?';
@@ -100,20 +115,6 @@ if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ventende tilbud`);
 if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
 if (subtitleParts.length === 0) subtitleParts.push('Alt i orden');
 
-const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
-const PROJECT_STATUS: Record<string, string> = {
-  planning: 'Planlegger', active: 'Pågår', finished: 'Ferdig', frogged: 'Røket opp',
-};
-const CATEGORY_LABEL: Record<string, string> = {
-  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
-  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
-};
-const REQUEST_STATUS: Record<string, string> = {
-  open: 'Åpen', awaiting_payment: 'Venter på betaling', awarded: 'Tildelt', cancelled: 'Avbrutt', expired: 'Utløpt',
-};
-const OFFER_STATUS: Record<string, string> = {
-  pending: 'Venter', accepted: 'Akseptert', declined: 'Avslått', withdrawn: 'Trukket',
-};
 
 function isPdf(path: string | null): boolean {
   return !!path && path.toLowerCase().endsWith('.pdf');
@@ -141,6 +142,61 @@ function isPdf(path: string | null): boolean {
           Rediger profil
         </a>
       </div>
+
+      {/* Admin / Moderator panel */}
+      {isStaff && (
+        <div class="mb-10 bg-white rounded-2xl border border-sage-500/10 p-5">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{isAdmin ? 'Admin' : 'Moderator'}</span>
+            {pendingQueueCount > 0 && (
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{pendingQueueCount}</span>
+            )}
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <a href="/admin" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+              <p class="text-sm font-medium">Dashboard</p>
+              <p class="text-[10px] text-charcoal/45">Oversikt</p>
+            </a>
+            <a href="/admin/moderering" class:list={[
+              "bg-linen rounded-xl p-3 text-center transition-colors relative",
+              pendingQueueCount > 0 ? "ring-2 ring-amber-500/40 hover:ring-amber-500/60" : "hover:bg-sage-100/50",
+            ]}>
+              <p class="text-sm font-medium">Modereringskø</p>
+              {pendingQueueCount > 0 ? (
+                <div class="flex items-center justify-center gap-1.5 mt-0.5">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <p class="text-[11px] text-amber-600 font-bold">{pendingQueueCount} venter</p>
+                </div>
+              ) : (
+                <p class="text-[10px] text-charcoal/45">Ingen ventende</p>
+              )}
+            </a>
+            <a href="/admin/rapporter" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+              <p class="text-sm font-medium">Rapporter</p>
+              <p class="text-[10px] text-charcoal/45">Flagget innhold</p>
+            </a>
+            {isAdmin && (
+              <>
+                <a href="/admin/brukere" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+                  <p class="text-sm font-medium">Brukere</p>
+                  <p class="text-[10px] text-charcoal/45">Roller og tillit</p>
+                </a>
+                <a href="/admin/moderatorer" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+                  <p class="text-sm font-medium">Moderatorer</p>
+                  <p class="text-[10px] text-charcoal/45">Ytelse og stats</p>
+                </a>
+                <a href="/admin/logg" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+                  <p class="text-sm font-medium">Aktivitetslogg</p>
+                  <p class="text-[10px] text-charcoal/45">Revisjon</p>
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <!-- Two-column staggered layout -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-10">
@@ -185,11 +241,12 @@ function isPdf(path: string | null): boolean {
                 <a href={`/marked/oppdrag/${r.id}`} class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="min-w-0">
                     <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500/70">Bestiller</span>
                       <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
                       <span class:list={[
                         'text-[9px] font-bold uppercase tracking-widest',
                         r.status === 'open' ? 'text-sage-700' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
-                      ]}>{REQUEST_STATUS[r.status]}</span>
+                      ]}>{COMMISSION_STATUS[r.status]}</span>
                     </div>
                     <p class="text-sm font-medium line-clamp-1">{r.title}</p>
                   </div>

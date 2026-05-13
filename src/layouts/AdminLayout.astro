@@ -1,0 +1,43 @@
+---
+import Layout from './Layout.astro';
+import AdminNav from '../components/AdminNav.astro';
+import { requireModerator } from '../lib/admin-auth';
+
+interface Props {
+  title: string;
+  current?: string;
+  adminOnly?: boolean;
+}
+
+const { title, current, adminOnly } = Astro.props;
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/marked');
+if (adminOnly && auth.role !== 'admin') return Astro.redirect('/admin');
+
+const isAdmin = auth.role === 'admin';
+---
+
+<Layout title={title} lang="nb">
+  <div class="min-h-[calc(100vh-64px)] bg-linen">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div class="flex gap-8">
+        <!-- Sidebar -->
+        <aside class="hidden lg:block w-52 shrink-0">
+          <div class="sticky top-[88px]">
+            <div class="mb-4">
+              <p class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500">Admin</p>
+              <p class="font-mono text-sm font-bold">{auth.role}</p>
+            </div>
+            <AdminNav current={current} isAdmin={isAdmin} />
+          </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="flex-1 min-w-0">
+          <slot />
+        </main>
+      </div>
+    </div>
+  </div>
+</Layout>

@@ -3,6 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MarketplaceNav from '../../../components/MarketplaceNav.astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
+import { CATEGORY_LABEL, COMMISSION_STATUS, OFFER_STATUS } from '../../../lib/labels';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/logg-inn?next=/marked/oppdrag/mine');
@@ -25,16 +26,6 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
     .limit(30),
 ]);
 
-const CATEGORY_LABEL: Record<string, string> = {
-  genser: 'Genser', cardigan: 'Cardigan', lue: 'Lue', votter: 'Votter',
-  sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
-};
-const STATUS_LABEL: Record<string, string> = {
-  open: 'Åpen', awaiting_payment: 'Venter på betaling', awaiting_yarn: 'Venter på garn', awarded: 'Pågår', completed: 'Ferdigstrikket', delivered: 'Levert', cancelled: 'Avbrutt', expired: 'Utløpt',
-};
-const OFFER_STATUS: Record<string, string> = {
-  pending: 'Venter', accepted: 'Akseptert', declined: 'Avslått', withdrawn: 'Trukket',
-};
 ---
 
 <Layout title="Mine oppdrag — Strikketorget" lang="nb">
@@ -72,7 +63,7 @@ const OFFER_STATUS: Record<string, string> = {
                         'text-[10px] font-bold uppercase tracking-widest',
                         r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
                       ]}>
-                        {STATUS_LABEL[r.status]}
+                        {COMMISSION_STATUS[r.status]}
                       </span>
                     </div>
                     <p class="font-medium line-clamp-1">{r.title}</p>

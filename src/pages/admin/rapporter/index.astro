@@ -1,0 +1,94 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../../lib/admin-auth';
+import { createServerSupabase } from '../../../lib/supabase';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { REPORT_STATUS } from '../../../lib/labels';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/marked');
+
+const tab = Astro.url.searchParams.get('tab') ?? 'open';
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+let reports: any[] = [];
+
+if (tab === 'open') {
+  const { data } = await supabase
+    .from('reports')
+    .select('*')
+    .eq('status', 'open')
+    .order('created_at', { ascending: true })
+    .limit(50);
+  reports = data ?? [];
+} else {
+  const { data } = await supabase
+    .from('reports')
+    .select('*')
+    .in('status', ['resolved', 'dismissed'])
+    .order('resolved_at', { ascending: false })
+    .limit(50);
+  reports = data ?? [];
+}
+
+const REASON_LABEL: Record<string, string> = {
+  scam: 'Svindel',
+  inappropriate: 'Upassende innhold',
+  wrong_category: 'Feil kategori',
+  spam: 'Spam',
+  other: 'Annet',
+};
+---
+
+<AdminLayout title="Rapporter" current="rapporter">
+  <h1 class="font-serif text-2xl mb-4">Rapporter</h1>
+
+  <div class="flex gap-1 mb-6">
+    <a href="/admin/rapporter?tab=open" class:list={[
+      'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+      tab === 'open' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+    ]}>Åpne</a>
+    <a href="/admin/rapporter?tab=closed" class:list={[
+      'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+      tab === 'closed' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+    ]}>Behandlet</a>
+  </div>
+
+  {reports.length === 0 ? (
+    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+      <p class="text-sm text-charcoal/45">Ingen rapporter.</p>
+    </div>
+  ) : (
+    <div class="space-y-2">
+      {reports.map(r => (
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{r.target_type}</span>
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                  r.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
+                ]}>{REASON_LABEL[r.reason] ?? r.reason}</span>
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                  r.status === 'open' ? 'text-terracotta-500 bg-terracotta-500/10' : r.status === 'resolved' ? 'text-sage-700 bg-sage-100' : 'text-charcoal/40 bg-oatmeal/60',
+                ]}>{REPORT_STATUS[r.status]}</span>
+              </div>
+              <p class="text-sm">{anonymizeUser(r.reporter_id)} rapporterte</p>
+              {r.description && <p class="text-xs text-charcoal/55 mt-1">{r.description}</p>}
+              <p class="text-[10px] text-charcoal/40 mt-1">{new Date(r.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            </div>
+            {r.status === 'open' && (
+              <form method="post" action="/api/admin/reports/resolve" data-astro-reload class="flex gap-1 shrink-0">
+                <input type="hidden" name="report_id" value={r.id} />
+                <button type="submit" name="action" value="resolve" class="px-3 py-1.5 bg-sage-500 text-white rounded-lg text-[10px] font-medium">Løs</button>
+                <button type="submit" name="action" value="dismiss" class="px-3 py-1.5 border border-sage-500/15 rounded-lg text-[10px] font-medium text-charcoal/60">Avvis</button>
+              </form>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+</AdminLayout>
