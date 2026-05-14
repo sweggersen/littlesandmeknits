@@ -419,7 +419,7 @@ export async function receiveYarn(
 
 export async function markCompleted(
   ctx: ServiceContext,
-  input: { requestId: string },
+  input: { requestId: string; trackingCode?: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.requestId) return fail('bad_input', 'Missing request ID');
 
@@ -443,6 +443,7 @@ export async function markCompleted(
     status: 'completed',
     completed_at: new Date().toISOString(),
     auto_release_at: autoRelease.toISOString(),
+    finished_item_tracking_code: input.trackingCode?.trim() || null,
   }).eq('id', input.requestId);
 
   await createNotification(ctx.admin, {
@@ -575,4 +576,89 @@ export async function getTracking(
   const events = await bringGetTracking(auth, req.yarn_bring_shipment_number);
 
   return ok(events);
+}
+
+export async function disputeCommission(
+  ctx: ServiceContext,
+  input: { requestId: string; reason: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (!input.requestId) return fail('bad_input', 'Missing request ID');
+  const reason = input.reason.trim();
+  if (!reason) return fail('bad_input', 'Reason required');
+
+  const { data: req } = await ctx.admin
+    .from('commission_requests')
+    .select('id, buyer_id, title, status, awarded_offer_id, auto_release_at')
+    .eq('id', input.requestId)
+    .maybeSingle();
+
+  if (!req || req.buyer_id !== ctx.user.id) return fail('not_found', 'Not found');
+  if (req.status !== 'completed') return fail('conflict', 'Cannot dispute in this state');
+
+  await ctx.admin
+    .from('commission_requests')
+    .update({
+      status: 'disputed',
+      disputed_at: new Date().toISOString(),
+      dispute_reason: reason,
+      auto_release_at: null,
+    })
+    .eq('id', input.requestId);
+
+  const { data: offer } = await ctx.admin
+    .from('commission_offers')
+    .select('knitter_id')
+    .eq('id', req.awarded_offer_id!)
+    .maybeSingle();
+
+  if (offer) {
+    await createNotification(ctx.admin, {
+      userId: offer.knitter_id,
+      type: 'dispute_opened',
+      title: 'Tvist åpnet',
+      body: `Kjøper har rapportert et problem med «${req.title}».`,
+      url: `/marked/oppdrag/${input.requestId}`,
+      actorId: ctx.user.id,
+      referenceId: input.requestId,
+    }, ctx.env);
+  }
+
+  const { data: admins } = await ctx.admin.from('profiles').select('id').eq('role', 'admin');
+  for (const a of admins ?? []) {
+    await createNotification(ctx.admin, {
+      userId: a.id,
+      type: 'dispute_opened',
+      title: 'Ny tvist',
+      body: `Tvist på oppdrag «${req.title}» — krever gjennomgang.`,
+      url: '/admin/tvister',
+      referenceId: input.requestId,
+    }, ctx.env);
+  }
+
+  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+}
+
+export async function extendRequest(
+  ctx: ServiceContext,
+  input: { requestId: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (!input.requestId) return fail('bad_input', 'Missing request ID');
+
+  const { data: req } = await ctx.supabase
+    .from('commission_requests')
+    .select('id, buyer_id, status, expires_at')
+    .eq('id', input.requestId)
+    .single();
+
+  if (!req || req.buyer_id !== ctx.user.id) return fail('forbidden', 'Not your request');
+  if (req.status !== 'open') return fail('bad_input', 'Only open requests can be extended');
+
+  const current = req.expires_at ? new Date(req.expires_at) : new Date();
+  current.setDate(current.getDate() + 30);
+
+  await ctx.admin.from('commission_requests').update({
+    expires_at: current.toISOString(),
+  }).eq('id', input.requestId);
+
+  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
 }

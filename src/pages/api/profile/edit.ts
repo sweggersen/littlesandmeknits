@@ -25,7 +25,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     } else {
       cookies.delete('lm-lang', { path: '/' });
     }
+    return new Response(null, { status: 303, headers: { Location: result.data.redirect } });
   }
 
-  return toResponse(result, redirect);
+  return toResponse(result);
 };

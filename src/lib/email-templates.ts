@@ -18,7 +18,14 @@ function btn(href: string, label: string): string {
   return `<p style="margin:24px 0"><a href="${href}" style="display:inline-block;background:#3C3C3C;color:#FAF6F1;padding:12px 24px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:500">${label}</a></p>`;
 }
 
-const templates: Record<NotificationType, (p: { title: string; body?: string; url?: string; siteUrl: string }) => { subject: string; html: string }> = {
+function generic(p: { title: string; body?: string; url?: string; siteUrl: string }): { subject: string; html: string } {
+  return {
+    subject: p.title,
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${p.url ? btn(p.siteUrl + p.url, 'Se mer') : ''}`),
+  };
+}
+
+const templates: Partial<Record<NotificationType, (p: { title: string; body?: string; url?: string; siteUrl: string }) => { subject: string; html: string }>> = {
   new_offer: (p) => ({
     subject: 'Nytt tilbud på oppdraget ditt',
     html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + (p.url ?? ''), 'Se tilbudet')}`),
@@ -69,7 +76,8 @@ export function renderEmail(
   type: NotificationType,
   opts: { title: string; body?: string; url?: string; siteUrl: string },
 ): { subject: string; html: string } {
-  const result = templates[type](opts);
+  const fn = templates[type] ?? generic;
+  const result = fn(opts);
   result.html = result.html.replaceAll('{{siteUrl}}', opts.siteUrl);
   return result;
 }

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { buildServiceContext } from '../../../../lib/services/context';
-import { markCompleted } from '../../../../lib/services/commissions';
+import { extendRequest } from '../../../../lib/services/commissions';
 import { toResponse } from '../../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -8,9 +8,6 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (!ctx) return redirect('/logg-inn');
 
   const form = await request.formData();
-  const result = await markCompleted(ctx, {
-    requestId: form.get('request_id')?.toString() ?? '',
-    trackingCode: form.get('tracking_code')?.toString(),
-  });
+  const result = await extendRequest(ctx, { requestId: form.get('request_id')?.toString() ?? '' });
   return toResponse(result, redirect);
 };

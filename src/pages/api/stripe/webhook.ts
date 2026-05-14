@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 import { env } from 'cloudflare:workers';
 import { createStripe } from '../../../lib/stripe';
 import { createAdminSupabase } from '../../../lib/supabase';
+import { createNotification } from '../../../lib/notify';
 
 export const POST: APIRoute = async ({ request }) => {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET || !env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -65,6 +66,93 @@ export const POST: APIRoute = async ({ request }) => {
           item_id: listingId,
           submitter_id: sellerId,
         });
+      }
+
+      return new Response('ok', { status: 200 });
+    }
+
+    // ── Listing promotion ─────────────────────────────────────
+    if (session.metadata?.type === 'listing_promotion') {
+      const promoListingId = session.metadata.listing_id;
+      const sellerId = session.metadata.seller_id;
+      const tier = session.metadata.tier;
+      if (!promoListingId || !sellerId || !tier) {
+        console.error('Promotion webhook missing metadata', session.metadata);
+        return new Response('Missing metadata', { status: 400 });
+      }
+
+      const endsAt = new Date(Date.now() + 7 * 86400_000).toISOString();
+
+      await supabase
+        .from('listing_promotions')
+        .update({
+          status: 'active',
+          ends_at: endsAt,
+          stripe_payment_intent_id: typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null,
+        })
+        .eq('stripe_session_id', session.id);
+
+      await supabase
+        .from('listings')
+        .update({ promoted_until: endsAt, promotion_tier: tier })
+        .eq('id', promoListingId);
+
+      return new Response('ok', { status: 200 });
+    }
+
+    // ── Listing purchase (escrow via manual capture) ────────────
+    if (session.metadata?.type === 'listing_purchase') {
+      const purchaseListingId = session.metadata.listing_id;
+      const buyerId = session.metadata.buyer_id;
+      if (!purchaseListingId || !buyerId) {
+        console.error('Listing purchase webhook missing metadata', session.metadata);
+        return new Response('Missing metadata', { status: 400 });
+      }
+
+      const piId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+
+      const autoReleaseAt = new Date(Date.now() + 14 * 86400_000).toISOString();
+      const now = new Date().toISOString();
+      const feeNok = session.amount_total ? Math.round((session.amount_total * 0.13) / 100) : 0;
+
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          status: 'reserved',
+          buyer_id: buyerId,
+          stripe_payment_intent_id: piId ?? null,
+          platform_fee_nok: feeNok,
+          reserved_at: now,
+          auto_release_at: autoReleaseAt,
+        })
+        .eq('id', purchaseListingId)
+        .eq('status', 'active');
+
+      if (error) {
+        console.error('Listing purchase update failed', error, { purchaseListingId });
+        return new Response('DB error', { status: 500 });
+      }
+
+      const { data: listingData } = await supabase
+        .from('listings')
+        .select('seller_id, title')
+        .eq('id', purchaseListingId)
+        .maybeSingle();
+
+      if (listingData) {
+        await createNotification(supabase, {
+          userId: listingData.seller_id,
+          type: 'listing_purchased',
+          title: 'Varen din er solgt!',
+          body: `Noen har kjøpt «${listingData.title}». Send varen og legg inn sporingskode.`,
+          url: `/marked/listing/${purchaseListingId}`,
+          actorId: buyerId,
+          referenceId: purchaseListingId,
+        }, { RESEND_API_KEY: env.RESEND_API_KEY, PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, PUBLIC_VAPID_KEY: env.PUBLIC_VAPID_KEY, VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY });
       }
 
       return new Response('ok', { status: 200 });

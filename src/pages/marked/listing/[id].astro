@@ -1,7 +1,10 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
+import ProfileAvatar from '../../../components/ProfileAvatar.astro';
+import Alert from '../../../components/Alert.astro';
+import StatusBadge from '../../../components/StatusBadge.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
@@ -16,30 +19,49 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 
 let { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier')
   .eq('id', id)
   .maybeSingle();
+
+if (!listing) {
+  const { data: fallback } = await supabase
+    .from('listings')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+    .eq('id', id)
+    .maybeSingle();
+  if (fallback) listing = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
+}
 
 const { data: viewerProfile } = user ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle() : { data: null };
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
 
 if (!listing && isStaff) {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data } = await admin
+  let { data } = await admin
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
     .eq('id', id)
     .maybeSingle();
+  if (!data) {
+    const { data: fallback } = await admin
+      .from('listings')
+      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+      .eq('id', id)
+      .maybeSingle();
+    if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
+  }
   listing = data;
 }
 
 if (!listing) return Astro.redirect('/marked');
 
 const isOwner = user?.id === listing.seller_id;
-if (!isOwner && !isStaff && listing.status !== 'active') return Astro.redirect('/marked');
+const isBuyer = user?.id === listing.buyer_id;
+const viewableStatuses = new Set(['active', 'reserved', 'shipped', 'sold', 'disputed']);
+if (!isOwner && !isBuyer && !isStaff && !viewableStatuses.has(listing.status)) return Astro.redirect('/marked');
 
 const [{ data: sellerProfile }, { data: photoRows }] = await Promise.all([
-  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags').eq('id', listing.seller_id).maybeSingle(),
+  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
 ]);
 
@@ -50,36 +72,42 @@ const photos = (photoRows ?? []).length > 0
     : [];
 const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as string[];
 
+let isFavorited = false;
+if (user && !isOwner) {
+  try {
+    const { data } = await supabase.from('favorites').select('id').eq('user_id', user.id).eq('item_type', 'listing').eq('item_id', id).maybeSingle();
+    isFavorited = !!data;
+  } catch {}
+}
+
 const justPublished = Astro.url.searchParams.get('published') === '1';
+const justPromoted = Astro.url.searchParams.get('promoted') === '1';
+const justPurchased = Astro.url.searchParams.get('purchased') === '1';
+const sellerOnboarded = !!sellerProfile?.stripe_onboarded;
+const autoReleaseDays = listing.auto_release_at
+  ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
+  : null;
 ---
 
 <Layout title={`${listing.title} — Strikketorget`} lang="nb">
-  <MarketplaceNav current="listing" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+  <MarketplaceShell current="listing">
       {justPublished && isOwner && (
-        <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 mb-6 text-sm">
-          Annonsen er publisert og synlig for alle.
-        </div>
+        <Alert type="success" class="mb-6">Annonsen er publisert og synlig for alle.</Alert>
       )}
 
       {isOwner && listing.status === 'pending_review' && (
-        <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 mb-6 text-sm">
-          Annonsen din er under vurdering. Den blir synlig når den er godkjent.
-        </div>
+        <Alert type="warning" class="mb-6">Annonsen din er under vurdering. Den blir synlig når den er godkjent.</Alert>
       )}
 
       {isOwner && listing.status === 'rejected' && (
-        <div class="bg-red-50 text-red-900 rounded-2xl p-4 mb-6 text-sm">
+        <Alert type="error" class="mb-6">
           Annonsen ble avvist. {listing.moderation_notes ? `Grunn: ${listing.moderation_notes}` : 'Innholdet oppfyller ikke retningslinjene våre.'}
           Annonsegebyret er refundert.
-        </div>
+        </Alert>
       )}
 
       {isOwner && listing.status !== 'active' && listing.status !== 'pending_review' && listing.status !== 'rejected' && (
-        <div class="inline-block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 bg-oatmeal/60 rounded-full px-3 py-1 mb-4">
-          {LISTING_STATUS[listing.status]}
-        </div>
+        <StatusBadge label={LISTING_STATUS[listing.status]} class="mb-4" />
       )}
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -96,6 +124,7 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
                   src={photoUrls[0]}
                   alt={listing.title}
                   class="w-full h-full object-cover"
+                  transition:name={`listing-img-${id}`}
                 />
                 {photoUrls.length > 1 && (
                   <>
@@ -140,9 +169,12 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
           {isOwner && (
             <div class="mt-4 space-y-4">
               <form method="post" action={`/api/marketplace/listings/${listing.id}/photo`} enctype="multipart/form-data">
-                <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1">
                   {photos.length > 0 ? `Legg til bilder (${photos.length}/6)` : 'Last opp bilder (maks 6)'}
                 </label>
+                {photos.length === 0 && listing.status === 'draft' && (
+                  <p class="text-xs text-terracotta-500 mb-2">Minst ett bilde er påkrevd. 3 eller flere bilder gir betydelig mer synlighet.</p>
+                )}
                 <div class="flex items-center gap-2">
                   <input name="photos" type="file" accept="image/*" multiple required
                     class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
@@ -205,7 +237,27 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
           <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">
             {KIND_LABEL[listing.kind]}
           </p>
-          <h1 class="font-serif text-3xl sm:text-4xl mb-4">{listing.title}</h1>
+          <div class="flex items-start justify-between gap-3 mb-4">
+            <h1 class="font-serif text-3xl sm:text-4xl">{listing.title}</h1>
+            {user && !isOwner && (
+              <button
+                type="button"
+                data-fav-btn
+                data-item-type="listing"
+                data-item-id={id}
+                data-favorited={isFavorited ? 'true' : 'false'}
+                class:list={[
+                  'shrink-0 mt-1 p-2 rounded-full hover:bg-sage-100/50 transition-colors',
+                  isFavorited ? 'text-terracotta-500' : 'text-charcoal/40',
+                ]}
+                aria-label={isFavorited ? 'Fjern favoritt' : 'Legg til favoritt'}
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill={isFavorited ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-colors" data-fav-icon>
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </button>
+            )}
+          </div>
           <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} NOK</p>
 
           <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
@@ -258,11 +310,25 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
               {listing.status === 'draft' && (
                 <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
                   <h2 class="font-serif text-xl mb-2">Publiser</h2>
-                  <p class="text-sm text-charcoal/65 mb-4">
-                    Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med en gang.
-                  </p>
+                  {photos.length === 0 ? (
+                    <div class="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm mb-4">
+                      Du må legge til minst ett bilde før du kan publisere.
+                    </div>
+                  ) : photos.length < 3 ? (
+                    <p class="text-sm text-charcoal/65 mb-4">
+                      Publisering koster 29 NOK. <span class="text-terracotta-500 font-medium">Tips: Annonser med 3+ bilder får betydelig flere visninger og henvendelser.</span>
+                    </p>
+                  ) : (
+                    <p class="text-sm text-charcoal/65 mb-4">
+                      Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med en gang.
+                    </p>
+                  )}
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
-                    <button type="submit" class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" disabled={photos.length === 0}
+                      class:list={['px-6 py-3 rounded-full text-sm font-medium transition-colors',
+                        photos.length === 0
+                          ? 'bg-charcoal/30 text-linen cursor-not-allowed'
+                          : 'bg-charcoal text-linen hover:bg-terracotta-500']}>
                       Betal og publiser (29 NOK)
                     </button>
                   </form>
@@ -273,20 +339,177 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
                   Annonsen er publisert og synlig for alle.
                 </div>
               )}
+              {justPromoted && listing.status === 'active' && (
+                <Alert type="success" class="mt-4">Annonsen din er nå fremhevet!</Alert>
+              )}
+              {listing.status === 'active' && listing.promoted_until && new Date(listing.promoted_until) > new Date() ? (
+                <section class="bg-white rounded-3xl p-6 border border-terracotta-500/20 mt-4">
+                  <div class="flex items-center gap-2 mb-2">
+                    <StatusBadge label="Fremhevet" variant="terracotta" />
+                    <span class="text-xs text-charcoal/45">
+                      {Math.max(0, Math.ceil((new Date(listing.promoted_until).getTime() - Date.now()) / 86400_000))} dager igjen
+                    </span>
+                  </div>
+                  <p class="text-sm text-charcoal/65 mb-3">Annonsen vises øverst i søkeresultatene{listing.promotion_tier === 'highlight' ? ' med «Fremhevet»-merke' : ''}.</p>
+                  <a href={`/marked/statistikk/${listing.id}`} class="text-xs text-terracotta-500 hover:underline">Se statistikk →</a>
+                </section>
+              ) : listing.status === 'active' ? (
+                <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mt-4">
+                  <h2 class="font-serif text-xl mb-2">Fremhev annonsen</h2>
+                  <p class="text-sm text-charcoal/65 mb-4">Gi annonsen din mer synlighet — promoterte annonser vises øverst i søk og på forsiden.</p>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`}>
+                      <input type="hidden" name="tier" value="boost" />
+                      <button type="submit" class="w-full bg-white border-2 border-sage-500/20 rounded-2xl p-4 text-left hover:border-terracotta-500/30 transition-colors">
+                        <p class="font-medium mb-1">Boost</p>
+                        <p class="text-xs text-charcoal/55 mb-2">Vises øverst i 7 dager</p>
+                        <p class="font-mono tabular-nums">49 NOK</p>
+                      </button>
+                    </form>
+                    <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`}>
+                      <input type="hidden" name="tier" value="highlight" />
+                      <button type="submit" class="w-full bg-terracotta-500/5 border-2 border-terracotta-500/20 rounded-2xl p-4 text-left hover:border-terracotta-500/40 transition-colors">
+                        <p class="font-medium text-terracotta-500 mb-1">Fremhevet</p>
+                        <p class="text-xs text-charcoal/55 mb-2">Boost + «Fremhevet»-merke + forside</p>
+                        <p class="font-mono tabular-nums">99 NOK</p>
+                      </button>
+                    </form>
+                  </div>
+                </section>
+              ) : null}
             </div>
           ) : (
-            <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
-              <input type="hidden" name="listing_id" value={listing.id} />
-              <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                Send melding til {sellerProfile?.display_name ?? 'selger'}
-              </label>
-              <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
-                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>
-              <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                Send melding
-              </button>
-              <p class="text-[11px] text-charcoal/45 mt-3 text-center">Dere avtaler betaling og frakt dere imellom.</p>
-            </form>
+            <div class="space-y-4">
+              {/* ── Purchase states (buyer view) ── */}
+              {isBuyer && justPurchased && listing.status === 'reserved' && (
+                <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
+                  Kjøpet er registrert! Pengene holdes trygt til du bekrefter mottak.
+                </div>
+              )}
+
+              {isBuyer && (listing.status === 'reserved' || listing.status === 'shipped') && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-4">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                    <h2 class="font-serif text-lg">
+                      {listing.status === 'shipped' ? 'Varen er sendt' : 'Venter på sending'}
+                    </h2>
+                  </div>
+                  {listing.tracking_code && (
+                    <p class="text-sm text-charcoal/65">
+                      Sporingskode: <span class="font-mono">{listing.tracking_code}</span>
+                    </p>
+                  )}
+                  {autoReleaseDays !== null && (
+                    <p class="text-xs text-charcoal/45">
+                      Betalingen frigis automatisk om {autoReleaseDays} {autoReleaseDays === 1 ? 'dag' : 'dager'} hvis du ikke svarer.
+                    </p>
+                  )}
+                  <div class="flex gap-3">
+                    <form method="post" action={`/api/marketplace/listings/${listing.id}/confirm-delivery`} class="flex-1">
+                      <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                        Bekreft mottatt
+                      </button>
+                    </form>
+                    <details class="flex-1">
+                      <summary class="cursor-pointer w-full bg-red-50 text-red-700 px-6 py-3 rounded-full text-sm font-medium text-center hover:bg-red-100 transition-colors">
+                        Rapporter problem
+                      </summary>
+                      <form method="post" action={`/api/marketplace/listings/${listing.id}/dispute`} class="mt-3 space-y-3">
+                        <textarea name="reason" required rows="3" maxlength="500" placeholder="Beskriv problemet..."
+                          class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+                        <button type="submit" class="w-full bg-red-600 text-white px-4 py-2.5 rounded-full text-sm font-medium hover:bg-red-700 transition-colors">
+                          Åpne tvist
+                        </button>
+                      </form>
+                    </details>
+                  </div>
+                  <p class="text-[11px] text-charcoal/45 text-center">
+                    Pengene holdes trygt av plattformen til du bekrefter mottak.
+                  </p>
+                </section>
+              )}
+
+              {isBuyer && listing.status === 'disputed' && (
+                <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 text-sm">
+                  Du har åpnet en tvist. Saken er under behandling.
+                  {listing.dispute_resolution && (
+                    <p class="mt-2 font-medium">Resultat: {listing.dispute_resolution}</p>
+                  )}
+                </div>
+              )}
+
+              {isBuyer && listing.status === 'sold' && listing.delivered_at && (
+                <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
+                  Levering bekreftet. Betalingen er frigitt til selger.
+                </div>
+              )}
+
+              {/* ── Seller view for reserved/shipped/disputed listings ── */}
+              {isOwner && listing.status === 'reserved' && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-4">
+                  <div class="flex items-center gap-2">
+                    <span class="inline-block w-2.5 h-2.5 rounded-full bg-sage-500"></span>
+                    <h2 class="font-serif text-lg">Noen har kjøpt varen din!</h2>
+                  </div>
+                  <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskode.</p>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/ship`} class="space-y-3">
+                    <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)"
+                      class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                      Merk som sendt
+                    </button>
+                  </form>
+                </section>
+              )}
+
+              {isOwner && listing.status === 'shipped' && (
+                <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
+                  Varen er sendt. Venter på at kjøper bekrefter mottak.
+                  {listing.tracking_code && (
+                    <p class="mt-1">Sporingskode: <span class="font-mono">{listing.tracking_code}</span></p>
+                  )}
+                </div>
+              )}
+
+              {isOwner && listing.status === 'disputed' && (
+                <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 text-sm">
+                  Kjøper har åpnet en tvist. Saken er under behandling av admin.
+                  {listing.dispute_reason && (
+                    <p class="mt-1 text-xs">Grunn: {listing.dispute_reason}</p>
+                  )}
+                </div>
+              )}
+
+              {/* ── Buy button (active listing, not owner, not already buyer) ── */}
+              {!isOwner && !isBuyer && listing.status === 'active' && sellerOnboarded && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
+                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                      Kjøp nå — {listing.price_nok} NOK
+                    </button>
+                  </form>
+                  <p class="text-[11px] text-charcoal/45 text-center">
+                    Pengene holdes trygt til du bekrefter mottak. 14 dagers kjøperbeskyttelse.
+                  </p>
+                </section>
+              )}
+
+              {/* ── Messaging (always available for active listings) ── */}
+              {!isOwner && !isBuyer && listing.status === 'active' && (
+                <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
+                  <input type="hidden" name="listing_id" value={listing.id} />
+                  <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+                    Send melding til {sellerProfile?.display_name ?? 'selger'}
+                  </label>
+                  <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                    class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>
+                  <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                    Send melding
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
           {!isOwner && user && listing.status === 'active' && (
@@ -296,13 +519,7 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
           )}
 
           <a href={`/marked/selger/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
-            {sellerProfile?.avatar_path ? (
-              <img src={projectPhotoUrl(sellerProfile.avatar_path)!} alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />
-            ) : (
-              <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
-                <span class="font-serif text-base text-sage-700">{(sellerProfile?.display_name ?? '?')[0].toUpperCase()}</span>
-              </div>
-            )}
+            <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
             <div class="min-w-0">
               <p class="font-medium group-hover:text-terracotta-500 transition-colors">
                 {sellerProfile?.display_name ?? 'Anonym'}
@@ -314,8 +531,7 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
           </a>
         </div>
       </div>
-    </div>
-  </div>
+  </MarketplaceShell>
 
   <!-- Fullscreen lightbox -->
   <div id="lightbox" class="fixed inset-0 z-[100] bg-black/95 hidden items-center justify-center" role="dialog" aria-modal="true">
@@ -566,5 +782,37 @@ const justPublished = Astro.url.searchParams.get('published') === '1';
         await postAction(body);
       });
     });
+  </script>
+  <script>
+    function initFavBtn() {
+      document.querySelectorAll<HTMLButtonElement>('[data-fav-btn]').forEach(btn => {
+        if ((btn as any)._favBound) return;
+        (btn as any)._favBound = true;
+        const icon = btn.querySelector('[data-fav-icon]') as SVGElement;
+        function render() {
+          const on = btn.dataset.favorited === 'true';
+          icon?.setAttribute('fill', on ? 'currentColor' : 'none');
+          btn.style.color = on ? '#c2604a' : '';
+          btn.setAttribute('aria-label', on ? 'Fjern favoritt' : 'Legg til favoritt');
+        }
+        render();
+        btn.addEventListener('click', async () => {
+          btn.disabled = true;
+          const form = new FormData();
+          form.set('item_type', btn.dataset.itemType!);
+          form.set('item_id', btn.dataset.itemId!);
+          try {
+            const res = await fetch('/api/favorites/toggle', { method: 'POST', body: form, credentials: 'same-origin' });
+            if (res.ok) {
+              const data = await res.json();
+              btn.dataset.favorited = data.favorited ? 'true' : 'false';
+              render();
+            }
+          } finally { btn.disabled = false; }
+        });
+      });
+    }
+    initFavBtn();
+    document.addEventListener('astro:page-load', initFavBtn);
   </script>
 </Layout>

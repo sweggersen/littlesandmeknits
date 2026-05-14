@@ -256,3 +256,103 @@ describe('moderation — role checks', async () => {
     if (!result.ok) expect(result.code).toBe('bad_input');
   });
 });
+
+describe('listing purchase — input validation', async () => {
+  const { purchaseListing, shipListing, confirmListingDelivery, disputeListing } = await import('../listings');
+
+  it('rejects purchase with missing id', async () => {
+    const ctx = createMockContext();
+    const result = await purchaseListing(ctx, { listingId: '', stripeSecretKey: 'sk_test' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects purchase without stripe key', async () => {
+    const ctx = createMockContext();
+    const result = await purchaseListing(ctx, { listingId: 'l-1', stripeSecretKey: '' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('server_error');
+  });
+
+  it('rejects ship with missing id', async () => {
+    const ctx = createMockContext();
+    const result = await shipListing(ctx, { listingId: '', trackingCode: 'TRACK-1' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects confirm delivery with missing id', async () => {
+    const ctx = createMockContext();
+    const result = await confirmListingDelivery(ctx, { listingId: '' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects dispute with missing id', async () => {
+    const ctx = createMockContext();
+    const result = await disputeListing(ctx, { listingId: '', reason: 'broken' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects dispute with empty reason', async () => {
+    const ctx = createMockContext();
+    const result = await disputeListing(ctx, { listingId: 'l-1', reason: '  ' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+});
+
+describe('commission dispute — input validation', async () => {
+  const { disputeCommission } = await import('../commissions');
+
+  it('rejects dispute with missing request id', async () => {
+    const ctx = createMockContext();
+    const result = await disputeCommission(ctx, { requestId: '', reason: 'problem' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects dispute with empty reason', async () => {
+    const ctx = createMockContext();
+    const result = await disputeCommission(ctx, { requestId: 'r-1', reason: '' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+});
+
+describe('dispute resolution — input validation', async () => {
+  const { resolveDispute } = await import('../disputes');
+
+  it('rejects invalid decision', async () => {
+    const ctx = createMockContext();
+    ctx._admin._setTableData('profiles', { role: 'admin' });
+    const result = await resolveDispute(ctx, { itemType: 'listing', itemId: 'l-1', decision: 'maybe' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects missing item id', async () => {
+    const ctx = createMockContext();
+    ctx._admin._setTableData('profiles', { role: 'admin' });
+    const result = await resolveDispute(ctx, { itemType: 'listing', itemId: '', decision: 'refund' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('rejects non-admin', async () => {
+    const ctx = createMockContext();
+    ctx._admin._setTableData('profiles', { role: null });
+    const result = await resolveDispute(ctx, { itemType: 'listing', itemId: 'l-1', decision: 'refund' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('forbidden');
+  });
+
+  it('rejects invalid item type', async () => {
+    const ctx = createMockContext();
+    ctx._admin._setTableData('profiles', { role: 'admin' });
+    const result = await resolveDispute(ctx, { itemType: 'user', itemId: 'u-1', decision: 'refund' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+});

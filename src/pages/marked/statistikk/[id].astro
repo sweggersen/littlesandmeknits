@@ -1,0 +1,79 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
+import { buildServiceContext } from '../../../lib/services/context';
+import { getPromotionStats, getActivePromotion } from '../../../lib/services/promotions';
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/marked/mine');
+
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+if (!ctx) return Astro.redirect('/logg-inn?next=/marked/mine');
+
+const result = await getPromotionStats(ctx, { listingId: id });
+if (!result.ok) return Astro.redirect('/marked/mine');
+
+const { organic, promoted, totalDays } = result.data;
+const activePromo = await getActivePromotion(ctx.supabase, id);
+
+const organicCtr = organic.impressions > 0 ? ((organic.clicks / organic.impressions) * 100).toFixed(1) : '0.0';
+const promoCtr = promoted.impressions > 0 ? ((promoted.clicks / promoted.impressions) * 100).toFixed(1) : '0.0';
+const liftPct = organic.impressions > 0 && promoted.impressions > 0
+  ? Math.round(((promoted.impressions / Math.max(totalDays, 1)) / (organic.impressions / Math.max(1, 30 - totalDays)) - 1) * 100)
+  : null;
+
+const { data: listing } = await ctx.supabase
+  .from('listings')
+  .select('title')
+  .eq('id', id)
+  .maybeSingle();
+---
+
+<Layout title={`Statistikk — ${listing?.title ?? 'Annonse'}`} lang="nb">
+  <MarketplaceShell current="mine">
+    <a href={`/marked/listing/${id}`} class="text-sm text-charcoal/55 hover:text-charcoal transition-colors mb-4 inline-block">← Tilbake til annonsen</a>
+    <h1 class="font-serif text-3xl mb-2">{listing?.title ?? 'Statistikk'}</h1>
+    <p class="text-sm text-charcoal/55 mb-8">Synlighet og klikk for denne annonsen.</p>
+
+    {activePromo && (
+      <div class="bg-terracotta-500/5 border border-terracotta-500/20 rounded-2xl p-4 mb-8">
+        <p class="text-sm font-medium text-terracotta-500">
+          Aktiv promotering — {Math.max(0, Math.ceil((new Date(activePromo.ends_at).getTime() - Date.now()) / 86400_000))} dager igjen
+        </p>
+      </div>
+    )}
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+      <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Visninger (organisk)</p>
+        <p class="font-mono tabular-nums text-2xl">{organic.impressions}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Klikk (organisk)</p>
+        <p class="font-mono tabular-nums text-2xl">{organic.clicks}</p>
+        <p class="text-xs text-charcoal/45 mt-1">CTR {organicCtr}%</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-terracotta-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Visninger (promotert)</p>
+        <p class="font-mono tabular-nums text-2xl">{promoted.impressions}</p>
+      </div>
+      <div class="bg-white rounded-2xl p-5 border border-terracotta-500/10">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Klikk (promotert)</p>
+        <p class="font-mono tabular-nums text-2xl">{promoted.clicks}</p>
+        <p class="text-xs text-charcoal/45 mt-1">CTR {promoCtr}%</p>
+      </div>
+    </div>
+
+    {liftPct !== null && liftPct > 0 && (
+      <div class="bg-sage-100/50 rounded-2xl p-5 border border-sage-500/15">
+        <p class="text-sm">Promotering ga <strong class="text-terracotta-500">{liftPct}%</strong> mer synlighet per dag sammenlignet med organisk.</p>
+      </div>
+    )}
+
+    {promoted.impressions === 0 && organic.impressions === 0 && (
+      <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
+        <p class="text-charcoal/55 text-sm">Ingen data ennå. Statistikk vises når annonsen har fått visninger.</p>
+      </div>
+    )}
+  </MarketplaceShell>
+</Layout>

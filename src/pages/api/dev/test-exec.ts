@@ -5,6 +5,72 @@ import { createAdminSupabase } from '../../../lib/supabase';
 
 const ADMINS = ['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'];
 
+async function makeTestPng(hexColor: string, size = 200): Promise<Uint8Array> {
+  const r = parseInt(hexColor.slice(0, 2), 16);
+  const g = parseInt(hexColor.slice(2, 4), 16);
+  const b = parseInt(hexColor.slice(4, 6), 16);
+
+  const rowLen = 1 + size * 3;
+  const raw = new Uint8Array(rowLen * size);
+  for (let y = 0; y < size; y++) {
+    const off = y * rowLen;
+    raw[off] = 0;
+    for (let x = 0; x < size; x++) {
+      raw[off + 1 + x * 3] = r;
+      raw[off + 2 + x * 3] = g;
+      raw[off + 3 + x * 3] = b;
+    }
+  }
+
+  const cs = new CompressionStream('deflate');
+  const writer = cs.writable.getWriter();
+  writer.write(raw);
+  writer.close();
+  const compressed = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+
+  const u32 = (n: number) => new Uint8Array([(n >> 24) & 0xff, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]);
+  const crc32 = (buf: Uint8Array) => {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) { c ^= buf[i]; for (let j = 0; j < 8; j++) c = (c >>> 1) ^ (c & 1 ? 0xEDB88320 : 0); }
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  };
+  const chunk = (type: string, data: Uint8Array) => {
+    const t = new TextEncoder().encode(type);
+    const payload = new Uint8Array(t.length + data.length);
+    payload.set(t); payload.set(data, t.length);
+    const out = new Uint8Array(4 + payload.length + 4);
+    out.set(u32(data.length)); out.set(payload, 4); out.set(u32(crc32(payload)), 4 + payload.length);
+    return out;
+  };
+
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = new Uint8Array(13);
+  new DataView(ihdr.buffer).setUint32(0, size);
+  new DataView(ihdr.buffer).setUint32(4, size);
+  ihdr[8] = 8; ihdr[9] = 2;
+
+  const parts = [sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', new Uint8Array(0))];
+  const total = parts.reduce((s, p) => s + p.length, 0);
+  const png = new Uint8Array(total);
+  let off = 0;
+  for (const p of parts) { png.set(p, off); off += p.length; }
+  return png;
+}
+
+const TEST_COLORS: Record<string, string[]> = {
+  genser:    ['c9a9a6', 'a8c8a8', 'b8a9c9'],
+  jakke:     ['d4b5a0', 'a0b8d4', 'c8b8a0'],
+  bukse:     ['b0c4b0', 'c4b0b0', 'b0b0c4'],
+  body:      ['f0d0d0', 'd0f0d0', 'd0d0f0'],
+  lue:       ['e8c8a8', 'a8d8e8', 'c8a8e8'],
+  sokker:    ['d0b8a0', 'a0c8b8', 'b8a0c8'],
+  votter:    ['c8b0a0', 'a0b8c8', 'b0a0c8'],
+  kjole:     ['e0c0d0', 'c0d0e0', 'd0e0c0'],
+  skjørt:    ['d8c0b8', 'b8d0c8', 'c0b8d8'],
+  accessory: ['d4c4b4', 'b4c4d4', 'c4d4b4'],
+  annet:     ['c0c0c0', 'b0b0b0', 'd0d0d0'],
+};
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -386,12 +452,27 @@ async function handle(
         status: 'draft',
       }).select().single();
       if (error) throw error;
+
+      const photoCount = Number(p.photo_count ?? 1);
+      if (photoCount > 0) {
+        const cat = String(p.category ?? 'genser');
+        const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+        for (let i = 0; i < Math.min(photoCount, 6); i++) {
+          const png = await makeTestPng(colors[i % colors.length]);
+          const path = `${actorId}/listings/${data.id}/photo-${crypto.randomUUID()}.png`;
+          await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+          await db.from('listing_photos').insert({ listing_id: data.id, path, position: i });
+        }
+        const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', data.id).order('position').limit(1).maybeSingle();
+        if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', data.id);
+      }
+
       return { data };
     }
 
     case 'publish-listing': {
       const { error } = await db.from('listings')
-        .update({ status: 'active' })
+        .update({ status: 'active', published_at: new Date().toISOString(), listing_fee_nok: 29 })
         .eq('id', p.listing_id);
       if (error) throw error;
       return { data: { status: 'active' } };
@@ -530,6 +611,20 @@ async function handle(
         status: 'pending_review',
       }).select().single();
       if (error) throw error;
+
+      const modPhotoCount = Number(p.photo_count ?? 1);
+      if (modPhotoCount > 0) {
+        const cat = String(p.category ?? 'genser');
+        const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+        for (let i = 0; i < Math.min(modPhotoCount, 6); i++) {
+          const png = await makeTestPng(colors[i % colors.length]);
+          const path = `${actorId}/listings/${listing.id}/photo-${crypto.randomUUID()}.png`;
+          await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+          await db.from('listing_photos').insert({ listing_id: listing.id, path, position: i });
+        }
+        const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', listing.id).order('position').limit(1).maybeSingle();
+        if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', listing.id);
+      }
 
       const { data: qi, error: qError } = await db.from('moderation_queue').insert({
         item_type: 'listing',
@@ -1041,6 +1136,13 @@ async function handle(
         .select('id')
         .in('seller_id', testUserIds);
       for (const l of testListings ?? []) {
+        const { data: photos } = await db.from('listing_photos')
+          .select('path').eq('listing_id', l.id);
+        if (photos?.length) {
+          await db.storage.from('projects').remove(photos.map(p => p.path));
+        }
+        await db.from('listing_photos').delete().eq('listing_id', l.id);
+
         const { data: convos } = await db.from('marketplace_conversations')
           .select('id')
           .eq('listing_id', l.id);

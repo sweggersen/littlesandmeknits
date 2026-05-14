@@ -1,0 +1,190 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
+import ListingCard from '../../components/ListingCard.astro';
+import CommissionCard from '../../components/CommissionCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { createServerSupabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
+import { projectPhotoUrl } from '../../lib/storage';
+import { CATEGORY_LABEL, CONDITION_LABEL, KIND_LABEL } from '../../lib/labels';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/marked/favoritter');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const hideInactive = Astro.url.searchParams.get('skjul') === '1';
+
+let favs: { item_type: string; item_id: string }[] = [];
+try {
+  const { data } = await supabase
+    .from('favorites')
+    .select('item_type, item_id')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+  favs = data ?? [];
+} catch {}
+
+const listingIds = favs.filter(f => f.item_type === 'listing').map(f => f.item_id);
+const requestIds = favs.filter(f => f.item_type === 'commission_request').map(f => f.item_id);
+
+const { data: listings } = listingIds.length
+  ? await supabase.from('listings').select('id, title, price_nok, size_label, kind, hero_photo_path, category, condition, status').in('id', listingIds)
+  : { data: [] };
+
+const { data: requests } = requestIds.length
+  ? await supabase.from('commission_requests').select('id, title, category, size_label, budget_nok_min, budget_nok_max, status').in('id', requestIds)
+  : { data: [] };
+
+const allListings = listings ?? [];
+const activeListings = allListings.filter(l => l.status === 'active');
+const inactiveListings = allListings.filter(l => l.status !== 'active');
+
+const allRequests = requests ?? [];
+const openRequests = allRequests.filter(r => r.status === 'open');
+const closedRequests = allRequests.filter(r => r.status !== 'open');
+
+const totalActive = activeListings.length + openRequests.length;
+const totalInactive = inactiveListings.length + closedRequests.length;
+---
+
+<Layout title="Mine favoritter — Strikketorget" lang="nb">
+  <MarketplaceShell current="favoritter">
+      <h1 class="font-serif text-4xl sm:text-5xl mb-2">Mine favoritter</h1>
+      <p class="text-charcoal/65 mb-6">Annonser og oppdrag du har lagret.</p>
+
+      {favs.length === 0 ? (
+        <EmptyState message="Du har ingen favoritter ennå." ctaText="Utforsk strikketorget" ctaHref="/marked/brukt" />
+      ) : (
+        <div>
+          {totalInactive > 0 && (
+            <div class="flex items-center gap-3 mb-6">
+              <a
+                href={hideInactive ? '/marked/favoritter' : '/marked/favoritter?skjul=1'}
+                class:list={[
+                  'text-xs font-medium px-3 py-1.5 rounded-full border transition-colors',
+                  hideInactive
+                    ? 'bg-charcoal text-linen border-charcoal'
+                    : 'bg-white text-charcoal/65 border-sage-500/20 hover:border-sage-500/40',
+                ]}
+              >
+                {hideInactive ? 'Vis solgte/lukkede' : 'Skjul solgte/lukkede'}
+                <span class="ml-1 opacity-60">({totalInactive})</span>
+              </a>
+            </div>
+          )}
+
+          <div class="space-y-8">
+            {activeListings.length > 0 && (
+              <section>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-4">Annonser ({activeListings.length})</h2>
+                <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {activeListings.map((l) => (
+                    <ListingCard
+                      id={l.id}
+                      title={l.title}
+                      price={l.price_nok}
+                      imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                      meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
+                      showFav
+                      isFav
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {openRequests.length > 0 && (
+              <section>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-4">Oppdrag ({openRequests.length})</h2>
+                <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {openRequests.map((r) => (
+                    <CommissionCard
+                      id={r.id}
+                      title={r.title}
+                      category={r.category}
+                      sizeLabel={r.size_label}
+                      budgetMin={r.budget_nok_min}
+                      budgetMax={r.budget_nok_max}
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {!hideInactive && inactiveListings.length > 0 && (
+              <section>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/35 mb-4">Solgt eller fjernet ({inactiveListings.length})</h2>
+                <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                  {inactiveListings.map((l) => (
+                    <ListingCard
+                      id={l.id}
+                      title={l.title}
+                      price={l.price_nok}
+                      imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                      inactive
+                      inactiveLabel="Solgt eller fjernet"
+                      showFav
+                      isFav
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {!hideInactive && closedRequests.length > 0 && (
+              <section>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/35 mb-4">Lukkede oppdrag ({closedRequests.length})</h2>
+                <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 opacity-50">
+                  {closedRequests.map((r) => (
+                    <CommissionCard
+                      id={r.id}
+                      title={r.title}
+                      category={r.category}
+                      sizeLabel={r.size_label}
+                      budgetMin={r.budget_nok_min}
+                      budgetMax={r.budget_nok_max}
+                      inactive
+                      inactiveLabel="Lukket"
+                    />
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {totalActive === 0 && (hideInactive || totalInactive === 0) && (
+              <EmptyState message="Ingen aktive favoritter." ctaText="Utforsk strikketorget" ctaHref="/marked/brukt" />
+            )}
+          </div>
+        </div>
+      )}
+  </MarketplaceShell>
+  <script>
+    function initFavPage() {
+      document.querySelectorAll('[data-fav-btn]').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const el = btn as HTMLElement;
+          const body = new FormData();
+          body.set('item_type', el.dataset.favType!);
+          body.set('item_id', el.dataset.favBtn!);
+          const res = await fetch('/api/favorites/toggle', { method: 'POST', body, credentials: 'same-origin' });
+          if (!res.ok) return;
+          const { favorited } = await res.json();
+          if (!favorited) {
+            const li = btn.closest('li');
+            if (li) {
+              (li as HTMLElement).style.transition = 'opacity 0.2s, transform 0.2s';
+              (li as HTMLElement).style.opacity = '0';
+              (li as HTMLElement).style.transform = 'scale(0.95)';
+              setTimeout(() => li.remove(), 200);
+            }
+          }
+        });
+      });
+    }
+    document.addEventListener('astro:page-load', initFavPage);
+  </script>
+</Layout>

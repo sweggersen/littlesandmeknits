@@ -20,7 +20,13 @@ export type NotificationType =
   | 'item_reported'
   | 'moderation_assigned'
   | 'role_changed'
-  | 'review_received';
+  | 'review_received'
+  | 'listing_purchased'
+  | 'listing_shipped'
+  | 'listing_delivered'
+  | 'dispute_opened'
+  | 'dispute_resolved'
+  | 'achievement_unlocked';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -40,6 +46,12 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   moderation_assigned: 'email_item_approved',
   role_changed: 'email_item_approved',
   review_received: 'email_review_received',
+  listing_purchased: 'email_listing_purchased',
+  listing_shipped: 'email_listing_shipped',
+  listing_delivered: 'email_listing_delivered',
+  dispute_opened: 'email_item_approved',
+  dispute_resolved: 'email_item_approved',
+  achievement_unlocked: 'email_item_approved',
 };
 
 interface NotifyEnv {

@@ -4,6 +4,7 @@ import { createAdminSupabase } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { createStripe } from '../../../lib/stripe';
 import { recalculateTrust } from '../../../lib/trust';
+import { checkAndGrantAchievements } from '../../../lib/achievements';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -17,7 +18,30 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const results: Record<string, number> = { expired: 0, released: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, staleShadowAlerts: 0 };
+  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0 };
+
+  // 0. Expire listing promotions
+  const { data: expiredPromos } = await admin
+    .from('listing_promotions')
+    .select('id, listing_id')
+    .eq('status', 'active')
+    .lt('ends_at', now);
+
+  if (expiredPromos?.length) {
+    for (const promo of expiredPromos) {
+      await admin
+        .from('listing_promotions')
+        .update({ status: 'expired' })
+        .eq('id', promo.id);
+
+      await admin
+        .from('listings')
+        .update({ promoted_until: null, promotion_tier: null })
+        .eq('id', promo.listing_id);
+
+      results.promotionsExpired++;
+    }
+  }
 
   // 1. Expire open requests older than 30 days with no offers
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400_000).toISOString();
@@ -97,7 +121,42 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
-  // 3. Nudge knitters with no project updates in 7+ days
+  // 3. Auto-release listing purchases after 14 days
+  const { data: releasableListings } = await admin
+    .from('listings')
+    .select('id, seller_id, title, stripe_payment_intent_id')
+    .in('status', ['reserved', 'shipped'])
+    .lt('auto_release_at', now);
+
+  if (releasableListings?.length) {
+    const stripe = createStripe(env.STRIPE_SECRET_KEY);
+    for (const listing of releasableListings) {
+      if (listing.stripe_payment_intent_id) {
+        try {
+          await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
+        } catch (e) {
+          console.error(`Stripe capture failed for listing PI ${listing.stripe_payment_intent_id}`, e);
+        }
+      }
+      await admin.from('listings').update({
+        status: 'sold', sold_at: now, delivered_at: now, auto_release_at: null,
+      }).eq('id', listing.id);
+
+      if (listing.seller_id) {
+        await createNotification(admin, {
+          userId: listing.seller_id,
+          type: 'listing_delivered',
+          title: 'Automatisk levering bekreftet',
+          body: `Kjøper svarte ikke innen 14 dager — «${listing.title}» er nå merket som levert.`,
+          url: `/marked/listing/${listing.id}`,
+          referenceId: listing.id,
+        }, env);
+      }
+      results.listingsReleased++;
+    }
+  }
+
+  // 4. Nudge knitters with no project updates in 7+ days
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
   const { data: stale } = await admin
     .from('commission_requests')
@@ -188,7 +247,9 @@ export const POST: APIRoute = async ({ request }) => {
   ])];
   for (const uid of activeUserIds) {
     await recalculateTrust(admin, uid);
+    const newAchievements = await checkAndGrantAchievements(admin, uid, env);
     results.trustRecalculated++;
+    results.achievementsGranted += newAchievements.length;
   }
 
   // 6. Alert admins about stale shadow reviews (> 48h without confirmation)

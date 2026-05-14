@@ -230,6 +230,90 @@ const CONVERSATIONS: ConversationDef[] = [
   },
 ];
 
+// ─── Photo helpers ───────────────────────────────────────────
+
+const PHOTO_COLORS: Record<string, string[]> = {
+  cardigan: ['e8b4b8', 'c9a9a6', 'd4a5a5'],
+  genser: ['8fbc8f', 'a8c8a8', '9fb89f'],
+  lue: ['b8a9c9', 'a0929b', 'c0b0d0'],
+  votter: ['c9b9a0', 'b8a890', 'd0c0a8'],
+  sokker: ['a0b8c9', '90a8b8', 'b0c0d0'],
+  teppe: ['f0e6d4', 'e8dcc8', 'f5edd8'],
+  kjole: ['f5e0e8', 'ebd4dc', 'f8e8f0'],
+  bukser: ['d4d4c8', 'c8c8bc', 'e0e0d4'],
+  annet: ['d8ccc0', 'ccc0b4', 'e0d4c8'],
+};
+
+function makePlaceholderPng(hexColor: string, size = 400): Buffer {
+  const r = parseInt(hexColor.slice(0, 2), 16);
+  const g = parseInt(hexColor.slice(2, 4), 16);
+  const b = parseInt(hexColor.slice(4, 6), 16);
+
+  const rawRow = Buffer.alloc(1 + size * 3);
+  rawRow[0] = 0;
+  for (let x = 0; x < size; x++) {
+    rawRow[1 + x * 3] = r;
+    rawRow[2 + x * 3] = g;
+    rawRow[3 + x * 3] = b;
+  }
+
+  const rawData = Buffer.alloc(rawRow.length * size);
+  for (let y = 0; y < size; y++) rawRow.copy(rawData, y * rawRow.length);
+
+  const { deflateSync } = require('zlib') as typeof import('zlib');
+  const compressed = deflateSync(rawData);
+
+  function crc32(buf: Buffer): number {
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) {
+      crc ^= buf[i];
+      for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+    }
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+
+  function chunk(type: string, data: Buffer): Buffer {
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length);
+    const typeB = Buffer.from(type);
+    const payload = Buffer.concat([typeB, data]);
+    const crcB = Buffer.alloc(4); crcB.writeUInt32BE(crc32(payload));
+    return Buffer.concat([len, payload, crcB]);
+  }
+
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0); ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; ihdr[9] = 2;
+  const iend = Buffer.alloc(0);
+
+  return Buffer.concat([sig, chunk('IHDR', ihdr), chunk('IDAT', compressed), chunk('IEND', iend)]);
+}
+
+async function uploadListingPhotos(
+  supabase: SupabaseClient,
+  sellerId: string,
+  listingId: string,
+  category: string,
+  count: number,
+): Promise<number> {
+  const colors = PHOTO_COLORS[category] ?? PHOTO_COLORS.annet;
+  let uploaded = 0;
+  for (let i = 0; i < count; i++) {
+    const color = colors[i % colors.length];
+    const png = makePlaceholderPng(color);
+    const path = `${sellerId}/listings/${listingId}/photo-${crypto.randomUUID()}.png`;
+    const { error } = await supabase.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+    if (error) { console.error(`    Photo upload failed: ${error.message}`); continue; }
+    await supabase.from('listing_photos').insert({ listing_id: listingId, path, position: i });
+    uploaded++;
+  }
+  if (uploaded > 0) {
+    const { data: first } = await supabase.from('listing_photos').select('path').eq('listing_id', listingId).order('position').limit(1).maybeSingle();
+    if (first) await supabase.from('listings').update({ hero_photo_path: first.path }).eq('id', listingId);
+  }
+  return uploaded;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────
 
 function log(prefix: string, msg: string) {
@@ -305,11 +389,21 @@ async function main() {
     .delete({ count: 'exact' })
     .in('seller_id', testUserIds);
 
-  // Also delete convos where test users are buyers
   await admin
     .from('marketplace_conversations')
     .delete()
     .in('buyer_id', testUserIds);
+
+  // Delete listing photos + storage files before deleting listings
+  const { data: existingListings } = await admin.from('listings').select('id').in('seller_id', testUserIds);
+  if (existingListings?.length) {
+    const listingIds = existingListings.map(l => l.id);
+    const { data: existingPhotos } = await admin.from('listing_photos').select('path').in('listing_id', listingIds);
+    if (existingPhotos?.length) {
+      await admin.storage.from('projects').remove(existingPhotos.map(p => p.path));
+    }
+    await admin.from('listing_photos').delete().in('listing_id', listingIds);
+  }
 
   const { count: deletedListings } = await admin
     .from('listings')
@@ -356,9 +450,15 @@ async function main() {
     }
 
     listingIdMap.set(l.title, data.id);
+
+    const photoCount = l.status === 'draft' ? 0 : (1 + Math.floor(Math.random() * 3));
+    if (photoCount > 0) {
+      await uploadListingPhotos(admin, sellerId, data.id, l.category, photoCount);
+    }
+
     const kindLabel = l.kind === 'pre_loved' ? 'brukt' : 'nytt';
     const statusLabel = l.status === 'draft' ? '\x1b[33mutkast\x1b[0m' : l.status === 'sold' ? '\x1b[35msolgt\x1b[0m' : '\x1b[32maktiv\x1b[0m';
-    ok(`[${seller.displayName}] ${l.title} — ${l.price_nok} kr (${kindLabel}, ${statusLabel})`);
+    ok(`[${seller.displayName}] ${l.title} — ${l.price_nok} kr (${kindLabel}, ${statusLabel}, ${photoCount} bilder)`);
   }
 
   // 4. Create conversations + messages

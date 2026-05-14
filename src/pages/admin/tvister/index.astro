@@ -1,0 +1,146 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/marked');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const [{ data: disputedListings }, { data: disputedCommissions }] = await Promise.all([
+  admin
+    .from('listings')
+    .select('id, title, price_nok, seller_id, buyer_id, disputed_at, dispute_reason')
+    .eq('status', 'disputed')
+    .order('disputed_at', { ascending: true }),
+  admin
+    .from('commission_requests')
+    .select('id, title, buyer_id, awarded_offer_id, disputed_at, dispute_reason')
+    .eq('status', 'disputed')
+    .order('disputed_at', { ascending: true }),
+]);
+
+const [{ data: resolvedListings }, { data: resolvedCommissions }] = await Promise.all([
+  admin
+    .from('listings')
+    .select('id, title, dispute_resolution, dispute_resolved_at')
+    .not('dispute_resolved_at', 'is', null)
+    .order('dispute_resolved_at', { ascending: false })
+    .limit(20),
+  admin
+    .from('commission_requests')
+    .select('id, title, dispute_resolution, dispute_resolved_at')
+    .not('dispute_resolved_at', 'is', null)
+    .order('dispute_resolved_at', { ascending: false })
+    .limit(20),
+]);
+
+const tab = Astro.url.searchParams.get('tab') ?? 'open';
+---
+
+<AdminLayout title="Tvister" current="tvister">
+  <h1 class="font-serif text-2xl mb-4">Tvister</h1>
+
+  <div class="flex gap-1 mb-6">
+    <a href="/admin/tvister?tab=open" class:list={[
+      'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+      tab === 'open' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+    ]}>Åpne ({(disputedListings?.length ?? 0) + (disputedCommissions?.length ?? 0)})</a>
+    <a href="/admin/tvister?tab=resolved" class:list={[
+      'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+      tab === 'resolved' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+    ]}>Løste</a>
+  </div>
+
+  {tab === 'open' && (
+    <div class="space-y-4">
+      {(disputedListings ?? []).length === 0 && (disputedCommissions ?? []).length === 0 && (
+        <p class="text-sm text-charcoal/55">Ingen åpne tvister.</p>
+      )}
+
+      {(disputedListings ?? []).map((l) => (
+        <div class="bg-white rounded-2xl p-5 border border-sage-500/10 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Annonse</span>
+            <a href={`/marked/listing/${l.id}`} class="font-medium hover:text-terracotta-500 transition-colors">{l.title}</a>
+            <span class="text-xs text-charcoal/45 ml-auto">{l.price_nok} NOK</span>
+          </div>
+          <p class="text-sm text-charcoal/65">{l.dispute_reason}</p>
+          <p class="text-xs text-charcoal/45">
+            Åpnet: {new Date(l.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+          <form method="post" action="/api/admin/disputes/resolve" class="flex gap-3 items-end">
+            <input type="hidden" name="item_type" value="listing" />
+            <input type="hidden" name="item_id" value={l.id} />
+            <div class="flex-1">
+              <label class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1 block">Admin-notat</label>
+              <input name="notes" type="text" maxlength="500" placeholder="Valgfritt notat..."
+                class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            </div>
+            <button type="submit" name="decision" value="refund"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors whitespace-nowrap">
+              Refunder kjøper
+            </button>
+            <button type="submit" name="decision" value="release"
+              class="px-4 py-2 bg-sage-600 text-white rounded-lg text-xs font-medium hover:bg-sage-700 transition-colors whitespace-nowrap">
+              Frigi til selger
+            </button>
+          </form>
+        </div>
+      ))}
+
+      {(disputedCommissions ?? []).map((r) => (
+        <div class="bg-white rounded-2xl p-5 border border-sage-500/10 space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Oppdrag</span>
+            <a href={`/marked/oppdrag/${r.id}`} class="font-medium hover:text-terracotta-500 transition-colors">{r.title}</a>
+          </div>
+          <p class="text-sm text-charcoal/65">{r.dispute_reason}</p>
+          <p class="text-xs text-charcoal/45">
+            Åpnet: {new Date(r.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </p>
+          <form method="post" action="/api/admin/disputes/resolve" class="flex gap-3 items-end">
+            <input type="hidden" name="item_type" value="commission" />
+            <input type="hidden" name="item_id" value={r.id} />
+            <div class="flex-1">
+              <label class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1 block">Admin-notat</label>
+              <input name="notes" type="text" maxlength="500" placeholder="Valgfritt notat..."
+                class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            </div>
+            <button type="submit" name="decision" value="refund"
+              class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors whitespace-nowrap">
+              Refunder kjøper
+            </button>
+            <button type="submit" name="decision" value="release"
+              class="px-4 py-2 bg-sage-600 text-white rounded-lg text-xs font-medium hover:bg-sage-700 transition-colors whitespace-nowrap">
+              Frigi til strikker
+            </button>
+          </form>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {tab === 'resolved' && (
+    <div class="space-y-3">
+      {(resolvedListings ?? []).length === 0 && (resolvedCommissions ?? []).length === 0 && (
+        <p class="text-sm text-charcoal/55">Ingen løste tvister.</p>
+      )}
+      {[
+        ...(resolvedListings ?? []).map(l => ({ ...l, type: 'Annonse' as const, url: `/marked/listing/${l.id}` })),
+        ...(resolvedCommissions ?? []).map(r => ({ ...r, type: 'Oppdrag' as const, url: `/marked/oppdrag/${r.id}` })),
+      ].sort((a, b) => new Date(b.dispute_resolved_at).getTime() - new Date(a.dispute_resolved_at).getTime()).map((item) => (
+        <div class="bg-white/60 rounded-xl p-4 border border-sage-500/5 flex items-center gap-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{item.type}</span>
+          <a href={item.url} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{item.title}</a>
+          <span class="text-xs text-charcoal/45 ml-auto">{item.dispute_resolution}</span>
+          <span class="text-xs text-charcoal/35">
+            {new Date(item.dispute_resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}
+          </span>
+        </div>
+      ))}
+    </div>
+  )}
+</AdminLayout>

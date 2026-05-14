@@ -1,0 +1,46 @@
+---
+interface Props {
+  source: 'feed' | 'search' | 'category' | 'home';
+}
+const { source } = Astro.props;
+---
+
+<script is:inline define:vars={{ source }}>
+(function() {
+  var tracked = new Set();
+  var observer = new IntersectionObserver(function(entries) {
+    var batch = [];
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+      var el = entry.target;
+      var id = el.getAttribute('data-listing-item-id');
+      if (!id || tracked.has(id)) return;
+      tracked.add(id);
+      batch.push(id);
+      observer.unobserve(el);
+    });
+    if (batch.length === 0) return;
+    var promoted = [];
+    batch.forEach(function(id) {
+      var el = document.querySelector('[data-listing-item-id="' + id + '"]');
+      if (el && el.getAttribute('data-promoted') === 'true') promoted.push(id);
+    });
+    fetch('/api/track/impression', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listing_ids: batch, source: source, promoted: promoted }),
+      keepalive: true,
+    }).catch(function() {});
+  }, { threshold: 0.5 });
+
+  function observe() {
+    document.querySelectorAll('[data-listing-item-id]').forEach(function(el) {
+      if (!tracked.has(el.getAttribute('data-listing-item-id'))) {
+        observer.observe(el);
+      }
+    });
+  }
+  observe();
+  document.addEventListener('astro:page-load', observe);
+})();
+</script>
