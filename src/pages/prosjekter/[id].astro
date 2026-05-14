@@ -1,0 +1,80 @@
+---
+export const prerender = true;
+import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import { formatDate } from '../../lib/time';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects');
+  return projects.map((project) => ({
+    params: { id: project.id },
+    props: { project },
+  }));
+}
+
+const { project } = Astro.props;
+const { title, summary, cover, gallery, pattern, yarn, knitDate } = project.data;
+
+const allImages = [cover, ...gallery.filter((g) => g.src !== cover.src)];
+
+const patternEntry = pattern
+  ? (await getCollection('patterns')).find((p) => p.id === pattern)
+  : null;
+---
+
+<Layout title={`${title.nb} — Littles and Me`} description={summary.nb} lang="nb">
+  <div class="max-w-4xl mx-auto px-6 py-14">
+    <a href="/prosjekter" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-6 inline-block">← Alle prosjekter</a>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div>
+        <div class="rounded-3xl overflow-hidden bg-oatmeal">
+          <Image
+            src={allImages[0]}
+            alt={title.nb}
+            widths={[600, 900]}
+            class="w-full aspect-[4/5] object-cover"
+          />
+        </div>
+        {allImages.length > 1 && (
+          <div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+            {allImages.slice(1).map((img, i) => (
+              <div class="shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-oatmeal">
+                <Image src={img} alt={`${title.nb} ${i + 2}`} widths={[160]} class="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h1 class="font-serif text-3xl sm:text-4xl mb-3">{title.nb}</h1>
+        <p class="text-charcoal/65 mb-6">{summary.nb}</p>
+
+        <dl class="space-y-3 text-sm">
+          {yarn && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Garn</dt>
+              <dd>{yarn}</dd>
+            </div>
+          )}
+          <div>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Strikket</dt>
+            <dd>{formatDate(knitDate, 'nb')}</dd>
+          </div>
+          {patternEntry && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Oppskrift</dt>
+              <dd>
+                <a href={`/oppskrifter/${patternEntry.id}`} class="text-terracotta-500 hover:underline">
+                  {patternEntry.data.title.nb}
+                </a>
+              </dd>
+            </div>
+          )}
+        </dl>
+      </div>
+    </div>
+  </div>
+</Layout>
