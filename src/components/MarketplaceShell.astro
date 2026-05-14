@@ -1,0 +1,15 @@
+---
+import MarketplaceNav from './MarketplaceNav.astro';
+
+interface Props {
+  current?: string;
+}
+const { current } = Astro.props;
+---
+
+<MarketplaceNav current={current} />
+<div class="bg-linen min-h-[60vh]">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+    <slot />
+  </div>
+</div>

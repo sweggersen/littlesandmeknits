@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../lib/auth';
 import { createAdminSupabase } from '../../lib/supabase';
 import { env } from 'cloudflare:workers';
@@ -65,8 +66,7 @@ for (const u of testUsers) {
 ---
 
 <Layout title="Test Panel — Strikketorget" lang="nb">
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+  <MarketplaceShell>
       <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Dev tool</p>
@@ -151,6 +151,5 @@ for (const u of testUsers) {
           ))}
         </div>
       </div>
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>

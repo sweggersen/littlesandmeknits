@@ -45,6 +45,7 @@ const { commissionRequestId, existingReview = false } = Astro.props;
 )}
 
 <script>
+  function initReviewForms() {
   document.querySelectorAll('[data-review-form-wrapper]').forEach(wrapper => {
     const form = wrapper.querySelector('[data-review-form]') as HTMLFormElement;
     const starGroup = wrapper.querySelector('[data-star-group]') as HTMLElement;
@@ -107,4 +108,6 @@ const { commissionRequestId, existingReview = false } = Astro.props;
       }
     });
   });
+  }
+  document.addEventListener('astro:page-load', initReviewForms);
 </script>

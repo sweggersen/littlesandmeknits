@@ -1,0 +1,65 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  price: number;
+  imgUrl?: string | null;
+  href?: string;
+  meta?: string;
+  isFav?: boolean;
+  showFav?: boolean;
+  inactive?: boolean;
+  inactiveLabel?: string;
+  promoted?: boolean;
+}
+const {
+  id,
+  title,
+  price,
+  imgUrl,
+  href = `/marked/listing/${id}`,
+  meta,
+  isFav = false,
+  showFav = false,
+  inactive = false,
+  inactiveLabel,
+  promoted = false,
+} = Astro.props;
+---
+
+<li class:list={['relative', inactive && 'opacity-50']} data-listing-item data-listing-item-id={id} data-promoted={promoted ? 'true' : undefined}>
+  <a href={href} class:list={[
+    'block bg-white rounded-2xl border border-sage-500/10 overflow-hidden transition-colors',
+    !inactive && 'hover:border-sage-500/30',
+  ]} data-card-link>
+    <div data-card-img-wrap>
+      {imgUrl ? (
+        <img src={imgUrl} alt={title} class:list={['w-full aspect-square object-cover', inactive && 'grayscale']} transition:name={`listing-img-${id}`} />
+      ) : (
+        <div class="w-full aspect-square bg-oatmeal/40" transition:name={`listing-img-${id}`}></div>
+      )}
+    </div>
+    <div class="p-3" data-card-body>
+      {promoted && (
+        <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Fremhevet</p>
+      )}
+      {meta && (
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">{meta}</p>
+      )}
+      <p class="text-sm font-medium line-clamp-2">{title}</p>
+      {inactiveLabel ? (
+        <p class="text-xs text-charcoal/45 mt-1">{inactiveLabel}</p>
+      ) : (
+        <p class="font-mono tabular-nums text-sm mt-1">{price} NOK</p>
+      )}
+    </div>
+  </a>
+  {showFav && (
+    <button type="button" data-fav-btn={id} data-fav-type="listing"
+      style={isFav ? 'color: #c2604a;' : ''}
+      class:list={['absolute top-2 right-2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center transition-colors hover:bg-white',
+        !isFav && 'text-charcoal/30']}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill={isFav ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </button>
+  )}
+</li>

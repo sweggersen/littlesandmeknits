@@ -1,0 +1,18 @@
+---
+interface Props {
+  message: string;
+  ctaText?: string;
+  ctaHref?: string;
+  compact?: boolean;
+}
+const { message, ctaText, ctaHref, compact } = Astro.props;
+---
+
+<div class:list={['bg-white border border-sage-500/10 text-center', compact ? 'rounded-2xl p-8' : 'rounded-3xl p-12']}>
+  <p class="text-charcoal/55 text-sm">{message}</p>
+  {ctaText && ctaHref && (
+    <a href={ctaHref} class="inline-block mt-4 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+      {ctaText}
+    </a>
+  )}
+</div>

@@ -1,73 +1,98 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import MarketplaceNav from '../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
+import ListingCard from '../../components/ListingCard.astro';
+import ListingToolbar from '../../components/ListingToolbar.astro';
+import FilterPanel from '../../components/FilterPanel.astro';
+import LoadMore from '../../components/LoadMore.astro';
+import FavScript from '../../components/FavScript.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { CATEGORY_LABEL } from '../../lib/labels';
 
+const PAGE_SIZE = 24;
 const url = Astro.url;
 const category = url.searchParams.get('kategori');
+const search = url.searchParams.get('q')?.trim();
+const prisMin = parseInt(url.searchParams.get('pris_min') ?? '', 10);
+const prisMax = parseInt(url.searchParams.get('pris_max') ?? '', 10);
+const cursor = url.searchParams.get('cursor');
+const hasFilters = !!(search || category || Number.isFinite(prisMin) || Number.isFinite(prisMax));
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+
 let q = supabase
   .from('listings')
-  .select('id, title, price_nok, size_label, hero_photo_path, category, published_at')
+  .select('id, title, price_nok, size_label, hero_photo_path, category, published_at, promoted_until, promotion_tier')
   .eq('status', 'active')
   .eq('kind', 'ready_made')
+  .order('promoted_until', { ascending: false, nullsFirst: false })
   .order('published_at', { ascending: false });
+
+if (search) q = q.ilike('title', `%${search}%`);
 if (category) q = q.eq('category', category);
-const { data: listings } = await q.limit(60);
+if (Number.isFinite(prisMin)) q = q.gte('price_nok', prisMin);
+if (Number.isFinite(prisMax)) q = q.lte('price_nok', prisMax);
+if (cursor) q = q.lt('published_at', cursor);
+
+const { data: listings } = await q.limit(PAGE_SIZE);
+const hasMore = (listings ?? []).length === PAGE_SIZE;
+const lastCursor = listings?.length ? listings[listings.length - 1].published_at : null;
+
+let favIds: string[] = [];
+if (user) {
+  try {
+    const { data } = await supabase.from('favorites').select('item_id').eq('user_id', user.id).eq('item_type', 'listing');
+    favIds = data?.map(f => f.item_id) ?? [];
+  } catch {}
+}
+
+const nextPageParams = (() => {
+  if (!hasMore || !lastCursor) return null;
+  const p = new URLSearchParams(url.searchParams);
+  p.set('cursor', lastCursor);
+  return p.toString();
+})();
 
 ---
 
 <Layout title="Nytt — Strikketorget" lang="nb">
-  <MarketplaceNav current="nytt" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <h1 class="font-serif text-4xl sm:text-5xl mb-2">Nytt</h1>
-      <p class="text-charcoal/65 mb-8">Ferdigstrikket av strikkere i fellesskapet.</p>
-
-      <form method="get" class="bg-white rounded-3xl p-4 sm:p-5 border border-sage-500/10 mb-8 flex flex-wrap gap-3 items-end">
-        <div class="flex-1 min-w-[140px]">
-          <label for="kategori" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kategori</label>
-          <select id="kategori" name="kategori" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
-            <option value="">Alle</option>
-            {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
-              <option value={k} selected={category === k}>{v}</option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" class="bg-charcoal text-linen px-5 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
-          Filtrer
-        </button>
-      </form>
-
-      {(listings ?? []).length === 0 ? (
-        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
-          <p class="text-charcoal/55">Ingen ferdigstrikkede plagg ennå. Kom tilbake snart.</p>
-        </div>
-      ) : (
-        <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {(listings ?? []).map((l) => (
-            <li>
-              <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                {projectPhotoUrl(l.hero_photo_path) ? (
-                  <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
-                ) : (
-                  <div class="aspect-square bg-oatmeal/40"></div>
-                )}
-                <div class="p-3">
-                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
-                    {CATEGORY_LABEL[l.category] ?? l.category} · str. {l.size_label}
-                  </p>
-                  <p class="text-sm font-medium line-clamp-2">{l.title}</p>
-                  <p class="font-mono tabular-nums text-sm mt-1">{l.price_nok} NOK</p>
-                </div>
-              </a>
-            </li>
-          ))}
-        </ul>
-      )}
+  <MarketplaceShell current="nytt">
+    <div class="flex items-start justify-between mb-2">
+      <h1 class="font-serif text-4xl sm:text-5xl">Nytt</h1>
+      <a href="/marked/listing/ny" class="shrink-0 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">+ Ny annonse</a>
     </div>
-  </div>
+    <p class="text-charcoal/65 mb-8">Ferdigstrikket av strikkere i fellesskapet.</p>
+
+    <ListingToolbar search={search} hasFilters={hasFilters} filterCount={[search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax].filter(Boolean).length} />
+    <FilterPanel category={category} hasFilters={hasFilters} params={url.searchParams} />
+
+    {(listings ?? []).length === 0 ? (
+      <EmptyState message="Ingen ferdigstrikkede plagg ennå. Kom tilbake snart." />
+    ) : (
+      <Fragment>
+      <ul data-listing-grid class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        {(listings ?? []).map((l) => (
+          <ListingCard
+            id={l.id}
+            title={l.title}
+            price={l.price_nok}
+            imgUrl={projectPhotoUrl(l.hero_photo_path)}
+            meta={`${CATEGORY_LABEL[l.category] ?? l.category} · str. ${l.size_label}`}
+            showFav={!!user}
+            isFav={favIds.includes(l.id)}
+            promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date() && l.promotion_tier === 'highlight')}
+          />
+        ))}
+      </ul>
+      <LoadMore params={nextPageParams} />
+      </Fragment>
+    )}
+  </MarketplaceShell>
+  <FavScript />
+  <ImpressionTracker source="category" />
 </Layout>

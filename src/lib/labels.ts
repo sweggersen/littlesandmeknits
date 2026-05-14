@@ -10,14 +10,15 @@ export const CONDITION_LABEL: Record<string, string> = {
 };
 
 export const LISTING_STATUS: Record<string, string> = {
-  draft: 'Utkast', active: 'Aktiv', sold: 'Solgt', removed: 'Fjernet',
+  draft: 'Utkast', active: 'Aktiv', reserved: 'Reservert', shipped: 'Sendt',
+  sold: 'Solgt', removed: 'Fjernet', disputed: 'Tvist',
   pending_review: 'Under vurdering', rejected: 'Avvist',
 };
 
 export const COMMISSION_STATUS: Record<string, string> = {
   open: 'Åpen', awaiting_payment: 'Venter på betaling', awaiting_yarn: 'Venter på garn',
   awarded: 'Pågår', completed: 'Ferdigstrikket', delivered: 'Levert',
-  cancelled: 'Avbrutt', expired: 'Utløpt',
+  cancelled: 'Avbrutt', expired: 'Utløpt', disputed: 'Tvist',
   pending_review: 'Under vurdering', rejected: 'Avvist',
 };
 

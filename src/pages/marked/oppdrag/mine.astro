@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 import { CATEGORY_LABEL, COMMISSION_STATUS, OFFER_STATUS } from '../../../lib/labels';
@@ -29,9 +29,7 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
 ---
 
 <Layout title="Mine oppdrag — Strikketorget" lang="nb">
-  <MarketplaceNav current="mine-oppdrag" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+  <MarketplaceShell current="mine-oppdrag">
       <div class="flex items-start justify-between gap-4 mb-8">
         <h1 class="font-serif text-3xl">Mine oppdrag</h1>
         <a href="/marked/oppdrag/ny" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
@@ -129,6 +127,5 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
           </div>
         )}
       </section>
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>

@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 
@@ -33,9 +33,7 @@ const CATEGORIES = [
 ---
 
 <Layout title="Ny forespørsel — Strikk for meg" lang="nb">
-  <MarketplaceNav current="oppdrag" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+  <MarketplaceShell current="oppdrag">
       <h1 class="font-serif text-3xl mb-2">Ny forespørsel</h1>
       <p class="text-sm text-charcoal/55 mb-8">Beskriv hva du ønsker strikket — strikkere kan gi tilbud på pris og leveringstid.</p>
 
@@ -128,6 +126,5 @@ const CATEGORIES = [
         </button>
         <p class="text-[11px] text-charcoal/45 text-center">Forespørselen er åpen i 30 dager. Du kan avbryte når som helst.</p>
       </form>
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>

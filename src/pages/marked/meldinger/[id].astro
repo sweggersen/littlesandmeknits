@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 
@@ -51,9 +51,7 @@ const isSeller = conversation.seller_id === user.id;
 ---
 
 <Layout title={`${isCommission ? 'Oppdrag: ' : ''}${listingTitle} — Strikketorget`} lang="nb">
-  <MarketplaceNav current="meldinger" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+  <MarketplaceShell current="meldinger">
       <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
@@ -114,6 +112,5 @@ const isSeller = conversation.seller_id === user.id;
           Send
         </button>
       </form>
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>

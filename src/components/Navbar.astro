@@ -54,53 +54,72 @@ const brandHref = section === 'strikketorget'
           </span>
         )}
       </a>
-      <div class="hidden md:flex items-center gap-6">
-        <ul class="flex items-center gap-1">
-          {regularItems.map((item) => {
-            const isActive = currentPath.startsWith(item.href) && item.href !== localizedPath(lang, '/');
-            return (
-              <li>
-                <a
-                  href={item.href}
-                  class:list={[
-                    'text-sm font-medium px-3 py-1.5 transition-colors',
-                    isActive ? 'text-terracotta-500' : 'text-charcoal/70 hover:text-charcoal',
-                  ]}
-                >
-                  {item.label}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-        <span class="w-px h-4 bg-sage-500/20" />
-        <ul class="flex items-center gap-1.5">
-          {sectionItems.map((item) => {
-            const isActive = currentPath.startsWith(item.href);
-            return (
-              <li class:list={[item.authOnly && 'hidden']} data-auth-link={item.authOnly ? 'studio' : undefined}>
-                <a
-                  href={item.href}
-                  class:list={[
-                    'text-sm font-medium px-3 py-1.5 rounded-full border transition-colors',
-                    isActive
-                      ? 'bg-terracotta-500/10 border-terracotta-500/30 text-terracotta-500'
-                      : 'border-sage-500/20 text-charcoal/70 hover:border-terracotta-500/30 hover:text-terracotta-500',
-                  ]}
-                >
-                  {item.label}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
+      <div class="hidden lg:flex items-center gap-1">
+        {regularItems.map((item) => {
+          const isActive = currentPath.startsWith(item.href) && item.href !== localizedPath(lang, '/');
+          return (
+            <a
+              href={item.href}
+              class:list={[
+                'text-sm font-medium px-3 py-1.5 transition-colors',
+                isActive ? 'text-terracotta-500' : 'text-charcoal/70 hover:text-charcoal',
+              ]}
+            >
+              {item.label}
+            </a>
+          );
+        })}
       </div>
+      <span class="hidden lg:block w-px h-4 bg-sage-500/20" />
+      <ul class="hidden sm:flex items-center gap-1.5">
+        {sectionItems.map((item) => {
+          const isActive = currentPath.startsWith(item.href);
+          return (
+            <li class:list={[item.authOnly && 'hidden']} data-auth-link={item.authOnly ? 'studio' : undefined}>
+              <a
+                href={item.href}
+                class:list={[
+                  'text-sm font-medium px-3 py-1.5 rounded-full border transition-colors',
+                  isActive
+                    ? 'bg-terracotta-500/10 border-terracotta-500/30 text-terracotta-500'
+                    : 'border-sage-500/20 text-charcoal/70 hover:border-terracotta-500/30 hover:text-terracotta-500',
+                ]}
+              >
+                {item.label}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
     </div>
 
     <div class="flex items-center gap-4">
       <span data-public-only>
         <LangSwitcher lang={lang} />
       </span>
+      <div class="relative hidden" data-dev-menu>
+        <button type="button" class="p-1.5 text-amber-600 hover:text-amber-800 transition-colors" aria-label="Dev menu" data-dev-menu-trigger>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/>
+          </svg>
+        </button>
+        <div class="hidden absolute right-0 top-full mt-2 w-52 bg-white rounded-xl border border-sage-500/15 shadow-lg py-1.5 z-50" data-dev-menu-dropdown>
+          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-600">Dev</p>
+          <a href="/dev/login" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Dev login</a>
+          <a href="/dev/test-tower" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Test tower</a>
+          <a href="/marked/test-panel" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Marked test panel</a>
+          <hr class="my-1 border-sage-500/10" />
+          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/35">Admin</p>
+          <a href="/admin" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Dashboard</a>
+          <a href="/admin/moderering" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Moderering</a>
+          <a href="/admin/brukere" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Brukere</a>
+          <a href="/admin/rapporter" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Rapporter</a>
+          <a href="/admin/tvister" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Tvister</a>
+          <a href="/admin/utbetalinger" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Utbetalinger</a>
+          <a href="/admin/moderatorer" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Moderatorer</a>
+          <a href="/admin/logg" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Aktivitetslogg</a>
+        </div>
+      </div>
       <a
         href="/varsler"
         class="hidden sm:inline-flex relative p-1.5 text-charcoal/50 hover:text-charcoal transition-colors"
@@ -138,7 +157,7 @@ const brandHref = section === 'strikketorget'
       </a>
       <button
         type="button"
-        class="md:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal"
+        class="lg:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal"
         aria-label="Menu"
         data-mobile-menu-trigger
       >
@@ -149,22 +168,30 @@ const brandHref = section === 'strikketorget'
     </div>
   </div>
 
-  <div class="hidden md:hidden border-t border-sage-500/10 px-6 py-4" data-mobile-menu>
+  <div class="hidden lg:hidden border-t border-sage-500/10 px-6 py-4" data-mobile-menu>
+    <div class="flex justify-center gap-2 mb-4">
+      {sectionItems.map((item) => {
+        const isActive = currentPath.startsWith(item.href);
+        return (
+          <a
+            href={item.href}
+            class:list={[
+              'px-5 py-2 rounded-full text-sm font-medium border transition-colors',
+              isActive
+                ? 'bg-terracotta-500/10 border-terracotta-500/30 text-terracotta-500'
+                : 'border-sage-500/20 text-charcoal/70 hover:border-terracotta-500/30 hover:text-terracotta-500',
+              item.authOnly && 'hidden',
+            ]}
+            data-auth-link={item.authOnly ? 'studio' : undefined}
+          >
+            {item.label}
+          </a>
+        );
+      })}
+    </div>
     <ul class="flex flex-col gap-3">
       {regularItems.map((item) => (
         <li>
-          <a href={item.href} class="block py-2 text-base font-medium text-charcoal/80">
-            {item.label}
-          </a>
-        </li>
-      ))}
-      <li class="pt-2 border-t border-sage-500/10">
-        <a href={localizedPath(lang, '/marked')} class="block py-2 text-base font-medium text-charcoal/80">
-          {t('nav.marketplace')}
-        </a>
-      </li>
-      {sectionItems.filter(i => i.authOnly).map((item) => (
-        <li class="hidden" data-auth-link="studio">
           <a href={item.href} class="block py-2 text-base font-medium text-charcoal/80">
             {item.label}
           </a>
@@ -274,6 +301,28 @@ const brandHref = section === 'strikketorget'
     }
   }
 
+  // Dev menu — localhost only (also called from initNavbar for SPA nav)
+  function initDevMenu() {
+    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+    document.querySelectorAll('[data-dev-menu]').forEach(function(el) { el.classList.remove('hidden'); });
+    document.querySelectorAll('[data-dev-menu-trigger]').forEach(function(btn) {
+      if (btn._devBound) return;
+      btn._devBound = true;
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var dd = btn.parentElement.querySelector('[data-dev-menu-dropdown]');
+        if (dd) dd.classList.toggle('hidden');
+      });
+    });
+  }
+  initDevMenu();
+  if (!window._devClickBound) {
+    window._devClickBound = true;
+    document.addEventListener('click', function() {
+      document.querySelectorAll('[data-dev-menu-dropdown]').forEach(function(el) { el.classList.add('hidden'); });
+    });
+  }
+
   // Apply cached state synchronously — no flash
   if (sessionStorage.getItem('lm-auth') === '1') {
     applyAuthUI(true);
@@ -287,6 +336,9 @@ const brandHref = section === 'strikketorget'
     trigger?.addEventListener('click', () => {
       menu?.classList.toggle('hidden');
     });
+
+    // Re-init dev menu after SPA navigation
+    if ((window as any).initDevMenu) (window as any).initDevMenu();
 
     // Apply cached state immediately after DOM swap
     const cached = sessionStorage.getItem('lm-auth') === '1';

@@ -1,0 +1,27 @@
+---
+interface Props {
+  url?: string | null;
+  name: string;
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  class?: string;
+}
+const { url, name, size = 'md', class: cls } = Astro.props;
+
+const sizes: Record<string, { box: string; text: string }> = {
+  xs: { box: 'w-6 h-6', text: 'text-[9px]' },
+  sm: { box: 'w-9 h-9', text: 'text-xs' },
+  md: { box: 'w-12 h-12', text: 'text-sm' },
+  lg: { box: 'w-16 h-16', text: 'text-lg' },
+  xl: { box: 'w-20 h-20', text: 'text-xl' },
+};
+const s = sizes[size];
+const initial = (name ?? '?')[0].toUpperCase();
+---
+
+{url ? (
+  <img src={url} alt="" class:list={[s.box, 'rounded-full object-cover shrink-0', cls]} />
+) : (
+  <div class:list={[s.box, 'rounded-full bg-sage-100 flex items-center justify-center shrink-0', cls]}>
+    <span class:list={['font-serif text-sage-700', s.text]}>{initial}</span>
+  </div>
+)}

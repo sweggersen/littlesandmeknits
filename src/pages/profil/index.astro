@@ -1,11 +1,16 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import ProfileAvatar from '../../components/ProfileAvatar.astro';
+import ListingCard from '../../components/ListingCard.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
 import { getCurrentUser } from '../../lib/auth';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { getEntry } from 'astro:content';
 import { formatNok } from '../../lib/format';
 import { KIND_LABEL, PROJECT_STATUS, CATEGORY_LABEL, COMMISSION_STATUS, OFFER_STATUS } from '../../lib/labels';
+import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../../lib/achievements';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/logg-inn?next=/profil');
@@ -83,6 +88,19 @@ const isAdmin = userRole === 'admin';
 const isModerator = userRole === 'moderator';
 const isStaff = isAdmin || isModerator;
 
+const earnedWithDates = await getUserAchievementsWithDates(supabase, user.id);
+const earnedKeys = earnedWithDates.map(e => e.key);
+const visibleAchievements = ACHIEVEMENTS.filter(a => isStaff || a.category !== 'moderering');
+const totalEarned = earnedKeys.length;
+
+const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
+const recentAchievements = earnedWithDates
+  .filter(e => e.granted_at >= sevenDaysAgo)
+  .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
+  .slice(0, 6)
+  .map(e => ACHIEVEMENT_MAP.get(e.key))
+  .filter(Boolean);
+
 let pendingQueueCount = 0;
 if (isStaff) {
   const { count } = await supabase
@@ -127,13 +145,7 @@ function isPdf(path: string | null): boolean {
 
       <!-- Profile header -->
       <div class="flex items-center gap-5 mb-10">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="" class="w-20 h-20 rounded-full object-cover shrink-0" />
-        ) : (
-          <div class="w-20 h-20 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
-            <span class="font-serif text-3xl text-sage-700">{initial}</span>
-          </div>
-        )}
+        <ProfileAvatar url={avatarUrl} name={displayName} size="xl" />
         <div class="min-w-0">
           <h1 class="font-serif text-3xl truncate">{displayName}</h1>
           <p class="text-sm text-charcoal/55 mt-0.5">{subtitleParts.join(' · ')}</p>
@@ -196,6 +208,27 @@ function isPdf(path: string | null): boolean {
             )}
           </div>
         </div>
+      )}
+
+      {recentAchievements.length > 0 && (
+        <section class="mb-10">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Nye merker</h2>
+            <a href="/profil/merker" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle merker ({totalEarned}/{visibleAchievements.length}) →</a>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {recentAchievements.map(a => (
+              <div class="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-white border-sage-500/20 text-charcoal" title={a.description}>
+                <span>{a.emoji}</span>
+                <span>{a.label}</span>
+                <span class="ml-0.5 text-[8px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 px-1.5 py-0.5 rounded-full">NY</span>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-charcoal text-linen text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                  {a.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       <!-- Two-column staggered layout -->
@@ -365,12 +398,7 @@ function isPdf(path: string | null): boolean {
             </div>
           </div>
           {allProjects.length === 0 ? (
-            <div class="text-center py-2">
-              <p class="text-sm text-charcoal/45 mb-3">Ingen prosjekter ennå.</p>
-              <a href="/studio/prosjekter/ny" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
-                Start et prosjekt →
-              </a>
-            </div>
+            <EmptyState message="Ingen prosjekter ennå." ctaText="Start et prosjekt →" ctaHref="/studio/prosjekter/ny" compact />
           ) : (
             <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {allProjects.map((p) => {
@@ -379,32 +407,15 @@ function isPdf(path: string | null): boolean {
                 const reqData = commissionData?.commission_requests;
                 const buyerName = reqData?.profiles?.display_name;
                 return (
-                  <li>
-                    <a href={`/studio/prosjekter/${p.id}`} class:list={[
-                      'block bg-white rounded-xl border transition-colors overflow-hidden',
-                      isCommission ? 'border-terracotta-500/20 hover:border-terracotta-500/40' : 'border-sage-500/10 hover:border-sage-500/30',
-                    ]}>
-                      <div class="flex gap-3">
-                        {p.hero_photo_path ? (
-                          <img src={projectPhotoUrl(p.hero_photo_path)!} alt={p.title} class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
-                        ) : (
-                          <div class="w-16 h-16 bg-oatmeal/40 shrink-0 rounded-l-xl"></div>
-                        )}
-                        <div class="py-2.5 pr-3 min-w-0 flex-1">
-                          <div class="flex items-center gap-1.5 mb-0.5">
-                            <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{PROJECT_STATUS[p.status]}</span>
-                            {isCommission && (
-                              <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
-                            )}
-                          </div>
-                          <p class="text-sm font-medium line-clamp-1">{p.title}</p>
-                          {isCommission && buyerName && (
-                            <p class="text-[11px] text-charcoal/45">for {buyerName}</p>
-                          )}
-                        </div>
-                      </div>
-                    </a>
-                  </li>
+                  <ProjectCard
+                    id={p.id}
+                    title={p.title}
+                    status={p.status}
+                    heroPhotoPath={p.hero_photo_path}
+                    compact
+                    isCommission={isCommission}
+                    buyerName={buyerName}
+                  />
                 );
               })}
             </ul>
@@ -423,29 +434,17 @@ function isPdf(path: string | null): boolean {
             </div>
           </div>
           {allListings.length === 0 ? (
-            <div class="text-center py-2">
-              <p class="text-sm text-charcoal/45 mb-3">Du har ingen annonser ennå.</p>
-              <a href="/marked/listing/ny" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
-                Opprett annonse →
-              </a>
-            </div>
+            <EmptyState message="Du har ingen annonser ennå." ctaText="Opprett annonse →" ctaHref="/marked/listing/ny" compact />
           ) : (
             <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {allListings.map((l) => (
-                <li>
-                  <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                    {l.hero_photo_path ? (
-                      <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
-                    ) : (
-                      <div class="aspect-square bg-oatmeal/40"></div>
-                    )}
-                    <div class="p-2.5">
-                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">{KIND_LABEL[l.kind]}</p>
-                      <p class="text-sm font-medium line-clamp-1">{l.title}</p>
-                      <p class="font-mono tabular-nums text-xs mt-0.5">{l.price_nok} NOK</p>
-                    </div>
-                  </a>
-                </li>
+                <ListingCard
+                  id={l.id}
+                  title={l.title}
+                  price={l.price_nok}
+                  imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                  meta={KIND_LABEL[l.kind]}
+                />
               ))}
             </ul>
           )}
@@ -457,6 +456,8 @@ function isPdf(path: string | null): boolean {
       <div class="mt-8 pt-6 border-t border-sage-500/10 flex flex-wrap gap-4">
         <a href="/profil/rediger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger profil →</a>
         <a href={`/marked/selger/${user.id}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Offentlig profil →</a>
+        <a href="/marked/favoritter" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine favoritter →</a>
+        <a href="/profil/merker" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Merker ({totalEarned}/{visibleAchievements.length}) →</a>
         <a href="/innstillinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Innstillinger →</a>
         <form method="post" action="/api/auth/signout" data-signout-form class="inline">
           <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Logg ut →</button>

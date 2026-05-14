@@ -38,6 +38,7 @@ const formId = `report-${targetId}`;
 </div>
 
 <script>
+  function initReportButtons() {
   document.querySelectorAll('[data-report-wrapper]').forEach(wrapper => {
     const toggle = wrapper.querySelector('[data-report-toggle]') as HTMLButtonElement;
     const dropdown = wrapper.querySelector('[data-report-dropdown]') as HTMLElement;
@@ -75,4 +76,6 @@ const formId = `report-${targetId}`;
       }
     });
   });
+  }
+  document.addEventListener('astro:page-load', initReportButtons);
 </script>

@@ -1,0 +1,144 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+import { createAdminSupabase } from '../../lib/supabase';
+import { env } from 'cloudflare:workers';
+import { getUserAchievements, checkAndGrantAchievements, ACHIEVEMENTS, CATEGORY_LABELS, TIER_LABEL, type AchievementTier } from '../../lib/achievements';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/logg-inn?next=/profil/merker');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+const isMod = profile?.role === 'admin' || profile?.role === 'moderator';
+
+await checkAndGrantAchievements(admin, user.id, import.meta.env);
+const earnedKeys = await getUserAchievements(supabase, user.id);
+const earnedSet = new Set(earnedKeys);
+
+const allCategories = ['profil', 'strikking', 'marked', 'fellesskap', 'moderering'] as const;
+const categories = isMod ? allCategories : allCategories.filter(c => c !== 'moderering');
+
+const visibleAchievements = ACHIEVEMENTS.filter(a => isMod || a.category !== 'moderering');
+const totalEarned = earnedKeys.filter(k => {
+  const def = ACHIEVEMENTS.find(a => a.key === k);
+  return def && (isMod || def.category !== 'moderering');
+}).length;
+const totalAvailable = visibleAchievements.length;
+
+const TIER_BG: Record<AchievementTier, string> = {
+  bronze: 'bg-amber-700/10 text-amber-700',
+  silver: 'bg-gray-400/10 text-gray-500',
+  gold: 'bg-yellow-500/10 text-yellow-600',
+  platinum: 'bg-cyan-400/10 text-cyan-600',
+  diamond: 'bg-violet-400/10 text-violet-600',
+};
+---
+
+<Layout title="Merker — Littles and Me Knits" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+      <a href="/profil" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 inline-block">← Tilbake til profil</a>
+
+      <div class="flex items-end justify-between mb-8">
+        <div>
+          <h1 class="font-serif text-3xl sm:text-4xl">Merker</h1>
+          <p class="text-charcoal/55 text-sm mt-1">Saml merker etter hvert som du strikker, selger og deltar.</p>
+        </div>
+        <p class="text-sm font-mono tabular-nums text-charcoal/55">{totalEarned}/{totalAvailable}</p>
+      </div>
+
+      <div class="w-full bg-sage-500/10 rounded-full h-2 mb-10">
+        <div class="bg-sage-500 h-2 rounded-full transition-all" style={`width: ${Math.round((totalEarned / totalAvailable) * 100)}%`}></div>
+      </div>
+
+      <div class="space-y-10">
+        {categories.map(cat => {
+          const catAchievements = ACHIEVEMENTS.filter(a => a.category === cat);
+          const earned = catAchievements.filter(a => earnedSet.has(a.key));
+          const unearned = catAchievements.filter(a => !earnedSet.has(a.key));
+          return (
+            <section>
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/55">{CATEGORY_LABELS[cat]}</h2>
+                <span class="text-xs text-charcoal/35">{earned.length}/{catAchievements.length}</span>
+              </div>
+              {earned.length === 0 ? (
+                <p class="text-sm text-charcoal/35 mb-2">Ingen opptjent ennå.</p>
+              ) : (
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {earned.map(a => {
+                    const tierClass = a.tier ? TIER_BG[a.tier] : '';
+                    return (
+                      <div class="flex items-center gap-3 rounded-2xl p-4 border bg-white border-sage-500/20">
+                        <span class="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-sage-100">{a.emoji}</span>
+                        <div class="min-w-0">
+                          <div class="flex items-center gap-2">
+                            <p class="text-sm font-medium text-charcoal">{a.label}</p>
+                            {a.tier && (
+                              <span class:list={['text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full', tierClass]}>{TIER_LABEL[a.tier]}</span>
+                            )}
+                          </div>
+                          <p class="text-xs mt-0.5 text-charcoal/55">{a.description}</p>
+                        </div>
+                        <span class="ml-auto shrink-0 text-sage-700 text-sm">&#10003;</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {unearned.length > 0 && (
+                <div data-expand-section>
+                  <button type="button" data-expand-btn class="mt-3 text-xs text-charcoal/40 hover:text-charcoal/60 transition-colors">
+                    Vis alle ({unearned.length} gjenstår) ▾
+                  </button>
+                  <div data-expand-content style="display: none;" class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {unearned.map(a => {
+                      const tierClass = a.tier ? TIER_BG[a.tier] : '';
+                      return (
+                        <div class="flex items-center gap-3 rounded-2xl p-4 border bg-oatmeal/20 border-transparent">
+                          <span class="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-full grayscale opacity-30">{a.emoji}</span>
+                          <div class="min-w-0">
+                            <div class="flex items-center gap-2">
+                              <p class="text-sm font-medium text-charcoal/35">{a.label}</p>
+                              {a.tier && (
+                                <span class:list={['text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-charcoal/5 text-charcoal/20']}>{TIER_LABEL[a.tier]}</span>
+                              )}
+                            </div>
+                            <p class="text-xs mt-0.5 text-charcoal/25">{a.description}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <script>
+        function initExpandButtons() {
+          document.querySelectorAll('[data-expand-btn]').forEach(btn => {
+            const el = btn as HTMLElement;
+            const label = el.textContent ?? '';
+            el.addEventListener('click', () => {
+              const content = el.closest('[data-expand-section]')?.querySelector('[data-expand-content]') as HTMLElement | null;
+              if (!content) return;
+              const opening = content.style.display === 'none';
+              content.style.display = opening ? '' : 'none';
+              el.textContent = opening ? 'Skjul ▴' : label;
+            });
+          });
+        }
+        document.addEventListener('astro:page-load', initExpandButtons);
+      </script>
+
+    </div>
+  </div>
+</Layout>

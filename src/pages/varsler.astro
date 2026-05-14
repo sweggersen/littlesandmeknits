@@ -130,14 +130,18 @@ function timeAgo(dateStr: string): string {
                     <p class="text-sm text-charcoal/55 mt-0.5 line-clamp-2">{n.body}</p>
                   )}
                 </div>
-                {!n.read_at && (
-                  <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0 mt-2"></span>
-                )}
+                <div class="flex items-center gap-3 shrink-0 mt-2">
+                  {!n.read_at && (
+                    <span class="w-2 h-2 rounded-full bg-terracotta-500"></span>
+                  )}
+                  <form method="post" action="/api/notifications/delete" data-astro-reload class="opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
+                    <input type="hidden" name="id" value={n.id} />
+                    <button type="submit" class="text-charcoal/30 hover:text-terracotta-500 transition-colors p-1" title="Fjern varsel">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                  </form>
+                </div>
               </a>
-              <form method="post" action="/api/notifications/delete" data-astro-reload class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <input type="hidden" name="id" value={n.id} />
-                <button type="submit" class="text-[11px] text-charcoal/30 hover:text-terracotta-500 transition-colors p-1" title="Fjern varsel">✕</button>
-              </form>
             </li>
           ))}
         </ul>

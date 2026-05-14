@@ -253,11 +253,7 @@ const toolTabs = [
 </StudioLayout>
 
 <script>
-  // Tool toggle — client-side. All five sections render into the DOM
-  // (with `hidden` set on the inactive ones at SSR time); the sub-nav
-  // links intercept clicks to swap which one is visible, push a new
-  // history entry, and dispatch a `verktoy:show` event so per-tool
-  // scripts (the ruler) can re-init now that they have layout width.
+  function initVerktoy() {
   const VERKTOY_TOOLS = ['gauge', 'yardage', 'evenly', 'ruler', 'needles'] as const;
   type VerktoyTool = (typeof VERKTOY_TOOLS)[number];
 
@@ -265,6 +261,7 @@ const toolTabs = [
     'nav a[href^="/studio/verktoy?tool="]',
   );
   const sections = document.querySelectorAll<HTMLElement>('[data-verktoy-tool]');
+  if (!tabLinks.length && !sections.length) return;
 
   function setActiveTool(tool: VerktoyTool) {
     sections.forEach((s) => {
@@ -523,8 +520,9 @@ const toolTabs = [
   document.addEventListener('verktoy:show', (e) => {
     const detail = (e as CustomEvent<{ tool: string }>).detail;
     if (detail.tool === 'ruler') {
-      // Wait one frame so display updates have flushed before we measure.
       requestAnimationFrame(() => drawRuler(currentPxPmm));
     }
   });
+  }
+  document.addEventListener('astro:page-load', initVerktoy);
 </script>

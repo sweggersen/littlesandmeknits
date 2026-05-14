@@ -1,6 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../../lib/auth';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
@@ -8,9 +8,7 @@ if (!user) return Astro.redirect('/logg-inn?next=/marked/listing/ny');
 ---
 
 <Layout title="Ny annonse — Strikketorget" lang="nb">
-  <MarketplaceNav current="ny" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+  <MarketplaceShell current="ny">
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
       <p class="text-sm text-charcoal/55 mb-8">
         Lagre som utkast først, så kan du legge til bilder og publisere etterpå.
@@ -230,22 +228,24 @@ if (!user) return Astro.redirect('/logg-inn?next=/marked/listing/ny');
           </button>
         </div>
       </form>
-    </div>
-  </div>
+  </MarketplaceShell>
 
   <script>
-    const kind = document.getElementById('kind') as HTMLSelectElement | null;
-    const condition = document.getElementById('condition') as HTMLSelectElement | null;
-    const wrapper = document.querySelector('[data-condition-wrapper]') as HTMLElement | null;
-    function sync() {
-      if (!kind || !condition || !wrapper) return;
-      const isPreLoved = kind.value === 'pre_loved';
-      wrapper.style.display = isPreLoved ? '' : 'none';
-      condition.disabled = !isPreLoved;
-      if (!isPreLoved) condition.removeAttribute('name');
-      else condition.setAttribute('name', 'condition');
+    function initListingForm() {
+      const kind = document.getElementById('kind') as HTMLSelectElement | null;
+      const condition = document.getElementById('condition') as HTMLSelectElement | null;
+      const wrapper = document.querySelector('[data-condition-wrapper]') as HTMLElement | null;
+      function sync() {
+        if (!kind || !condition || !wrapper) return;
+        const isPreLoved = kind.value === 'pre_loved';
+        wrapper.style.display = isPreLoved ? '' : 'none';
+        condition.disabled = !isPreLoved;
+        if (!isPreLoved) condition.removeAttribute('name');
+        else condition.setAttribute('name', 'condition');
+      }
+      kind?.addEventListener('change', sync);
+      sync();
     }
-    kind?.addEventListener('change', sync);
-    sync();
+    document.addEventListener('astro:page-load', initListingForm);
   </script>
 </Layout>

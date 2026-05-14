@@ -1,0 +1,22 @@
+---
+interface Props {
+  label: string;
+  variant?: 'default' | 'terracotta' | 'sage' | 'amber' | 'red' | 'blue' | 'muted';
+  class?: string;
+}
+const { label, variant = 'default', class: cls } = Astro.props;
+
+const colors: Record<string, string> = {
+  default: 'text-charcoal/45 bg-oatmeal/60',
+  terracotta: 'text-terracotta-500 bg-terracotta-500/10',
+  sage: 'text-sage-700 bg-sage-100',
+  amber: 'text-amber-600 bg-amber-50',
+  red: 'text-red-600 bg-red-50',
+  blue: 'text-blue-600 bg-blue-50',
+  muted: 'text-charcoal/40 bg-oatmeal/40',
+};
+---
+
+<span class:list={['text-[10px] font-bold uppercase tracking-widest rounded-full px-2.5 py-1', colors[variant], cls]}>
+  {label}
+</span>

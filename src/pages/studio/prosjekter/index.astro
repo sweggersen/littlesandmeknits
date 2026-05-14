@@ -1,9 +1,10 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
 import StudioSubNav from '../../../components/StudioSubNav.astro';
+import ProjectCard from '../../../components/ProjectCard.astro';
+import EmptyState from '../../../components/EmptyState.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
-import { projectPhotoUrl } from '../../../lib/storage';
 
 type ProjectRow = {
   id: string;
@@ -57,19 +58,6 @@ const filterTabs: Array<{ key: Filter; label: string; count: number }> = [
   { key: 'frogged', label: 'Røket opp', count: counts.frogged },
 ];
 
-const statusLabels: Record<ProjectRow['status'], string> = {
-  planning: 'Planlegges',
-  active: 'I gang',
-  finished: 'Ferdig',
-  frogged: 'Røket opp',
-};
-
-const statusClass: Record<ProjectRow['status'], string> = {
-  planning: 'bg-oatmeal text-charcoal/70',
-  active: 'bg-sage-100 text-sage-900',
-  finished: 'bg-terracotta-500/10 text-terracotta-500',
-  frogged: 'bg-charcoal/10 text-charcoal/60',
-};
 ---
 
 <StudioLayout title="Prosjekter — Littles and Me" lang="nb">
@@ -96,69 +84,24 @@ const statusClass: Record<ProjectRow['status'], string> = {
   </div>
 
   {allProjects.length === 0 ? (
-    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
-      <p class="text-charcoal/55 mb-6">Ingen prosjekter ennå. Start ditt første for å samle bilder, fremgang og notater på ett sted.</p>
-      <a
-        href="/studio/prosjekter/ny"
-        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-      >
-        Start et prosjekt
-      </a>
-    </div>
+    <EmptyState message="Ingen prosjekter ennå. Start ditt første for å samle bilder, fremgang og notater på ett sted." ctaText="Start et prosjekt" ctaHref="/studio/prosjekter/ny" />
   ) : projects.length === 0 ? (
-    <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
-      <p class="text-charcoal/55">Ingen prosjekter med denne statusen.</p>
-    </div>
+    <EmptyState message="Ingen prosjekter med denne statusen." compact />
   ) : (
     <ul class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-      {projects.map((p) => {
-        const heroUrl = projectPhotoUrl(p.hero_photo_path);
-        const patternLabel = p.pattern_slug ?? p.pattern_external;
-        return (
-          <li>
-            <a
-              href={`/studio/prosjekter/${p.id}`}
-              class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
-            >
-              {heroUrl ? (
-                <div class="aspect-[4/3] bg-oatmeal overflow-hidden">
-                  <img src={heroUrl} alt={p.title} class="w-full h-full object-cover" loading="lazy" />
-                </div>
-              ) : (
-                <div class="aspect-[4/3] bg-gradient-to-br from-sage-100 to-oatmeal" />
-              )}
-              <div class="p-5">
-                <div class="flex items-center justify-between mb-3">
-                  <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[p.status]}`}>
-                    {statusLabels[p.status]}
-                  </span>
-                  <div class="flex items-center gap-2">
-                    {p.public_slug && (
-                      <span class="text-[10px] font-bold uppercase tracking-wider text-sage-900" title="Offentlig delt">Delt</span>
-                    )}
-                    <span class="text-xs text-charcoal/40">
-                      {new Date(p.created_at).toLocaleDateString('nb-NO', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
-                <h3 class="font-serif text-xl leading-tight mb-2">{p.title}</h3>
-                {p.summary && (
-                  <p class="text-sm text-charcoal/60 leading-relaxed line-clamp-2">{p.summary}</p>
-                )}
-                <div class="mt-4 pt-4 border-t border-sage-500/10 flex items-center gap-3 text-xs text-charcoal/50">
-                  {p.recipient && <span>For {p.recipient}</span>}
-                  {patternLabel && (
-                    <>
-                      {p.recipient && <span class="text-charcoal/20">·</span>}
-                      <span class="italic">{patternLabel}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </a>
-          </li>
-        );
-      })}
+      {projects.map((p) => (
+        <ProjectCard
+          id={p.id}
+          title={p.title}
+          status={p.status}
+          heroPhotoPath={p.hero_photo_path}
+          summary={p.summary}
+          recipient={p.recipient}
+          patternLabel={p.pattern_slug ?? p.pattern_external}
+          createdAt={p.created_at}
+          publicSlug={p.public_slug}
+        />
+      ))}
     </ul>
   )}
 </StudioLayout>

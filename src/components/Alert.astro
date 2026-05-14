@@ -1,0 +1,18 @@
+---
+interface Props {
+  type?: 'success' | 'warning' | 'error' | 'info';
+  class?: string;
+}
+const { type = 'info', class: cls } = Astro.props;
+
+const styles: Record<string, string> = {
+  success: 'bg-sage-100 text-sage-900',
+  warning: 'bg-amber-50 text-amber-900',
+  error: 'bg-red-50 text-red-900',
+  info: 'bg-oatmeal/60 text-charcoal/80',
+};
+---
+
+<div class:list={['rounded-2xl p-4 text-sm', styles[type], cls]}>
+  <slot />
+</div>

@@ -1,11 +1,16 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
+import ProfileAvatar from '../../../components/ProfileAvatar.astro';
+import ListingCard from '../../../components/ListingCard.astro';
+import StarRating from '../../../components/StarRating.astro';
+import EmptyState from '../../../components/EmptyState.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { KIND_LABEL } from '../../../lib/labels';
+import { getUserAchievements, ACHIEVEMENT_MAP, ACHIEVEMENTS } from '../../../lib/achievements';
 
 const sellerId = Astro.params.id;
 if (!sellerId) return Astro.redirect('/marked');
@@ -64,24 +69,18 @@ const TAG_LABEL: Record<string, string> = {
 
 const memberSince = new Date(seller.created_at).toLocaleDateString('nb-NO', { year: 'numeric', month: 'long' });
 const avatarUrl = seller.avatar_path ? projectPhotoUrl(seller.avatar_path) : null;
+
+const earnedKeys = await getUserAchievements(supabase, sellerId);
+const earnedSet = new Set(earnedKeys);
+const earnedAchievements = ACHIEVEMENTS.filter(a => earnedSet.has(a.key) && a.category !== 'moderering');
 ---
 
 <Layout title={`${seller.display_name ?? 'Selger'} — Strikketorget`} lang="nb">
-  <MarketplaceNav />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+  <MarketplaceShell>
 
       <!-- Profile header -->
       <div class="flex items-start gap-5 mb-8">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={seller.display_name ?? ''} class="w-20 h-20 rounded-full object-cover shrink-0" />
-        ) : (
-          <div class="w-20 h-20 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
-            <span class="font-serif text-2xl text-sage-700">
-              {(seller.display_name ?? '?')[0].toUpperCase()}
-            </span>
-          </div>
-        )}
+        <ProfileAvatar url={avatarUrl} name={seller.display_name ?? '?'} size="xl" />
         <div class="min-w-0">
           <div class="flex items-center gap-2">
             <h1 class="font-serif text-3xl">{seller.display_name ?? 'Anonym'}</h1>
@@ -127,34 +126,40 @@ const avatarUrl = seller.avatar_path ? projectPhotoUrl(seller.avatar_path) : nul
         </div>
       </div>
 
+      <!-- Merker -->
+      {earnedAchievements.length > 0 && (
+        <div class="mb-8">
+          <div class="flex flex-wrap gap-1.5">
+            {earnedAchievements.map(a => (
+              <span class="group relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-sage-500/15" title={a.description}>
+                <span>{a.emoji}</span>
+                <span>{a.label}</span>
+                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-charcoal text-linen text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                  {a.description}
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       <!-- Active listings -->
       <section class="mb-12">
         <h2 class="font-serif text-2xl mb-4">
           Annonser ({activeListings.length})
         </h2>
         {activeListings.length === 0 ? (
-          <div class="bg-white rounded-3xl p-8 text-center border border-sage-500/10">
-            <p class="text-charcoal/55">Ingen aktive annonser akkurat nå.</p>
-          </div>
+          <EmptyState message="Ingen aktive annonser akkurat nå." compact />
         ) : (
           <ul class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
             {activeListings.map((l) => (
-              <li>
-                <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                  {projectPhotoUrl(l.hero_photo_path) ? (
-                    <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
-                  ) : (
-                    <div class="aspect-square bg-oatmeal/40" />
-                  )}
-                  <div class="p-3">
-                    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
-                      {KIND_LABEL[l.kind] ?? l.kind} · str. {l.size_label}
-                    </p>
-                    <p class="text-sm font-medium line-clamp-2">{l.title}</p>
-                    <p class="font-mono tabular-nums text-sm mt-1">{l.price_nok} NOK</p>
-                  </div>
-                </a>
-              </li>
+              <ListingCard
+                id={l.id}
+                title={l.title}
+                price={l.price_nok}
+                imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
+              />
             ))}
           </ul>
         )}
@@ -166,21 +171,13 @@ const avatarUrl = seller.avatar_path ? projectPhotoUrl(seller.avatar_path) : nul
           Omtaler {reviewList.length > 0 ? `(${reviewList.length})` : ''}
         </h2>
         {reviewList.length === 0 ? (
-          <div class="bg-white rounded-3xl p-8 text-center border border-sage-500/10">
-            <p class="text-charcoal/55">Ingen omtaler ennå.</p>
-          </div>
+          <EmptyState message="Ingen omtaler ennå." compact />
         ) : (
           <div class="space-y-3">
             {reviewList.map((r) => (
               <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
                 <div class="flex items-center gap-2 mb-2">
-                  <div class="flex gap-0.5">
-                    {[1,2,3,4,5].map((star) => (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={star <= r.rating ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.5" class={star <= r.rating ? 'text-terracotta-500' : 'text-charcoal/20'}>
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                      </svg>
-                    ))}
-                  </div>
+                  <StarRating rating={r.rating} />
                   <span class="text-sm font-medium">{(r as any).profiles?.display_name ?? 'Anonym'}</span>
                   <span class="text-xs text-charcoal/40">{new Date(r.created_at).toLocaleDateString('nb-NO')}</span>
                 </div>
@@ -201,13 +198,7 @@ const avatarUrl = seller.avatar_path ? projectPhotoUrl(seller.avatar_path) : nul
             {transactionReviews.map((r) => (
               <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
                 <div class="flex items-center gap-2 mb-2">
-                  <div class="flex gap-0.5">
-                    {[1,2,3,4,5].map((star) => (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill={star <= r.rating ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.5" class={star <= r.rating ? 'text-terracotta-500' : 'text-charcoal/20'}>
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                      </svg>
-                    ))}
-                  </div>
+                  <StarRating rating={r.rating} />
                   <span class="text-sm font-medium">{(r as any).profiles?.display_name ?? 'Anonym'}</span>
                   <span class="text-[10px] text-charcoal/40">{r.reviewer_role === 'buyer' ? 'Bestiller' : 'Strikker'}</span>
                   <span class="text-xs text-charcoal/40">{new Date(r.created_at).toLocaleDateString('nb-NO')}</span>
@@ -226,6 +217,5 @@ const avatarUrl = seller.avatar_path ? projectPhotoUrl(seller.avatar_path) : nul
         </div>
       )}
 
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>

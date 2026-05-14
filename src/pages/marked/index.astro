@@ -1,16 +1,25 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import MarketplaceNav from '../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
+import ListingCard from '../../components/ListingCard.astro';
+import CommissionCard from '../../components/CommissionCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import FavScript from '../../components/FavScript.astro';
+import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+
 const [{ data: latest }, { data: latestRequests }] = await Promise.all([
   supabase
     .from('listings')
-    .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at')
+    .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at, promoted_until, promotion_tier')
     .eq('status', 'active')
+    .order('promoted_until', { ascending: false, nullsFirst: false })
     .order('published_at', { ascending: false })
     .limit(8),
   supabase
@@ -21,12 +30,22 @@ const [{ data: latest }, { data: latestRequests }] = await Promise.all([
     .limit(4),
 ]);
 
+let favIds: string[] = [];
+if (user) {
+  try {
+    const { data: favs } = await supabase
+      .from('favorites')
+      .select('item_id')
+      .eq('user_id', user.id)
+      .eq('item_type', 'listing');
+    favIds = (favs ?? []).map(f => f.item_id);
+  } catch {}
+}
+
 ---
 
 <Layout title="Strikketorget — Littles and Me Knits" lang="nb">
-  <MarketplaceNav current="home" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+  <MarketplaceShell current="home">
       <p class="text-charcoal/65 max-w-xl mb-10">
         Kjøp brukt og nytt strikket fra fellesskapet, eller bestill at noen strikker for deg.
       </p>
@@ -51,28 +70,20 @@ const [{ data: latest }, { data: latestRequests }] = await Promise.all([
 
       <h2 class="font-serif text-2xl mb-4">Nyeste annonser</h2>
       {(latest ?? []).length === 0 ? (
-        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
-          <p class="text-charcoal/55">Ingen annonser ennå. Kom tilbake snart.</p>
-        </div>
+        <EmptyState message="Ingen annonser ennå. Kom tilbake snart." />
       ) : (
         <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
           {(latest ?? []).map((l) => (
-            <li>
-              <a href={`/marked/listing/${l.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden">
-                {projectPhotoUrl(l.hero_photo_path) ? (
-                  <img src={projectPhotoUrl(l.hero_photo_path)!} alt={l.title} class="aspect-square object-cover" />
-                ) : (
-                  <div class="aspect-square bg-oatmeal/40"></div>
-                )}
-                <div class="p-3">
-                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
-                    {KIND_LABEL[l.kind] ?? l.kind} · str. {l.size_label}
-                  </p>
-                  <p class="text-sm font-medium line-clamp-2">{l.title}</p>
-                  <p class="font-mono tabular-nums text-sm mt-1">{l.price_nok} NOK</p>
-                </div>
-              </a>
-            </li>
+            <ListingCard
+              id={l.id}
+              title={l.title}
+              price={l.price_nok}
+              imgUrl={projectPhotoUrl(l.hero_photo_path)}
+              meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
+              showFav={!!user}
+              isFav={favIds.includes(l.id)}
+              promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date() && l.promotion_tier === 'highlight')}
+            />
           ))}
         </ul>
       )}
@@ -81,22 +92,15 @@ const [{ data: latest }, { data: latestRequests }] = await Promise.all([
           <h2 class="font-serif text-2xl mb-4 mt-12">Nyeste forespørsler</h2>
           <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {(latestRequests ?? []).map((r) => (
-              <li>
-                <a href={`/marked/oppdrag/${r.id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">
-                      {CATEGORY_LABEL[r.category] ?? r.category}
-                    </span>
-                    <span class="text-[10px] text-charcoal/40">·</span>
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">str. {r.size_label}</span>
-                  </div>
-                  <p class="text-sm font-medium line-clamp-1">{r.title}</p>
-                  <div class="flex items-center justify-between mt-2 text-xs text-charcoal/45">
-                    <span class="font-mono tabular-nums">{r.budget_nok_min}–{r.budget_nok_max} NOK</span>
-                    <span>{r.offer_count} tilbud</span>
-                  </div>
-                </a>
-              </li>
+              <CommissionCard
+                id={r.id}
+                title={r.title}
+                category={r.category}
+                sizeLabel={r.size_label}
+                budgetMin={r.budget_nok_min}
+                budgetMax={r.budget_nok_max}
+                offerCount={r.offer_count}
+              />
             ))}
           </ul>
           <a href="/marked/oppdrag" class="inline-block mt-4 text-sm font-medium text-charcoal/55 hover:text-terracotta-500 transition-colors">
@@ -104,6 +108,7 @@ const [{ data: latest }, { data: latestRequests }] = await Promise.all([
           </a>
         </>
       )}
-    </div>
-  </div>
+  </MarketplaceShell>
+  <FavScript />
+  <ImpressionTracker source="home" />
 </Layout>

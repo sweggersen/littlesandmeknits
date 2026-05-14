@@ -1,0 +1,69 @@
+---
+interface Props {
+  id: string;
+  title: string;
+  category: string;
+  sizeLabel: string;
+  budgetMin: number;
+  budgetMax: number;
+  offerCount?: number;
+  buyerName?: string;
+  neededBy?: string | null;
+  daysLeft?: number | null;
+  inactive?: boolean;
+  inactiveLabel?: string;
+}
+import { CATEGORY_LABEL } from '../lib/labels';
+
+const {
+  id,
+  title,
+  category,
+  sizeLabel,
+  budgetMin,
+  budgetMax,
+  offerCount,
+  buyerName,
+  neededBy,
+  daysLeft,
+  inactive = false,
+  inactiveLabel,
+} = Astro.props;
+
+const catLabel = CATEGORY_LABEL[category] ?? category;
+const showExpiry = daysLeft !== null && daysLeft !== undefined && daysLeft <= 7;
+---
+
+<li>
+  {inactive ? (
+    <div class="bg-white rounded-2xl border border-sage-500/10 p-5">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/35 mb-2">{catLabel}</p>
+      <h3 class="font-serif text-lg mb-2 line-clamp-2 text-charcoal/55">{title}</h3>
+      <p class="text-xs text-charcoal/35">{inactiveLabel ?? 'Lukket'}</p>
+    </div>
+  ) : (
+    <a href={`/marked/oppdrag/${id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{catLabel}</span>
+        <span class="text-[10px] text-charcoal/40">&middot;</span>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">str. {sizeLabel}</span>
+      </div>
+      <h2 class="font-serif text-lg mb-2 line-clamp-2">{title}</h2>
+      <p class="font-mono tabular-nums text-sm text-charcoal/70 mb-3">{budgetMin}&ndash;{budgetMax} NOK</p>
+      {(buyerName || offerCount !== undefined || neededBy || showExpiry) && (
+        <div class="flex items-center justify-between text-xs text-charcoal/45">
+          {buyerName && <span>{buyerName}</span>}
+          <div class="flex items-center gap-3">
+            {showExpiry && <span class="text-amber-600">{daysLeft}d igjen</span>}
+            {neededBy && (
+              <span>Innen {new Date(neededBy).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</span>
+            )}
+            {offerCount !== undefined && (
+              <span class="font-medium text-charcoal/60">{offerCount} tilbud</span>
+            )}
+          </div>
+        </div>
+      )}
+    </a>
+  )}
+</li>

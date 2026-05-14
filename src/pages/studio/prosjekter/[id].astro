@@ -748,6 +748,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
 </StudioLayout>
 
 <script>
+  function initProjectShare() {
   document.querySelector<HTMLElement>('[data-copy-share]')?.addEventListener('click', () => {
     const input = document.querySelector<HTMLInputElement>('[data-share-url]');
     if (!input) return;
@@ -838,4 +839,6 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
       });
     });
   }
+  }
+  document.addEventListener('astro:page-load', initProjectShare);
 </script>

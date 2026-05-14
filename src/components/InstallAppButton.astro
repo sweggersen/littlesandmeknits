@@ -64,45 +64,43 @@
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
   };
 
-  const root = document.querySelector<HTMLElement>('[data-install-root]');
-  const trigger = document.querySelector<HTMLButtonElement>('[data-install-trigger]');
-  const help = document.querySelector<HTMLElement>('[data-install-help]');
-  const helpClose = document.querySelector<HTMLButtonElement>('[data-install-help-close]');
-  const helpIos = document.querySelector<HTMLElement>('[data-install-help-ios]');
-  const helpAndroid = document.querySelector<HTMLElement>('[data-install-help-android]');
-  const helpGeneric = document.querySelector<HTMLElement>('[data-install-help-generic]');
+  let deferred: BeforeInstallPromptEvent | null = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e as BeforeInstallPromptEvent;
+  });
 
-  if (root && trigger && help && helpClose) {
-    let deferred: BeforeInstallPromptEvent | null = null;
+  function initInstallButton() {
+    const root = document.querySelector<HTMLElement>('[data-install-root]');
+    const trigger = document.querySelector<HTMLButtonElement>('[data-install-trigger]');
+    const help = document.querySelector<HTMLElement>('[data-install-help]');
+    const helpClose = document.querySelector<HTMLButtonElement>('[data-install-help-close]');
+    const helpIos = document.querySelector<HTMLElement>('[data-install-help-ios]');
+    const helpAndroid = document.querySelector<HTMLElement>('[data-install-help-android]');
+    const helpGeneric = document.querySelector<HTMLElement>('[data-install-help-generic]');
+
+    if (!root || !trigger || !help || !helpClose) return;
 
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (navigator as Navigator & { standalone?: boolean }).standalone === true;
 
     const ua = navigator.userAgent;
-    // Modern iPad reports as "Macintosh" — disambiguate via touch points.
     const isIOSLike =
       /iPhone|iPad|iPod/i.test(ua) ||
       (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
     const isAndroid = /Android/i.test(ua);
 
     if (!isStandalone) {
-      // Always reveal the button. Programmatic install is optional —
-      // the help modal is the fallback for browsers that lack it.
       root.classList.remove('hidden');
     }
 
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferred = e as BeforeInstallPromptEvent;
-    });
     window.addEventListener('appinstalled', () => {
       root.classList.add('hidden');
       deferred = null;
     });
 
     function openHelp() {
-      // Pick the right copy based on device. Hide siblings, show one.
       [helpIos, helpAndroid, helpGeneric].forEach((el) => el?.classList.add('hidden'));
       const target = isIOSLike ? helpIos : isAndroid ? helpAndroid : helpGeneric;
       target?.classList.remove('hidden');
@@ -136,4 +134,5 @@
       if (e.key === 'Escape') closeHelp();
     });
   }
+  document.addEventListener('astro:page-load', initInstallButton);
 </script>

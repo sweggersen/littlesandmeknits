@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import MarketplaceNav from '../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
 import { KIND_LABEL, LISTING_STATUS } from '../../lib/labels';
@@ -13,7 +15,7 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 const [{ data: listings }, { data: conversations }] = await Promise.all([
   supabase
     .from('listings')
-    .select('id, title, price_nok, status, kind, hero_photo_path, created_at')
+    .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false }),
   supabase
@@ -31,9 +33,7 @@ const unreadConvos = (conversations ?? []).length;
 ---
 
 <Layout title="Mine annonser — Strikketorget" lang="nb">
-  <MarketplaceNav current="mine" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+  <MarketplaceShell current="mine">
       <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
         <div>
           <h1 class="font-serif text-3xl sm:text-4xl">Mine annonser</h1>
@@ -94,12 +94,7 @@ const unreadConvos = (conversations ?? []).length;
       <section class="mb-8">
         <h2 class="font-serif text-xl mb-3">Aktive annonser</h2>
         {live.length === 0 ? (
-          <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
-            <p class="text-charcoal/55 text-sm mb-4">Ingen aktive annonser ennå.</p>
-            <a href="/marked/listing/ny" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
-              Legg ut din første annonse
-            </a>
-          </div>
+          <EmptyState message="Ingen aktive annonser ennå." ctaText="Legg ut din første annonse" ctaHref="/marked/listing/ny" compact />
         ) : (
           <ul class="space-y-2">
             {live.map((l) => (
@@ -110,9 +105,14 @@ const unreadConvos = (conversations ?? []).length;
                 >
                   <div class="flex items-center justify-between gap-4">
                     <div>
-                      <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">
-                        {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
-                      </p>
+                      <div class="flex items-center gap-2 mb-1">
+                        <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900">
+                          {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
+                        </p>
+                        {l.promoted_until && new Date(l.promoted_until) > new Date() && (
+                          <StatusBadge label="Fremhevet" variant="terracotta" />
+                        )}
+                      </div>
                       <p class="font-medium">{l.title}</p>
                     </div>
                     <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
@@ -142,6 +142,5 @@ const unreadConvos = (conversations ?? []).length;
         </section>
       )}
 
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>

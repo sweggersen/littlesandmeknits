@@ -1,0 +1,117 @@
+---
+import { projectPhotoUrl } from '../lib/storage';
+import { PROJECT_STATUS } from '../lib/labels';
+
+interface Props {
+  id: string;
+  title: string;
+  status: string;
+  heroPhotoPath?: string | null;
+  summary?: string | null;
+  recipient?: string | null;
+  patternLabel?: string | null;
+  createdAt?: string;
+  publicSlug?: string | null;
+  compact?: boolean;
+  isCommission?: boolean;
+  buyerName?: string | null;
+}
+const {
+  id,
+  title,
+  status,
+  heroPhotoPath,
+  summary,
+  recipient,
+  patternLabel,
+  createdAt,
+  publicSlug,
+  compact = false,
+  isCommission = false,
+  buyerName,
+} = Astro.props;
+
+const heroUrl = projectPhotoUrl(heroPhotoPath ?? null);
+const statusLabel = PROJECT_STATUS[status] ?? status;
+
+const statusClass: Record<string, string> = {
+  planning: 'text-charcoal/55 bg-oatmeal/60',
+  active: 'text-sage-900 bg-sage-100',
+  finished: 'text-terracotta-500 bg-terracotta-500/10',
+  frogged: 'text-charcoal/40 bg-oatmeal/40',
+};
+---
+
+<li>
+  {compact ? (
+    <a href={`/studio/prosjekter/${id}`} class:list={[
+      'block bg-white rounded-xl border transition-colors overflow-hidden',
+      isCommission ? 'border-terracotta-500/20 hover:border-terracotta-500/40' : 'border-sage-500/10 hover:border-sage-500/30',
+    ]}>
+      <div class="flex gap-3">
+        {heroUrl ? (
+          <img src={heroUrl} alt={title} class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
+        ) : (
+          <div class="w-16 h-16 bg-oatmeal/40 shrink-0 rounded-l-xl"></div>
+        )}
+        <div class="py-2.5 pr-3 min-w-0 flex-1">
+          <div class="flex items-center gap-1.5 mb-0.5">
+            <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{statusLabel}</span>
+            {isCommission && (
+              <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
+            )}
+          </div>
+          <p class="text-sm font-medium line-clamp-1">{title}</p>
+          {isCommission && buyerName && (
+            <p class="text-[11px] text-charcoal/45">for {buyerName}</p>
+          )}
+        </div>
+      </div>
+    </a>
+  ) : (
+    <a
+      href={`/studio/prosjekter/${id}`}
+      class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
+    >
+      {heroUrl ? (
+        <div class="aspect-[4/3] bg-oatmeal overflow-hidden">
+          <img src={heroUrl} alt={title} class="w-full h-full object-cover" loading="lazy" />
+        </div>
+      ) : (
+        <div class="aspect-[4/3] bg-gradient-to-br from-sage-100 to-oatmeal" />
+      )}
+      <div class="p-5">
+        <div class="flex items-center justify-between mb-3">
+          <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[status] ?? statusClass.planning}`}>
+            {statusLabel}
+          </span>
+          <div class="flex items-center gap-2">
+            {publicSlug && (
+              <span class="text-[10px] font-bold uppercase tracking-wider text-sage-900" title="Offentlig delt">Delt</span>
+            )}
+            {createdAt && (
+              <span class="text-xs text-charcoal/40">
+                {new Date(createdAt).toLocaleDateString('nb-NO', { month: 'short', day: 'numeric' })}
+              </span>
+            )}
+          </div>
+        </div>
+        <h3 class="font-serif text-xl leading-tight mb-2">{title}</h3>
+        {summary && (
+          <p class="text-sm text-charcoal/60 leading-relaxed line-clamp-2">{summary}</p>
+        )}
+        {(recipient || patternLabel) && (
+          <div class="mt-4 pt-4 border-t border-sage-500/10 flex items-center gap-3 text-xs text-charcoal/50">
+            {recipient && <span>For {recipient}</span>}
+            {patternLabel && (
+              <>
+                {recipient && <span class="text-charcoal/20">&middot;</span>}
+                <span class="italic">{patternLabel}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </a>
+  )}
+</li>

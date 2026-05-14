@@ -1,0 +1,100 @@
+---
+interface Props {
+  search?: string | null;
+  hasFilters?: boolean;
+  filterCount?: number;
+}
+const { search, hasFilters = false, filterCount = 0 } = Astro.props;
+---
+
+<div class="flex items-center gap-2 mb-6">
+  <div class="relative flex-1">
+    <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/35 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+    <input data-search-input type="text" value={search ?? ''} placeholder="Søk..."
+      class="w-full bg-white rounded-full pl-9 pr-10 py-2 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none" />
+    <button type="button" data-search-submit aria-label="Søk" class="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-charcoal/45 hover:text-charcoal hover:bg-sage-50 transition-colors">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+  <button type="button" data-toggle-filter
+    class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
+      hasFilters ? 'bg-charcoal text-linen border-charcoal' : 'bg-white text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+    Filter{hasFilters ? ` (${filterCount})` : ''}
+  </button>
+  <div class="flex items-center gap-1">
+    <button type="button" data-view="grid" aria-label="Rutenett" class="p-2 rounded-lg bg-charcoal text-linen transition-colors">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="0" width="7" height="7" rx="1"/><rect x="9" y="0" width="7" height="7" rx="1"/><rect x="0" y="9" width="7" height="7" rx="1"/><rect x="9" y="9" width="7" height="7" rx="1"/></svg>
+    </button>
+    <button type="button" data-view="list" aria-label="Liste" class="p-2 rounded-lg text-charcoal/40 hover:text-charcoal transition-colors">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="0" width="16" height="3" rx="1"/><rect x="0" y="4.5" width="16" height="3" rx="1"/><rect x="0" y="9" width="16" height="3" rx="1"/><rect x="0" y="13" width="16" height="3" rx="1"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+  function initToolbar() {
+    const filterPanel = document.querySelector('[data-filter-panel]') as HTMLElement;
+    const searchInput = document.querySelector('[data-search-input]') as HTMLInputElement;
+    const syncQ = filterPanel?.querySelector('[data-sync-q]') as HTMLInputElement;
+
+    document.querySelector('[data-toggle-filter]')?.addEventListener('click', () => {
+      filterPanel?.classList.toggle('hidden');
+    });
+
+    function doSearch() {
+      if (syncQ) syncQ.value = searchInput.value;
+      if (filterPanel) {
+        filterPanel.classList.remove('hidden');
+        (filterPanel as HTMLFormElement).requestSubmit();
+      }
+    }
+
+    document.querySelector('[data-search-submit]')?.addEventListener('click', doSearch);
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); doSearch(); }
+    });
+
+    const GRID_CLASSES = 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4';
+    const LIST_CLASSES = 'flex flex-col gap-2';
+
+    function setView(mode: 'grid' | 'list') {
+      const grid = document.querySelector('[data-listing-grid]') as HTMLElement;
+      if (!grid) return;
+
+      document.querySelectorAll<HTMLElement>('[data-view]').forEach(b => {
+        const active = b.dataset.view === mode;
+        b.className = `p-2 rounded-lg transition-colors ${active ? 'bg-charcoal text-linen' : 'text-charcoal/40 hover:text-charcoal'}`;
+      });
+
+      grid.className = mode === 'grid' ? GRID_CLASSES : LIST_CLASSES;
+
+      grid.querySelectorAll<HTMLElement>('[data-listing-item]').forEach(li => {
+        const link = li.querySelector('[data-card-link]') as HTMLElement;
+        const imgWrap = li.querySelector('[data-card-img-wrap]') as HTMLElement;
+        const img = imgWrap?.querySelector('img, div');
+
+        if (mode === 'list') {
+          link.classList.add('flex', 'flex-row', 'items-center');
+          if (imgWrap) imgWrap.className = 'w-28 h-28 flex-shrink-0';
+          if (img) { img.classList.remove('aspect-square'); img.classList.add('w-28', 'h-28', 'rounded-l-2xl'); }
+        } else {
+          link.classList.remove('flex', 'flex-row', 'items-center');
+          if (imgWrap) imgWrap.className = '';
+          if (img) { img.classList.add('aspect-square'); img.classList.remove('w-28', 'h-28', 'rounded-l-2xl'); }
+        }
+      });
+
+      localStorage.setItem('strikketorget-view', mode);
+    }
+
+    document.querySelectorAll<HTMLElement>('[data-view]').forEach(b => {
+      b.addEventListener('click', () => setView(b.dataset.view as 'grid' | 'list'));
+    });
+
+    const saved = localStorage.getItem('strikketorget-view') as 'grid' | 'list' | null;
+    if (saved === 'list') setView('list');
+  }
+
+  document.addEventListener('astro:page-load', initToolbar);
+</script>

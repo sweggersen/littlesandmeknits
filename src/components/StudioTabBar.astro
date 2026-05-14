@@ -61,7 +61,7 @@ const avatarInitial = initial();
 </nav>
 
 <script>
-  function syncActive() {
+  function initTabBar() {
     const path = window.location.pathname.replace(/\/$/, '') || '/studio';
     document
       .querySelectorAll<HTMLElement>('[data-studio-tabbar] [data-tab-match]')
@@ -71,5 +71,5 @@ const avatarInitial = initial();
         el.classList.toggle('is-active', new RegExp(re).test(path));
       });
   }
-  syncActive();
+  document.addEventListener('astro:page-load', initTabBar);
 </script>

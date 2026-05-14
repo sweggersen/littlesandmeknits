@@ -24,8 +24,6 @@ const ALL_TAGS = [
   { value: 'knitter', label: 'Strikker' },
   { value: 'sells_pre_loved', label: 'Selger brukt' },
   { value: 'sells_ready_made', label: 'Selger ferdigstrikket' },
-  { value: 'open_for_requests', label: 'Åpen for bestillinger' },
-  { value: 'dyer', label: 'Farger garn' },
 ];
 const currentTags = profile?.seller_tags ?? [];
 const saved = Astro.url.searchParams.get('saved') === '1';
@@ -136,7 +134,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
       </form>
 
       <!-- Stripe Connect for sellers -->
-      {currentTags.includes('open_for_requests') && (
+      {currentTags.length > 0 && (
         <div class="mt-8 bg-white rounded-3xl p-6 border border-sage-500/10">
           <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-3">Utbetalinger</h2>
           {profile?.stripe_onboarded ? (

@@ -1,0 +1,63 @@
+---
+import { CATEGORY_LABEL } from '../lib/labels';
+
+interface Props {
+  category?: string | null;
+  hasFilters?: boolean;
+  showAge?: boolean;
+  showBudget?: boolean;
+  params: URLSearchParams;
+}
+const { category, hasFilters = false, showAge = false, showBudget = false, params } = Astro.props;
+---
+
+<form method="get" data-filter-panel class:list={['bg-white rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
+  <input type="hidden" name="q" data-sync-q />
+  <div class="flex-1 min-w-[140px]">
+    <label for="kategori" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kategori</label>
+    <select id="kategori" name="kategori" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
+      <option value="">Alle</option>
+      {Object.entries(CATEGORY_LABEL).map(([k, v]) => (
+        <option value={k} selected={category === k}>{v}</option>
+      ))}
+    </select>
+  </div>
+  {showBudget ? (
+    <>
+      <div class="w-24">
+        <label for="budsjett_min" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Budsjett fra</label>
+        <input id="budsjett_min" name="budsjett_min" type="number" min="0" value={params.get('budsjett_min') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="NOK" />
+      </div>
+      <div class="w-24">
+        <label for="budsjett_max" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Budsjett til</label>
+        <input id="budsjett_max" name="budsjett_max" type="number" min="0" value={params.get('budsjett_max') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="NOK" />
+      </div>
+    </>
+  ) : (
+    <>
+      <div class="w-24">
+        <label for="pris_min" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Pris fra</label>
+        <input id="pris_min" name="pris_min" type="number" min="0" value={params.get('pris_min') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="NOK" />
+      </div>
+      <div class="w-24">
+        <label for="pris_max" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Pris til</label>
+        <input id="pris_max" name="pris_max" type="number" min="0" value={params.get('pris_max') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="NOK" />
+      </div>
+    </>
+  )}
+  {showAge && (
+    <>
+      <div class="w-24">
+        <label for="alder_min" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Alder fra</label>
+        <input id="alder_min" name="alder_min" type="number" min="0" max="240" value={params.get('alder_min') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="mnd" />
+      </div>
+      <div class="w-24">
+        <label for="alder_max" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Alder til</label>
+        <input id="alder_max" name="alder_max" type="number" min="0" max="240" value={params.get('alder_max') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="mnd" />
+      </div>
+    </>
+  )}
+  <button type="submit" class="bg-charcoal text-linen px-5 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+    Filtrer
+  </button>
+</form>

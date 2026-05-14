@@ -1,8 +1,9 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
-import MarketplaceNav from '../../../components/MarketplaceNav.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
 import ReviewForm from '../../../components/ReviewForm.astro';
+import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
@@ -100,6 +101,8 @@ if (user && acceptedOffer && (isBuyer || isKnitter)) {
 
 const isPrivate = !!req.target_knitter_id;
 const daysUntilAutoRelease = req.auto_release_at ? Math.max(0, Math.ceil((new Date(req.auto_release_at).getTime() - Date.now()) / 86400000)) : null;
+const daysUntilExpiry = req.expires_at ? Math.max(0, Math.ceil((new Date(req.expires_at).getTime() - Date.now()) / 86400000)) : null;
+const expiringSoon = daysUntilExpiry !== null && daysUntilExpiry <= 7;
 const buyerProfile = (req as any).profiles;
 
 const projectProgressPct = linkedProject?.target_rows && linkedProject.target_rows > 0 && linkedProject.current_rows !== null
@@ -121,7 +124,7 @@ if (user && req.status === 'delivered') {
   hasUserReview = (count ?? 0) > 0;
 }
 
-const STATUS_ORDER = ['open', 'awaiting_payment', 'awaiting_yarn', 'awarded', 'completed', 'delivered'];
+const STATUS_ORDER = ['open', 'awaiting_payment', 'awaiting_yarn', 'awarded', 'completed', 'delivered', 'disputed'];
 const statusIdx = STATUS_ORDER.indexOf(req.status);
 const isPast = (phase: string) => STATUS_ORDER.indexOf(phase) < statusIdx;
 const isActive = (phase: string) => phase === req.status;
@@ -129,9 +132,7 @@ const yarnPhase = req.yarn_provided_by_buyer;
 ---
 
 <Layout title={`${req.title} — Strikk for meg`} lang="nb">
-  <MarketplaceNav current="oppdrag" />
-  <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+  <MarketplaceShell current="oppdrag">
 
       {isStaff && !isBuyer && (req.status === 'pending_review' || req.status === 'rejected') && (
         <div class="bg-blue-50 text-blue-900 rounded-2xl p-4 mb-6 text-sm">
@@ -213,13 +214,7 @@ const yarnPhase = req.yarn_provided_by_buyer;
 
         <div class="flex items-center justify-between pt-4 border-t border-sage-500/10">
           <a href={`/marked/selger/${req.buyer_id}`} class="flex items-center gap-3 group">
-            {buyerProfile?.avatar_path ? (
-              <img src={projectPhotoUrl(buyerProfile.avatar_path)!} alt="" class="w-9 h-9 rounded-full object-cover" />
-            ) : (
-              <div class="w-9 h-9 rounded-full bg-sage-100 flex items-center justify-center">
-                <span class="font-serif text-sm text-sage-700">{(buyerProfile?.display_name ?? '?')[0].toUpperCase()}</span>
-              </div>
-            )}
+            <ProfileAvatar url={buyerProfile?.avatar_path ? projectPhotoUrl(buyerProfile.avatar_path) : null} name={buyerProfile?.display_name ?? '?'} size="sm" />
             <div>
               <p class="text-sm font-medium group-hover:text-terracotta-500 transition-colors">{buyerProfile?.display_name ?? 'Anonym'}</p>
               <p class="text-[10px] text-charcoal/45">Bestiller</p>
@@ -258,13 +253,7 @@ const yarnPhase = req.yarn_provided_by_buyer;
                       <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
                         <div class="flex items-start gap-4">
                           <a href={`/marked/selger/${o.knitter_id}`} class="shrink-0">
-                            {kp?.avatar_path ? (
-                              <img src={projectPhotoUrl(kp.avatar_path)!} alt="" class="w-10 h-10 rounded-full object-cover" />
-                            ) : (
-                              <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center">
-                                <span class="font-serif text-sm text-sage-700">{(kp?.display_name ?? '?')[0].toUpperCase()}</span>
-                              </div>
-                            )}
+                            <ProfileAvatar url={kp?.avatar_path ? projectPhotoUrl(kp.avatar_path) : null} name={kp?.display_name ?? '?'} size="md" />
                           </a>
                           <div class="flex-1 min-w-0">
                             <div class="flex items-baseline justify-between gap-3 mb-1">
@@ -322,7 +311,22 @@ const yarnPhase = req.yarn_provided_by_buyer;
           ) : null}
 
           {isBuyer && (
-            <div class="mt-4 text-center">
+            <div class="mt-4 text-center space-y-2">
+              {daysUntilExpiry !== null && (
+                <p class="text-xs text-charcoal/45">
+                  {expiringSoon ? (
+                    <span class="text-amber-600">Utloper om {daysUntilExpiry} {daysUntilExpiry === 1 ? 'dag' : 'dager'}</span>
+                  ) : (
+                    <span>Utloper om {daysUntilExpiry} dager</span>
+                  )}
+                </p>
+              )}
+              {isBuyer && expiringSoon && (
+                <form method="post" action="/api/marketplace/commissions/extend" data-astro-reload>
+                  <input type="hidden" name="request_id" value={req.id} />
+                  <button type="submit" class="text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors">Forleng 30 dager</button>
+                </form>
+              )}
               <form method="post" action="/api/marketplace/commissions/cancel" data-astro-reload>
                 <input type="hidden" name="request_id" value={req.id} />
                 <button type="submit" class="text-xs text-charcoal/35 hover:text-terracotta-500 transition-colors">Avbryt forespørsel</button>
@@ -353,13 +357,7 @@ const yarnPhase = req.yarn_provided_by_buyer;
                 <p class="text-xs text-charcoal/45 mb-2">Du valgte:</p>
                 <div class="md:ml-auto md:max-w-[260px] bg-white rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
                   <div class="flex items-center gap-2 mb-1">
-                    {knitterProfile?.avatar_path ? (
-                      <img src={projectPhotoUrl(knitterProfile.avatar_path)!} alt="" class="w-6 h-6 rounded-full object-cover" />
-                    ) : (
-                      <div class="w-6 h-6 rounded-full bg-sage-100 flex items-center justify-center">
-                        <span class="font-serif text-[10px] text-sage-700">{knitterName[0].toUpperCase()}</span>
-                      </div>
-                    )}
+                    <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
                     <a href={`/marked/selger/${acceptedOffer!.knitter_id}`} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{knitterName}</a>
                     <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Valgt</span>
                   </div>
@@ -372,13 +370,7 @@ const yarnPhase = req.yarn_provided_by_buyer;
                 <p class="text-xs text-charcoal/45 mb-2">Valgt tilbud:</p>
                 <div class="md:ml-auto md:max-w-[260px] bg-white rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
                   <div class="flex items-center gap-2 mb-1">
-                    {knitterProfile?.avatar_path ? (
-                      <img src={projectPhotoUrl(knitterProfile.avatar_path)!} alt="" class="w-6 h-6 rounded-full object-cover" />
-                    ) : (
-                      <div class="w-6 h-6 rounded-full bg-sage-100 flex items-center justify-center">
-                        <span class="font-serif text-[10px] text-sage-700">{knitterName[0].toUpperCase()}</span>
-                      </div>
-                    )}
+                    <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
                     <span class="text-sm font-medium">{knitterName}</span>
                     <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Valgt</span>
                   </div>
@@ -559,8 +551,9 @@ const yarnPhase = req.yarn_provided_by_buyer;
                   <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
                     <p class="text-sm font-medium mb-1">Ferdig strikket?</p>
                     <p class="text-xs text-charcoal/55 mb-3">Kjøper har 14 dager på å bekrefte mottak.</p>
-                    <form method="post" action="/api/marketplace/commissions/mark-completed" data-astro-reload>
+                    <form method="post" action="/api/marketplace/commissions/mark-completed" data-astro-reload class="space-y-2">
                       <input type="hidden" name="request_id" value={req.id} />
+                      <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
                       <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Merk som ferdig</button>
                     </form>
                   </div>
@@ -584,12 +577,20 @@ const yarnPhase = req.yarn_provided_by_buyer;
                 <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
                   <p class="font-medium text-sm mb-1">Bekreft mottak</p>
                   <p class="text-xs text-charcoal/55 mb-3">Har du mottatt arbeidet?</p>
+                  {req.finished_item_tracking_code && (
+                    <p class="text-xs text-charcoal/55 mb-2">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
+                  )}
                   {daysUntilAutoRelease !== null && (
                     <p class="text-[10px] text-charcoal/40 mb-3">Automatisk godkjenning om {daysUntilAutoRelease} {daysUntilAutoRelease === 1 ? 'dag' : 'dager'}.</p>
                   )}
                   <form method="post" action="/api/marketplace/commissions/confirm-delivery" data-astro-reload>
                     <input type="hidden" name="request_id" value={req.id} />
                     <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Bekreft mottatt</button>
+                  </form>
+                  <form method="post" action="/api/marketplace/commissions/dispute" data-astro-reload class="mt-2">
+                    <input type="hidden" name="request_id" value={req.id} />
+                    <input name="reason" required maxlength="500" placeholder="Beskriv problemet…" class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 mb-1" />
+                    <button type="submit" class="w-full text-[10px] text-charcoal/35 hover:text-terracotta-500 transition-colors">Rapporter problem</button>
                   </form>
                 </div>
               ) : isActive('completed') ? (
@@ -605,6 +606,9 @@ const yarnPhase = req.yarn_provided_by_buyer;
               {isActive('completed') ? (
                 <div>
                   <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Merket som ferdig</p>
+                  {req.finished_item_tracking_code && (
+                    <p class="text-[10px] text-charcoal/40 mt-0.5">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
+                  )}
                   {daysUntilAutoRelease !== null && (
                     <p class="text-[10px] text-charcoal/40 mt-0.5">Automatisk godkjenning om {daysUntilAutoRelease}d</p>
                   )}
@@ -680,8 +684,7 @@ const yarnPhase = req.yarn_provided_by_buyer;
         </div>
       )}
 
-    </div>
-  </div>
+  </MarketplaceShell>
 </Layout>
 
 {req.yarn_bring_shipment_number && (

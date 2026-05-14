@@ -59,24 +59,27 @@ const categories: Array<'all' | 'sweaters' | 'accessories' | 'blankets' | 'sets'
 </Layout>
 
 <script>
-  const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
-  const items = document.querySelectorAll<HTMLElement>('[data-category]');
+  function initPatternFilter() {
+    const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+    const items = document.querySelectorAll<HTMLElement>('[data-category]');
 
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const filter = btn.dataset.filter ?? 'all';
+    buttons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = btn.dataset.filter ?? 'all';
 
-      buttons.forEach((b) => {
-        b.classList.remove('bg-sage-500', 'text-white', 'shadow-sm');
-        b.classList.add('text-charcoal/60');
-      });
-      btn.classList.remove('text-charcoal/60');
-      btn.classList.add('bg-sage-500', 'text-white', 'shadow-sm');
+        buttons.forEach((b) => {
+          b.classList.remove('bg-sage-500', 'text-white', 'shadow-sm');
+          b.classList.add('text-charcoal/60');
+        });
+        btn.classList.remove('text-charcoal/60');
+        btn.classList.add('bg-sage-500', 'text-white', 'shadow-sm');
 
-      items.forEach((item) => {
-        const matches = filter === 'all' || item.dataset.category === filter;
-        item.style.display = matches ? '' : 'none';
+        items.forEach((item) => {
+          const matches = filter === 'all' || item.dataset.category === filter;
+          item.style.display = matches ? '' : 'none';
+        });
       });
     });
-  });
+  }
+  document.addEventListener('astro:page-load', initPatternFilter);
 </script>
