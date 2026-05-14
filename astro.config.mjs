@@ -9,6 +9,7 @@ import tailwindcss from '@tailwindcss/vite';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://littlesandmeknits.com',
+  prefetch: { prefetchAll: false, defaultStrategy: 'hover' },
 
   security: { checkOrigin: false },
   output: 'server',

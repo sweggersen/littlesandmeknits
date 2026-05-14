@@ -31,6 +31,9 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     <ClientRouter />
+    <style is:inline>
+      ::view-transition-group(*) { animation-duration: 150ms; }
+    </style>
     <script is:inline>
       // PWA preview mode: visiting any URL with ?pwa=1 (or returning from a
       // page that set it) makes the browser render as if it were in
