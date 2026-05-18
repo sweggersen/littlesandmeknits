@@ -1,0 +1,45 @@
+---
+export const prerender = true;
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Privacy Policy — Littles and Me" lang="en">
+  <div class="max-w-3xl mx-auto px-6 py-14">
+    <h1 class="font-serif text-4xl mb-8">Privacy Policy</h1>
+    <div class="prose prose-sm text-charcoal/80 space-y-6">
+      <p>Last updated: May 14, 2026</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Who we are</h2>
+      <p>Littles and Me Knits is operated by Weggersen Design. Our website is littlesandmeknits.com, including the services Strikketorget (marketplace) and Strikkestua (knitting studio).</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">What data we collect</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Account information: email address and display name at registration</li>
+        <li>Profile data: profile photo, location, and bio you provide voluntarily</li>
+        <li>Content: listings, projects, photos, messages, and reviews you create</li>
+        <li>Payment data: handled by Stripe — we do not store card numbers</li>
+        <li>Usage data: page views and actions to improve the service</li>
+      </ul>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">How we use your data</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Operate and improve our services</li>
+        <li>Process purchases and payouts</li>
+        <li>Send notifications about messages, offers, and orders</li>
+        <li>Newsletter (only if you opt in — you can unsubscribe at any time)</li>
+      </ul>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Storage and security</h2>
+      <p>Data is stored with Supabase (EU region) and Cloudflare. Images are stored in Supabase Storage. All traffic is encrypted with HTTPS.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Your rights</h2>
+      <p>You have the right to access, correct, and delete your personal data. Contact us at <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a> to exercise these rights.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Cookies</h2>
+      <p>We use essential cookies for login and session management. We do not use third-party tracking cookies.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Contact</h2>
+      <p>Questions about privacy? Email <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a>.</p>
+    </div>
+  </div>
+</Layout>

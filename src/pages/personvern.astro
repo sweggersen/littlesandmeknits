@@ -1,0 +1,45 @@
+---
+export const prerender = true;
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Personvernerklæring — Littles and Me" lang="nb">
+  <div class="max-w-3xl mx-auto px-6 py-14">
+    <h1 class="font-serif text-4xl mb-8">Personvernerklæring</h1>
+    <div class="prose prose-sm text-charcoal/80 space-y-6">
+      <p>Sist oppdatert: 14. mai 2026</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Hvem vi er</h2>
+      <p>Littles and Me Knits drives av Weggersen Design. Nettstedet er littlesandmeknits.com, inkludert tjenestene Strikketorget og Strikkestua.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Hvilke data vi samler inn</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Kontoinformasjon: e-postadresse og visningsnavn ved registrering</li>
+        <li>Profildata: profilbilde, sted og biografi du legger inn frivillig</li>
+        <li>Innhold: annonser, prosjekter, bilder, meldinger og vurderinger du oppretter</li>
+        <li>Betalingsdata: håndteres av Stripe — vi lagrer ikke kortnummer</li>
+        <li>Bruksdata: sidevisninger og handlinger for å forbedre tjenesten</li>
+      </ul>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Hvordan vi bruker dataene</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Drifte og forbedre tjenestene</li>
+        <li>Behandle kjøp og utbetalinger</li>
+        <li>Sende varsler om meldinger, tilbud og bestillinger</li>
+        <li>Nyhetsbrev (kun hvis du melder deg på — du kan melde deg av når som helst)</li>
+      </ul>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Lagring og sikkerhet</h2>
+      <p>Data lagres hos Supabase (EU-region) og Cloudflare. Bilder lagres i Supabase Storage. All trafikk krypteres med HTTPS.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Dine rettigheter</h2>
+      <p>Du har rett til innsyn, retting og sletting av dine personopplysninger. Kontakt oss på <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a> for å utøve disse rettighetene.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Informasjonskapsler</h2>
+      <p>Vi bruker nødvendige informasjonskapsler for innlogging og sesjonshåndtering. Vi bruker ikke tredjeparts sporingskapsler.</p>
+
+      <h2 class="font-serif text-xl mt-8 mb-2">Kontakt</h2>
+      <p>Spørsmål om personvern? Send e-post til <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a>.</p>
+    </div>
+  </div>
+</Layout>

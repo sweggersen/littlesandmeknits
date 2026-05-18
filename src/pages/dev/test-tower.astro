@@ -958,6 +958,102 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           },
         ],
       },
+
+      'listing-purchase': {
+        title: 'Kjøp & levering',
+        desc: 'Full kjøpsflyt: annonse → kjøp → adresse → sending → bekreft mottak → vurdering.',
+        track: 'listing',
+        personas: ['eline', 'liv'],
+        steps: [
+          {
+            id: 'setup-seller', actor: 'eline', action: 'set-stripe-onboarded',
+            label: 'Eline: Stripe-verifisert selger',
+            desc: 'Eline har koblet Stripe Connect — kan motta betaling.',
+            params: {},
+            expect: (s) => [
+              ['stripe_onboarded', s.profiles?.['eline@test.strikketorget.no']?.stripe_onboarded, true],
+            ],
+          },
+          {
+            id: 'create-listing', actor: 'eline', action: 'create-listing',
+            label: 'Eline oppretter annonse',
+            desc: 'Brukt barnegenser legges ut som utkast.',
+            params: { title: 'Strikket genser str 2 år', kind: 'pre_loved', category: 'genser', size_label: '2 år', price_nok: 349, condition: 'lite_brukt', description: 'Vakker strikket genser i merinoull. Brukt én sesong.' },
+            editable: ['title', 'price_nok'],
+            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'draft'],
+            ],
+          },
+          {
+            id: 'publish', actor: 'eline', action: 'publish-listing',
+            label: 'Publiser annonse',
+            desc: 'Annonsen blir aktiv og synlig.',
+            params: { listing_id: '$create-listing.id' },
+            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'active'],
+            ],
+          },
+          {
+            id: 'purchase', actor: 'liv', action: 'purchase-listing',
+            label: 'Liv kjøper annonsen',
+            desc: 'Liv kjøper med leveringsadresse. Betaling holdes i escrow (manuell capture).',
+            params: {
+              listing_id: '$create-listing.id',
+              buyer_name: 'Liv Johansen',
+              buyer_address: 'Storgata 12',
+              buyer_postal_code: '0155',
+              buyer_city: 'Oslo',
+            },
+            editable: ['buyer_name', 'buyer_address', 'buyer_postal_code', 'buyer_city'],
+            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'reserved'],
+              ['buyer_id set', !!s.listing?.buyer_id, true],
+              ['buyer_name', s.listing?.buyer_name, 'Liv Johansen'],
+              ['buyer_city', s.listing?.buyer_city, 'Oslo'],
+              ['auto_release_at set', !!s.listing?.auto_release_at, true],
+            ],
+          },
+          {
+            id: 'ship', actor: 'eline', action: 'ship-listing',
+            label: 'Eline sender varen',
+            desc: 'Eline pakker og sender med sporingskode.',
+            params: { listing_id: '$create-listing.id', tracking_code: 'POSTEN-98765' },
+            editable: ['tracking_code'],
+            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'shipped'],
+              ['tracking_code', s.listing?.tracking_code, 'POSTEN-98765'],
+              ['shipped_at set', !!s.listing?.shipped_at, true],
+            ],
+          },
+          {
+            id: 'confirm', actor: 'liv', action: 'confirm-listing-delivery',
+            label: 'Liv bekrefter mottak',
+            desc: 'Liv har mottatt varen. Betalingen frigis til Eline.',
+            params: { listing_id: '$create-listing.id' },
+            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            expect: (s) => [
+              ['listing.status', s.listing?.status, 'sold'],
+              ['delivered_at set', !!s.listing?.delivered_at, true],
+            ],
+          },
+          {
+            id: 'review', actor: 'liv', action: 'submit-seller-review',
+            label: 'Liv gir selger-vurdering',
+            desc: 'Kjøper vurderer selger etter mottak.',
+            params: { listing_id: '$create-listing.id', rating: 5, comment: 'Fantastisk kvalitet, nydelig genser! Rask levering.' },
+            editable: ['rating', 'comment'],
+            viewUrl: () => `/marked/selger/${resolve('setup-seller', 'user_id')}`,
+            expect: (s) => [
+              ['seller_reviews.length', s.seller_reviews?.length, 1],
+              ['review.rating', s.seller_reviews?.[0]?.rating, 5],
+            ],
+          },
+        ],
+      },
     };
 
     // ═══════════════════════════════════════════════
@@ -1074,6 +1170,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (activeScenario === 'reports') params.include_reports = true;
       if (activeScenario === 'reviews-trust') params.include_tx_reviews = true;
       if (activeScenario === 'mod-compensation') params.include_payouts = true;
+      if (activeScenario === 'listing-purchase') params.include_profiles = true;
 
       const res = await api({ action: 'get-state', params });
       if (res.ok) stateData = res.data;

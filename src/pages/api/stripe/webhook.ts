@@ -119,6 +119,7 @@ export const POST: APIRoute = async ({ request }) => {
       const now = new Date().toISOString();
       const feeNok = session.amount_total ? Math.round((session.amount_total * 0.13) / 100) : 0;
 
+      const shipping = session.shipping_details;
       const { error } = await supabase
         .from('listings')
         .update({
@@ -128,6 +129,10 @@ export const POST: APIRoute = async ({ request }) => {
           platform_fee_nok: feeNok,
           reserved_at: now,
           auto_release_at: autoReleaseAt,
+          buyer_name: shipping?.name ?? null,
+          buyer_address: shipping?.address?.line1 ?? null,
+          buyer_postal_code: shipping?.address?.postal_code ?? null,
+          buyer_city: shipping?.address?.city ?? null,
         })
         .eq('id', purchaseListingId)
         .eq('status', 'active');

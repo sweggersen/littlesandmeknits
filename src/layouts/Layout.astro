@@ -2,8 +2,11 @@
 import { ClientRouter } from 'astro:transitions';
 import '../styles/global.css';
 import Navbar from '../components/Navbar.astro';
+import StrikketorgetNav from '../components/StrikketorgetNav.astro';
 import Footer from '../components/Footer.astro';
 import { getLangFromUrl, type Lang } from '../lib/i18n';
+
+const isStrikketorget = Astro.locals.isStrikketorget ?? false;
 
 interface Props {
   title: string;
@@ -54,7 +57,7 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
     </script>
   </head>
   <body class="min-h-screen bg-linen text-charcoal flex flex-col">
-    <Navbar lang={lang} />
+    {isStrikketorget ? <StrikketorgetNav /> : <Navbar lang={lang} />}
     <main class="flex-1">
       <slot />
     </main>

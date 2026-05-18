@@ -15,7 +15,7 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 const [{ data: listings }, { data: conversations }] = await Promise.all([
   supabase
     .from('listings')
-    .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier')
+    .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier, buyer_name, buyer_city')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false }),
   supabase
@@ -27,6 +27,7 @@ const [{ data: listings }, { data: conversations }] = await Promise.all([
 ]);
 
 const drafts = (listings ?? []).filter((l) => l.status === 'draft');
+const pending = (listings ?? []).filter((l) => ['reserved', 'shipped', 'disputed'].includes(l.status));
 const live = (listings ?? []).filter((l) => l.status === 'active');
 const sold = (listings ?? []).filter((l) => l.status === 'sold');
 const unreadConvos = (conversations ?? []).length;
@@ -62,6 +63,35 @@ const unreadConvos = (conversations ?? []).length;
               </svg>
             </div>
           </a>
+        </section>
+      )}
+
+      {pending.length > 0 && (
+        <section class="mb-8">
+          <h2 class="font-serif text-xl mb-3">Ventende ordrer</h2>
+          <ul class="space-y-2">
+            {pending.map((l) => (
+              <li>
+                <a
+                  href={`/marked/listing/${l.id}`}
+                  class="block bg-white rounded-2xl p-4 border border-terracotta-500/20 hover:border-terracotta-500/40 transition-colors"
+                >
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <div class="flex items-center gap-2 mb-1">
+                        <StatusBadge label={LISTING_STATUS[l.status]} variant={l.status === 'disputed' ? 'amber' : 'sage'} />
+                        {l.buyer_name && (
+                          <span class="text-xs text-charcoal/55">→ {l.buyer_name}{l.buyer_city ? `, ${l.buyer_city}` : ''}</span>
+                        )}
+                      </div>
+                      <p class="font-medium">{l.title}</p>
+                    </div>
+                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

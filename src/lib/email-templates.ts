@@ -70,6 +70,18 @@ const templates: Partial<Record<NotificationType, (p: { title: string; body?: st
     subject: 'Forespørselen har utløpt',
     html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + '/marked/oppdrag', 'Se oppdrag')}`),
   }),
+  listing_purchased: (p) => ({
+    subject: 'Varen din er solgt!',
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + (p.url ?? ''), 'Se kjøpet og send varen')}`),
+  }),
+  listing_shipped: (p) => ({
+    subject: 'Varen er sendt!',
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + (p.url ?? ''), 'Følg sendingen')}`),
+  }),
+  listing_delivered: (p) => ({
+    subject: 'Levering bekreftet',
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + (p.url ?? ''), 'Se annonsen')}`),
+  }),
 };
 
 export function renderEmail(

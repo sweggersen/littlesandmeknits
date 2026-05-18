@@ -18,7 +18,9 @@ interface Env {
 }
 
 declare namespace App {
-  interface Locals extends Runtime {}
+  interface Locals extends Runtime {
+    isStrikketorget?: boolean;
+  }
 }
 
 interface ImportMetaEnv {

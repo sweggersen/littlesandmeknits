@@ -436,6 +436,141 @@ async function handle(
       return { data: { status: 'delivered' } };
     }
 
+    // ── Listing purchase flow ────────────────────────
+
+    case 'set-stripe-onboarded': {
+      if (!actorId) throw new Error('Actor required');
+      await db.from('profiles').update({
+        stripe_account_id: 'acct_test_' + actorId.slice(0, 8),
+        stripe_onboarded: true,
+      }).eq('id', actorId);
+      return { data: { user_id: actorId, stripe_onboarded: true } };
+    }
+
+    case 'purchase-listing': {
+      if (!actorId) throw new Error('Actor required');
+      const { data: listing } = await db.from('listings')
+        .select('id, seller_id, title, price_nok')
+        .eq('id', p.listing_id)
+        .single();
+      if (!listing) throw new Error('Listing not found');
+
+      const autoRelease = new Date();
+      autoRelease.setDate(autoRelease.getDate() + 14);
+
+      const { error: updErr } = await db.from('listings').update({
+        status: 'reserved',
+        buyer_id: actorId,
+        buyer_name: p.buyer_name ?? null,
+        buyer_address: p.buyer_address ?? null,
+        buyer_postal_code: p.buyer_postal_code ?? null,
+        buyer_city: p.buyer_city ?? null,
+        stripe_payment_intent_id: 'pi_test_' + Date.now(),
+        auto_release_at: autoRelease.toISOString(),
+        platform_fee_nok: Math.round(listing.price_nok * 0.10),
+      }).eq('id', p.listing_id);
+      if (updErr) throw new Error(updErr.message);
+
+      await db.from('notifications').insert({
+        user_id: listing.seller_id,
+        type: 'listing_purchased',
+        title: 'Varen din er solgt!',
+        body: `«${listing.title}» — ${listing.price_nok} kr`,
+        url: `/marked/listing/${listing.id}`,
+        actor_id: actorId,
+        reference_id: listing.id,
+      });
+
+      return { data: { listing_id: listing.id, status: 'reserved' } };
+    }
+
+    case 'ship-listing': {
+      if (!actorId) throw new Error('Actor required');
+      const now = new Date().toISOString();
+      const { error: shipErr } = await db.from('listings').update({
+        status: 'shipped',
+        shipped_at: now,
+        tracking_code: p.tracking_code ?? 'TEST-TRACK-001',
+      }).eq('id', p.listing_id);
+      if (shipErr) throw new Error(shipErr.message);
+
+      const { data: sl } = await db.from('listings')
+        .select('title, buyer_id')
+        .eq('id', p.listing_id)
+        .single();
+
+      if (sl?.buyer_id) {
+        await db.from('notifications').insert({
+          user_id: sl.buyer_id,
+          type: 'listing_shipped',
+          title: 'Varen er sendt!',
+          body: p.tracking_code ? `Sporing: ${p.tracking_code}` : `«${sl.title}»`,
+          url: `/marked/listing/${p.listing_id}`,
+          actor_id: actorId,
+        });
+      }
+
+      return { data: { status: 'shipped' } };
+    }
+
+    case 'confirm-listing-delivery': {
+      if (!actorId) throw new Error('Actor required');
+      const now = new Date().toISOString();
+      const { error: delErr } = await db.from('listings').update({
+        status: 'sold',
+        delivered_at: now,
+      }).eq('id', p.listing_id);
+      if (delErr) throw new Error(delErr.message);
+
+      const { data: dl } = await db.from('listings')
+        .select('title, seller_id')
+        .eq('id', p.listing_id)
+        .single();
+
+      if (dl?.seller_id) {
+        await db.from('notifications').insert({
+          user_id: dl.seller_id,
+          type: 'listing_delivered',
+          title: 'Levering bekreftet!',
+          body: `«${dl.title}» — pengene frigis.`,
+          url: `/marked/listing/${p.listing_id}`,
+          actor_id: actorId,
+        });
+      }
+
+      return { data: { status: 'sold' } };
+    }
+
+    case 'submit-seller-review': {
+      if (!actorId) throw new Error('Actor required');
+      const { data: rl } = await db.from('listings')
+        .select('id, seller_id, title')
+        .eq('id', p.listing_id)
+        .single();
+      if (!rl) throw new Error('Listing not found');
+
+      const { data: rev, error: revErr } = await db.from('seller_reviews').insert({
+        seller_id: rl.seller_id,
+        reviewer_id: actorId,
+        listing_id: rl.id,
+        rating: p.rating ?? 5,
+        comment: p.comment ?? null,
+      }).select().single();
+      if (revErr) throw revErr;
+
+      await db.from('notifications').insert({
+        user_id: rl.seller_id,
+        type: 'review_received',
+        title: 'Du har fått en ny vurdering!',
+        body: `${p.rating ?? 5}/5 stjerner for «${rl.title}».`,
+        url: `/marked/listing/${rl.id}`,
+        actor_id: actorId,
+        reference_id: rl.id,
+      });
+
+      return { data: rev };
+    }
+
     // ── Listing & messaging ──────────────────────────
 
     case 'create-listing': {
@@ -1020,6 +1155,13 @@ async function handle(
           .eq('listing_id', p.listing_id as string)
           .order('created_at', { ascending: false });
         result.conversations = convos;
+
+        if (listing?.seller_id) {
+          const { data: sellerRevs } = await db.from('seller_reviews')
+            .select('*')
+            .eq('listing_id', p.listing_id as string);
+          result.seller_reviews = sellerRevs;
+        }
       }
 
       if (p.queue_item_id) {
@@ -1070,7 +1212,7 @@ async function handle(
           const uid = emailToId.get(email);
           if (!uid) continue;
           const { data } = await db.from('profiles')
-            .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections')
+            .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections, stripe_onboarded, stripe_account_id')
             .eq('id', uid).maybeSingle();
           if (data) profiles[email] = data;
         }
@@ -1167,6 +1309,7 @@ async function handle(
       await db.from('moderator_payouts').delete().in('moderator_id', testUserIds);
       await db.from('moderator_stats').delete().in('user_id', testUserIds);
       await db.from('reports').delete().in('reporter_id', testUserIds);
+      await db.from('seller_reviews').delete().in('reviewer_id', testUserIds);
       await db.from('transaction_reviews').delete().in('reviewer_id', testUserIds);
 
       // Queue items submitted by or decided by test users

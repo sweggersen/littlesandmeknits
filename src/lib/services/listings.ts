@@ -238,6 +238,7 @@ export async function purchaseListing(
       },
       quantity: 1,
     }],
+    shipping_address_collection: { allowed_countries: ['NO'] },
     payment_intent_data: {
       capture_method: 'manual',
       application_fee_amount: platformFee,
