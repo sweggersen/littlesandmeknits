@@ -13,7 +13,7 @@ interface Props {
 const { pattern, lang, stashMatch = false } = Astro.props;
 const t = useTranslations(lang);
 const data = pattern.data;
-const href = localizedPath(lang, `/oppskrifter/${pattern.id}`);
+const href = localizedPath(lang, `/patterns/${pattern.id}`);
 ---
 
 <a

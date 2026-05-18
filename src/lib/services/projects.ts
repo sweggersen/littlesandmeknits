@@ -64,7 +64,7 @@ export async function createProject(
     }
   }
 
-  return ok({ redirect: `/studio/prosjekter/${data.id}` });
+  return ok({ redirect: `/studio/projects/${data.id}` });
 }
 
 export async function deleteProject(
@@ -79,7 +79,7 @@ export async function deleteProject(
     return fail('server_error', 'Could not delete');
   }
 
-  return ok({ redirect: '/studio/prosjekter' });
+  return ok({ redirect: '/studio/projects' });
 }
 
 export async function addProgressLog(
@@ -156,13 +156,13 @@ export async function addProgressLog(
         userId: reqInfo.buyer_id, type: 'project_update',
         title: 'Ny oppdatering!',
         body: `Strikkeren har lagt til en oppdatering på «${proj.title}».`,
-        url: `/marked/oppdrag/${offerData!.request_id}`,
+        url: `/market/commissions/${offerData!.request_id}`,
         actorId: ctx.user.id, referenceId: input.projectId,
       }, ctx.env);
     }
   }
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function deleteProgressLog(
@@ -179,7 +179,7 @@ export async function deleteProgressLog(
     return fail('server_error', 'Could not delete');
   }
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function uploadProjectPhoto(
@@ -190,7 +190,7 @@ export async function uploadProjectPhoto(
 
   if (!input.heroPhoto || !(input.heroPhoto instanceof File) || input.heroPhoto.size === 0) {
     await ctx.supabase.from('projects').update({ hero_photo_path: null }).eq('id', input.projectId);
-    return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+    return ok({ redirect: `/studio/projects/${input.projectId}` });
   }
 
   const file = input.heroPhoto;
@@ -214,7 +214,7 @@ export async function uploadProjectPhoto(
     return fail('server_error', 'Could not save');
   }
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function updateProgress(
@@ -237,7 +237,7 @@ export async function updateProgress(
     return fail('server_error', 'Could not update');
   }
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function shareProject(
@@ -250,13 +250,13 @@ export async function shareProject(
     const { error } = await ctx.supabase
       .from('projects').update({ public_slug: null }).eq('id', input.projectId);
     if (error) return fail('server_error', 'Could not update');
-    return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+    return ok({ redirect: `/studio/projects/${input.projectId}` });
   }
 
   const { data: project, error: fetchErr } = await ctx.supabase
     .from('projects').select('id, title, public_slug').eq('id', input.projectId).maybeSingle();
   if (fetchErr || !project) return fail('not_found', 'Not found');
-  if (project.public_slug) return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  if (project.public_slug) return ok({ redirect: `/studio/projects/${input.projectId}` });
 
   const base = slugify(project.title);
   let attempt = `${base}-${randomSuffix(4)}`;
@@ -268,7 +268,7 @@ export async function shareProject(
     if (i === 4) return fail('server_error', 'Could not generate share link');
   }
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function updateStatus(
@@ -294,7 +294,7 @@ export async function updateStatus(
 
   await reconcileYarnDeductions(ctx.supabase, input.projectId, input.status);
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function linkYarn(
@@ -334,7 +334,7 @@ export async function linkYarn(
     .from('projects').select('status').eq('id', input.projectId).maybeSingle();
   await reconcileYarnDeductions(ctx.supabase, input.projectId, (project?.status as string) ?? 'planning');
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }
 
 export async function unlinkYarn(
@@ -362,5 +362,5 @@ export async function unlinkYarn(
     return fail('server_error', 'Could not detach yarn');
   }
 
-  return ok({ redirect: `/studio/prosjekter/${input.projectId}` });
+  return ok({ redirect: `/studio/projects/${input.projectId}` });
 }

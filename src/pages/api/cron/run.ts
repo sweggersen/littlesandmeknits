@@ -69,7 +69,7 @@ export const POST: APIRoute = async ({ request }) => {
           type: 'request_expired',
           title: 'Forespørselen har utløpt',
           body: `«${req.title}» mottok ingen tilbud innen 30 dager og er nå lukket.`,
-          url: `/marked/oppdrag/${req.id}`,
+          url: `/market/commissions/${req.id}`,
           referenceId: req.id,
         }, env);
         results.expired++;
@@ -113,7 +113,7 @@ export const POST: APIRoute = async ({ request }) => {
           type: 'commission_delivered',
           title: 'Automatisk levering bekreftet',
           body: `Kjøper svarte ikke innen 14 dager — «${req.title}» er nå merket som levert.`,
-          url: `/marked/oppdrag/${req.id}`,
+          url: `/market/commissions/${req.id}`,
           referenceId: req.id,
         }, env);
       }
@@ -148,7 +148,7 @@ export const POST: APIRoute = async ({ request }) => {
           type: 'listing_delivered',
           title: 'Automatisk levering bekreftet',
           body: `Kjøper svarte ikke innen 14 dager — «${listing.title}» er nå merket som levert.`,
-          url: `/marked/listing/${listing.id}`,
+          url: `/market/listing/${listing.id}`,
           referenceId: listing.id,
         }, env);
       }
@@ -189,7 +189,7 @@ export const POST: APIRoute = async ({ request }) => {
           type: 'project_update',
           title: 'Oppdatering påminnelse',
           body: `Kjøper venter på nyheter om «${req.title}». Legg gjerne til en oppdatering!`,
-          url: `/studio/prosjekter/${offer.project_id}`,
+          url: `/studio/projects/${offer.project_id}`,
           referenceId: req.id,
         }, env);
 
@@ -274,7 +274,7 @@ export const POST: APIRoute = async ({ request }) => {
         type: 'moderation_assigned',
         title: `${staleShadows.length} skyggevurdering${staleShadows.length === 1 ? '' : 'er'} venter`,
         body: 'Skyggevurderinger har ventet over 48 timer på bekreftelse.',
-        url: '/admin/moderering',
+        url: '/admin/moderation',
       }, env);
     }
     results.staleShadowAlerts = staleShadows.length;

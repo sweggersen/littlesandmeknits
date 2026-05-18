@@ -1,0 +1,99 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { useTranslations } from '../../lib/i18n';
+import { createServerSupabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
+import { getEntry } from 'astro:content';
+import { formatNok } from '../../lib/format';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/profile/purchases');
+
+const t = useTranslations('nb');
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+type PurchaseRow = {
+  id: string;
+  pattern_slug: string;
+  amount_nok: number;
+  status: string;
+  created_at: string;
+};
+
+const { data } = await supabase
+  .from('purchases')
+  .select('id, pattern_slug, amount_nok, status, created_at')
+  .order('created_at', { ascending: false });
+
+const purchases = (data ?? []) as PurchaseRow[];
+
+const enriched = await Promise.all(
+  purchases.map(async (p) => {
+    const entry = await getEntry('patterns', p.pattern_slug);
+    return {
+      ...p,
+      title: entry?.data.title.nb ?? p.pattern_slug,
+    };
+  })
+);
+
+---
+
+<Layout title="Kjøp — Littles and Me" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <a href="/profile" class="inline-flex items-center gap-1 text-sm text-charcoal/55 hover:text-charcoal mb-6 transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        Profil
+      </a>
+
+      <div class="flex items-center justify-between mb-8 gap-4">
+        <h1 class="font-serif text-3xl sm:text-4xl">Kjøp</h1>
+        <a href="/patterns" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Kjøp oppskrifter
+        </a>
+      </div>
+
+      {enriched.length === 0 ? (
+        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+          <p class="text-charcoal/55 mb-6">Du har ikke kjøpt noen oppskrifter ennå.</p>
+          <a
+            href="/patterns"
+            class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Se oppskrifter
+          </a>
+        </div>
+      ) : (
+        <ul class="space-y-3">
+          {enriched.map((p) => (
+            <li class="bg-white rounded-2xl p-5 border border-sage-500/10 flex items-center justify-between gap-4">
+              <div>
+                <h3 class="font-serif text-lg leading-tight">{p.title}</h3>
+                <p class="text-xs text-charcoal/50 mt-1">
+                  {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
+                </p>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <a
+                  href={`/studio/projects/new?from=${encodeURIComponent(p.pattern_slug)}`}
+                  class="hidden sm:inline-block text-xs font-medium text-charcoal/70 hover:text-terracotta-500 px-3 py-2.5 rounded-full transition-colors whitespace-nowrap"
+                >
+                  Start prosjekt
+                </a>
+                <a
+                  href={`/api/download/${p.id}`}
+                  target="_blank"
+                  rel="noopener"
+                  class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
+                >
+                  Last ned PDF
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+</Layout>

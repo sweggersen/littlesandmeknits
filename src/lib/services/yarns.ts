@@ -52,7 +52,7 @@ export async function createYarn(
     }
   }
 
-  return ok({ redirect: `/studio/garn/${data.id}` });
+  return ok({ redirect: `/studio/yarn/${data.id}` });
 }
 
 export async function updateYarn(
@@ -96,7 +96,7 @@ export async function updateYarn(
     return fail('server_error', 'Could not update');
   }
 
-  return ok({ redirect: `/studio/garn/${input.yarnId}` });
+  return ok({ redirect: `/studio/yarn/${input.yarnId}` });
 }
 
 export async function deleteYarn(
@@ -111,5 +111,5 @@ export async function deleteYarn(
     return fail('server_error', 'Could not delete');
   }
 
-  return ok({ redirect: '/studio/garn' });
+  return ok({ redirect: '/studio/yarn' });
 }

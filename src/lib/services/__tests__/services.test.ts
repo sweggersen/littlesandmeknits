@@ -78,14 +78,14 @@ describe('notifications — input validation', () => {
     const ctx = createMockContext();
     const result = await markAllRead(ctx, { referer: '//evil.com' });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.data.redirect).toBe('/varsler');
+    if (result.ok) expect(result.data.redirect).toBe('/notifications');
   });
 
   it('markAllRead accepts valid referer', async () => {
     const ctx = createMockContext();
-    const result = await markAllRead(ctx, { referer: '/studio/prosjekter' });
+    const result = await markAllRead(ctx, { referer: '/studio/projects' });
     expect(result.ok).toBe(true);
-    if (result.ok) expect(result.data.redirect).toBe('/studio/prosjekter');
+    if (result.ok) expect(result.data.redirect).toBe('/studio/projects');
   });
 });
 

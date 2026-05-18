@@ -41,7 +41,7 @@ export async function createConversation(
     return fail('server_error', 'Could not send message');
   }
 
-  return ok({ redirect: `/marked/meldinger/${conversationId}` });
+  return ok({ redirect: `/market/messages/${conversationId}` });
 }
 
 export async function createWithCommission(
@@ -95,11 +95,11 @@ export async function createWithCommission(
     userId: recipientId, type: 'new_message',
     title: 'Ny melding',
     body: message.length > 80 ? message.slice(0, 77) + '…' : message,
-    url: `/marked/meldinger/${conversationId}`,
+    url: `/market/messages/${conversationId}`,
     actorId: ctx.user.id, referenceId: conversationId,
   }, ctx.env);
 
-  return ok({ redirect: `/marked/meldinger/${conversationId}` });
+  return ok({ redirect: `/market/messages/${conversationId}` });
 }
 
 export async function reply(
@@ -127,9 +127,9 @@ export async function reply(
     userId: recipientId, type: 'new_message',
     title: 'Ny melding',
     body: body.length > 80 ? body.slice(0, 77) + '…' : body,
-    url: `/marked/meldinger/${input.conversationId}`,
+    url: `/market/messages/${input.conversationId}`,
     actorId: ctx.user.id, referenceId: input.conversationId,
   }, ctx.env);
 
-  return ok({ redirect: `/marked/meldinger/${input.conversationId}` });
+  return ok({ redirect: `/market/messages/${input.conversationId}` });
 }

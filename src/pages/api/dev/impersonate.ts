@@ -14,8 +14,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const form = await request.formData();
   const email = form.get('email')?.toString();
-  const raw = form.get('next')?.toString() ?? '/marked';
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/marked';
+  const raw = form.get('next')?.toString() ?? '/market';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/market';
   if (!email?.endsWith(EMAIL_DOMAIN)) {
     return new Response('Only test accounts can be impersonated', { status: 400 });
   }

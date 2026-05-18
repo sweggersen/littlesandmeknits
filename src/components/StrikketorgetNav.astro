@@ -1,17 +1,17 @@
 ---
-const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/marked';
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/market';
 
 const navLinks = [
-  { href: '/marked/brukt', label: 'Brukt' },
-  { href: '/marked/nytt', label: 'Nytt' },
-  { href: '/marked/oppdrag', label: 'Strikk for meg' },
+  { href: '/market/used', label: 'Brukt' },
+  { href: '/market/new', label: 'Nytt' },
+  { href: '/market/commissions', label: 'Strikk for meg' },
 ];
 
 const authLinks = [
-  { href: '/marked/favoritter', label: 'Favoritter', authKey: 'notifications' },
-  { href: '/marked/mine-kjop', label: 'Mine kjøp', authKey: 'profile' },
-  { href: '/marked/mine', label: 'Mine annonser', authKey: 'profile' },
-  { href: '/marked/meldinger', label: 'Meldinger', authKey: 'profile' },
+  { href: '/market/favorites', label: 'Favoritter', authKey: 'notifications' },
+  { href: '/market/my-purchases', label: 'Mine kjøp', authKey: 'profile' },
+  { href: '/market/my-listings', label: 'Mine annonser', authKey: 'profile' },
+  { href: '/market/messages', label: 'Meldinger', authKey: 'profile' },
 ];
 
 const externalLinks = [
@@ -23,7 +23,7 @@ const externalLinks = [
 <nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-6">
-      <a href="/marked" class="group shrink-0" transition:name="brand-logo">
+      <a href="/market" class="group shrink-0" transition:name="brand-logo">
         <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
           Strikketorget
         </span>
@@ -63,7 +63,7 @@ const externalLinks = [
       <span class="hidden lg:block w-px h-4 bg-sage-500/15" />
 
       <a
-        href="/varsler"
+        href="/notifications"
         class="hidden sm:inline-flex relative p-1.5 text-charcoal/50 hover:text-charcoal transition-colors"
         data-auth-link="notifications"
         data-bell
@@ -77,7 +77,7 @@ const externalLinks = [
         <span data-notif-badge class="hidden absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-terracotta-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
       </a>
       <a
-        href="/profil"
+        href="/profile"
         class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
         data-auth-link="profile"
         style="display:none;"
@@ -86,7 +86,7 @@ const externalLinks = [
         <span data-profile-name>Min profil</span>
       </a>
       <a
-        href="/logg-inn"
+        href="/login"
         class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
         data-auth-link="login"
       >
@@ -118,16 +118,16 @@ const externalLinks = [
         </li>
       ))}
       <li class="border-t border-sage-500/10 pt-3 mt-1">
-        <a href="/marked/favoritter" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Favoritter</a>
+        <a href="/market/favorites" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Favoritter</a>
       </li>
       <li>
-        <a href="/marked/mine-kjop" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine kjøp</a>
+        <a href="/market/my-purchases" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine kjøp</a>
       </li>
       <li>
-        <a href="/marked/mine" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine annonser</a>
+        <a href="/market/my-listings" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine annonser</a>
       </li>
       <li>
-        <a href="/marked/meldinger" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Meldinger</a>
+        <a href="/market/messages" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Meldinger</a>
       </li>
       <li class="border-t border-sage-500/10 pt-3 mt-1">
         {externalLinks.map((l) => (
@@ -135,7 +135,7 @@ const externalLinks = [
         ))}
       </li>
       <li data-auth-link="login">
-        <a href="/logg-inn" class="block py-2 text-base font-medium text-charcoal/80">Logg inn</a>
+        <a href="/login" class="block py-2 text-base font-medium text-charcoal/80">Logg inn</a>
       </li>
     </ul>
   </div>

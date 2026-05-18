@@ -7,14 +7,14 @@ export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
   const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/studio';
 
   if (!code) {
-    return redirect('/logg-inn?error=missing_code');
+    return redirect('/login?error=missing_code');
   }
 
   const supabase = createServerSupabase({ request, cookies });
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return redirect(`/logg-inn?error=${encodeURIComponent(error.message)}`);
+    return redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
   return redirect(next);

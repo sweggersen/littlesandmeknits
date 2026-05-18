@@ -17,7 +17,7 @@ export async function createPatternCheckout(
   if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
-  const patternPath = input.lang === 'nb' ? `/oppskrifter/${input.slug}` : `/en/oppskrifter/${input.slug}`;
+  const patternPath = input.lang === 'nb' ? `/patterns/${input.slug}` : `/en/patterns/${input.slug}`;
 
   const stripe = createStripe(input.stripeSecretKey);
   const session = await stripe.checkout.sessions.create({
@@ -34,7 +34,7 @@ export async function createPatternCheckout(
       },
       quantity: 1,
     }],
-    success_url: `${siteUrl}/profil/kjop?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${siteUrl}/profile/purchases?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${siteUrl}${patternPath}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,

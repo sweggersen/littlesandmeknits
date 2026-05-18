@@ -8,7 +8,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const listingId = form.get('listing_id')?.toString() ?? '';
 
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect(`/logg-inn?next=${encodeURIComponent(`/marked/listing/${listingId}`)}`);
+  if (!ctx) return redirect(`/login?next=${encodeURIComponent(`/market/listing/${listingId}`)}`);
 
   const result = await createConversation(ctx, {
     listingId,

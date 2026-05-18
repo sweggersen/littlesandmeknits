@@ -1,0 +1,98 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
+import ListingCard from '../../components/ListingCard.astro';
+import ListingToolbar from '../../components/ListingToolbar.astro';
+import FilterPanel from '../../components/FilterPanel.astro';
+import LoadMore from '../../components/LoadMore.astro';
+import FavScript from '../../components/FavScript.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import ImpressionTracker from '../../components/ImpressionTracker.astro';
+import { createServerSupabase } from '../../lib/supabase';
+import { getCurrentUser } from '../../lib/auth';
+import { projectPhotoUrl } from '../../lib/storage';
+import { CATEGORY_LABEL } from '../../lib/labels';
+
+const PAGE_SIZE = 24;
+const url = Astro.url;
+const category = url.searchParams.get('kategori');
+const search = url.searchParams.get('q')?.trim();
+const prisMin = parseInt(url.searchParams.get('pris_min') ?? '', 10);
+const prisMax = parseInt(url.searchParams.get('pris_max') ?? '', 10);
+const cursor = url.searchParams.get('cursor');
+const hasFilters = !!(search || category || Number.isFinite(prisMin) || Number.isFinite(prisMax));
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+
+let q = supabase
+  .from('listings')
+  .select('id, title, price_nok, size_label, hero_photo_path, category, published_at, promoted_until, promotion_tier')
+  .eq('status', 'active')
+  .eq('kind', 'ready_made')
+  .order('promoted_until', { ascending: false, nullsFirst: false })
+  .order('published_at', { ascending: false });
+
+if (search) q = q.ilike('title', `%${search}%`);
+if (category) q = q.eq('category', category);
+if (Number.isFinite(prisMin)) q = q.gte('price_nok', prisMin);
+if (Number.isFinite(prisMax)) q = q.lte('price_nok', prisMax);
+if (cursor) q = q.lt('published_at', cursor);
+
+const { data: listings } = await q.limit(PAGE_SIZE);
+const hasMore = (listings ?? []).length === PAGE_SIZE;
+const lastCursor = listings?.length ? listings[listings.length - 1].published_at : null;
+
+let favIds: string[] = [];
+if (user) {
+  try {
+    const { data } = await supabase.from('favorites').select('item_id').eq('user_id', user.id).eq('item_type', 'listing');
+    favIds = data?.map(f => f.item_id) ?? [];
+  } catch {}
+}
+
+const nextPageParams = (() => {
+  if (!hasMore || !lastCursor) return null;
+  const p = new URLSearchParams(url.searchParams);
+  p.set('cursor', lastCursor);
+  return p.toString();
+})();
+
+---
+
+<Layout title="Nytt — Strikketorget" lang="nb">
+  <MarketplaceShell current="nytt">
+    <div class="flex items-start justify-between mb-2">
+      <h1 class="font-serif text-4xl sm:text-5xl">Nytt</h1>
+      <a href="/market/listing/new" class="shrink-0 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">+ Ny annonse</a>
+    </div>
+    <p class="text-charcoal/65 mb-8">Ferdigstrikket av strikkere i fellesskapet.</p>
+
+    <ListingToolbar search={search} hasFilters={hasFilters} filterCount={[search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax].filter(Boolean).length} />
+    <FilterPanel category={category} hasFilters={hasFilters} params={url.searchParams} />
+
+    {(listings ?? []).length === 0 ? (
+      <EmptyState message="Ingen ferdigstrikkede plagg ennå. Kom tilbake snart." />
+    ) : (
+      <Fragment>
+      <ul data-listing-grid class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+        {(listings ?? []).map((l) => (
+          <ListingCard
+            id={l.id}
+            title={l.title}
+            price={l.price_nok}
+            imgUrl={projectPhotoUrl(l.hero_photo_path)}
+            meta={`${CATEGORY_LABEL[l.category] ?? l.category} · str. ${l.size_label}`}
+            showFav={!!user}
+            isFav={favIds.includes(l.id)}
+            promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date() && l.promotion_tier === 'highlight')}
+          />
+        ))}
+      </ul>
+      <LoadMore params={nextPageParams} />
+      </Fragment>
+    )}
+  </MarketplaceShell>
+  <FavScript />
+  <ImpressionTracker source="category" />
+</Layout>

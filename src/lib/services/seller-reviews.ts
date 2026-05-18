@@ -48,12 +48,12 @@ export async function submitSellerReview(
     type: 'review_received',
     title: 'Du har fått en ny vurdering!',
     body: `${input.rating}/5 stjerner for «${listing.title}».`,
-    url: `/marked/listing/${input.listingId}`,
+    url: `/market/listing/${input.listingId}`,
     actorId: ctx.user.id,
     referenceId: input.listingId,
   }, ctx.env);
 
   await recalculateTrust(ctx.admin, listing.seller_id);
 
-  return ok({ redirect: `/marked/listing/${input.listingId}` });
+  return ok({ redirect: `/market/listing/${input.listingId}` });
 }

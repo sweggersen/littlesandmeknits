@@ -31,7 +31,7 @@ export async function claimItem(
     .order('created_at', { ascending: true })
     .limit(10);
 
-  if (!next?.length) return ok({ redirect: '/admin/moderering' });
+  if (!next?.length) return ok({ redirect: '/admin/moderation' });
 
   for (const item of next) {
     const conflict = await hasConflict(ctx.admin, ctx.user.id, item.submitter_id);
@@ -44,10 +44,10 @@ export async function claimItem(
       .in('status', ['pending', 'escalated']);
 
     if (updated !== 1) continue;
-    return ok({ redirect: `/admin/moderering/${item.id}` });
+    return ok({ redirect: `/admin/moderation/${item.id}` });
   }
 
-  return ok({ redirect: '/admin/moderering' });
+  return ok({ redirect: '/admin/moderation' });
 }
 
 export async function reviewItem(
@@ -104,7 +104,7 @@ export async function reviewItem(
     });
   }
 
-  if (isShadow) return ok({ redirect: '/admin/moderering' });
+  if (isShadow) return ok({ redirect: '/admin/moderation' });
 
   const stripeOpts = { stripeSecretKey: ctx.env.STRIPE_SECRET_KEY, createStripe };
   const qiWithReason = { ...qi, rejection_reason: input.rejectionReason || null };
@@ -114,7 +114,7 @@ export async function reviewItem(
     await applyRejection(ctx.admin, qiWithReason, ctx.user.id, ctx.env, createNotification, stripeOpts);
   }
 
-  return ok({ redirect: '/admin/moderering' });
+  return ok({ redirect: '/admin/moderation' });
 }
 
 export async function shadowConfirm(
@@ -170,7 +170,7 @@ export async function shadowConfirm(
     });
   }
 
-  return ok({ redirect: `/admin/moderering/${input.queueId}` });
+  return ok({ redirect: `/admin/moderation/${input.queueId}` });
 }
 
 export async function spotCheck(
@@ -215,7 +215,7 @@ export async function spotCheck(
     details: { moderator_decision: qi.status },
   });
 
-  return ok({ redirect: `/admin/moderering/${input.queueId}` });
+  return ok({ redirect: `/admin/moderation/${input.queueId}` });
 }
 
 export async function resolveReport(
@@ -243,7 +243,7 @@ export async function resolveReport(
     details: { notes: input.notes },
   });
 
-  return ok({ redirect: '/admin/rapporter' });
+  return ok({ redirect: '/admin/reports' });
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -287,5 +287,5 @@ export async function changeUserRole(
     }, ctx.env);
   }
 
-  return ok({ redirect: `/admin/brukere/${input.userId}` });
+  return ok({ redirect: `/admin/users/${input.userId}` });
 }

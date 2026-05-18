@@ -5,7 +5,7 @@ import { toResponse } from '../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect('/logg-inn?next=/profil/bibliotek/ny');
+  if (!ctx) return redirect('/login?next=/profile/library/new');
 
   const form = await request.formData();
   const file = form.get('file');

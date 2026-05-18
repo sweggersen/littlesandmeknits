@@ -49,8 +49,8 @@ export async function promoteListing(
       },
       quantity: 1,
     }],
-    success_url: `${siteUrl}/marked/listing/${input.listingId}?promoted=1`,
-    cancel_url: `${siteUrl}/marked/listing/${input.listingId}`,
+    success_url: `${siteUrl}/market/listing/${input.listingId}?promoted=1`,
+    cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,
     metadata: {

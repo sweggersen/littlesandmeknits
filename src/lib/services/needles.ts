@@ -44,7 +44,7 @@ export async function createNeedle(
     return fail('server_error', 'Could not create needle');
   }
 
-  return ok({ redirect: '/studio/pinner' });
+  return ok({ redirect: '/studio/needles' });
 }
 
 export async function updateNeedle(
@@ -76,7 +76,7 @@ export async function updateNeedle(
     return fail('server_error', 'Could not update needle');
   }
 
-  return ok({ redirect: `/studio/pinner/${input.needleId}` });
+  return ok({ redirect: `/studio/needles/${input.needleId}` });
 }
 
 export async function deleteNeedle(
@@ -91,5 +91,5 @@ export async function deleteNeedle(
     return fail('server_error', 'Could not delete needle');
   }
 
-  return ok({ redirect: '/studio/pinner' });
+  return ok({ redirect: '/studio/needles' });
 }

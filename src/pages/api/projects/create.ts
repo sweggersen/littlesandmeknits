@@ -5,7 +5,7 @@ import { toResponse } from '../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect('/logg-inn?next=/studio/prosjekter/ny');
+  if (!ctx) return redirect('/login?next=/studio/projects/new');
 
   const form = await request.formData();
   const heroFile = form.get('hero_photo');

@@ -212,7 +212,7 @@ async function handle(
           type: 'new_offer',
           title: `Nytt tilbud på «${req.title}»`,
           body: `${p.price_nok ?? 1200} kr — ${p.turnaround_weeks ?? 3} uker`,
-          url: `/marked/oppdrag/${p.request_id}`,
+          url: `/market/commissions/${p.request_id}`,
           actor_id: actorId,
           reference_id: data.id,
         });
@@ -254,7 +254,7 @@ async function handle(
         type: 'offer_accepted',
         title: 'Tilbudet ditt ble akseptert!',
         body: `«${req.title}» — ${offer.price_nok} kr`,
-        url: `/marked/oppdrag/${offer.request_id}`,
+        url: `/market/commissions/${offer.request_id}`,
         actor_id: actorId,
         reference_id: p.offer_id,
       });
@@ -265,7 +265,7 @@ async function handle(
           type: 'offer_declined',
           title: 'Tilbudet ditt ble avslått',
           body: `«${req.title}»`,
-          url: `/marked/oppdrag/${offer.request_id}`,
+          url: `/market/commissions/${offer.request_id}`,
           actor_id: actorId,
         });
       }
@@ -310,7 +310,7 @@ async function handle(
         type: 'payment_received',
         title: `Betaling mottatt for «${req.title}»`,
         body: `${offer.price_nok} kr`,
-        url: `/marked/oppdrag/${p.request_id}`,
+        url: `/market/commissions/${p.request_id}`,
         actor_id: actorId,
         reference_id: p.request_id as string,
       });
@@ -339,7 +339,7 @@ async function handle(
           type: 'yarn_shipped',
           title: 'Garnet er sendt!',
           body: p.tracking_code ? `Sporing: ${p.tracking_code}` : 'Ingen sporingskode.',
-          url: `/marked/oppdrag/${p.request_id}`,
+          url: `/market/commissions/${p.request_id}`,
           actor_id: actorId,
         });
       }
@@ -370,7 +370,7 @@ async function handle(
           type: 'yarn_received',
           title: 'Strikkeren har mottatt garnet',
           body: `«${req.title}»`,
-          url: `/marked/oppdrag/${p.request_id}`,
+          url: `/market/commissions/${p.request_id}`,
           actor_id: actorId,
         });
       }
@@ -402,7 +402,7 @@ async function handle(
           type: 'commission_completed',
           title: 'Oppdraget er ferdig!',
           body: `«${req.title}» — bekreft mottak innen 14 dager.`,
-          url: `/marked/oppdrag/${p.request_id}`,
+          url: `/market/commissions/${p.request_id}`,
           actor_id: actorId,
         });
       }
@@ -428,7 +428,7 @@ async function handle(
           type: 'commission_delivered',
           title: 'Levering bekreftet!',
           body: `«${req?.title}» — pengene frigis.`,
-          url: `/marked/oppdrag/${p.request_id}`,
+          url: `/market/commissions/${p.request_id}`,
           actor_id: actorId,
         });
       }
@@ -476,7 +476,7 @@ async function handle(
         type: 'listing_purchased',
         title: 'Varen din er solgt!',
         body: `«${listing.title}» — ${listing.price_nok} kr`,
-        url: `/marked/listing/${listing.id}`,
+        url: `/market/listing/${listing.id}`,
         actor_id: actorId,
         reference_id: listing.id,
       });
@@ -505,7 +505,7 @@ async function handle(
           type: 'listing_shipped',
           title: 'Varen er sendt!',
           body: p.tracking_code ? `Sporing: ${p.tracking_code}` : `«${sl.title}»`,
-          url: `/marked/listing/${p.listing_id}`,
+          url: `/market/listing/${p.listing_id}`,
           actor_id: actorId,
         });
       }
@@ -533,7 +533,7 @@ async function handle(
           type: 'listing_delivered',
           title: 'Levering bekreftet!',
           body: `«${dl.title}» — pengene frigis.`,
-          url: `/marked/listing/${p.listing_id}`,
+          url: `/market/listing/${p.listing_id}`,
           actor_id: actorId,
         });
       }
@@ -563,7 +563,7 @@ async function handle(
         type: 'review_received',
         title: 'Du har fått en ny vurdering!',
         body: `${p.rating ?? 5}/5 stjerner for «${rl.title}».`,
-        url: `/marked/listing/${rl.id}`,
+        url: `/market/listing/${rl.id}`,
         actor_id: actorId,
         reference_id: rl.id,
       });
@@ -652,7 +652,7 @@ async function handle(
         type: 'new_message',
         title: 'Ny melding',
         body: `Om «${listing.title}»`,
-        url: `/marked/meldinger/${convId}`,
+        url: `/market/messages/${convId}`,
         actor_id: actorId,
       });
 
@@ -680,7 +680,7 @@ async function handle(
           type: 'new_message',
           title: 'Ny melding',
           body: `Om «${(conv as any).listings?.title}»`,
-          url: `/marked/meldinger/${p.conversation_id}`,
+          url: `/market/messages/${p.conversation_id}`,
           actor_id: actorId,
         });
       }

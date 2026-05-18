@@ -9,8 +9,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const form = await request.formData();
   const email = form.get('email')?.toString();
-  const rawNext = form.get('next')?.toString() ?? '/marked';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/marked';
+  const rawNext = form.get('next')?.toString() ?? '/market';
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/market';
 
   if (!email) {
     return new Response('Email required', { status: 400 });

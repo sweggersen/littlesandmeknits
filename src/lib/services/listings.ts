@@ -65,7 +65,7 @@ export async function createListing(
     return fail('server_error', 'Could not create listing');
   }
 
-  return ok({ redirect: `/marked/listing/${data.id}` });
+  return ok({ redirect: `/market/listing/${data.id}` });
 }
 
 const LISTING_FEE_NOK = 29;
@@ -84,7 +84,7 @@ export async function publishListing(
     .maybeSingle();
 
   if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
-  if (listing.status !== 'draft') return ok({ redirect: `/marked/listing/${input.listingId}` });
+  if (listing.status !== 'draft') return ok({ redirect: `/market/listing/${input.listingId}` });
 
   const { count: photoCount } = await ctx.supabase
     .from('listing_photos').select('*', { count: 'exact', head: true }).eq('listing_id', input.listingId);
@@ -101,8 +101,8 @@ export async function publishListing(
       },
       quantity: 1,
     }],
-    success_url: `${siteUrl}/marked/listing/${input.listingId}?published=1`,
-    cancel_url: `${siteUrl}/marked/listing/${input.listingId}`,
+    success_url: `${siteUrl}/market/listing/${input.listingId}?published=1`,
+    cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,
     metadata: { type: 'listing_fee', listing_id: input.listingId, user_id: ctx.user.id, seller_id: ctx.user.id },
@@ -164,7 +164,7 @@ export async function uploadListingPhotos(
   ctx: ServiceContext,
   input: { listingId: string; files: File[] },
 ): Promise<ServiceResult<{ redirect: string }>> {
-  if (input.files.length === 0) return ok({ redirect: `/marked/listing/${input.listingId}` });
+  if (input.files.length === 0) return ok({ redirect: `/market/listing/${input.listingId}` });
 
   const { count } = await ctx.supabase
     .from('listing_photos').select('*', { count: 'exact', head: true }).eq('listing_id', input.listingId);
@@ -189,7 +189,7 @@ export async function uploadListingPhotos(
   }
 
   await syncHero(ctx.supabase, input.listingId);
-  return ok({ redirect: `/marked/listing/${input.listingId}` });
+  return ok({ redirect: `/market/listing/${input.listingId}` });
 }
 
 const PLATFORM_FEE_PERCENT = 13;
@@ -244,8 +244,8 @@ export async function purchaseListing(
       application_fee_amount: platformFee,
       transfer_data: { destination: seller.stripe_account_id },
     },
-    success_url: `${siteUrl}/marked/listing/${input.listingId}?purchased=1`,
-    cancel_url: `${siteUrl}/marked/listing/${input.listingId}`,
+    success_url: `${siteUrl}/market/listing/${input.listingId}?purchased=1`,
+    cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,
     metadata: {
@@ -291,13 +291,13 @@ export async function shipListing(
       type: 'listing_shipped',
       title: 'Varen er sendt!',
       body: `«${listing.title}» er på vei til deg.`,
-      url: `/marked/listing/${input.listingId}`,
+      url: `/market/listing/${input.listingId}`,
       actorId: ctx.user.id,
       referenceId: input.listingId,
     }, ctx.env);
   }
 
-  return ok({ redirect: `/marked/listing/${input.listingId}` });
+  return ok({ redirect: `/market/listing/${input.listingId}` });
 }
 
 export async function confirmListingDelivery(
@@ -339,13 +339,13 @@ export async function confirmListingDelivery(
       type: 'listing_delivered',
       title: 'Levering bekreftet!',
       body: `Kjøper har bekreftet mottak av «${listing.title}». Betalingen frigis.`,
-      url: `/marked/listing/${input.listingId}`,
+      url: `/market/listing/${input.listingId}`,
       actorId: ctx.user.id,
       referenceId: input.listingId,
     }, ctx.env);
   }
 
-  return ok({ redirect: `/marked/listing/${input.listingId}` });
+  return ok({ redirect: `/market/listing/${input.listingId}` });
 }
 
 export async function disputeListing(
@@ -383,7 +383,7 @@ export async function disputeListing(
       type: 'dispute_opened',
       title: 'Tvist åpnet',
       body: `Kjøper har rapportert et problem med «${listing.title}».`,
-      url: `/marked/listing/${input.listingId}`,
+      url: `/market/listing/${input.listingId}`,
       actorId: ctx.user.id,
       referenceId: input.listingId,
     }, ctx.env);
@@ -396,10 +396,10 @@ export async function disputeListing(
       type: 'dispute_opened',
       title: 'Ny tvist',
       body: `Tvist på «${listing.title}» — krever gjennomgang.`,
-      url: '/admin/tvister',
+      url: '/admin/disputes',
       referenceId: input.listingId,
     }, ctx.env);
   }
 
-  return ok({ redirect: `/marked/listing/${input.listingId}` });
+  return ok({ redirect: `/market/listing/${input.listingId}` });
 }

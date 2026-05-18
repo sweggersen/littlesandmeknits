@@ -5,7 +5,7 @@ import { toResponse } from '../../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect('/logg-inn?next=/marked/listing/ny');
+  if (!ctx) return redirect('/login?next=/market/listing/new');
 
   const form = await request.formData();
   const result = await createListing(ctx, {

@@ -582,7 +582,7 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
         type: 'achievement_unlocked',
         title: `${def.emoji} Nytt merke opptjent!`,
         body: `Du har låst opp «${def.label}» — ${def.description}`,
-        url: '/profil/merker',
+        url: '/profile/badges',
       }, env as any);
     }
   }

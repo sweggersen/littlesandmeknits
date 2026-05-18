@@ -1,0 +1,151 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCurrentUser } from '../lib/auth';
+import { createServerSupabase } from '../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/notifications');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [{ data: notifications }, { data: profile }] = await Promise.all([
+  supabase
+    .from('notifications')
+    .select('id, type, title, body, url, read_at, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50),
+  supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle(),
+]);
+
+const allNotifs = notifications ?? [];
+const hasUnread = allNotifs.some((n) => !n.read_at);
+
+const isStaff = profile?.role === 'admin' || profile?.role === 'moderator';
+let pendingQueueCount = 0;
+let openReportCount = 0;
+if (isStaff) {
+  const [{ count: qc }, { count: rc }] = await Promise.all([
+    supabase
+      .from('moderation_queue')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['pending', 'escalated']),
+    supabase
+      .from('reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'open'),
+  ]);
+  pendingQueueCount = qc ?? 0;
+  openReportCount = rc ?? 0;
+}
+
+const TYPE_ICON: Record<string, string> = {
+  new_offer: '💬',
+  offer_accepted: '✅',
+  offer_declined: '❌',
+  payment_received: '💰',
+  project_update: '📸',
+  new_message: '✉️',
+  yarn_shipped: '📦',
+  yarn_received: '🧶',
+  commission_completed: '🎉',
+};
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'nå';
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} t`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} d`;
+  return new Date(dateStr).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+}
+---
+
+<Layout title="Varsler" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      {isStaff && (pendingQueueCount > 0 || openReportCount > 0) && (
+        <div class="mb-6 rounded-2xl border border-amber-500/20 bg-amber-50/50 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-3">Moderering</p>
+          <div class="flex flex-wrap gap-2">
+            {pendingQueueCount > 0 && (
+              <a href="/admin/moderation" class="inline-flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 border border-amber-500/20 hover:border-amber-500/40 transition-colors">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span class="text-sm font-medium">{pendingQueueCount} i modereringskø</span>
+              </a>
+            )}
+            {openReportCount > 0 && (
+              <a href="/admin/reports" class="inline-flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 border border-amber-500/20 hover:border-amber-500/40 transition-colors">
+                <span class="text-sm font-medium">{openReportCount} åpne rapporter</span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div class="flex items-center justify-between mb-6">
+        <h1 class="font-serif text-3xl">Varsler</h1>
+        {hasUnread && (
+          <form method="post" action="/api/notifications/read-all" data-astro-reload>
+            <button type="submit" class="text-sm text-charcoal/50 hover:text-terracotta-500 transition-colors">
+              Merk alle som lest
+            </button>
+          </form>
+        )}
+      </div>
+
+      {allNotifs.length === 0 ? (
+        <div class="bg-white rounded-2xl p-8 border border-sage-500/10 text-center">
+          <p class="text-charcoal/45">Ingen varsler ennå.</p>
+        </div>
+      ) : (
+        <ul class="space-y-2">
+          {allNotifs.map((n) => (
+            <li class="group relative">
+              <a
+                href={n.url ?? '#'}
+                class:list={[
+                  'flex items-start gap-3 p-4 rounded-2xl border transition-colors',
+                  n.read_at
+                    ? 'bg-white border-sage-500/10 hover:border-sage-500/20'
+                    : 'bg-terracotta-500/5 border-terracotta-500/15 hover:border-terracotta-500/30',
+                ]}
+              >
+                <span class="text-lg shrink-0 mt-0.5">{TYPE_ICON[n.type] ?? '🔔'}</span>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-baseline gap-2">
+                    <p class:list={['text-sm', !n.read_at && 'font-medium']}>{n.title}</p>
+                    <span class="text-[11px] text-charcoal/40 shrink-0">{timeAgo(n.created_at)}</span>
+                  </div>
+                  {n.body && (
+                    <p class="text-sm text-charcoal/55 mt-0.5 line-clamp-2">{n.body}</p>
+                  )}
+                </div>
+                <div class="flex items-center gap-3 shrink-0 mt-2">
+                  {!n.read_at && (
+                    <span class="w-2 h-2 rounded-full bg-terracotta-500"></span>
+                  )}
+                  <form method="post" action="/api/notifications/delete" data-astro-reload class="opacity-0 group-hover:opacity-100 transition-opacity" onclick="event.stopPropagation()">
+                    <input type="hidden" name="id" value={n.id} />
+                    <button type="submit" class="text-charcoal/30 hover:text-terracotta-500 transition-colors p-1" title="Fjern varsel">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                    </button>
+                  </form>
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </div>
+</Layout>

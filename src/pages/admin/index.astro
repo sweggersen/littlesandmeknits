@@ -4,7 +4,7 @@ import { requireModerator } from '../../lib/admin-auth';
 import { createServerSupabase } from '../../lib/supabase';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
-if (!auth) return Astro.redirect('/marked');
+if (!auth) return Astro.redirect('/market');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
@@ -32,10 +32,10 @@ const { count: openReports } = await supabase
   .eq('status', 'open');
 
 const stats = [
-  { label: 'Ventende i kø', value: pendingCount ?? 0, href: '/admin/moderering', color: 'terracotta' },
-  { label: 'Skyggevurdering', value: shadowCount ?? 0, href: '/admin/moderering?tab=shadow', color: 'amber' },
-  { label: 'Stikkprøver', value: spotCheckCount ?? 0, href: '/admin/moderering?tab=spot', color: 'blue' },
-  { label: 'Åpne rapporter', value: openReports ?? 0, href: '/admin/rapporter', color: 'red' },
+  { label: 'Ventende i kø', value: pendingCount ?? 0, href: '/admin/moderation', color: 'terracotta' },
+  { label: 'Skyggevurdering', value: shadowCount ?? 0, href: '/admin/moderation?tab=shadow', color: 'amber' },
+  { label: 'Stikkprøver', value: spotCheckCount ?? 0, href: '/admin/moderation?tab=spot', color: 'blue' },
+  { label: 'Åpne rapporter', value: openReports ?? 0, href: '/admin/reports', color: 'red' },
 ];
 ---
 
@@ -52,7 +52,7 @@ const stats = [
   </div>
 
   {(pendingCount ?? 0) > 0 && (
-    <a href="/admin/moderering" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+    <a href="/admin/moderation" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
       Start moderering &rarr;
     </a>
   )}

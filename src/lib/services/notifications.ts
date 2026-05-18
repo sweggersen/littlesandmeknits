@@ -7,7 +7,7 @@ export async function deleteNotification(
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.notificationId) return fail('bad_input', 'Missing id');
   await ctx.supabase.from('notifications').delete().eq('id', input.notificationId);
-  return ok({ redirect: '/varsler' });
+  return ok({ redirect: '/notifications' });
 }
 
 const VALID_KEYS = new Set([
@@ -53,7 +53,7 @@ export async function markAllRead(
     .eq('user_id', ctx.user.id)
     .is('read_at', null);
 
-  const referer = input.referer ?? '/varsler';
-  const safeNext = referer.startsWith('/') && !referer.startsWith('//') ? referer : '/varsler';
+  const referer = input.referer ?? '/notifications';
+  const safeNext = referer.startsWith('/') && !referer.startsWith('//') ? referer : '/notifications';
   return ok({ redirect: safeNext });
 }

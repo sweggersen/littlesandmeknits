@@ -36,7 +36,7 @@ const templates: Partial<Record<NotificationType, (p: { title: string; body?: st
   }),
   offer_declined: (p) => ({
     subject: 'Oppdatering på tilbudet ditt',
-    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + '/marked/oppdrag', 'Se andre oppdrag')}`),
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + '/market/commissions', 'Se andre oppdrag')}`),
   }),
   payment_received: (p) => ({
     subject: 'Betaling mottatt',
@@ -68,7 +68,7 @@ const templates: Partial<Record<NotificationType, (p: { title: string; body?: st
   }),
   request_expired: (p) => ({
     subject: 'Forespørselen har utløpt',
-    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + '/marked/oppdrag', 'Se oppdrag')}`),
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:#555;line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + '/market/commissions', 'Se oppdrag')}`),
   }),
   listing_purchased: (p) => ({
     subject: 'Varen din er solgt!',

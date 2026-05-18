@@ -6,8 +6,8 @@ import { getCurrentUser } from '../lib/auth';
 // the existing top StudioNav stays in place.
 //
 // Five fixed tabs:
-//   Hjem · Prosjekter · Garn (also covers /pinner) · Verktøy · Avatar
-// The avatar tab links to /profil (top-level profile page).
+//   Hjem · Prosjekter · Garn (also covers /needles) · Verktøy · Avatar
+// The avatar tab links to /profile (top-level profile page).
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 const meta = (user?.user_metadata ?? {}) as { display_name?: string };
@@ -29,21 +29,21 @@ const avatarInitial = initial();
     </svg>
     <span>Hjem</span>
   </a>
-  <a href="/studio/prosjekter" data-tab-match="^/studio/prosjekter">
+  <a href="/studio/projects" data-tab-match="^/studio/projects">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <rect x="4" y="5" width="16" height="14" rx="2" />
       <path d="M8 9h8M8 13h8M8 17h5" />
     </svg>
     <span>Prosjekter</span>
   </a>
-  <a href="/studio/garn" data-tab-match="^/studio/(garn|pinner)">
+  <a href="/studio/yarn" data-tab-match="^/studio/(garn|pinner)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="8" />
       <path d="M5 9c4 4 10 4 14 0M5 15c4 4 10 4 14 0M9 5c4 4 4 10 0 14M15 5c4 4 4 10 0 14" />
     </svg>
     <span>Garn</span>
   </a>
-  <a href="/studio/verktoy" data-tab-match="^/studio/verktoy">
+  <a href="/studio/tools" data-tab-match="^/studio/tools">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M3 19 19 3l2 2L5 21z" />
       <path d="M6 8l2 2M9 5l2 2M12 14l2 2M15 11l2 2" />
@@ -51,8 +51,8 @@ const avatarInitial = initial();
     <span>Verktøy</span>
   </a>
   <a
-    href="/profil"
-    data-tab-match="^/profil"
+    href="/profile"
+    data-tab-match="^/profile"
     aria-label="Profil"
   >
     <span data-tab-avatar>{avatarInitial}</span>

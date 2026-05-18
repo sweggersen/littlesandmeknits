@@ -14,7 +14,7 @@ function okResponse(request: Request, redirectUrl: string, body: Record<string, 
 
 export const POST: APIRoute = async ({ params, request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect('/logg-inn');
+  if (!ctx) return redirect('/login');
 
   const id = params.id ?? '';
   const { data: listing } = await ctx.supabase
@@ -29,7 +29,7 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     if (!photoId) return new Response('Missing photo_id', { status: 400 });
     const result = await deleteListingPhoto(ctx, { listingId: id, photoId });
     if (!result.ok) return toResponse(result);
-    return okResponse(request, `/marked/listing/${id}`);
+    return okResponse(request, `/market/listing/${id}`);
   }
 
   if (action === 'caption') {
@@ -37,7 +37,7 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     if (!photoId) return new Response('Missing photo_id', { status: 400 });
     const result = await captionListingPhoto(ctx, { listingId: id, photoId, caption: form.get('caption')?.toString() ?? '' });
     if (!result.ok) return toResponse(result);
-    return okResponse(request, `/marked/listing/${id}`);
+    return okResponse(request, `/market/listing/${id}`);
   }
 
   if (action === 'reorder') {
@@ -47,7 +47,7 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
       const ids: string[] = JSON.parse(orderJson);
       const result = await reorderListingPhotos(ctx, { listingId: id, order: ids });
       if (!result.ok) return toResponse(result);
-      return okResponse(request, `/marked/listing/${id}`);
+      return okResponse(request, `/market/listing/${id}`);
     } catch {
       return new Response('Invalid order', { status: 400 });
     }

@@ -12,7 +12,7 @@ interface Props {
 const { title, current, adminOnly } = Astro.props;
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
-if (!auth) return Astro.redirect('/marked');
+if (!auth) return Astro.redirect('/market');
 if (adminOnly && auth.role !== 'admin') return Astro.redirect('/admin');
 
 const isAdmin = auth.role === 'admin';

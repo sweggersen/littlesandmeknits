@@ -25,7 +25,7 @@ const patternEntry = pattern
 
 <Layout title={`${title.nb} — Littles and Me`} description={summary.nb} lang="nb">
   <div class="max-w-4xl mx-auto px-6 py-14">
-    <a href="/prosjekter" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-6 inline-block">← Alle prosjekter</a>
+    <a href="/projects" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-6 inline-block">← Alle prosjekter</a>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       <div>
@@ -67,7 +67,7 @@ const patternEntry = pattern
             <div>
               <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Oppskrift</dt>
               <dd>
-                <a href={`/oppskrifter/${patternEntry.id}`} class="text-terracotta-500 hover:underline">
+                <a href={`/patterns/${patternEntry.id}`} class="text-terracotta-500 hover:underline">
                   {patternEntry.data.title.nb}
                 </a>
               </dd>

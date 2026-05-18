@@ -52,7 +52,7 @@ export async function editProfile(
   };
   await ctx.supabase.auth.updateUser({ data: merged });
 
-  return ok({ redirect: '/profil/rediger?saved=1', language });
+  return ok({ redirect: '/profile/edit?saved=1', language });
 }
 
 export async function updateProfile(
@@ -63,8 +63,8 @@ export async function updateProfile(
   const instagram = cleanHandle(input.instagramHandle);
   const language = input.language && VALID_LANGS.has(input.language) ? input.language : null;
 
-  const rawNext = input.next ?? '/studio/profil';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/studio/profil';
+  const rawNext = input.next ?? '/studio/profile';
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/studio/profile';
 
   const merged = {
     ...(ctx.user as any).user_metadata ?? {},
@@ -118,7 +118,7 @@ export async function updateMarketplaceProfile(
     return fail('server_error', 'Could not update profile');
   }
 
-  return ok({ redirect: '/marked/profil?saved=1' });
+  return ok({ redirect: '/market/profile?saved=1' });
 }
 
 export interface MeData {

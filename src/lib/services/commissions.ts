@@ -69,7 +69,7 @@ export async function createRequest(
     await insertQueueItem(ctx.admin, 'commission_request', data.id, ctx.user.id);
   }
 
-  return ok({ redirect: `/marked/oppdrag/${data.id}` });
+  return ok({ redirect: `/market/commissions/${data.id}` });
 }
 
 export async function makeOffer(
@@ -110,11 +110,11 @@ export async function makeOffer(
     userId: req.buyer_id, type: 'new_offer',
     title: 'Nytt tilbud!',
     body: `Noen har gitt tilbud på «${req.title}» — ${priceNok} kr, ${turnaroundWeeks} uker.`,
-    url: `/marked/oppdrag/${input.requestId}`,
+    url: `/market/commissions/${input.requestId}`,
     actorId: ctx.user.id, referenceId: input.requestId,
   }, ctx.env);
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function acceptOffer(
@@ -155,7 +155,7 @@ export async function acceptOffer(
     userId: offer.knitter_id, type: 'offer_accepted',
     title: 'Tilbudet ditt er akseptert!',
     body: `Kjøper valgte tilbudet ditt på «${req.title}». Venter nå på betaling.`,
-    url: `/marked/oppdrag/${offer.request_id}`,
+    url: `/market/commissions/${offer.request_id}`,
     actorId: ctx.user.id, referenceId: offer.request_id,
   }, ctx.env);
 
@@ -166,14 +166,14 @@ export async function acceptOffer(
           userId: d.knitter_id, type: 'offer_declined',
           title: 'Tilbudet ble ikke valgt',
           body: `Kjøper valgte et annet tilbud på «${req.title}».`,
-          url: `/marked/oppdrag/${offer.request_id}`,
+          url: `/market/commissions/${offer.request_id}`,
           actorId: ctx.user.id, referenceId: offer.request_id,
         }, ctx.env),
       ),
     );
   }
 
-  return ok({ redirect: `/marked/oppdrag/${offer.request_id}` });
+  return ok({ redirect: `/market/commissions/${offer.request_id}` });
 }
 
 export async function withdrawOffer(
@@ -193,7 +193,7 @@ export async function withdrawOffer(
 
   await ctx.supabase.from('commission_offers').update({ status: 'withdrawn' }).eq('id', input.offerId);
 
-  return ok({ redirect: `/marked/oppdrag/${offer.request_id}` });
+  return ok({ redirect: `/market/commissions/${offer.request_id}` });
 }
 
 export async function cancelCommission(
@@ -214,7 +214,7 @@ export async function cancelCommission(
   await ctx.supabase.from('commission_requests').update({ status: 'cancelled' }).eq('id', input.requestId);
   await ctx.supabase.from('commission_offers').update({ status: 'declined' }).eq('request_id', input.requestId).eq('status', 'pending');
 
-  return ok({ redirect: '/marked/oppdrag/mine' });
+  return ok({ redirect: '/market/commissions/my-listings' });
 }
 
 const PLATFORM_FEE_PERCENT = 13;
@@ -266,7 +266,7 @@ export async function payCommission(
 
     await stripe.paymentIntents.confirm(pi.id, {
       payment_method: 'pm_card_visa',
-      return_url: `${ctx.env.PUBLIC_SITE_URL}/marked/oppdrag/${input.requestId}`,
+      return_url: `${ctx.env.PUBLIC_SITE_URL}/market/commissions/${input.requestId}`,
     });
   }
 
@@ -305,11 +305,11 @@ export async function payCommission(
     body: needsYarn
       ? `Betaling for «${req.title}» er mottatt. Venter på at kjøper sender garnet.`
       : `Betaling for «${req.title}» er mottatt — du kan begynne å strikke!`,
-    url: `/marked/oppdrag/${input.requestId}`,
+    url: `/market/commissions/${input.requestId}`,
     actorId: ctx.user.id, referenceId: input.requestId,
   }, ctx.env);
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function linkProject(
@@ -335,7 +335,7 @@ export async function linkProject(
   await ctx.supabase.from('commission_offers').update({ project_id: input.projectId }).eq('id', input.offerId);
   await ctx.supabase.from('projects').update({ commission_offer_id: input.offerId }).eq('id', input.projectId);
 
-  return ok({ redirect: `/marked/oppdrag/${offer.request_id}` });
+  return ok({ redirect: `/market/commissions/${offer.request_id}` });
 }
 
 export async function shipYarn(
@@ -366,12 +366,12 @@ export async function shipYarn(
       userId: offer.knitter_id, type: 'yarn_shipped',
       title: 'Garnet er sendt!',
       body: input.trackingCode ? `Sporingskode: ${input.trackingCode}` : `Kjøper har sendt garnet for «${req.title}»`,
-      url: `/marked/oppdrag/${input.requestId}`,
+      url: `/market/commissions/${input.requestId}`,
       actorId: ctx.user.id, referenceId: input.requestId,
     }, ctx.env);
   }
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function receiveYarn(
@@ -410,11 +410,11 @@ export async function receiveYarn(
     userId: req.buyer_id, type: 'yarn_received',
     title: 'Garnet er mottatt!',
     body: `Strikkeren har mottatt garnet for «${req.title}» og kan begynne.`,
-    url: `/marked/oppdrag/${input.requestId}`,
+    url: `/market/commissions/${input.requestId}`,
     actorId: ctx.user.id, referenceId: input.requestId,
   }, ctx.env);
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function markCompleted(
@@ -450,11 +450,11 @@ export async function markCompleted(
     userId: req.buyer_id, type: 'commission_completed',
     title: 'Oppdraget er ferdig!',
     body: `Strikkeren har merket «${req.title}» som ferdig. Bekreft mottak innen 14 dager.`,
-    url: `/marked/oppdrag/${input.requestId}`,
+    url: `/market/commissions/${input.requestId}`,
     actorId: ctx.user.id, referenceId: input.requestId,
   }, ctx.env);
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function confirmDelivery(
@@ -494,12 +494,12 @@ export async function confirmDelivery(
       userId: offer.knitter_id, type: 'commission_delivered',
       title: 'Levering bekreftet!',
       body: `Kjøper har bekreftet mottak av «${req.title}». Takk for flott arbeid!`,
-      url: `/marked/oppdrag/${input.requestId}`,
+      url: `/market/commissions/${input.requestId}`,
       actorId: ctx.user.id, referenceId: input.requestId,
     }, ctx.env);
   }
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function bookShipping(
@@ -546,7 +546,7 @@ export async function bookShipping(
     label_free_code: result.labelFreeCode ?? null,
   }).eq('id', input.requestId);
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function getTracking(
@@ -617,7 +617,7 @@ export async function disputeCommission(
       type: 'dispute_opened',
       title: 'Tvist åpnet',
       body: `Kjøper har rapportert et problem med «${req.title}».`,
-      url: `/marked/oppdrag/${input.requestId}`,
+      url: `/market/commissions/${input.requestId}`,
       actorId: ctx.user.id,
       referenceId: input.requestId,
     }, ctx.env);
@@ -630,12 +630,12 @@ export async function disputeCommission(
       type: 'dispute_opened',
       title: 'Ny tvist',
       body: `Tvist på oppdrag «${req.title}» — krever gjennomgang.`,
-      url: '/admin/tvister',
+      url: '/admin/disputes',
       referenceId: input.requestId,
     }, ctx.env);
   }
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
 export async function extendRequest(
@@ -660,5 +660,5 @@ export async function extendRequest(
     expires_at: current.toISOString(),
   }).eq('id', input.requestId);
 
-  return ok({ redirect: `/marked/oppdrag/${input.requestId}` });
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
 }

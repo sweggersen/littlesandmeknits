@@ -42,7 +42,7 @@ const featuredOrLatest = featured.length > 0 ? featured : allPatterns.slice(0, 4
         {t('home.hero.subtitle')}
       </p>
       <a
-        href={localizedPath(lang, '/oppskrifter')}
+        href={localizedPath(lang, '/patterns')}
         class="inline-flex items-center gap-2 bg-linen text-charcoal px-7 py-4 rounded-full text-sm font-medium hover:bg-terracotta-500 hover:text-linen transition-colors"
       >
         {t('home.hero.cta')}
@@ -60,7 +60,7 @@ const featuredOrLatest = featured.length > 0 ? featured : allPatterns.slice(0, 4
       <p class="text-charcoal/55 text-sm">{t('home.featured.subtitle')}</p>
     </div>
     <a
-      href={localizedPath(lang, '/oppskrifter')}
+      href={localizedPath(lang, '/patterns')}
       class="hidden sm:inline text-sm font-medium text-charcoal/60 hover:text-terracotta-500 transition-colors"
     >
       {t('nav.shop')} →
@@ -92,7 +92,7 @@ const featuredOrLatest = featured.length > 0 ? featured : allPatterns.slice(0, 4
       <h2 class="font-serif text-3xl sm:text-4xl mb-5">{t('home.story.title')}</h2>
       <p class="text-charcoal/70 leading-relaxed mb-6">{t('home.story.body')}</p>
       <a
-        href={localizedPath(lang, '/om')}
+        href={localizedPath(lang, '/about')}
         class="inline-flex items-center gap-2 text-sm font-medium text-terracotta-500 hover:text-terracotta-700 transition-colors"
       >
         {t('home.story.cta')} →
@@ -123,7 +123,7 @@ const featuredOrLatest = featured.length > 0 ? featured : allPatterns.slice(0, 4
   </div>
   <div class="text-center mt-10">
     <a
-      href="/studio/verktoy"
+      href="/studio/tools"
       class="inline-flex items-center gap-2 text-sm font-medium text-charcoal/70 hover:text-terracotta-500 transition-colors"
     >
       {t('home.tools.cta')} →

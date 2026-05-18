@@ -5,7 +5,7 @@ import { toResponse } from '../../../../../../lib/services/response';
 
 export const POST: APIRoute = async ({ params, request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect('/logg-inn');
+  if (!ctx) return redirect('/login');
 
   const result = await deleteProgressLog(ctx, { projectId: params.id ?? '', logId: params.logId ?? '' });
   return toResponse(result, redirect);

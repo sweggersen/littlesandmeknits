@@ -18,8 +18,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const ctx = await buildServiceContext(request, cookies);
   if (!ctx) {
-    const patternPath = lang === 'nb' ? `/oppskrifter/${slug}` : `/en/oppskrifter/${slug}`;
-    const loginPath = lang === 'nb' ? '/logg-inn' : '/en/login';
+    const patternPath = lang === 'nb' ? `/patterns/${slug}` : `/en/patterns/${slug}`;
+    const loginPath = lang === 'nb' ? '/login' : '/en/login';
     return redirect(`${loginPath}?next=${encodeURIComponent(patternPath)}`);
   }
 

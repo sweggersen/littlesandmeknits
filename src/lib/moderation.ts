@@ -189,7 +189,7 @@ export async function applyApproval(
     body: qi.item_type === 'listing'
       ? 'Annonsen er nå synlig på Strikketorget.'
       : 'Forespørselen er nå synlig og strikkere kan gi tilbud.',
-    url: qi.item_type === 'listing' ? `/marked/listing/${qi.item_id}` : `/marked/oppdrag/${qi.item_id}`,
+    url: qi.item_type === 'listing' ? `/market/listing/${qi.item_id}` : `/market/commissions/${qi.item_id}`,
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);
@@ -242,7 +242,7 @@ export async function applyRejection(
     type: 'item_rejected',
     title: qi.item_type === 'listing' ? 'Annonsen din ble avvist' : 'Forespørselen din ble avvist',
     body: reason ?? 'Innholdet oppfyller ikke retningslinjene våre.',
-    url: qi.item_type === 'listing' ? `/marked/listing/${qi.item_id}` : `/marked/oppdrag/${qi.item_id}`,
+    url: qi.item_type === 'listing' ? `/market/listing/${qi.item_id}` : `/market/commissions/${qi.item_id}`,
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);

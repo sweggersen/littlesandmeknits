@@ -15,7 +15,7 @@ const { title, lang = 'nb' } = Astro.props;
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) {
   const next = encodeURIComponent(Astro.url.pathname);
-  return Astro.redirect(`/logg-inn?next=${next}`);
+  return Astro.redirect(`/login?next=${next}`);
 }
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/studio';

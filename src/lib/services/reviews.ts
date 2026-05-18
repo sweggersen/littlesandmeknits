@@ -58,7 +58,7 @@ export async function submitReview(
     userId: revieweeId, type: 'review_received',
     title: 'Du har fått en ny vurdering!',
     body: `${input.rating}/5 stjerner for oppdraget.`,
-    url: `/marked/oppdrag/${input.commissionRequestId}`,
+    url: `/market/commissions/${input.commissionRequestId}`,
     actorId: ctx.user.id, referenceId: input.commissionRequestId,
   }, ctx.env);
 

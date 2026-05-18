@@ -4,7 +4,7 @@ import { getCurrentUser } from '../lib/auth';
 import { createServerSupabase } from '../lib/supabase';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/logg-inn?next=/innstillinger');
+if (!user) return Astro.redirect('/login?next=/innstillinger');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 

@@ -63,7 +63,7 @@ export async function createPattern(
       .update({ file_path: filePath, cover_path: coverPath }).eq('id', id);
   }
 
-  return ok({ redirect: `/profil/bibliotek/${id}` });
+  return ok({ redirect: `/profile/library/${id}` });
 }
 
 export async function updatePattern(
@@ -113,7 +113,7 @@ export async function updatePattern(
     return fail('server_error', 'Could not update');
   }
 
-  return ok({ redirect: `/profil/bibliotek/${input.patternId}` });
+  return ok({ redirect: `/profile/library/${input.patternId}` });
 }
 
 export async function deletePattern(
@@ -142,5 +142,5 @@ export async function deletePattern(
     return fail('server_error', 'Could not delete');
   }
 
-  return ok({ redirect: '/profil/bibliotek' });
+  return ok({ redirect: '/profile/library' });
 }

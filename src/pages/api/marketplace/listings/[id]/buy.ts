@@ -5,7 +5,7 @@ import { purchaseListing } from '../../../../../lib/services/listings';
 
 export const POST: APIRoute = async ({ params, request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
-  if (!ctx) return redirect('/logg-inn');
+  if (!ctx) return redirect('/login');
 
   const result = await purchaseListing(ctx, {
     listingId: params.id ?? '',

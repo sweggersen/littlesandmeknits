@@ -8,16 +8,16 @@ const { current = '', isAdmin } = Astro.props;
 
 const modLinks = [
   { href: '/admin', label: 'Oversikt', id: 'dashboard' },
-  { href: '/admin/moderering', label: 'Modereringskø', id: 'moderering' },
-  { href: '/admin/rapporter', label: 'Rapporter', id: 'rapporter' },
+  { href: '/admin/moderation', label: 'Modereringskø', id: 'moderering' },
+  { href: '/admin/reports', label: 'Rapporter', id: 'rapporter' },
 ];
 
 const adminLinks = [
-  { href: '/admin/tvister', label: 'Tvister', id: 'tvister' },
-  { href: '/admin/brukere', label: 'Brukere', id: 'brukere' },
-  { href: '/admin/moderatorer', label: 'Moderatorer', id: 'moderatorer' },
-  { href: '/admin/utbetalinger', label: 'Utbetalinger', id: 'utbetalinger' },
-  { href: '/admin/logg', label: 'Aktivitetslogg', id: 'logg' },
+  { href: '/admin/disputes', label: 'Tvister', id: 'tvister' },
+  { href: '/admin/users', label: 'Brukere', id: 'brukere' },
+  { href: '/admin/moderators', label: 'Moderatorer', id: 'moderatorer' },
+  { href: '/admin/payouts', label: 'Utbetalinger', id: 'utbetalinger' },
+  { href: '/admin/log', label: 'Aktivitetslogg', id: 'logg' },
 ];
 ---
 

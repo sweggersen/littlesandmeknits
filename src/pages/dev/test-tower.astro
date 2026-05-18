@@ -2,11 +2,11 @@
 import Layout from '../../layouts/Layout.astro';
 import { env } from 'cloudflare:workers';
 
-if (import.meta.env.PROD) return Astro.redirect('/marked');
+if (import.meta.env.PROD) return Astro.redirect('/market');
 
 const host = Astro.url.hostname;
 if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-  return Astro.redirect('/marked');
+  return Astro.redirect('/market');
 }
 
 const encoder = new TextEncoder();
@@ -172,7 +172,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Liv vil ha en mariusgenser strikket til datteren.',
             params: { title: 'Mariusgenser i str 2 år', category: 'genser', size_label: '2 år', budget_nok_min: 800, budget_nok_max: 1500, description: 'Klassisk Mariusgenser i hvitt og rødt, str 2 år.' },
             editable: ['title', 'budget_nok_min', 'budget_nok_max'],
-            viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+            viewUrl: (r) => `/market/commissions/${r?.id}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'open'],
               ['offer_count', s.request?.offer_count, 0],
@@ -185,7 +185,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Eline ser oppdraget og sender tilbud.',
             params: { request_id: '$create-request.id', price_nok: 1200, turnaround_weeks: 3, message: 'Hei! Jeg har strikket mange mariusgensere.' },
             editable: ['price_nok', 'turnaround_weeks'],
-            viewUrl: (r) => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: (r) => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'open'],
               ['offer_count', s.request?.offer_count, 1],
@@ -198,7 +198,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Aksepter tilbudet',
             desc: 'Liv velger Elines tilbud.',
             params: { offer_id: '$offer-eline.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'awaiting_payment'],
               ['accepted offer', s.offers?.filter(o => o.status === 'accepted').length, 1],
@@ -210,7 +210,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Betal for oppdraget',
             desc: 'Liv betaler. Prosjekt opprettes automatisk for Eline.',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'awarded'],
               ['project exists', !!s.project, true],
@@ -222,7 +222,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Merk som ferdig',
             desc: 'Eline markerer oppdraget som ferdigstilt. 14-dagers frist starter.',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'completed'],
               ['completed_at set', !!s.request?.completed_at, true],
@@ -233,7 +233,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Bekreft mottak',
             desc: 'Liv bekrefter at hun har mottatt genseren. Pengene frigis.',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'delivered'],
               ['delivered_at set', !!s.request?.delivered_at, true],
@@ -254,7 +254,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Liv lager forespørsel og vil sende garnet selv.',
             params: { title: 'Babyteppe i merinoull', category: 'teppe', size_label: '70x90 cm', budget_nok_min: 600, budget_nok_max: 1200, description: 'Babyteppe i pastell, 70x90 cm.', yarn_provided_by_buyer: true, yarn_preference: 'Sandnes Garn Merino' },
             editable: ['title', 'budget_nok_min', 'budget_nok_max'],
-            viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+            viewUrl: (r) => `/market/commissions/${r?.id}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'open'],
               ['yarn_provided_by_buyer', s.request?.yarn_provided_by_buyer, true],
@@ -267,7 +267,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Eline tilbyr seg å strikke teppet.',
             params: { request_id: '$create-request.id', price_nok: 900, turnaround_weeks: 4, message: 'Jeg elsker å strikke babyteppe!' },
             editable: ['price_nok', 'turnaround_weeks'],
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['offer_count', s.request?.offer_count, 1],
               ['offers.length', s.offers?.length ?? 0, 1],
@@ -279,7 +279,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Maja tilbyr seg også — dyrere men raskere.',
             params: { request_id: '$create-request.id', price_nok: 1100, turnaround_weeks: 2, message: 'Kan levere på 2 uker!' },
             editable: ['price_nok', 'turnaround_weeks'],
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['offer_count', s.request?.offer_count, 2],
               ['offers.length', s.offers?.length ?? 0, 2],
@@ -292,7 +292,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Liv velger Eline. Majas tilbud avslås automatisk.',
             params: { offer_id: '$offer-eline.id' },
             branch: { label: 'Aksepter Maja i stedet', swapRef: 'offer-maja' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'awaiting_payment'],
               ['1 accepted', s.offers?.filter(o => o.status === 'accepted').length, 1],
@@ -304,7 +304,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Betal for oppdraget',
             desc: 'Status: awaiting_yarn (fordi garn sendes av kjøper).',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'awaiting_yarn'],
               ['project exists', !!s.project, true],
@@ -316,7 +316,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Liv sender garnet med sporing.',
             params: { request_id: '$create-request.id', tracking_code: 'POSTEN-12345' },
             editable: ['tracking_code'],
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['yarn_shipped_at set', !!s.request?.yarn_shipped_at, true],
               ['tracking code', s.request?.yarn_tracking_code, 'POSTEN-12345'],
@@ -327,7 +327,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Bekreft garn mottatt',
             desc: 'Eline bekrefter at hun har fått garnet. Prosjekt settes til aktiv.',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'awarded'],
               ['yarn_received_at set', !!s.request?.yarn_received_at, true],
@@ -339,7 +339,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Merk som ferdig',
             desc: 'Eline markerer oppdraget som ferdig.',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'completed'],
               ['completed_at set', !!s.request?.completed_at, true],
@@ -350,7 +350,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Bekreft mottak',
             desc: 'Liv bekrefter levering. Pengene frigis til Eline.',
             params: { request_id: '$create-request.id' },
-            viewUrl: () => `/marked/oppdrag/${resolve('create-request', 'id')}`,
+            viewUrl: () => `/market/commissions/${resolve('create-request', 'id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'delivered'],
               ['delivered_at set', !!s.request?.delivered_at, true],
@@ -371,7 +371,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Eline legger ut en brukt barnegenser.',
             params: { title: 'Strikket genser str 3 år', kind: 'pre_loved', category: 'genser', size_label: '3 år', price_nok: 249, condition: 'lite_brukt', description: 'Fin strikket genser i merinoull, lite brukt.' },
             editable: ['title', 'price_nok'],
-            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            viewUrl: (r) => `/market/listing/${r?.id}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'draft'],
               ['listing.kind', s.listing?.kind, 'pre_loved'],
@@ -382,7 +382,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Publiser annonse',
             desc: 'Eline publiserer annonsen slik at den blir synlig.',
             params: { listing_id: '$create-listing.id' },
-            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            viewUrl: () => `/market/listing/${resolve('create-listing', 'id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'active'],
             ],
@@ -393,7 +393,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Liv finner annonsen og sender en melding.',
             params: { listing_id: '$create-listing.id', message: 'Hei! Er denne fortsatt tilgjengelig? Kan du sende til Oslo?' },
             editable: ['message'],
-            viewUrl: (r) => `/marked/meldinger/${r?.conversationId}`,
+            viewUrl: (r) => `/market/messages/${r?.conversationId}`,
             expect: (s) => [
               ['conversations', s.conversations?.length, 1],
               ['messages', s.conversations?.[0]?.marketplace_messages?.length, 1],
@@ -405,7 +405,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Eline svarer på Livs melding.',
             params: { conversation_id: '$message.conversationId', message: 'Hei! Ja, den er tilgjengelig. Jeg sender med Posten, 69 kr frakt.' },
             editable: ['message'],
-            viewUrl: (r) => `/marked/meldinger/${resolve('message', 'conversationId')}`,
+            viewUrl: (r) => `/market/messages/${resolve('message', 'conversationId')}`,
             expect: (s) => [
               ['messages', s.conversations?.[0]?.marketplace_messages?.length, 2],
             ],
@@ -419,7 +419,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
               ['messages', s.conversations?.[0]?.marketplace_messages?.length, 3],
             ],
             editable: ['message'],
-            viewUrl: () => `/marked/meldinger/${resolve('message', 'conversationId')}`,
+            viewUrl: () => `/market/messages/${resolve('message', 'conversationId')}`,
           },
         ],
       },
@@ -435,7 +435,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Sett opp Nora som admin',
             desc: 'Nora får admin-rollen.',
             params: { role: 'admin' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            viewUrl: (r) => `/admin/users/${r?.user_id}`,
             expect: (s) => [
               ['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin'],
             ],
@@ -445,7 +445,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Sett opp Kari som moderator',
             desc: 'Kari får moderator-rollen.',
             params: { role: 'moderator' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             expect: (s) => [
               ['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator'],
             ],
@@ -455,7 +455,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Kari: 60 tidligere vurderinger',
             desc: 'Kari er erfaren (>50) — ingen skyggevurdering.',
             params: { total_reviews: 60, total_approvals: 55, total_rejections: 5, rate_nok_per_review: 2.00 },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             expect: (s) => [
               ['kari.total_reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 60],
             ],
@@ -466,7 +466,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Annonsen går til modereringskø (pending_review).',
             params: { title: 'Strikket babygenser str 6 mnd', price_nok: 349, category: 'genser', size_label: '6 mnd', description: 'Nystrikket i merinoull, aldri brukt.' },
             editable: ['title', 'price_nok'],
-            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            viewUrl: (r) => `/market/listing/${r?.id}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'pending_review'],
               ['queue exists', !!s.queue_item, true],
@@ -478,7 +478,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Kari godkjenner annonsen',
             desc: 'Erfaren moderator → direkte godkjenning, annonsen blir aktiv.',
             params: { queue_item_id: '$create-listing.queue_item_id', decision: 'approve', internal_notes: 'Ser bra ut, relevant kategori.' },
-            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            viewUrl: () => `/admin/moderation/${resolve('create-listing', 'queue_item_id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'active'],
               ['queue.status', s.queue_item?.status, 'approved'],
@@ -516,7 +516,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Forespørselen havner i modereringskø.',
             params: { title: 'Sko i lær og ull', category: 'annet', size_label: '38', budget_nok_min: 200, budget_nok_max: 400, description: 'Noen som kan lage sko? Helst i skinn.' },
             editable: ['title'],
-            viewUrl: (r) => `/marked/oppdrag/${r?.id}`,
+            viewUrl: (r) => `/market/commissions/${r?.id}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'pending_review'],
               ['queue.status', s.queue_item?.status, 'pending'],
@@ -527,7 +527,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Kari avviser forespørselen',
             desc: 'Ikke et strikkeprodukt → avvist med begrunnelse.',
             params: { queue_item_id: '$create-request.queue_item_id', decision: 'reject', rejection_reason: 'Ikke et strikkeprodukt — Strikketorget er kun for strikke- og garnarbeid.' },
-            viewUrl: () => `/admin/moderering/${resolve('create-request', 'queue_item_id')}`,
+            viewUrl: () => `/admin/moderation/${resolve('create-request', 'queue_item_id')}`,
             expect: (s) => [
               ['request.status', s.request?.status, 'rejected'],
               ['queue.status', s.queue_item?.status, 'rejected'],
@@ -548,14 +548,14 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             id: 'setup-nora', actor: 'nora', action: 'set-role',
             label: 'Nora = admin', desc: 'Nora settes som admin.',
             params: { role: 'admin' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            viewUrl: (r) => `/admin/users/${r?.user_id}`,
             expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
           },
           {
             id: 'setup-kari', actor: 'kari', action: 'set-role',
             label: 'Kari = moderator', desc: 'Kari settes som moderator.',
             params: { role: 'moderator' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
           },
           {
@@ -563,7 +563,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Kari: ny moderator (10 vurderinger)',
             desc: '<50 vurderinger → skyggevurdering aktiveres.',
             params: { total_reviews: 10, total_approvals: 9, total_rejections: 1, rate_nok_per_review: 1.00 },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             expect: (s) => [['kari.reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 10]],
           },
           {
@@ -571,7 +571,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Eline publiserer annonse',
             desc: 'Annonsen havner i modereringskø.',
             params: { title: 'Babyvotter i alpakka', price_nok: 129, category: 'votter', size_label: '0-6 mnd' },
-            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            viewUrl: (r) => `/market/listing/${r?.id}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'pending_review'],
               ['queue.status', s.queue_item?.status, 'pending'],
@@ -582,7 +582,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Kari godkjenner (skygge)',
             desc: 'Kari godkjenner, men fordi hun har <50 vurderinger holdes beslutningen. Annonsen forblir pending_review.',
             params: { queue_item_id: '$create-listing.queue_item_id', decision: 'approve' },
-            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            viewUrl: () => `/admin/moderation/${resolve('create-listing', 'queue_item_id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'pending_review'],
               ['queue.status', s.queue_item?.status, 'approved'],
@@ -595,7 +595,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Nora bekrefter skyggevurderingen',
             desc: 'Admin bekrefter Karis godkjenning. Annonsen blir aktiv.',
             params: { queue_item_id: '$create-listing.queue_item_id', action: 'confirm' },
-            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            viewUrl: () => `/admin/moderation/${resolve('create-listing', 'queue_item_id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'active'],
               ['shadow_confirmed_at set', !!s.queue_item?.shadow_confirmed_at, true],
@@ -615,21 +615,21 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             id: 'setup-nora', actor: 'nora', action: 'set-role',
             label: 'Nora = admin', desc: 'Admin-rolle.',
             params: { role: 'admin' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            viewUrl: (r) => `/admin/users/${r?.user_id}`,
             expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
           },
           {
             id: 'setup-kari', actor: 'kari', action: 'set-role',
             label: 'Kari = moderator', desc: 'Moderator-rolle.',
             params: { role: 'moderator' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
           },
           {
             id: 'setup-kari-new', actor: 'kari', action: 'set-mod-stats',
             label: 'Kari: ny moderator (5 vurderinger)',
             params: { total_reviews: 5, total_approvals: 4, total_rejections: 1, shadow_overrides: 0 },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             desc: 'Ny moderator med skygge.',
             expect: (s) => [['kari.reviews', s.mod_stats?.['kari@test.strikketorget.no']?.total_reviews, 5]],
           },
@@ -638,7 +638,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Eline publiserer annonse',
             params: { title: 'Strikket lue i ull', price_nok: 199, category: 'lue', size_label: '2-4 år' },
             desc: 'Annonsen i kø.',
-            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            viewUrl: (r) => `/market/listing/${r?.id}`,
             expect: (s) => [['listing.status', s.listing?.status, 'pending_review']],
           },
           {
@@ -657,7 +657,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Nora overstyrer → godkjent',
             desc: 'Admin er uenig — overstyrer til godkjent. Kari får +1 override.',
             params: { queue_item_id: '$create-listing.queue_item_id', action: 'override' },
-            viewUrl: () => `/admin/moderering/${resolve('create-listing', 'queue_item_id')}`,
+            viewUrl: () => `/admin/moderation/${resolve('create-listing', 'queue_item_id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'active'],
               ['overridden', s.queue_item?.shadow_decision_overridden, true],
@@ -685,7 +685,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Eline oppretter annonse',
             desc: 'Aktiv annonse som kan rapporteres.',
             params: { title: 'Strikket skjerf', price_nok: 99, category: 'annet', size_label: 'One size' },
-            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            viewUrl: (r) => `/market/listing/${r?.id}`,
             expect: (s) => [['listing.status', s.listing?.status, 'draft']],
           },
           {
@@ -819,21 +819,21 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             id: 'setup-nora', actor: 'nora', action: 'set-role',
             label: 'Nora = admin', desc: 'Admin.',
             params: { role: 'admin' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            viewUrl: (r) => `/admin/users/${r?.user_id}`,
             expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
           },
           {
             id: 'setup-kari', actor: 'kari', action: 'set-role',
             label: 'Kari = moderator', desc: 'Moderator.',
             params: { role: 'moderator' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             expect: (s) => [['kari.role', s.profiles?.['kari@test.strikketorget.no']?.role, 'moderator']],
           },
           {
             id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats',
             label: 'Kari: erfaren (60 vurd., 2 kr/stk)',
             params: { total_reviews: 60, total_approvals: 55, total_rejections: 5, rate_nok_per_review: 2.00, current_month_reviews: 0, current_month_earned_nok: 0, total_earned_nok: 100 },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`, viewAs: 'nora',
+            viewUrl: (r) => `/admin/users/${r?.user_id}`, viewAs: 'nora',
             desc: 'Erfaren moderator med 2 kr/vurdering.',
             expect: (s) => [
               ['kari.rate', s.mod_stats?.['kari@test.strikketorget.no']?.rate_nok_per_review, 2],
@@ -880,7 +880,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Nora genererer utbetalinger',
             desc: 'Admin lager utbetalingspost for måneden.',
             params: {},
-            viewUrl: () => '/admin/utbetalinger',
+            viewUrl: () => '/admin/payouts',
             expect: (s) => [
               ['payouts exist', s.payouts?.length >= 1, true],
               ['payout.status', s.payouts?.[0]?.status, 'pending'],
@@ -892,7 +892,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Nora markerer utbetalt',
             desc: 'Admin bekrefter betaling til Kari.',
             params: { payout_id: '$generate-payouts.first_payout_id' },
-            viewUrl: () => '/admin/utbetalinger',
+            viewUrl: () => '/admin/payouts',
             expect: (s) => [
               ['payout.status', s.payouts?.some(p => p.status === 'paid'), true],
             ],
@@ -943,7 +943,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             id: 'setup-nora', actor: 'nora', action: 'set-role',
             label: 'Nora = admin', desc: 'Admin tar over.',
             params: { role: 'admin' },
-            viewUrl: (r) => `/admin/brukere/${r?.user_id}`,
+            viewUrl: (r) => `/admin/users/${r?.user_id}`,
             expect: (s) => [['nora.role', s.profiles?.['nora@test.strikketorget.no']?.role, 'admin']],
           },
           {
@@ -980,7 +980,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Brukt barnegenser legges ut som utkast.',
             params: { title: 'Strikket genser str 2 år', kind: 'pre_loved', category: 'genser', size_label: '2 år', price_nok: 349, condition: 'lite_brukt', description: 'Vakker strikket genser i merinoull. Brukt én sesong.' },
             editable: ['title', 'price_nok'],
-            viewUrl: (r) => `/marked/listing/${r?.id}`,
+            viewUrl: (r) => `/market/listing/${r?.id}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'draft'],
             ],
@@ -990,7 +990,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Publiser annonse',
             desc: 'Annonsen blir aktiv og synlig.',
             params: { listing_id: '$create-listing.id' },
-            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            viewUrl: () => `/market/listing/${resolve('create-listing', 'id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'active'],
             ],
@@ -1007,7 +1007,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
               buyer_city: 'Oslo',
             },
             editable: ['buyer_name', 'buyer_address', 'buyer_postal_code', 'buyer_city'],
-            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            viewUrl: () => `/market/listing/${resolve('create-listing', 'id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'reserved'],
               ['buyer_id set', !!s.listing?.buyer_id, true],
@@ -1022,7 +1022,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Eline pakker og sender med sporingskode.',
             params: { listing_id: '$create-listing.id', tracking_code: 'POSTEN-98765' },
             editable: ['tracking_code'],
-            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            viewUrl: () => `/market/listing/${resolve('create-listing', 'id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'shipped'],
               ['tracking_code', s.listing?.tracking_code, 'POSTEN-98765'],
@@ -1034,7 +1034,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             label: 'Liv bekrefter mottak',
             desc: 'Liv har mottatt varen. Betalingen frigis til Eline.',
             params: { listing_id: '$create-listing.id' },
-            viewUrl: () => `/marked/listing/${resolve('create-listing', 'id')}`,
+            viewUrl: () => `/market/listing/${resolve('create-listing', 'id')}`,
             expect: (s) => [
               ['listing.status', s.listing?.status, 'sold'],
               ['delivered_at set', !!s.listing?.delivered_at, true],
@@ -1046,7 +1046,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Kjøper vurderer selger etter mottak.',
             params: { listing_id: '$create-listing.id', rating: 5, comment: 'Fantastisk kvalitet, nydelig genser! Rask levering.' },
             editable: ['rating', 'comment'],
-            viewUrl: () => `/marked/selger/${resolve('setup-seller', 'user_id')}`,
+            viewUrl: () => `/market/seller/${resolve('setup-seller', 'user_id')}`,
             expect: (s) => [
               ['seller_reviews.length', s.seller_reviews?.length, 1],
               ['review.rating', s.seller_reviews?.[0]?.rating, 5],

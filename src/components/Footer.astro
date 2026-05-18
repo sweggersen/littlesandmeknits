@@ -57,12 +57,12 @@ const year = new Date().getFullYear();
       </h4>
       <ul class="space-y-2.5 text-sm">
         <li>
-          <a href="/studio/prosjekter" class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href="/studio/projects" class="text-linen/80 hover:text-terracotta-500 transition-colors">
             {t('footer.studio.projects')}
           </a>
         </li>
         <li>
-          <a href="/studio/garn" class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href="/studio/yarn" class="text-linen/80 hover:text-terracotta-500 transition-colors">
             {t('footer.studio.stash')}
           </a>
         </li>
@@ -96,8 +96,8 @@ const year = new Date().getFullYear();
   <div class="max-w-7xl mx-auto px-6 pb-8 sm:pb-10 pt-5 sm:pt-6 border-t border-linen/10 flex flex-col sm:flex-row justify-between gap-3 text-[10px] font-medium tracking-widest uppercase text-linen/30">
     <span>&copy; {year} Littles and Me</span>
     <div class="flex gap-5">
-      <a href={localizedPath(lang, '/personvern')} class="hover:text-linen transition-colors">{t('footer.legal.privacy')}</a>
-      <a href={localizedPath(lang, '/vilkar')} class="hover:text-linen transition-colors">{t('footer.legal.terms')}</a>
+      <a href={localizedPath(lang, '/privacy')} class="hover:text-linen transition-colors">{t('footer.legal.privacy')}</a>
+      <a href={localizedPath(lang, '/terms')} class="hover:text-linen transition-colors">{t('footer.legal.terms')}</a>
     </div>
   </div>
 </footer>

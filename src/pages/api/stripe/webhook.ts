@@ -154,7 +154,7 @@ export const POST: APIRoute = async ({ request }) => {
           type: 'listing_purchased',
           title: 'Varen din er solgt!',
           body: `Noen har kjøpt «${listingData.title}». Send varen og legg inn sporingskode.`,
-          url: `/marked/listing/${purchaseListingId}`,
+          url: `/market/listing/${purchaseListingId}`,
           actorId: buyerId,
           referenceId: purchaseListingId,
         }, { RESEND_API_KEY: env.RESEND_API_KEY, PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, PUBLIC_VAPID_KEY: env.PUBLIC_VAPID_KEY, VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY });

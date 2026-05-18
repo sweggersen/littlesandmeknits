@@ -28,7 +28,7 @@ export async function createPayoutBatch(
     .select('user_id, current_month_reviews, current_month_earned_nok')
     .gt('current_month_reviews', 0);
 
-  if (!stats?.length) return ok({ redirect: '/admin/utbetalinger' });
+  if (!stats?.length) return ok({ redirect: '/admin/payouts' });
 
   const payouts = stats.map((s) => ({
     moderator_id: s.user_id,
@@ -44,7 +44,7 @@ export async function createPayoutBatch(
     current_month_reviews: 0, current_month_earned_nok: 0,
   }).gt('current_month_reviews', 0);
 
-  return ok({ redirect: '/admin/utbetalinger' });
+  return ok({ redirect: '/admin/payouts' });
 }
 
 export async function markPaid(
@@ -60,5 +60,5 @@ export async function markPaid(
     status: 'paid', paid_at: new Date().toISOString(),
   }).eq('id', input.payoutId).eq('status', 'pending');
 
-  return ok({ redirect: '/admin/utbetalinger' });
+  return ok({ redirect: '/admin/payouts' });
 }

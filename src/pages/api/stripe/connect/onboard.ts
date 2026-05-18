@@ -6,7 +6,7 @@ import { createStripe } from '../../../../lib/stripe';
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const env = import.meta.env;
   const user = await getCurrentUser({ request, cookies });
-  if (!user) return redirect('/logg-inn');
+  if (!user) return redirect('/login');
 
   const stripe = createStripe(env.STRIPE_SECRET_KEY);
   const supabase = createServerSupabase({ request, cookies });
@@ -40,7 +40,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const accountLink = await stripe.accountLinks.create({
     account: accountId,
-    refresh_url: `${env.PUBLIC_SITE_URL}/profil/rediger?stripe=refresh`,
+    refresh_url: `${env.PUBLIC_SITE_URL}/profile/edit?stripe=refresh`,
     return_url: `${env.PUBLIC_SITE_URL}/api/stripe/connect/callback`,
     type: 'account_onboarding',
   });

@@ -11,20 +11,20 @@ const t = useTranslations(lang);
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/';
 
-const section = currentPath.startsWith('/marked')
+const section = currentPath.startsWith('/market')
   ? 'strikketorget'
   : currentPath.startsWith('/studio')
     ? 'strikkestua'
     : 'home';
 
 const regularItems = [
-  { href: localizedPath(lang, '/oppskrifter'), label: t('nav.shop') },
-  { href: localizedPath(lang, '/prosjekter'), label: t('nav.projects') },
-  { href: localizedPath(lang, '/om'), label: t('nav.about') },
+  { href: localizedPath(lang, '/patterns'), label: t('nav.shop') },
+  { href: localizedPath(lang, '/projects'), label: t('nav.projects') },
+  { href: localizedPath(lang, '/about'), label: t('nav.about') },
 ];
 
 const sectionItems = [
-  { href: localizedPath(lang, '/marked'), label: t('nav.marketplace'), authOnly: false },
+  { href: localizedPath(lang, '/market'), label: t('nav.marketplace'), authOnly: false },
   { href: '/studio', label: t('nav.studio'), authOnly: false },
 ];
 
@@ -35,7 +35,7 @@ const brandName = section === 'strikketorget'
     : 'Littles and Me Knits';
 
 const brandHref = section === 'strikketorget'
-  ? '/marked'
+  ? '/market'
   : section === 'strikkestua'
     ? '/studio'
     : localizedPath(lang, '/');
@@ -107,21 +107,21 @@ const brandHref = section === 'strikketorget'
           <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-600">Dev</p>
           <a href="/dev/login" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Dev login</a>
           <a href="/dev/test-tower" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Test tower</a>
-          <a href="/marked/test-panel" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Marked test panel</a>
+          <a href="/market/test-panel" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Marked test panel</a>
           <hr class="my-1 border-sage-500/10" />
           <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/35">Admin</p>
           <a href="/admin" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Dashboard</a>
-          <a href="/admin/moderering" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Moderering</a>
-          <a href="/admin/brukere" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Brukere</a>
-          <a href="/admin/rapporter" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Rapporter</a>
-          <a href="/admin/tvister" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Tvister</a>
-          <a href="/admin/utbetalinger" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Utbetalinger</a>
-          <a href="/admin/moderatorer" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Moderatorer</a>
-          <a href="/admin/logg" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Aktivitetslogg</a>
+          <a href="/admin/moderation" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Moderering</a>
+          <a href="/admin/users" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Brukere</a>
+          <a href="/admin/reports" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Rapporter</a>
+          <a href="/admin/disputes" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Tvister</a>
+          <a href="/admin/payouts" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Utbetalinger</a>
+          <a href="/admin/moderators" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Moderatorer</a>
+          <a href="/admin/log" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50 hover:text-charcoal">Aktivitetslogg</a>
         </div>
       </div>
       <a
-        href="/varsler"
+        href="/notifications"
         class="hidden sm:inline-flex relative p-1.5 text-charcoal/50 hover:text-charcoal transition-colors"
         data-auth-link="notifications"
         data-bell
@@ -139,7 +139,7 @@ const brandHref = section === 'strikketorget'
         </span>
       </a>
       <a
-        href="/profil"
+        href="/profile"
         class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
         data-auth-link="profile"
         style="display:none;"
@@ -149,7 +149,7 @@ const brandHref = section === 'strikketorget'
         <span data-profile-badge class="hidden w-2 h-2 rounded-full bg-terracotta-500 shrink-0"></span>
       </a>
       <a
-        href={localizedPath(lang, '/logg-inn')}
+        href={localizedPath(lang, '/login')}
         class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
         data-auth-link="login"
       >
@@ -198,14 +198,14 @@ const brandHref = section === 'strikketorget'
         </li>
       ))}
       <li class="hidden" data-auth-link="notifications">
-        <a href="/varsler" class="flex items-center gap-2 py-2 text-base font-medium text-charcoal/80">
+        <a href="/notifications" class="flex items-center gap-2 py-2 text-base font-medium text-charcoal/80">
           Varsler
           <span data-notif-badge-mobile class="hidden min-w-[16px] h-4 px-1 rounded-full bg-terracotta-500 text-white text-[10px] font-bold inline-flex items-center justify-center">0</span>
           <span data-mod-badge-mobile class="hidden min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold inline-flex items-center justify-center">0</span>
         </a>
       </li>
       <li class="hidden" data-auth-link="profile">
-        <a href="/profil" class="block py-2 text-base font-medium text-charcoal/80">
+        <a href="/profile" class="block py-2 text-base font-medium text-charcoal/80">
           Min profil
         </a>
       </li>
@@ -215,7 +215,7 @@ const brandHref = section === 'strikketorget'
         </a>
       </li>
       <li data-auth-link="login">
-        <a href={localizedPath(lang, '/logg-inn')} class="block py-2 text-base font-medium text-charcoal/80">
+        <a href={localizedPath(lang, '/login')} class="block py-2 text-base font-medium text-charcoal/80">
           {t('nav.login')}
         </a>
       </li>

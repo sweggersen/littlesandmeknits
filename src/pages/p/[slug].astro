@@ -80,7 +80,7 @@ const statusClass = {
 const siteUrl = import.meta.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
 const canonical = `${siteUrl}/p/${p.public_slug}`;
 // Use the hero photo directly for link previews. Branded share cards are
-// rendered client-side from the studio (see /studio/prosjekter/[id].astro)
+// rendered client-side from the studio (see /studio/projects/[id].astro)
 // to keep Cloudflare Workers' CPU budget out of the loop.
 const ogCardUrl = heroUrl ?? null;
 ---
@@ -135,7 +135,7 @@ const ogCardUrl = heroUrl ?? null;
           <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
           <dd>
             {patternEntry ? (
-              <a href={`/oppskrifter/${p.pattern_slug}`} class="text-terracotta-500 hover:underline">
+              <a href={`/patterns/${p.pattern_slug}`} class="text-terracotta-500 hover:underline">
                 {patternLabel}
               </a>
             ) : patternLabel}
@@ -203,7 +203,7 @@ const ogCardUrl = heroUrl ?? null;
   <div class="text-center mt-16 pt-12 border-t border-sage-500/15">
     <p class="text-charcoal/60 mb-4 font-serif text-lg italic">Liker du dette prosjektet?</p>
     <a
-      href="/oppskrifter"
+      href="/patterns"
       class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
     >
       Bla gjennom oppskriftene

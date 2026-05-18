@@ -81,7 +81,7 @@ async function resolveListingDispute(
       body: refunded
         ? `Betalingen for «${listing.title}» er refundert.`
         : `Betalingen for «${listing.title}» er frigitt til selger.`,
-      url: `/marked/listing/${listingId}`,
+      url: `/market/listing/${listingId}`,
       referenceId: listingId,
     }, ctx.env);
   }
@@ -93,7 +93,7 @@ async function resolveListingDispute(
       body: refunded
         ? `Tvisten på «${listing.title}» er løst. Betalingen er refundert til kjøper.`
         : `Tvisten på «${listing.title}» er løst. Betalingen er frigitt til deg.`,
-      url: `/marked/listing/${listingId}`,
+      url: `/market/listing/${listingId}`,
       referenceId: listingId,
     }, ctx.env);
   }
@@ -106,7 +106,7 @@ async function resolveListingDispute(
     details: { decision, notes: notes?.trim() },
   });
 
-  return ok({ redirect: '/admin/tvister' });
+  return ok({ redirect: '/admin/disputes' });
 }
 
 async function resolveCommissionDispute(
@@ -155,7 +155,7 @@ async function resolveCommissionDispute(
       body: refunded
         ? `Betalingen for «${req.title}» er refundert.`
         : `Betalingen for «${req.title}» er frigitt til strikkeren.`,
-      url: `/marked/oppdrag/${requestId}`,
+      url: `/market/commissions/${requestId}`,
       referenceId: requestId,
     }, ctx.env);
   }
@@ -167,7 +167,7 @@ async function resolveCommissionDispute(
       body: refunded
         ? `Tvisten på «${req.title}» er løst. Betalingen er refundert til kjøper.`
         : `Tvisten på «${req.title}» er løst. Betalingen er frigitt til deg.`,
-      url: `/marked/oppdrag/${requestId}`,
+      url: `/market/commissions/${requestId}`,
       referenceId: requestId,
     }, ctx.env);
   }
@@ -180,5 +180,5 @@ async function resolveCommissionDispute(
     details: { decision, notes: notes?.trim() },
   });
 
-  return ok({ redirect: '/admin/tvister' });
+  return ok({ redirect: '/admin/disputes' });
 }

@@ -1,0 +1,474 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ProfileAvatar from '../../components/ProfileAvatar.astro';
+import ListingCard from '../../components/ListingCard.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import EmptyState from '../../components/EmptyState.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
+import { getEntry } from 'astro:content';
+import { formatNok } from '../../lib/format';
+import { KIND_LABEL, PROJECT_STATUS, CATEGORY_LABEL, COMMISSION_STATUS, OFFER_STATUS } from '../../lib/labels';
+import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../../lib/achievements';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/profile');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [
+  { data: profile },
+  { data: listings },
+  { data: projects },
+  { data: myRequests },
+  { data: myOffers },
+  { data: unreadMessages },
+  { data: purchases },
+  { data: externalPatterns },
+] = await Promise.all([
+  supabase
+    .from('profiles')
+    .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, role')
+    .eq('id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('listings')
+    .select('id, title, price_nok, status, kind, hero_photo_path')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('projects')
+    .select('id, title, status, hero_photo_path, current_rows, target_rows, commission_offer_id, commission_offers(price_nok, commission_requests!commission_offers_request_id_fkey(title, buyer_id, profiles!commission_requests_buyer_id_fkey(display_name)))')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('commission_requests')
+    .select('id, title, category, status, offer_count, budget_nok_min, budget_nok_max')
+    .eq('buyer_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('commission_offers')
+    .select('id, price_nok, turnaround_weeks, status, request_id, commission_requests!commission_offers_request_id_fkey(id, title, status)')
+    .eq('knitter_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('marketplace_messages')
+    .select('id, conversation_id')
+    .is('read_at', null)
+    .neq('sender_id', user.id)
+    .limit(100),
+  supabase
+    .from('purchases')
+    .select('id, pattern_slug, amount_nok, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5),
+  supabase
+    .from('external_patterns')
+    .select('id, title, designer, cover_path, file_path, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5),
+]);
+
+const allPurchases = await Promise.all(
+  (purchases ?? []).map(async (p: any) => {
+    const entry = await getEntry('patterns', p.pattern_slug);
+    return { ...p, title: entry?.data.title.nb ?? p.pattern_slug };
+  })
+);
+
+const allBibliotek = externalPatterns ?? [];
+
+const userRole = profile?.role as string | null;
+const isAdmin = userRole === 'admin';
+const isModerator = userRole === 'moderator';
+const isStaff = isAdmin || isModerator;
+
+const earnedWithDates = await getUserAchievementsWithDates(supabase, user.id);
+const earnedKeys = earnedWithDates.map(e => e.key);
+const visibleAchievements = ACHIEVEMENTS.filter(a => isStaff || a.category !== 'moderering');
+const totalEarned = earnedKeys.length;
+
+const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
+const recentAchievements = earnedWithDates
+  .filter(e => e.granted_at >= sevenDaysAgo)
+  .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
+  .slice(0, 6)
+  .map(e => ACHIEVEMENT_MAP.get(e.key))
+  .filter(Boolean);
+
+let pendingQueueCount = 0;
+if (isStaff) {
+  const { count } = await supabase
+    .from('moderation_queue')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['pending', 'escalated']);
+  pendingQueueCount = count ?? 0;
+}
+
+const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
+const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? 'Anonym';
+const initial = displayName[0]?.toUpperCase() ?? '?';
+
+const allListings = listings ?? [];
+const allProjects = projects ?? [];
+const allRequests = myRequests ?? [];
+const allOffers = myOffers ?? [];
+const unreadCount = (unreadMessages ?? []).length;
+
+const activeProjects = allProjects.filter(p => p.status === 'active').length;
+const pendingOffers = allOffers.filter(o => o.status === 'pending').length;
+const acceptedOffers = allOffers.filter(o => o.status === 'accepted').length;
+const awaitingPayment = allRequests.filter(r => r.status === 'awaiting_payment').length;
+
+const subtitleParts: string[] = [];
+if (unreadCount > 0) subtitleParts.push(`${unreadCount} ulest${unreadCount === 1 ? '' : 'e'} melding${unreadCount === 1 ? '' : 'er'}`);
+if (awaitingPayment > 0) subtitleParts.push(`${awaitingPayment} venter på betaling`);
+if (acceptedOffers > 0) subtitleParts.push(`${acceptedOffers} akseptert${acceptedOffers === 1 ? '' : 'e'} tilbud`);
+if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ventende tilbud`);
+if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
+if (subtitleParts.length === 0) subtitleParts.push('Alt i orden');
+
+
+function isPdf(path: string | null): boolean {
+  return !!path && path.toLowerCase().endsWith('.pdf');
+}
+---
+
+<Layout title="Min profil — Littles and Me Knits" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+      <!-- Profile header -->
+      <div class="flex items-center gap-5 mb-10">
+        <ProfileAvatar url={avatarUrl} name={displayName} size="xl" />
+        <div class="min-w-0">
+          <h1 class="font-serif text-3xl truncate">{displayName}</h1>
+          <p class="text-sm text-charcoal/55 mt-0.5">{subtitleParts.join(' · ')}</p>
+        </div>
+        <a href="/profile/edit" class="shrink-0 ml-auto text-sm font-medium text-charcoal/45 hover:text-terracotta-500 transition-colors">
+          Rediger profil
+        </a>
+      </div>
+
+      {/* Admin / Moderator panel */}
+      {isStaff && (
+        <div class="mb-10 bg-white rounded-2xl border border-sage-500/10 p-5">
+          <div class="flex items-center gap-2 mb-4">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{isAdmin ? 'Admin' : 'Moderator'}</span>
+            {pendingQueueCount > 0 && (
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{pendingQueueCount}</span>
+            )}
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <a href="/admin" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+              <p class="text-sm font-medium">Dashboard</p>
+              <p class="text-[10px] text-charcoal/45">Oversikt</p>
+            </a>
+            <a href="/admin/moderation" class:list={[
+              "bg-linen rounded-xl p-3 text-center transition-colors relative",
+              pendingQueueCount > 0 ? "ring-2 ring-amber-500/40 hover:ring-amber-500/60" : "hover:bg-sage-100/50",
+            ]}>
+              <p class="text-sm font-medium">Modereringskø</p>
+              {pendingQueueCount > 0 ? (
+                <div class="flex items-center justify-center gap-1.5 mt-0.5">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                  </span>
+                  <p class="text-[11px] text-amber-600 font-bold">{pendingQueueCount} venter</p>
+                </div>
+              ) : (
+                <p class="text-[10px] text-charcoal/45">Ingen ventende</p>
+              )}
+            </a>
+            <a href="/admin/reports" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+              <p class="text-sm font-medium">Rapporter</p>
+              <p class="text-[10px] text-charcoal/45">Flagget innhold</p>
+            </a>
+            {isAdmin && (
+              <>
+                <a href="/admin/users" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+                  <p class="text-sm font-medium">Brukere</p>
+                  <p class="text-[10px] text-charcoal/45">Roller og tillit</p>
+                </a>
+                <a href="/admin/moderators" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+                  <p class="text-sm font-medium">Moderatorer</p>
+                  <p class="text-[10px] text-charcoal/45">Ytelse og stats</p>
+                </a>
+                <a href="/admin/log" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+                  <p class="text-sm font-medium">Aktivitetslogg</p>
+                  <p class="text-[10px] text-charcoal/45">Revisjon</p>
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {recentAchievements.length > 0 && (
+        <section class="mb-10">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Nye merker</h2>
+            <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle merker ({totalEarned}/{visibleAchievements.length}) →</a>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {recentAchievements.map(a => (
+              <div class="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-white border-sage-500/20 text-charcoal" title={a.description}>
+                <span>{a.emoji}</span>
+                <span>{a.label}</span>
+                <span class="ml-0.5 text-[8px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 px-1.5 py-0.5 rounded-full">NY</span>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-charcoal text-linen text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                  {a.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <!-- Two-column staggered layout -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-10">
+
+        <!-- Messages -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">
+              Meldinger
+              {unreadCount > 0 && (
+                <span class="inline-flex items-center justify-center ml-1.5 w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{unreadCount}</span>
+              )}
+            </h2>
+            <a href="/market/messages" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+          </div>
+          {unreadCount === 0 ? (
+            <p class="text-sm text-charcoal/45">Ingen uleste meldinger.</p>
+          ) : (
+            <a href="/market/messages" class="block bg-white rounded-xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+              <p class="text-sm font-medium">{unreadCount} ulest{unreadCount === 1 ? '' : 'e'} melding{unreadCount === 1 ? '' : 'er'}</p>
+              <p class="text-xs text-charcoal/45 mt-1">Åpne innboksen for å svare.</p>
+            </a>
+          )}
+        </section>
+
+        <!-- Oppdrag -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Oppdrag</h2>
+            <a href="/market/commissions/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+          </div>
+          {allRequests.length === 0 && allOffers.length === 0 ? (
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen aktive oppdrag.</p>
+              <a href="/market/commissions" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                Se forespørsler →
+              </a>
+            </div>
+          ) : (
+            <div class="space-y-2">
+              {allRequests.slice(0, 3).map((r) => (
+                <a href={`/market/commissions/${r.id}`} class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500/70">Bestiller</span>
+                      <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
+                      <span class:list={[
+                        'text-[9px] font-bold uppercase tracking-widest',
+                        r.status === 'open' ? 'text-sage-700' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                      ]}>{COMMISSION_STATUS[r.status]}</span>
+                    </div>
+                    <p class="text-sm font-medium line-clamp-1">{r.title}</p>
+                  </div>
+                  <p class="font-mono tabular-nums text-xs shrink-0">{r.budget_nok_min}–{r.budget_nok_max}</p>
+                </a>
+              ))}
+              {allOffers.slice(0, 3).map((o) => {
+                const reqData = (o as any).commission_requests;
+                if (!reqData) return null;
+                return (
+                  <a href={`/market/commissions/${reqData.id}`} class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5 mb-0.5">
+                        <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">Strikker</span>
+                        <span class:list={[
+                          'text-[9px] font-bold uppercase tracking-widest',
+                          o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/35',
+                        ]}>{OFFER_STATUS[o.status]}</span>
+                      </div>
+                      <p class="text-sm font-medium line-clamp-1">{reqData.title}</p>
+                    </div>
+                    <p class="font-mono tabular-nums text-xs shrink-0">{o.price_nok} NOK</p>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <!-- Kjøpte oppskrifter -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
+            <div class="flex items-center gap-3">
+              <a href="/patterns" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Kjøp →</a>
+              {allPurchases.length > 0 && (
+                <a href="/profile/purchases" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              )}
+            </div>
+          </div>
+          {allPurchases.length === 0 ? (
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen kjøpte oppskrifter.</p>
+              <a href="/patterns" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                Se oppskrifter →
+              </a>
+            </div>
+          ) : (
+            <div class="space-y-2">
+              {allPurchases.map((p: any) => (
+                <div class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium line-clamp-1">{p.title}</p>
+                    <p class="text-[11px] text-charcoal/45 mt-0.5">
+                      {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
+                    </p>
+                  </div>
+                  <a href={`/api/download/${p.id}`} target="_blank" rel="noopener"
+                    class="shrink-0 bg-charcoal text-linen px-3 py-1.5 rounded-full text-[11px] font-medium hover:bg-terracotta-500 transition-colors">
+                    Last ned
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <!-- Bibliotek -->
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Bibliotek</h2>
+            <div class="flex items-center gap-3">
+              <a href="/profile/library/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny →</a>
+              {allBibliotek.length > 0 && (
+                <a href="/profile/library" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              )}
+            </div>
+          </div>
+          {allBibliotek.length === 0 ? (
+            <div class="text-center py-2">
+              <p class="text-sm text-charcoal/45 mb-3">Ingen oppskrifter i biblioteket.</p>
+              <a href="/profile/library/new" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                Last opp oppskrift →
+              </a>
+            </div>
+          ) : (
+            <div class="grid grid-cols-3 gap-2">
+              {allBibliotek.map((pat: any) => {
+                const cover = projectPhotoUrl(pat.cover_path);
+                return (
+                  <a href={`/profile/library/${pat.id}`} class="block rounded-xl overflow-hidden hover:opacity-90 transition-opacity">
+                    {cover ? (
+                      <img src={cover} alt={pat.title} class="aspect-[3/4] object-cover w-full rounded-xl" loading="lazy" />
+                    ) : (
+                      <div class="aspect-[3/4] bg-gradient-to-br from-sage-100 to-oatmeal rounded-xl flex items-center justify-center">
+                        <span class="font-serif text-lg text-sage-900/50">{isPdf(pat.file_path) ? 'PDF' : '✎'}</span>
+                      </div>
+                    )}
+                    <p class="text-[11px] font-medium line-clamp-1 mt-1.5">{pat.title}</p>
+                  </a>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <!-- Prosjekter (full width) -->
+        <section class="md:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Prosjekter</h2>
+            <div class="flex items-center gap-3">
+              <a href="/studio/projects/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Nytt →</a>
+              {allProjects.length > 0 && (
+                <a href="/studio/projects" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
+              )}
+            </div>
+          </div>
+          {allProjects.length === 0 ? (
+            <EmptyState message="Ingen prosjekter ennå." ctaText="Start et prosjekt →" ctaHref="/studio/projects/new" compact />
+          ) : (
+            <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {allProjects.map((p) => {
+                const isCommission = !!p.commission_offer_id;
+                const commissionData = isCommission ? (p as any).commission_offers : null;
+                const reqData = commissionData?.commission_requests;
+                const buyerName = reqData?.profiles?.display_name;
+                return (
+                  <ProjectCard
+                    id={p.id}
+                    title={p.title}
+                    status={p.status}
+                    heroPhotoPath={p.hero_photo_path}
+                    compact
+                    isCommission={isCommission}
+                    buyerName={buyerName}
+                  />
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <!-- Annonser (full width) -->
+        <section class="md:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Mine annonser</h2>
+            <div class="flex items-center gap-3">
+              <a href="/market/listing/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny →</a>
+              {allListings.length > 0 && (
+                <a href="/market/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              )}
+            </div>
+          </div>
+          {allListings.length === 0 ? (
+            <EmptyState message="Du har ingen annonser ennå." ctaText="Opprett annonse →" ctaHref="/market/listing/new" compact />
+          ) : (
+            <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {allListings.map((l) => (
+                <ListingCard
+                  id={l.id}
+                  title={l.title}
+                  price={l.price_nok}
+                  imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                  meta={KIND_LABEL[l.kind]}
+                />
+              ))}
+            </ul>
+          )}
+        </section>
+
+      </div>
+
+      <!-- Account links -->
+      <div class="mt-8 pt-6 border-t border-sage-500/10 flex flex-wrap gap-4">
+        <a href="/profile/edit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger profil →</a>
+        <a href={`/market/seller/${user.id}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Offentlig profil →</a>
+        <a href="/market/favorites" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine favoritter →</a>
+        <a href="/profile/badges" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Merker ({totalEarned}/{visibleAchievements.length}) →</a>
+        <a href="/innstillinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Innstillinger →</a>
+        <form method="post" action="/api/auth/signout" data-signout-form class="inline">
+          <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Logg ut →</button>
+        </form>
+      </div>
+      <script is:inline>
+        document.querySelector('[data-signout-form]')?.addEventListener('submit', function() {
+          sessionStorage.removeItem('lm-auth');
+        });
+      </script>
+
+    </div>
+  </div>
+</Layout>

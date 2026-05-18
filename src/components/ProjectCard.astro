@@ -44,7 +44,7 @@ const statusClass: Record<string, string> = {
 
 <li>
   {compact ? (
-    <a href={`/studio/prosjekter/${id}`} class:list={[
+    <a href={`/studio/projects/${id}`} class:list={[
       'block bg-white rounded-xl border transition-colors overflow-hidden',
       isCommission ? 'border-terracotta-500/20 hover:border-terracotta-500/40' : 'border-sage-500/10 hover:border-sage-500/30',
     ]}>
@@ -70,7 +70,7 @@ const statusClass: Record<string, string> = {
     </a>
   ) : (
     <a
-      href={`/studio/prosjekter/${id}`}
+      href={`/studio/projects/${id}`}
       class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
     >
       {heroUrl ? (
