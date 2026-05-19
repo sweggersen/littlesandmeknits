@@ -44,15 +44,20 @@ const brandHref = section === 'strikketorget'
 <nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-8">
-      <a href={brandHref} class="group min-w-[180px]" transition:name="brand-logo">
-        <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
-          {brandName}
-        </span>
-        {section !== 'home' && (
-          <span class="block font-serif text-[11px] text-charcoal/35 group-hover:text-terracotta-500/50 transition-colors">
-            by Littles and Me Knits
-          </span>
+      <a href={brandHref} class="group min-w-[180px] flex items-center gap-2.5" transition:name="brand-logo">
+        {section === 'strikketorget' && (
+          <img src="/strikketorget-icon.svg" alt="" width="56" height="56" class="shrink-0 group-hover:opacity-90 transition-opacity" />
         )}
+        <span class="flex flex-col leading-tight">
+          <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
+            {brandName}
+          </span>
+          {section !== 'home' && (
+            <span class="font-serif text-[11px] text-charcoal/35 group-hover:text-terracotta-500/50 transition-colors">
+              by Littles and Me Knits
+            </span>
+          )}
+        </span>
       </a>
       <div class="hidden lg:flex items-center gap-1">
         {regularItems.map((item) => {

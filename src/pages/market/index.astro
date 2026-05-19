@@ -46,12 +46,13 @@ if (user) {
 
 <Layout title="Strikketorget — Littles and Me Knits" lang="nb">
   <MarketplaceShell current="home">
-      <div class="mb-10">
-        <h1 class="font-serif text-4xl sm:text-5xl mb-3">Strikketorget</h1>
-        <p class="text-charcoal/55 max-w-lg mb-6">
+      <div class="mb-10 flex flex-col items-center text-center">
+        <img src="/strikketorget-icon.svg" alt="" width="240" height="240" class="shrink-0 -mb-6 -mt-6" />
+        <h1 class="font-serif text-4xl sm:text-5xl mb-2">Strikketorget</h1>
+        <p class="text-charcoal/55 max-w-lg mb-5">
           Kjøp brukt og nytt strikket fra fellesskapet, eller bestill at noen strikker for deg.
         </p>
-        <form action="/market/used" method="get" class="relative max-w-md">
+        <form action="/market/used" method="get" class="relative w-full max-w-md">
           <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-charcoal/30 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" name="q" placeholder="Søk etter plagg, garn, størrelse..."
             class="w-full bg-white rounded-full pl-11 pr-5 py-3 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none shadow-sm" />
