@@ -81,10 +81,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     return ctx.redirect('/market');
   }
 
-  if (path.startsWith('/admin')) {
+  if (path.startsWith('/admin') || path.startsWith('/studio') || path.startsWith('/profile')) {
     const { getCurrentUser } = await import('./lib/auth');
     const user = await getCurrentUser({ request: ctx.request, cookies: ctx.cookies });
-    if (!user) return ctx.redirect('/login');
+    if (!user) return ctx.redirect(`/login?next=${encodeURIComponent(path)}`);
   }
 
   return next();
