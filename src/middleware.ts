@@ -1,6 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 
 const STRIKKETORGET_HOSTS = ['strikketorget.no', 'www.strikketorget.no'];
+const LITTLES_HOSTS = ['littlesandmeknits.com', 'www.littlesandmeknits.com'];
 
 // Legacy Norwegian path segments → English. Applied left-to-right as URL segments.
 // Kept here (not in routing) so old notification URLs / bookmarks 301 to the
@@ -65,6 +66,15 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (rewritten) {
     const target = rewritten + ctx.url.search;
     return new Response(null, { status: 301, headers: { Location: target } });
+  }
+
+  // Move the marketplace off of littlesandmeknits.com onto its own domain.
+  // /market and /market/* on the main site 301 to strikketorget.no.
+  if (LITTLES_HOSTS.includes(host) && (path === '/market' || path.startsWith('/market/'))) {
+    return new Response(null, {
+      status: 301,
+      headers: { Location: `https://strikketorget.no${path}${ctx.url.search}` },
+    });
   }
 
   if (isStrikketorget && path === '/') {
