@@ -46,18 +46,44 @@ if (user) {
 
 <Layout title="Strikketorget — Littles and Me Knits" lang="nb">
   <MarketplaceShell current="home">
-      <div class="mb-10 flex flex-col items-center text-center">
-        <img src="/strikketorget-icon.svg" alt="" width="240" height="240" class="shrink-0 -mb-6 -mt-6" />
+      <div class="mb-4 sm:mb-6 flex flex-col items-center text-center">
+        <img src="/strikketorget-icon.svg" alt="" width="240" height="240" class="shrink-0 -mb-4 -mt-4 sm:-mb-6 sm:-mt-6 w-40 h-40 sm:w-60 sm:h-60" />
         <h1 class="font-serif text-4xl sm:text-5xl mb-2">Strikketorget</h1>
-        <p class="text-charcoal/55 max-w-lg mb-5">
+        <p class="text-charcoal/55 max-w-lg">
           Kjøp brukt og nytt strikket fra fellesskapet, eller bestill at noen strikker for deg.
         </p>
+      </div>
+
+      <div class="sticky top-[116px] z-30 sm:static sm:top-auto -mx-4 px-4 sm:mx-0 sm:px-0 pt-2 pb-3 sm:py-0 mb-6 sm:mb-10 bg-linen/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none flex justify-center transition-transform duration-300 ease-out" data-hide-on-scroll>
         <form action="/market/used" method="get" class="relative w-full max-w-md">
           <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-charcoal/30 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" name="q" placeholder="Søk etter plagg, garn, størrelse..."
             class="w-full bg-white rounded-full pl-11 pr-5 py-3 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none shadow-sm" />
         </form>
       </div>
+
+      <!-- Sentinel: once it scrolls out of view, the search has been passed.
+           Until then we don't engage the scroll-direction hide logic. -->
+      <div data-sticky-sentinel aria-hidden="true" class="h-0 w-0"></div>
+
+      <script>
+        function initStickySentinel() {
+          const sentinel = document.querySelector<HTMLElement>('[data-sticky-sentinel]');
+          if (!sentinel) return;
+          const obs = new IntersectionObserver(
+            ([entry]) => {
+              if (entry.isIntersecting) {
+                document.body.removeAttribute('data-past-anchor');
+              } else if (entry.boundingClientRect.top < 0) {
+                document.body.setAttribute('data-past-anchor', 'true');
+              }
+            },
+            { rootMargin: '-120px 0px 0px 0px', threshold: 0 },
+          );
+          obs.observe(sentinel);
+        }
+        document.addEventListener('astro:page-load', initStickySentinel);
+      </script>
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-12">
         <a href="/market/used" class="group relative block overflow-hidden rounded-3xl p-6 pb-8 border border-sage-500/10 hover:border-terracotta-500/30 transition-all hover:shadow-md bg-gradient-to-br from-oatmeal/60 to-white">

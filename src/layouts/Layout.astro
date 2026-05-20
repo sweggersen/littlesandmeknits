@@ -39,7 +39,53 @@ const faviconHref = isMarket ? '/strikketorget-favicon.svg' : '/favicon.svg';
     <ClientRouter />
     <style is:inline>
       ::view-transition-group(*) { animation-duration: 150ms; }
+
+      /* Mobile reveal-on-scroll-up:
+         - In the hero (no data-past-anchor): sticky bars visible naturally.
+         - Past the search anchor: bars are HIDDEN by default. Only visible
+           while the user is actively scrolling up (data-scroll-state="up"). */
+      @media (max-width: 639px) {
+        [data-hide-on-scroll] {
+          will-change: transform;
+        }
+        body[data-past-anchor="true"] [data-hide-on-scroll] {
+          transform: translateY(-240px);
+        }
+        body[data-past-anchor="true"][data-scroll-state="up"] [data-hide-on-scroll] {
+          transform: translateY(0);
+        }
+      }
     </style>
+    <script is:inline>
+      // Scroll-direction hide on mobile. Attached once on window so it
+      // persists across Astro view transitions (which only swap body).
+      (function () {
+        if (window.__scrollDirAttached) return;
+        window.__scrollDirAttached = true;
+        var lastY = 0;
+        var ticking = false;
+        function update() {
+          var b = document.body;
+          if (!b) { ticking = false; return; }
+          var y = window.scrollY || 0;
+          var delta = y - lastY;
+          if (y < 120) {
+            b.removeAttribute('data-scroll-state');
+          } else if (delta > 4) {
+            b.setAttribute('data-scroll-state', 'down');
+          } else if (delta < -4) {
+            b.setAttribute('data-scroll-state', 'up');
+          }
+          lastY = y;
+          ticking = false;
+        }
+        window.addEventListener('scroll', function () {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(update);
+        }, { passive: true });
+      })();
+    </script>
     <script is:inline>
       // PWA preview mode: visiting any URL with ?pwa=1 (or returning from a
       // page that set it) makes the browser render as if it were in

@@ -44,9 +44,9 @@ const brandHref = section === 'strikketorget'
 <nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-8">
-      <a href={brandHref} class="group min-w-[180px] flex items-center gap-2.5" transition:name="brand-logo">
+      <a href={brandHref} class="group sm:min-w-[180px] flex items-center gap-2.5 min-w-0 max-w-full" transition:name="brand-logo">
         {section === 'strikketorget' && (
-          <img src="/strikketorget-icon.svg" alt="" width="56" height="56" class="shrink-0 group-hover:opacity-90 transition-opacity" />
+          <img src="/strikketorget-icon.svg" alt="" width="64" height="64" class="shrink-0 w-12 h-12 sm:w-16 sm:h-16 group-hover:opacity-90 transition-opacity" />
         )}
         <span class="flex flex-col leading-tight">
           <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
