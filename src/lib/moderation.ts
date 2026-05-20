@@ -177,19 +177,42 @@ export async function applyApproval(
     await admin.from('listings').update({
       status: 'active', published_at: now, reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
+  } else if (qi.item_type === 'store') {
+    // Approve the store. Tag it as a founding member if among the first 20 approved.
+    const { count: approvedSoFar } = await admin
+      .from('stores').select('id', { count: 'exact', head: true })
+      .not('approved_at', 'is', null);
+    const isFoundingMember = (approvedSoFar ?? 0) < 20;
+    await admin.from('stores').update({
+      status: 'active', approved_at: now, reviewed_at: now, reviewed_by: actorId,
+      promo_year_one_free: isFoundingMember,
+    }).eq('id', qi.item_id);
   } else {
     await admin.from('commission_requests').update({
       status: 'open', reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
   }
+  let approvedTitle: string, approvedBody: string, approvedUrl: string;
+  if (qi.item_type === 'listing') {
+    approvedTitle = 'Annonsen din er godkjent!';
+    approvedBody = 'Annonsen er nå synlig på Strikketorget.';
+    approvedUrl = `/market/listing/${qi.item_id}`;
+  } else if (qi.item_type === 'store') {
+    approvedTitle = 'Butikken din er godkjent!';
+    approvedBody = 'Butikken er nå offentlig på Strikketorget.';
+    const { data: s } = await admin.from('stores').select('slug').eq('id', qi.item_id).maybeSingle();
+    approvedUrl = s?.slug ? `/market/store/${s.slug}` : `/profile/stores`;
+  } else {
+    approvedTitle = 'Forespørselen din er godkjent!';
+    approvedBody = 'Forespørselen er nå synlig og strikkere kan gi tilbud.';
+    approvedUrl = `/market/commissions/${qi.item_id}`;
+  }
   await notify(admin, {
     userId: qi.submitter_id,
     type: 'item_approved',
-    title: qi.item_type === 'listing' ? 'Annonsen din er godkjent!' : 'Forespørselen din er godkjent!',
-    body: qi.item_type === 'listing'
-      ? 'Annonsen er nå synlig på Strikketorget.'
-      : 'Forespørselen er nå synlig og strikkere kan gi tilbud.',
-    url: qi.item_type === 'listing' ? `/market/listing/${qi.item_id}` : `/market/commissions/${qi.item_id}`,
+    title: approvedTitle,
+    body: approvedBody,
+    url: approvedUrl,
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);
@@ -231,18 +254,34 @@ export async function applyRejection(
         }
       }
     }
+  } else if (qi.item_type === 'store') {
+    await admin.from('stores').update({
+      status: 'suspended', reviewed_at: now, reviewed_by: actorId,
+    }).eq('id', qi.item_id);
   } else {
     await admin.from('commission_requests').update({
       status: 'rejected', moderation_notes: reason, reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
   }
 
+  let rejTitle: string, rejUrl: string;
+  if (qi.item_type === 'listing') {
+    rejTitle = 'Annonsen din ble avvist';
+    rejUrl = `/market/listing/${qi.item_id}`;
+  } else if (qi.item_type === 'store') {
+    rejTitle = 'Butikken din ble avvist';
+    const { data: s } = await admin.from('stores').select('slug').eq('id', qi.item_id).maybeSingle();
+    rejUrl = s?.slug ? `/market/store/${s.slug}/admin` : '/profile/stores';
+  } else {
+    rejTitle = 'Forespørselen din ble avvist';
+    rejUrl = `/market/commissions/${qi.item_id}`;
+  }
   await notify(admin, {
     userId: qi.submitter_id,
     type: 'item_rejected',
-    title: qi.item_type === 'listing' ? 'Annonsen din ble avvist' : 'Forespørselen din ble avvist',
+    title: rejTitle,
     body: reason ?? 'Innholdet oppfyller ikke retningslinjene våre.',
-    url: qi.item_type === 'listing' ? `/market/listing/${qi.item_id}` : `/market/commissions/${qi.item_id}`,
+    url: rejUrl,
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);

@@ -2,9 +2,16 @@
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../../lib/auth';
+import { buildServiceContext } from '../../../lib/services/context';
+import { listMyStores } from '../../../lib/services/stores';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/login?next=/market/listing/new');
+
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+const myStoresRes = ctx ? await listMyStores(ctx) : null;
+const myStores = myStoresRes?.ok ? myStoresRes.data.filter((s: any) => s.status === 'active') : [];
+const preselectedStoreId = Astro.url.searchParams.get('store') ?? '';
 ---
 
 <Layout title="Ny annonse — Strikketorget" lang="nb">
@@ -15,6 +22,24 @@ if (!user) return Astro.redirect('/login?next=/market/listing/new');
       </p>
 
       <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
+        {myStores.length > 0 && (
+          <div>
+            <label for="store_id" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Selg som
+            </label>
+            <select
+              id="store_id"
+              name="store_id"
+              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+            >
+              <option value="">{user.email} (privat)</option>
+              {myStores.map((s: any) => (
+                <option value={s.id} selected={s.id === preselectedStoreId}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div>
           <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
             Type *

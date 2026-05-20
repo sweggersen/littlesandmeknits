@@ -23,6 +23,7 @@ export async function createListing(
     patternSlug?: string; patternExternalTitle?: string;
     sizeAgeMonthsMin?: string; sizeAgeMonthsMax?: string;
     location?: string; shippingInfo?: string;
+    storeId?: string;
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!VALID_KIND.has(input.kind)) return fail('bad_input', 'Invalid kind');
@@ -42,10 +43,24 @@ export async function createListing(
     condition = input.condition;
   }
 
+  // If selling under a store, verify membership + permission.
+  let storeId: string | null = null;
+  if (input.storeId) {
+    const { data: member } = await ctx.admin
+      .from('store_members')
+      .select('role')
+      .eq('store_id', input.storeId)
+      .eq('user_id', ctx.user.id)
+      .maybeSingle();
+    if (!member) return fail('forbidden', 'Ikke medlem av denne butikken');
+    storeId = input.storeId;
+  }
+
   const { data, error } = await ctx.supabase
     .from('listings')
     .insert({
-      seller_id: ctx.user.id, kind: input.kind, title, description: input.description?.trim() || null,
+      seller_id: ctx.user.id, store_id: storeId,
+      kind: input.kind, title, description: input.description?.trim() || null,
       price_nok: priceNok, size_label: sizeLabel,
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
       size_age_months_max: toIntOrNull(input.sizeAgeMonthsMax),

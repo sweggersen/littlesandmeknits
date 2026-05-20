@@ -37,6 +37,9 @@ let itemData: any = null;
 if (queueItem.item_type === 'listing') {
   const { data } = await admin.from('listings').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
+} else if (queueItem.item_type === 'store') {
+  const { data } = await admin.from('stores').select('*').eq('id', queueItem.item_id).maybeSingle();
+  itemData = data;
 } else {
   const { data } = await admin.from('commission_requests').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;

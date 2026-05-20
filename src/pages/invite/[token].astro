@@ -1,0 +1,74 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { buildServiceContext } from '../../lib/services/context';
+import { ROLE_LABEL_NB } from '../../lib/services/store-permissions';
+import { createAdminSupabase } from '../../lib/supabase';
+import { env } from 'cloudflare:workers';
+import type { StoreRole } from '../../lib/types/stores';
+
+const token = Astro.params.token ?? '';
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+
+// Look up invitation so we can show meaningful info even if not logged in
+const admin = createAdminSupabase((env as any).SUPABASE_SERVICE_ROLE_KEY);
+const { data: inv } = await admin
+  .from('store_invitations')
+  .select(`
+    id, email, role, expires_at, accepted_at,
+    stores:stores!inner(id, slug, name, logo_path, tagline)
+  `)
+  .eq('token', token)
+  .maybeSingle();
+
+const expired = inv && new Date(inv.expires_at).getTime() < Date.now();
+const used = inv?.accepted_at;
+const wrongEmail = ctx && inv && ctx.user.email?.toLowerCase() !== inv.email.toLowerCase();
+const store: any = inv?.stores;
+---
+
+<Layout title="Invitasjon — Strikketorget" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-md mx-auto px-4 py-12 sm:py-20 text-center">
+      {!inv ? (
+        <>
+          <h1 class="font-serif text-3xl mb-3">Invitasjon ikke funnet</h1>
+          <p class="text-charcoal/55">Lenken er ugyldig eller har blitt fjernet.</p>
+        </>
+      ) : used ? (
+        <>
+          <h1 class="font-serif text-3xl mb-3">Allerede brukt</h1>
+          <p class="text-charcoal/55">Denne invitasjonen er allerede tatt i bruk.</p>
+          {store && <a href={`/market/store/${store.slug}`} class="mt-6 inline-block text-terracotta-500 hover:underline">Gå til {store.name}</a>}
+        </>
+      ) : expired ? (
+        <>
+          <h1 class="font-serif text-3xl mb-3">Invitasjon utløpt</h1>
+          <p class="text-charcoal/55">Be om en ny invitasjon fra butikkens administrator.</p>
+        </>
+      ) : !ctx ? (
+        <>
+          <h1 class="font-serif text-3xl mb-3">Logg inn for å fortsette</h1>
+          <p class="text-charcoal/55 mb-6">Du er invitert til <strong>{store?.name}</strong> som {ROLE_LABEL_NB[inv.role as StoreRole]}.</p>
+          <a href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`} class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            Logg inn ({inv.email})
+          </a>
+        </>
+      ) : wrongEmail ? (
+        <>
+          <h1 class="font-serif text-3xl mb-3">Annen e-post</h1>
+          <p class="text-charcoal/55">Invitasjonen er sendt til <strong>{inv.email}</strong>. Logg ut og logg inn med riktig konto.</p>
+        </>
+      ) : (
+        <>
+          <h1 class="font-serif text-3xl mb-2">Bli med i {store?.name}</h1>
+          <p class="text-charcoal/55 mb-8">Du er invitert som <strong>{ROLE_LABEL_NB[inv.role as StoreRole]}</strong>.</p>
+          <form method="post" action={`/api/invitations/${token}/accept`}>
+            <button type="submit" class="bg-charcoal text-linen px-8 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+              Aksepter invitasjon
+            </button>
+          </form>
+        </>
+      )}
+    </div>
+  </div>
+</Layout>

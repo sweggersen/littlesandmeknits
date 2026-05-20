@@ -1,6 +1,6 @@
 ---
 interface Props {
-  current?: 'home' | 'brukt' | 'nytt' | 'oppdrag' | 'mine' | 'mine-oppdrag' | 'meldinger' | 'ny' | 'listing' | 'profil' | 'favoritter';
+  current?: 'home' | 'brukt' | 'nytt' | 'oppdrag' | 'butikker' | 'mine' | 'mine-oppdrag' | 'meldinger' | 'ny' | 'listing' | 'profil' | 'favoritter';
 }
 const { current } = Astro.props;
 
@@ -9,6 +9,7 @@ const links = [
   { href: '/market/used', key: 'brukt', label: 'Brukt' },
   { href: '/market/new', key: 'nytt', label: 'Nytt' },
   { href: '/market/commissions', key: 'oppdrag', label: 'Strikk for meg' },
+  { href: '/market/stores', key: 'butikker', label: 'Butikker' },
 ];
 
 const authLinks = [
@@ -16,6 +17,7 @@ const authLinks = [
   { href: '/market/my-listings', key: 'mine', label: 'Mine annonser' },
   { href: '/market/messages', key: 'meldinger', label: 'Meldinger' },
   { href: '/market/commissions/my-listings', key: 'mine-oppdrag', label: 'Mine oppdrag' },
+  { href: '/profile/stores', key: 'butikker', label: 'Mine butikker' },
 ];
 ---
 

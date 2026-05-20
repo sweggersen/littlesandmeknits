@@ -1,0 +1,69 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
+import EmptyState from '../../../components/EmptyState.astro';
+import { projectPhotoUrl } from '../../../lib/storage';
+import { createServerSupabase } from '../../../lib/supabase';
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const { data: stores } = await supabase
+  .from('stores')
+  .select('id, slug, name, tagline, banner_path, logo_path, location_city, verified')
+  .eq('status', 'active')
+  .is('deleted_at', null)
+  .order('verified', { ascending: false })
+  .order('created_at', { ascending: false })
+  .limit(48);
+---
+
+<Layout title="Butikker — Strikketorget" lang="nb">
+  <MarketplaceShell>
+    <div class="mb-8">
+      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Butikker</h1>
+      <p class="text-charcoal/55">Registrerte virksomheter som selger på Strikketorget</p>
+    </div>
+
+    {(!stores || stores.length === 0) ? (
+      <EmptyState message="Ingen butikker registrert ennå. Vi venter på den første!" />
+    ) : (
+      <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {stores.map((s) => (
+          <li>
+            <a
+              href={`/market/store/${s.slug}`}
+              class="block bg-white rounded-3xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden"
+            >
+              <div class="aspect-[16/7] bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
+                {s.banner_path && (
+                  <img src={projectPhotoUrl(s.banner_path)} alt="" class="w-full h-full object-cover" />
+                )}
+              </div>
+              <div class="p-4 flex items-center gap-3 -mt-7">
+                <div class="w-14 h-14 rounded-xl bg-white shadow border border-sage-500/15 overflow-hidden shrink-0">
+                  {s.logo_path ? (
+                    <img src={projectPhotoUrl(s.logo_path)} alt="" class="w-full h-full object-cover" />
+                  ) : (
+                    <div class="w-full h-full flex items-center justify-center font-serif text-lg text-charcoal/40">
+                      {s.name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                  )}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <h2 class="font-serif text-lg truncate">{s.name}</h2>
+                    {s.verified && (
+                      <span class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full">✓</span>
+                    )}
+                  </div>
+                  {s.tagline && <p class="text-xs text-charcoal/55 truncate">{s.tagline}</p>}
+                  {s.location_city && <p class="text-[11px] text-charcoal/45">{s.location_city}</p>}
+                </div>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </MarketplaceShell>
+</Layout>
