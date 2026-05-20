@@ -1316,6 +1316,23 @@ async function handle(
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);
       await db.from('moderation_queue').delete().in('decision_by', testUserIds);
 
+      // Stores: any store created by a test user or that a test user belongs to
+      const { data: ownedStores } = await db.from('stores').select('id').in('created_by', testUserIds);
+      const { data: memberStores } = await db.from('store_members').select('store_id').in('user_id', testUserIds);
+      const storeIds = new Set<string>([
+        ...(ownedStores ?? []).map((s: any) => s.id),
+        ...(memberStores ?? []).map((m: any) => m.store_id),
+      ]);
+      if (storeIds.size > 0) {
+        const ids = [...storeIds];
+        // Detach store_id from any remaining listings/reviews so cascades stay clean
+        await db.from('listings').update({ store_id: null }).in('store_id', ids);
+        await db.from('seller_reviews').update({ store_id: null }).in('store_id', ids);
+        await db.from('store_invitations').delete().in('store_id', ids);
+        await db.from('store_members').delete().in('store_id', ids);
+        await db.from('stores').delete().in('id', ids);
+      }
+
       // Reset roles and trust for test users
       await db.from('profiles').update({
         role: null, trust_score: 0, trust_tier: 'new',
