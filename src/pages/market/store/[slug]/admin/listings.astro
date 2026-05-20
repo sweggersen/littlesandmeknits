@@ -17,6 +17,17 @@ const { data: listings } = await supabase
   .eq('store_id', store.id)
   .order('created_at', { ascending: false });
 
+// Show conversion prompt if user has personal listings that could be moved
+let personalListingsCount = 0;
+if (role === 'owner') {
+  const { count } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', ctx.user.id)
+    .is('store_id', null);
+  personalListingsCount = count ?? 0;
+}
+
 const STATUS_VARIANT: Record<string, 'sage' | 'amber' | 'red' | 'muted' | 'default' | 'blue'> = {
   draft: 'muted',
   pending_review: 'amber',
@@ -55,6 +66,26 @@ const STATUS_LABEL: Record<string, string> = {
         + Ny annonse
       </a>
     </div>
+
+    {personalListingsCount > 0 && (
+      <div class="bg-sage-100/50 rounded-2xl p-5 flex items-start gap-4">
+        <div class="flex-1">
+          <p class="font-medium mb-1">
+            Du har {personalListingsCount} privat annonse{personalListingsCount === 1 ? '' : 'r'}
+          </p>
+          <p class="text-sm text-charcoal/65">
+            Flytt dem inn under butikken så de vises i butikkens katalog og
+            vurderinger samles ett sted.
+          </p>
+        </div>
+        <form method="post" action={`/api/stores/${store.slug}/convert`}
+          onsubmit="return confirm('Flytte alle dine private annonser inn i butikken? Dette kan ikke reverseres automatisk.')">
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap">
+            Flytt {personalListingsCount}
+          </button>
+        </form>
+      </div>
+    )}
 
     {(!listings || listings.length === 0) ? (
       <EmptyState
