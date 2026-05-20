@@ -11,6 +11,8 @@ interface Props {
   inactive?: boolean;
   inactiveLabel?: string;
   promoted?: boolean;
+  storeName?: string | null;
+  storeSlug?: string | null;
 }
 const {
   id,
@@ -24,6 +26,8 @@ const {
   inactive = false,
   inactiveLabel,
   promoted = false,
+  storeName,
+  storeSlug,
 } = Astro.props;
 ---
 
@@ -51,6 +55,11 @@ const {
         <p class="text-xs text-charcoal/45 mt-1">{inactiveLabel}</p>
       ) : (
         <p class="font-mono tabular-nums text-sm mt-1">{price} NOK</p>
+      )}
+      {storeName && storeSlug && (
+        <p class="text-[10px] text-charcoal/45 mt-1.5 truncate">
+          🏪 <span class="hover:text-terracotta-500">{storeName}</span>
+        </p>
       )}
     </div>
   </a>
