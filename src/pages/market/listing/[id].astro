@@ -601,7 +601,7 @@ const autoReleaseDays = listing.auto_release_at
                 <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
                   <input type="hidden" name="listing_id" value={listing.id} />
                   <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                    Send melding til {sellerProfile?.display_name ?? 'selger'}
+                    Send melding til {isStoreListing ? 'butikken' : 'selger'}
                   </label>
                   <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
                     class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>

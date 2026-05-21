@@ -217,7 +217,7 @@ export async function deleteListingPhoto(
   if (photo) {
     await ctx.supabase.storage.from('projects').remove([photo.path]);
     await ctx.supabase.from('listing_photos').delete().eq('id', input.photoId);
-    await syncHero(ctx.supabase, input.listingId);
+    await syncHero(ctx.admin, input.listingId);
   }
   return ok(undefined as void);
 }
@@ -242,7 +242,7 @@ export async function reorderListingPhotos(
         .update({ position: i }).eq('id', id).eq('listing_id', input.listingId),
     ),
   );
-  await syncHero(ctx.supabase, input.listingId);
+  await syncHero(ctx.admin, input.listingId);
   return ok(undefined as void);
 }
 
@@ -276,7 +276,7 @@ export async function uploadListingPhotos(
     position++;
   }
 
-  await syncHero(ctx.supabase, input.listingId);
+  await syncHero(ctx.admin, input.listingId);
   return ok({ redirect: `/market/listing/${input.listingId}` });
 }
 
