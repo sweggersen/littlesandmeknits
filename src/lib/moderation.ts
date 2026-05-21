@@ -140,21 +140,21 @@ export function computeStoreConfidenceScore(
 ): { total: number; breakdown: { label: string; points: number; max: number }[] } {
   const breakdown: { label: string; points: number; max: number }[] = [];
 
-  // 1. Innmelder samsvarer med registrert rolle (0-40)
+  // 1. Innmelder samsvarer med registrert rolle (0-45)
   let rolePts = 0;
   let roleLabel = 'Innmelder samsvarer med registrert rolle';
   if (input.strongMatchedKeyRole) {
-    rolePts = 40;
+    rolePts = 45;
   } else if (input.strongMatchedNames.length > 0) {
-    rolePts = 30;
+    rolePts = 33;
   } else if (input.weakMatchedNames.length > 0 && input.matchedKeyRole) {
-    rolePts = 22;
+    rolePts = 25;
     roleLabel += ' (delvis navnematch)';
   } else if (input.weakMatchedNames.length > 0) {
-    rolePts = 15;
+    rolePts = 17;
     roleLabel += ' (delvis navnematch)';
   }
-  breakdown.push({ label: roleLabel, points: rolePts, max: 40 });
+  breakdown.push({ label: roleLabel, points: rolePts, max: 45 });
 
   // 2. Email-domene match (0-10)
   let emailPts = 0;
@@ -169,25 +169,27 @@ export function computeStoreConfidenceScore(
   }
   breakdown.push({ label: 'E-post-domene matcher nettside', points: emailPts, max: 10 });
 
-  // 3. Kontoalder (0-10)
+  // 3. Kontoalder (0-3). Most store owners sign up specifically to create a
+  // store, so we don't penalise new accounts much — just a tiny bonus for
+  // long-standing community members.
   const days = (Date.now() - new Date(input.profileCreatedAt).getTime()) / 86400_000;
   let agePts = 0;
-  if (days >= 365) agePts = 10;
-  else if (days >= 90) agePts = 7;
-  else if (days >= 30) agePts = 4;
-  else if (days >= 7) agePts = 2;
-  breakdown.push({ label: 'Kontoalder', points: agePts, max: 10 });
+  if (days >= 365) agePts = 3;
+  else if (days >= 90) agePts = 2;
+  else if (days >= 30) agePts = 1;
+  breakdown.push({ label: 'Kontoalder', points: agePts, max: 3 });
 
-  // 4. Virksomhetens alder (0-10)
+  // 4. Virksomhetens alder (0-12). Older businesses are more likely
+  // legitimate / less likely a recently-created shell.
   let bizAgePts = 0;
   if (input.legalFoundedDate) {
     const bizDays = (Date.now() - new Date(input.legalFoundedDate).getTime()) / 86400_000;
-    if (bizDays >= 365 * 5) bizAgePts = 10;
-    else if (bizDays >= 365 * 2) bizAgePts = 7;
-    else if (bizDays >= 365) bizAgePts = 4;
+    if (bizDays >= 365 * 5) bizAgePts = 12;
+    else if (bizDays >= 365 * 2) bizAgePts = 8;
+    else if (bizDays >= 365) bizAgePts = 5;
     else if (bizDays >= 90) bizAgePts = 2;
   }
-  breakdown.push({ label: 'Virksomhetens alder', points: bizAgePts, max: 10 });
+  breakdown.push({ label: 'Virksomhetens alder', points: bizAgePts, max: 12 });
 
   // 5. Beskrivelse + nettside fylt ut (0-10)
   let completenessPts = 0;
