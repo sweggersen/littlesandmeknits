@@ -38,7 +38,7 @@ let itemData: any = null;
 if (queueItem.item_type === 'listing') {
   const { data } = await admin.from('listings').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
-} else if (queueItem.item_type === 'store') {
+} else if (queueItem.item_type === 'store' || queueItem.item_type === 'store_image') {
   const { data } = await admin.from('stores').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
 } else {
@@ -257,10 +257,65 @@ function scoreColor(s: number) {
 
         {!itemData ? (
           <p class="text-sm text-charcoal/45">Element ikke funnet.</p>
+        ) : queueItem.item_type === 'store_image' ? (
+          <div>
+            <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
+            <p class="text-xs text-charcoal/55 mb-4">Endring i butikkbilder — /market/store/{itemData.slug}</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Logo</p>
+                <div class="aspect-square rounded-2xl bg-sage-100 overflow-hidden border border-sage-500/15">
+                  {itemData.logo_path ? (
+                    <img src={projectPhotoUrl(itemData.logo_path)} alt="" class="w-full h-full object-cover" />
+                  ) : (
+                    <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-sage-700">
+                      {itemData.name[0]?.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Banner</p>
+                <div class="aspect-[16/5] rounded-2xl bg-gradient-to-br from-oatmeal/60 to-sage-100/60 overflow-hidden border border-sage-500/15">
+                  {itemData.banner_path && (
+                    <img src={projectPhotoUrl(itemData.banner_path)} alt="" class="w-full h-full object-cover" />
+                  )}
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-charcoal/55">
+              Sjekk at bildene er passende for plattformen, ikke krenker
+              opphavsrett, og at de viser butikken (ikke konkurrenter, navn
+              på andre virksomheter, e.l.).
+            </p>
+          </div>
         ) : queueItem.item_type === 'store' ? (
           <div>
             <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
             <p class="text-xs text-charcoal/55 mb-3">/market/store/{itemData.slug}</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Logo</p>
+                <div class="aspect-square rounded-2xl bg-sage-100 overflow-hidden border border-sage-500/15">
+                  {itemData.logo_path ? (
+                    <img src={projectPhotoUrl(itemData.logo_path)} alt="" class="w-full h-full object-cover" />
+                  ) : (
+                    <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-sage-700">
+                      {itemData.name[0]?.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Banner</p>
+                <div class="aspect-[16/5] rounded-2xl bg-gradient-to-br from-oatmeal/60 to-sage-100/60 overflow-hidden border border-sage-500/15">
+                  {itemData.banner_path && (
+                    <img src={projectPhotoUrl(itemData.banner_path)} alt="" class="w-full h-full object-cover" />
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div class="bg-sage-100/50 rounded-lg p-3 mb-3">
               <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Brønnøysund-registrert</p>

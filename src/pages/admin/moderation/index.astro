@@ -63,6 +63,7 @@ const TYPE_LABEL: Record<string, string> = {
   listing: 'Annonse',
   commission_request: 'Oppdrag',
   store: 'Butikk',
+  store_image: 'Butikkbilde',
 };
 
 // Batch-fetch the title/name for each queued item so the list shows
@@ -72,7 +73,7 @@ const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 const listingIds = items.filter(i => i.item_type === 'listing').map(i => i.item_id);
 const requestIds = items.filter(i => i.item_type === 'commission_request').map(i => i.item_id);
-const storeIds = items.filter(i => i.item_type === 'store').map(i => i.item_id);
+const storeIds = items.filter(i => i.item_type === 'store' || i.item_type === 'store_image').map(i => i.item_id);
 const submitterIds = [...new Set(items.map(i => i.submitter_id))];
 
 const [listingsRes, requestsRes, storesRes, submittersRes] = await Promise.all([
