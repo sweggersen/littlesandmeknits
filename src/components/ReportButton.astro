@@ -35,7 +35,7 @@ const formId = `report-${targetId}`;
         <input type="checkbox" name="anonymous" class="mt-0.5" />
         <span>Hold meg anonym. Moderator kan ikke kontakte meg for oppfølging.</span>
       </label>
-      <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors">Send rapport</button>
+      <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors disabled:bg-charcoal/20 disabled:hover:bg-charcoal/20 disabled:cursor-not-allowed">Send rapport</button>
       <p class="text-[10px] text-charcoal/40 hidden" data-report-status></p>
     </form>
   </div>
@@ -67,7 +67,11 @@ const formId = `report-${targetId}`;
           status.textContent = 'Rapport sendt. Takk!';
           status.classList.remove('hidden', 'text-red-600');
           status.classList.add('text-sage-700');
-          form.querySelector('button[type="submit"]')!.setAttribute('disabled', '');
+          const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Rapport sendt';
+          }
         } else if (data.error === 'already_reported') {
           status.textContent = 'Du har allerede rapportert dette.';
           status.classList.remove('hidden');
