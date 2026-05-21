@@ -1339,6 +1339,14 @@ async function handle(
         total_completed_transactions: 0, total_rejections: 0,
       }).in('id', testUserIds);
 
+      // Re-apply the canonical persona roles. Kari is the dedicated
+      // moderator persona; Nora is the dedicated admin persona. Tests
+      // and the dev UI assume these are always set.
+      const kariId = emailToId.get('kari@test.strikketorget.no');
+      const noraId = emailToId.get('nora@test.strikketorget.no');
+      if (kariId) await db.from('profiles').update({ role: 'moderator' }).eq('id', kariId);
+      if (noraId) await db.from('profiles').update({ role: 'admin' }).eq('id', noraId);
+
       // All notifications for test users
       for (const uid of testUserIds) {
         await db.from('notifications').delete().eq('user_id', uid);
