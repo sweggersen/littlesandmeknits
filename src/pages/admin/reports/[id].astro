@@ -113,7 +113,9 @@ const TARGET_LABEL: Record<string, string> = {
   store: 'Butikk',
 };
 
-const reporterName = isAnonymous ? 'Anonym' : anonymizeUser(report.reporter_id);
+const reporterName = isAnonymous
+  ? 'Anonym'
+  : (reporterDisplayName ?? anonymizeUser(report.reporter_id));
 const isOpen = report.status === 'open';
 
 const itemLabel = report.target_type === 'listing' ? 'annonsen'
