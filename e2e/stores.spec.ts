@@ -240,4 +240,25 @@ test.describe('Strikketorget — butikker', () => {
     });
     expect(res.status()).toBe(409);
   });
+
+  test('cannot create a listing under a pending_review store', async ({ page }) => {
+    await loginAs(page, ELINE);
+    const created = await createStoreAs(page, { name: 'Pending Store', slug: 'pending-store' });
+    // Store is in pending_review here — DON'T approve.
+
+    const res = await page.request.post('/api/marketplace/listings/create', {
+      form: {
+        kind: 'pre_loved',
+        title: 'Test',
+        category: 'genser',
+        size_label: '2 år',
+        price_nok: '100',
+        condition: 'lite_brukt',
+        store_id: created.storeId,
+      },
+    });
+    // Service returns 409 (conflict). The API returns the service result as
+    // a Response — the body has the error message.
+    expect(res.status()).toBe(409);
+  });
 });

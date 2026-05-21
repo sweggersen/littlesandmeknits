@@ -258,6 +258,12 @@ export async function applyRejection(
     await admin.from('stores').update({
       status: 'suspended', reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
+    // Hide store listings while suspended. In-flight sales are left alone
+    // so buyer flow keeps working.
+    await admin.from('listings')
+      .update({ status: 'archived' })
+      .eq('store_id', qi.item_id)
+      .in('status', ['active', 'draft', 'pending_review']);
   } else {
     await admin.from('commission_requests').update({
       status: 'rejected', moderation_notes: reason, reviewed_at: now, reviewed_by: actorId,

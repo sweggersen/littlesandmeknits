@@ -92,6 +92,13 @@ export async function createStore(
 
   if (error || !store) {
     console.error('Store insert failed', error);
+    // Postgres error 23505 = unique_violation. Distinguish slug vs orgnr.
+    if (error && (error as any).code === '23505') {
+      const detail = (error as any).message ?? '';
+      if (detail.includes('slug')) return fail('conflict', 'URL-navnet er allerede tatt');
+      if (detail.includes('orgnr')) return fail('conflict', 'Denne organisasjonen har allerede en butikk');
+      return fail('conflict', 'Konflikt — prøv et annet navn eller orgnr');
+    }
     return fail('server_error', 'Kunne ikke opprette butikk');
   }
 
@@ -193,12 +200,14 @@ export async function softDeleteStore(
     .eq('id', storeId);
   if (error) return fail('server_error', 'Kunne ikke slette butikk');
 
-  // Hide store listings
+  // Hide store listings. Only archive listings that are NOT mid-sale.
+  // reserved/shipped/sold/disputed must remain intact so the buyer flow
+  // (delivery confirm, refund, dispute) keeps working.
   await ctx.admin
     .from('listings')
     .update({ status: 'archived' })
     .eq('store_id', storeId)
-    .in('status', ['active', 'reserved', 'shipped']);
+    .in('status', ['active', 'draft', 'pending_review']);
 
   return ok({ ok: true });
 }
@@ -274,13 +283,14 @@ export async function getPublicStorefront(
   });
 }
 
-/** Stores that the current user is a member of (any role, any status). */
+/** Stores that the current user is a member of. Includes soft-deleted
+ *  ones (with status='archived', deleted_at not null) so the user can
+ *  restore them within the 90-day window. */
 export async function listMyStores(ctx: ServiceContext): Promise<ServiceResult<Array<Store & { my_role: string }>>> {
   const { data, error } = await ctx.admin
     .from('store_members')
     .select('role, stores:stores!inner(*)')
-    .eq('user_id', ctx.user.id)
-    .is('stores.deleted_at', null);
+    .eq('user_id', ctx.user.id);
   if (error) return fail('server_error', 'Kunne ikke hente butikker');
   const rows = (data ?? []).map((r: any) => ({ ...r.stores, my_role: r.role }));
   return ok(rows);
