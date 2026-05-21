@@ -125,10 +125,14 @@ export interface StoreScoreInput {
   legalBusinessType: string | null;
   /** Names from Brønnøysund's roles endpoint (non-resigned only). */
   registeredRoleNames: string[];
-  /** Subset of registeredRoleNames that the submitter's display_name matched. */
-  matchedRoleNames: string[];
-  /** True if the submitter matches a role with signing/CEO/chair-level authority. */
+  /** Strong matches (multiple tokens overlap or one name fully contains the other). */
+  strongMatchedNames: string[];
+  /** Weak matches (single first-name match — common for sole proprietors). */
+  weakMatchedNames: string[];
+  /** True if the submitter matches any role with signing/CEO/chair-level authority. */
   matchedKeyRole: boolean;
+  /** True if a STRONG match was for a key role. */
+  strongMatchedKeyRole: boolean;
 }
 
 export function computeStoreConfidenceScore(
@@ -138,10 +142,19 @@ export function computeStoreConfidenceScore(
 
   // 1. Innmelder samsvarer med registrert rolle (0-40)
   let rolePts = 0;
-  if (input.matchedKeyRole) rolePts = 40;
-  else if (input.matchedRoleNames.length > 0) rolePts = 30;
-  else if (input.registeredRoleNames.length === 0) rolePts = 0;
-  breakdown.push({ label: 'Innmelder samsvarer med registrert rolle', points: rolePts, max: 40 });
+  let roleLabel = 'Innmelder samsvarer med registrert rolle';
+  if (input.strongMatchedKeyRole) {
+    rolePts = 40;
+  } else if (input.strongMatchedNames.length > 0) {
+    rolePts = 30;
+  } else if (input.weakMatchedNames.length > 0 && input.matchedKeyRole) {
+    rolePts = 22;
+    roleLabel += ' (delvis navnematch)';
+  } else if (input.weakMatchedNames.length > 0) {
+    rolePts = 15;
+    roleLabel += ' (delvis navnematch)';
+  }
+  breakdown.push({ label: roleLabel, points: rolePts, max: 40 });
 
   // 2. Email-domene match (0-10)
   let emailPts = 0;

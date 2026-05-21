@@ -46,13 +46,20 @@ if (queueItem.item_type === 'listing') {
   itemData = data;
 }
 
+// Confidence score is computed in two places: here for stores (after
+// roles + email are fetched) and further below for listings/commissions.
+// Declare it up here so the store branch can assign safely.
+let confidence: { total: number; breakdown: { label: string; points: number; max: number }[] } = { total: 0, breakdown: [] };
+
 // For store items: fetch the registered roles from Brønnøysund and the
 // submitter's auth email (so the moderator can compare names + reach out
 // to verify identity if needed).
 let storeRoles: OrgRole[] = [];
 let rolesError: string | null = null;
 let submitterEmail: string | null = null;
-let matchedRoleNames: Set<string> = new Set();
+// Map from role-person-name → match level ('strong' = same person, 'weak' =
+// likely same person — single first-name match for sole proprietor etc.).
+const matchedRoleNames: Map<string, 'strong' | 'weak'> = new Map();
 
 if (queueItem.item_type === 'store' && itemData?.orgnr) {
   const rolesRes = await lookupOrgnrRoles(itemData.orgnr);
@@ -71,22 +78,30 @@ if (queueItem.item_type === 'store' && itemData?.orgnr) {
   const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, '').trim();
   const submitterName = submitter?.display_name ? normalize(submitter.display_name) : '';
   if (submitterName) {
+    const submitterTokens = submitterName.split(/\s+/).filter(t => t.length >= 2);
     for (const role of storeRoles) {
       if (!role.personName) continue;
       const rn = normalize(role.personName);
-      const tokens = rn.split(/\s+/).filter(t => t.length > 1);
-      const submitterTokens = submitterName.split(/\s+/).filter(t => t.length > 1);
-      // Match if at least 2 name tokens overlap (or both are short names)
-      const shared = tokens.filter(t => submitterTokens.includes(t));
-      if (shared.length >= 2 || (tokens.length === 1 && submitterTokens.includes(tokens[0]))) {
-        matchedRoleNames.add(role.personName);
+      const roleTokens = rn.split(/\s+/).filter(t => t.length >= 2);
+      if (submitterTokens.length === 0 || roleTokens.length === 0) continue;
+
+      const shared = submitterTokens.filter(t => roleTokens.includes(t));
+      const submitterContained = submitterTokens.every(t => roleTokens.includes(t));
+      const roleContained = roleTokens.every(t => submitterTokens.includes(t));
+
+      let level: 'strong' | 'weak' | null = null;
+      if (rn === submitterName || submitterContained || roleContained) level = 'strong';
+      else if (shared.length >= 2) level = 'strong';
+      else if (shared.length === 1 && shared[0].length >= 3) level = 'weak';
+
+      if (level) {
+        matchedRoleNames.set(role.personName, level);
       }
     }
   }
 
   // Compute store confidence now that we have all signals
   if (submitter && itemData) {
-    const matchedNames = [...matchedRoleNames];
     const KEY_ROLE_CODES = new Set([
       'INNH',  // proprietor (ENK)
       'DAGL',  // CEO
@@ -96,9 +111,21 @@ if (queueItem.item_type === 'store' && itemData?.orgnr) {
       'BEST',  // managing partner
       'SIGN',  // signing rights
     ]);
-    const matchedKey = storeRoles.some(r =>
-      r.personName && matchedRoleNames.has(r.personName) && KEY_ROLE_CODES.has(r.roleCode),
-    );
+    const strongMatches: string[] = [];
+    const weakMatches: string[] = [];
+    let matchedKey = false;
+    let strongMatchedKey = false;
+    for (const r of storeRoles) {
+      if (!r.personName) continue;
+      const level = matchedRoleNames.get(r.personName);
+      if (!level) continue;
+      if (level === 'strong') strongMatches.push(r.personName);
+      else weakMatches.push(r.personName);
+      if (KEY_ROLE_CODES.has(r.roleCode)) {
+        matchedKey = true;
+        if (level === 'strong') strongMatchedKey = true;
+      }
+    }
     confidence = computeStoreConfidenceScore({
       profileCreatedAt: submitter.created_at,
       profileTotalRejections: submitter.total_rejections ?? 0,
@@ -111,8 +138,10 @@ if (queueItem.item_type === 'store' && itemData?.orgnr) {
       legalFoundedDate: itemData.legal_founded_date,
       legalBusinessType: itemData.legal_business_type,
       registeredRoleNames: storeRoles.map(r => r.personName).filter((n): n is string => !!n),
-      matchedRoleNames: matchedNames,
+      strongMatchedNames: strongMatches,
+      weakMatchedNames: weakMatches,
       matchedKeyRole: matchedKey,
+      strongMatchedKeyRole: strongMatchedKey,
     });
   }
 }
@@ -133,14 +162,10 @@ if (queueItem.item_type === 'listing') {
   photoUrls = photos.map(p => projectPhotoUrl(p.path)).filter(Boolean) as string[];
 }
 
-// Compute confidence score.
+// For listings/commissions compute confidence here. For stores it's
+// computed earlier (right after the roles+email lookup).
 const reviewStats = submitter ? await getReviewStats(admin, submitter.id) : { avg_rating: 0, review_count: 0 };
-let confidence: { total: number; breakdown: { label: string; points: number; max: number }[] };
-if (submitter && itemData && queueItem.item_type === 'store') {
-  // For stores, score is built later (after roles + email are fetched).
-  // Initialise empty and compute below.
-  confidence = { total: 0, breakdown: [] };
-} else if (submitter && itemData) {
+if (submitter && itemData && queueItem.item_type !== 'store') {
   confidence = computeConfidenceScore(submitter, {
     title: itemData.title,
     description: itemData.description,
@@ -149,8 +174,6 @@ if (submitter && itemData && queueItem.item_type === 'store') {
     budget_nok_max: itemData.budget_nok_max,
     category: itemData.category,
   }, reviewStats);
-} else {
-  confidence = { total: 0, breakdown: [] };
 }
 
 // Previous moderation history for submitter
@@ -271,20 +294,19 @@ function scoreColor(s: number) {
               ) : (
                 <ul class="space-y-1.5">
                   {storeRoles.map(role => {
-                    const isMatch = role.personName ? matchedRoleNames.has(role.personName) : false;
+                    const match = role.personName ? matchedRoleNames.get(role.personName) : null;
+                    const bg = match === 'strong' ? 'bg-sage-100/60' : match === 'weak' ? 'bg-amber-50/80' : '';
                     return (
-                      <li class:list={[
-                        'text-xs flex items-center justify-between gap-2 rounded px-2 py-1',
-                        isMatch && 'bg-sage-100/60',
-                      ]}>
+                      <li class:list={['text-xs flex items-center justify-between gap-2 rounded px-2 py-1', bg]}>
                         <div>
-                          <span class={isMatch ? 'font-bold' : 'font-medium'}>
+                          <span class={match ? 'font-bold' : 'font-medium'}>
                             {role.isOrganisation ? role.organisationName : role.personName}
                           </span>
                           {role.isOrganisation && <span class="text-charcoal/45 ml-1">(org)</span>}
                           <span class="text-charcoal/55"> · {role.roleDescription}</span>
                         </div>
-                        {isMatch && <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">samsvarer</span>}
+                        {match === 'strong' && <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">samsvarer</span>}
+                        {match === 'weak' && <span class="text-[10px] font-bold uppercase tracking-widest text-amber-700">delvis</span>}
                       </li>
                     );
                   })}
@@ -296,7 +318,7 @@ function scoreColor(s: number) {
             <div class="mt-5 pt-5 border-t border-sage-500/15">
               <h3 class="text-sm font-medium mb-2">Verifisering</h3>
               <div class="space-y-1.5 text-xs">
-                <div class="flex justify-between"><span class="text-charcoal/55">Innmelders navn:</span><span class:list={['font-medium', matchedRoleNames.size > 0 && 'text-sage-700']}>{submitter?.display_name ?? '—'} {matchedRoleNames.size > 0 && '✓'}</span></div>
+                <div class="flex justify-between"><span class="text-charcoal/55">Innmelders navn:</span><span class:list={['font-medium', [...matchedRoleNames.values()].includes('strong') && 'text-sage-700']}>{submitter?.display_name ?? '—'} {[...matchedRoleNames.values()].includes('strong') ? '✓' : matchedRoleNames.size > 0 ? '~' : ''}</span></div>
                 <div class="flex justify-between"><span class="text-charcoal/55">Innmelders konto-e-post:</span><span class="font-mono">{submitterEmail ?? '—'}</span></div>
                 <div class="flex justify-between"><span class="text-charcoal/55">Oppgitt kontakt-e-post:</span><span class="font-mono">{itemData.contact_email ?? '—'}</span></div>
               </div>
@@ -463,7 +485,7 @@ function scoreColor(s: number) {
                   ? (submitter.display_name || anonymizeUser(submitter.id))
                   : anonymizeUser(submitter.id)
               }{
-                queueItem.item_type === 'store' && matchedRoleNames.size > 0 ? ' ✓' : ''
+                queueItem.item_type === 'store' && [...matchedRoleNames.values()].includes('strong') ? ' ✓' : queueItem.item_type === 'store' && matchedRoleNames.size > 0 ? ' ~' : ''
               }</p>
               {queueItem.item_type === 'store' && submitterEmail && (
                 <p class="text-[10px] text-charcoal/55 font-mono truncate">{submitterEmail}</p>
