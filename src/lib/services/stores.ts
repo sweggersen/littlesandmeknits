@@ -110,11 +110,17 @@ export async function createStore(
   }
 
   // Enqueue for moderation
-  await ctx.admin.from('moderation_queue').insert({
+  const { error: queueErr } = await ctx.admin.from('moderation_queue').insert({
     item_type: 'store',
     item_id: store.id,
     submitter_id: ctx.user.id,
   });
+  if (queueErr) {
+    console.error('Moderation queue insert failed for new store', queueErr);
+    // Don't fail the whole creation — store is created, just not in queue.
+    // Moderator can still find it by status='pending_review'. But surface
+    // the issue in logs so we notice in production.
+  }
 
   return ok({
     storeId: store.id,
