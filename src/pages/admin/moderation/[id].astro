@@ -2,7 +2,7 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
-import { computeConfidenceScore, computeStoreConfidenceScore, getReviewStats } from '../../../lib/moderation';
+import { computeConfidenceScore, computeStoreConfidenceScore, recommendationForStoreScore, getReviewStats } from '../../../lib/moderation';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { CATEGORY_LABEL } from '../../../lib/labels';
@@ -190,6 +190,16 @@ const isAdmin = auth.role === 'admin';
 const isShadowPending = queueItem.shadow_review && !queueItem.shadow_confirmed_at && ['approved', 'rejected'].includes(queueItem.status);
 const isSpotCheckPending = queueItem.spot_check && !queueItem.spot_check_at && ['approved', 'rejected'].includes(queueItem.status);
 const canDecide = ['pending', 'assigned', 'escalated'].includes(queueItem.status) && queueItem.submitter_id !== auth.user.id;
+
+const storeRecommendation = queueItem.item_type === 'store'
+  ? recommendationForStoreScore(confidence.total)
+  : null;
+const RECOMMENDATION_TONE: Record<string, string> = {
+  green: 'bg-sage-100/70 border-sage-500/30 text-sage-800',
+  amber: 'bg-amber-50 border-amber-300/50 text-amber-900',
+  orange: 'bg-orange-50 border-orange-300/50 text-orange-900',
+  red: 'bg-red-50 border-red-300/50 text-red-800',
+};
 
 function scoreColor(s: number) {
   if (s >= 60) return 'text-sage-700 bg-sage-100';
@@ -452,6 +462,12 @@ function scoreColor(s: number) {
           </span>
           <span class="text-xs text-charcoal/40">/ 100</span>
         </div>
+        {storeRecommendation && (
+          <div class:list={['mb-3 rounded-lg border px-3 py-2', RECOMMENDATION_TONE[storeRecommendation.tone]]}>
+            <p class="text-[11px] font-bold uppercase tracking-widest">{storeRecommendation.label}</p>
+            <p class="text-[11px] mt-1 leading-snug opacity-80">{storeRecommendation.detail}</p>
+          </div>
+        )}
         <div class="space-y-1">
           {confidence.breakdown.map(b => (
             <div class="flex items-center justify-between text-[11px]">

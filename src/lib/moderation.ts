@@ -217,6 +217,42 @@ export function computeStoreConfidenceScore(
   return { total, breakdown };
 }
 
+/** Maps a store confidence score to a moderator-facing recommendation. */
+export interface StoreScoreRecommendation {
+  tone: 'green' | 'amber' | 'orange' | 'red';
+  label: string;
+  detail: string;
+}
+
+export function recommendationForStoreScore(total: number): StoreScoreRecommendation {
+  if (total >= 75) {
+    return {
+      tone: 'green',
+      label: 'Anbefal godkjenning',
+      detail: 'Sterk match mot registrert rolle og gode tillitssignaler. Godkjenn med mindre noe er åpenbart galt.',
+    };
+  }
+  if (total >= 50) {
+    return {
+      tone: 'amber',
+      label: 'Vurder nøye',
+      detail: 'Identiteten matcher trolig, men noen signaler mangler. Sjekk rolleliste og kontaktinformasjon før godkjenning.',
+    };
+  }
+  if (total >= 25) {
+    return {
+      tone: 'orange',
+      label: 'Verifiser før godkjenning',
+      detail: 'Bare delvis navnematch eller veldig ny virksomhet/konto. Send verifikasjons-e-post før godkjenning.',
+    };
+  }
+  return {
+    tone: 'red',
+    label: 'Sannsynlig avvisning',
+    detail: 'Ingen match mot registrerte representanter. Be om dokumentasjon eller avvis, med mindre du har annen kilde til legitimitet.',
+  };
+}
+
 export async function getReviewStats(admin: SupabaseClient, userId: string): Promise<ReviewStats> {
   const { data } = await admin
     .from('transaction_reviews')

@@ -5,22 +5,64 @@ import ListingCard from '../../../../components/ListingCard.astro';
 import EmptyState from '../../../../components/EmptyState.astro';
 import StarRating from '../../../../components/StarRating.astro';
 import { buildServiceContext } from '../../../../lib/services/context';
-import { getPublicStorefront } from '../../../../lib/services/stores';
+import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/services/stores';
+import { getMyRole } from '../../../../lib/services/store-members';
 import { projectPhotoUrl } from '../../../../lib/storage';
-import { createServerSupabase } from '../../../../lib/supabase';
+import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { env } from 'cloudflare:workers';
 
 const slug = Astro.params.slug ?? '';
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);
-
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-// Use service when ctx exists; fall back to anon Supabase for non-logged in viewers
+// Look up the store regardless of status (we may still want to show a
+// preview to moderators or members of pending/suspended stores).
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+const rawStore = ctx ? await getStoreBySlugAdmin(ctx, slug) : null;
+
+// For anonymous viewers: only active stores are visible.
 let storefront;
-if (ctx) {
+let previewBanner: 'pending_review' | 'suspended' | 'archived' | null = null;
+if (ctx && rawStore) {
+  const isActive = rawStore.status === 'active' && !rawStore.deleted_at;
+  let canPreview = false;
+  if (!isActive) {
+    // Members can always preview their own store
+    const role = await getMyRole(ctx, rawStore.id);
+    if (role) canPreview = true;
+    // Moderators/admins can preview any store
+    if (!canPreview) {
+      const { data: viewer } = await admin.from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
+      if (viewer?.role === 'moderator' || viewer?.role === 'admin') canPreview = true;
+    }
+    if (!canPreview) return new Response('Not found', { status: 404 });
+    previewBanner = rawStore.deleted_at ? 'archived' : rawStore.status as 'pending_review' | 'suspended';
+  }
+
+  // Build the same payload getPublicStorefront returns, using admin so
+  // preview works even for non-active stores.
+  const { data: members } = await admin
+    .from('store_members')
+    .select('user_id, public_title, role, profiles:profiles!store_members_user_id_fkey(display_name, avatar_path)')
+    .eq('store_id', rawStore.id)
+    .eq('visible_on_storefront', true);
+  storefront = {
+    store: rawStore,
+    publicMembers: (members ?? []).map((m: any) => ({
+      user_id: m.user_id,
+      public_title: m.public_title,
+      role: m.role,
+      display_name: m.profiles?.display_name ?? null,
+      avatar_path: m.profiles?.avatar_path ?? null,
+    })),
+  };
+} else if (ctx) {
+  // ctx exists but store doesn't (or RLS blocks). Try the public-only path.
   const res = await getPublicStorefront(ctx, slug);
   if (!res.ok) return new Response('Not found', { status: 404 });
   storefront = res.data;
 } else {
+  // Anonymous viewer — only active stores visible.
   const { data: store } = await supabase
     .from('stores')
     .select('*')
@@ -47,6 +89,12 @@ if (ctx) {
 }
 
 const { store, publicMembers } = storefront;
+
+const PREVIEW_LABEL: Record<string, string> = {
+  pending_review: 'Forhåndsvisning — butikken venter på moderering',
+  suspended: 'Forhåndsvisning — butikken er suspendert',
+  archived: 'Forhåndsvisning — butikken er slettet',
+};
 
 // Active listings
 const { data: listings } = await supabase
@@ -76,6 +124,12 @@ const accentStyle = store.accent_color
 <Layout title={`${store.name} — Strikketorget`} description={store.tagline ?? ''} lang="nb">
   <MarketplaceShell>
     <div style={accentStyle}>
+      {previewBanner && (
+        <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl px-4 py-3 text-sm flex items-center gap-2">
+          <span class="text-amber-600">👁</span>
+          <span>{PREVIEW_LABEL[previewBanner]}</span>
+        </div>
+      )}
       <!-- Banner + brand head -->
       <div class="relative">
         <div class="aspect-[16/5] sm:aspect-[16/4] w-full overflow-hidden rounded-3xl border border-sage-500/10 bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
