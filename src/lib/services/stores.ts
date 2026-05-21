@@ -19,6 +19,7 @@ export interface CreateStoreInput {
   slug?: string;
   tagline?: string;
   description?: string;
+  website_url?: string;
   contact_email?: string;
 }
 
@@ -86,6 +87,7 @@ export async function createStore(
       name,
       tagline: input.tagline?.trim() || null,
       description: input.description?.trim() || null,
+      website_url: input.website_url?.trim() || null,
       contact_email: contactEmail,
       location_city: org.city,
       status: 'pending_review' as StoreStatus,

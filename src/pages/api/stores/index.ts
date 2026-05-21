@@ -25,6 +25,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     slug: body.slug,
     tagline: body.tagline,
     description: body.description,
+    website_url: body.website_url,
     contact_email: body.contact_email,
   });
 

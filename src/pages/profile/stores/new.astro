@@ -109,6 +109,34 @@ if (!user) return Astro.redirect('/login?next=/profile/stores/new');
 
           <div>
             <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Beskrivelse (valgfritt)
+            </label>
+            <textarea
+              name="description"
+              rows="4"
+              maxlength="2000"
+              placeholder="Fortell hvem dere er, hva dere lager, og hva som gjør butikken spesiell."
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none resize-none"
+            ></textarea>
+            <p class="text-xs text-charcoal/45 mt-2">
+              Hjelper moderator å forstå virksomheten raskere — og er nyttig for kundene når butikken er aktiv.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Nettside (valgfritt)
+            </label>
+            <input
+              type="url"
+              name="website_url"
+              placeholder="https://"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               Kontakt-e-post
             </label>
             <input
