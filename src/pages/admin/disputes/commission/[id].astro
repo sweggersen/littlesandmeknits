@@ -125,7 +125,7 @@ const knitterMailto = knitterEmail
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
         <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/45 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
       </div>
-      <iframe src={itemUrl} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Oppdrag"></iframe>
+      <iframe src={`${itemUrl}?embed=1`} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Oppdrag"></iframe>
     </div>
   </div>
 </AdminLayout>

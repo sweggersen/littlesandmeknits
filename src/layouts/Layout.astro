@@ -19,6 +19,9 @@ const lang = langProp ?? getLangFromUrl(Astro.url);
 
 const isMarket = isStrikketorget || Astro.url.pathname.startsWith('/market');
 const faviconHref = isMarket ? '/strikketorget-favicon.svg' : '/favicon.svg';
+// ?embed=1 renders the page without nav/footer/tab-bar — used by moderator
+// iframes (reports/disputes detail) that want a clean content preview.
+const isEmbed = Astro.url.searchParams.get('embed') === '1';
 ---
 
 <!doctype html>
@@ -105,12 +108,12 @@ const faviconHref = isMarket ? '/strikketorget-favicon.svg' : '/favicon.svg';
       })();
     </script>
   </head>
-  <body class="min-h-screen bg-linen text-charcoal flex flex-col">
-    {isStrikketorget ? <StrikketorgetNav /> : <Navbar lang={lang} />}
+  <body class="min-h-screen bg-linen text-charcoal flex flex-col" data-embed={isEmbed ? '1' : undefined}>
+    {!isEmbed && (isStrikketorget ? <StrikketorgetNav /> : <Navbar lang={lang} />)}
     <main class="flex-1">
       <slot />
     </main>
-    <Footer lang={lang} />
+    {!isEmbed && <Footer lang={lang} />}
 
     <a
       data-pwa-preview-exit

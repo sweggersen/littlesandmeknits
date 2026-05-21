@@ -250,7 +250,7 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
         )}
       </div>
       {itemUrl ? (
-        <iframe src={itemUrl} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Rapportert element"></iframe>
+        <iframe src={`${itemUrl}?embed=1`} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Rapportert element"></iframe>
       ) : (
         <p class="p-5 text-sm text-charcoal/55">Elementet finnes ikke lenger eller er ikke tilgjengelig.</p>
       )}
