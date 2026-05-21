@@ -125,10 +125,14 @@ export interface StoreScoreInput {
   legalBusinessType: string | null;
   /** Names from Brønnøysund's roles endpoint (non-resigned only). */
   registeredRoleNames: string[];
-  /** Subset of registeredRoleNames that the submitter's display_name matched. */
-  matchedRoleNames: string[];
-  /** True if the submitter matches a role with signing/CEO/chair-level authority. */
+  /** Strong matches (multiple tokens overlap or one name fully contains the other). */
+  strongMatchedNames: string[];
+  /** Weak matches (single first-name match — common for sole proprietors). */
+  weakMatchedNames: string[];
+  /** True if the submitter matches any role with signing/CEO/chair-level authority. */
   matchedKeyRole: boolean;
+  /** True if a STRONG match was for a key role. */
+  strongMatchedKeyRole: boolean;
 }
 
 export function computeStoreConfidenceScore(
@@ -136,12 +140,21 @@ export function computeStoreConfidenceScore(
 ): { total: number; breakdown: { label: string; points: number; max: number }[] } {
   const breakdown: { label: string; points: number; max: number }[] = [];
 
-  // 1. Innmelder samsvarer med registrert rolle (0-40)
+  // 1. Innmelder samsvarer med registrert rolle (0-45)
   let rolePts = 0;
-  if (input.matchedKeyRole) rolePts = 40;
-  else if (input.matchedRoleNames.length > 0) rolePts = 30;
-  else if (input.registeredRoleNames.length === 0) rolePts = 0;
-  breakdown.push({ label: 'Innmelder samsvarer med registrert rolle', points: rolePts, max: 40 });
+  let roleLabel = 'Innmelder samsvarer med registrert rolle';
+  if (input.strongMatchedKeyRole) {
+    rolePts = 45;
+  } else if (input.strongMatchedNames.length > 0) {
+    rolePts = 33;
+  } else if (input.weakMatchedNames.length > 0 && input.matchedKeyRole) {
+    rolePts = 25;
+    roleLabel += ' (delvis navnematch)';
+  } else if (input.weakMatchedNames.length > 0) {
+    rolePts = 17;
+    roleLabel += ' (delvis navnematch)';
+  }
+  breakdown.push({ label: roleLabel, points: rolePts, max: 45 });
 
   // 2. Email-domene match (0-10)
   let emailPts = 0;
@@ -156,25 +169,27 @@ export function computeStoreConfidenceScore(
   }
   breakdown.push({ label: 'E-post-domene matcher nettside', points: emailPts, max: 10 });
 
-  // 3. Kontoalder (0-10)
+  // 3. Kontoalder (0-3). Most store owners sign up specifically to create a
+  // store, so we don't penalise new accounts much — just a tiny bonus for
+  // long-standing community members.
   const days = (Date.now() - new Date(input.profileCreatedAt).getTime()) / 86400_000;
   let agePts = 0;
-  if (days >= 365) agePts = 10;
-  else if (days >= 90) agePts = 7;
-  else if (days >= 30) agePts = 4;
-  else if (days >= 7) agePts = 2;
-  breakdown.push({ label: 'Kontoalder', points: agePts, max: 10 });
+  if (days >= 365) agePts = 3;
+  else if (days >= 90) agePts = 2;
+  else if (days >= 30) agePts = 1;
+  breakdown.push({ label: 'Kontoalder', points: agePts, max: 3 });
 
-  // 4. Virksomhetens alder (0-10)
+  // 4. Virksomhetens alder (0-12). Older businesses are more likely
+  // legitimate / less likely a recently-created shell.
   let bizAgePts = 0;
   if (input.legalFoundedDate) {
     const bizDays = (Date.now() - new Date(input.legalFoundedDate).getTime()) / 86400_000;
-    if (bizDays >= 365 * 5) bizAgePts = 10;
-    else if (bizDays >= 365 * 2) bizAgePts = 7;
-    else if (bizDays >= 365) bizAgePts = 4;
+    if (bizDays >= 365 * 5) bizAgePts = 12;
+    else if (bizDays >= 365 * 2) bizAgePts = 8;
+    else if (bizDays >= 365) bizAgePts = 5;
     else if (bizDays >= 90) bizAgePts = 2;
   }
-  breakdown.push({ label: 'Virksomhetens alder', points: bizAgePts, max: 10 });
+  breakdown.push({ label: 'Virksomhetens alder', points: bizAgePts, max: 12 });
 
   // 5. Beskrivelse + nettside fylt ut (0-10)
   let completenessPts = 0;
@@ -202,6 +217,42 @@ export function computeStoreConfidenceScore(
 
   const total = Math.max(0, Math.min(100, breakdown.reduce((s, b) => s + b.points, 0)));
   return { total, breakdown };
+}
+
+/** Maps a store confidence score to a moderator-facing recommendation. */
+export interface StoreScoreRecommendation {
+  tone: 'green' | 'amber' | 'orange' | 'red';
+  label: string;
+  detail: string;
+}
+
+export function recommendationForStoreScore(total: number): StoreScoreRecommendation {
+  if (total >= 75) {
+    return {
+      tone: 'green',
+      label: 'Anbefal godkjenning',
+      detail: 'Sterk match mot registrert rolle og gode tillitssignaler. Godkjenn med mindre noe er åpenbart galt.',
+    };
+  }
+  if (total >= 50) {
+    return {
+      tone: 'amber',
+      label: 'Vurder nøye',
+      detail: 'Identiteten matcher trolig, men noen signaler mangler. Sjekk rolleliste og kontaktinformasjon før godkjenning.',
+    };
+  }
+  if (total >= 25) {
+    return {
+      tone: 'orange',
+      label: 'Verifiser før godkjenning',
+      detail: 'Bare delvis navnematch eller veldig ny virksomhet/konto. Send verifikasjons-e-post før godkjenning.',
+    };
+  }
+  return {
+    tone: 'red',
+    label: 'Sannsynlig avvisning',
+    detail: 'Ingen match mot registrerte representanter. Be om dokumentasjon eller avvis, med mindre du har annen kilde til legitimitet.',
+  };
 }
 
 export async function getReviewStats(admin: SupabaseClient, userId: string): Promise<ReviewStats> {
@@ -283,6 +334,17 @@ export async function applyApproval(
       status: 'active', approved_at: now, reviewed_at: now, reviewed_by: actorId,
       promo_year_one_free: isFoundingMember,
     }).eq('id', qi.item_id);
+    // Grant achievements immediately for all store members
+    try {
+      const { checkAndGrantAchievements } = await import('./achievements');
+      const { data: members } = await admin
+        .from('store_members').select('user_id').eq('store_id', qi.item_id);
+      for (const m of members ?? []) {
+        await checkAndGrantAchievements(admin, m.user_id, runtimeEnv);
+      }
+    } catch (err) {
+      console.error('Store achievement grant failed', err);
+    }
   } else {
     await admin.from('commission_requests').update({
       status: 'open', reviewed_at: now, reviewed_by: actorId,

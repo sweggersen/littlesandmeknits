@@ -2,12 +2,15 @@
 import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
 import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
 import { can } from '../../../../../lib/services/store-permissions';
+import { projectPhotoUrl } from '../../../../../lib/storage';
 
 const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
 if (guard instanceof Response) return guard;
 const { store, role } = guard;
 
 if (!can.editStoreSettings(role)) return Astro.redirect(`/market/store/${store.slug}/admin`);
+
+const justUploaded = Astro.url.searchParams.get('uploaded');
 ---
 
 <StoreAdminLayout store={store} myRole={role} current="settings">
@@ -15,6 +18,72 @@ if (!can.editStoreSettings(role)) return Astro.redirect(`/market/store/${store.s
     <div>
       <h1 class="font-serif text-2xl sm:text-3xl mb-1">Innstillinger</h1>
       <p class="text-charcoal/55 text-sm">Endre hvordan butikken vises på Strikketorget.</p>
+    </div>
+
+    {justUploaded && (
+      <div class="bg-sage-100/70 border border-sage-500/30 text-sage-900 rounded-2xl p-4 text-sm flex items-center gap-2">
+        <span>✓</span>
+        <span>
+          {justUploaded === 'logo' ? 'Logo' : 'Banner'} lastet opp.
+          {store.status === 'active' && ' Bildet sendes til kort moderering før det vises offentlig.'}
+        </span>
+      </div>
+    )}
+
+    <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
+      <div>
+        <h2 class="font-serif text-lg">Bilder</h2>
+        <p class="text-xs text-charcoal/55 mt-1">
+          Logo og banner bekrefter butikkens identitet for kunder. Bilder
+          gjennomgår en kort moderering før de vises offentlig.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form method="post" action={`/api/stores/${store.slug}/upload-image`} enctype="multipart/form-data" class="space-y-3">
+          <input type="hidden" name="kind" value="logo" />
+          <div class="flex items-center gap-3">
+            <div class="w-16 h-16 rounded-2xl bg-sage-100 overflow-hidden shrink-0 border border-sage-500/10">
+              {store.logo_path ? (
+                <img src={projectPhotoUrl(store.logo_path)} alt="" class="w-full h-full object-cover" />
+              ) : (
+                <div class="w-full h-full flex items-center justify-center font-serif text-2xl text-sage-700">
+                  {store.name[0]?.toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1">Logo</p>
+              <p class="text-[11px] text-charcoal/45">Kvadratisk, minst 200×200 px</p>
+            </div>
+          </div>
+          <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/avif" required
+            class="w-full text-xs text-charcoal/70 file:mr-2 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:text-xs file:font-medium hover:file:bg-terracotta-500 file:cursor-pointer file:transition-colors" />
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+            Last opp logo
+          </button>
+        </form>
+
+        <form method="post" action={`/api/stores/${store.slug}/upload-image`} enctype="multipart/form-data" class="space-y-3">
+          <input type="hidden" name="kind" value="banner" />
+          <div class="flex items-center gap-3">
+            <div class="w-24 h-12 rounded-xl bg-gradient-to-br from-oatmeal/60 to-sage-100/60 overflow-hidden shrink-0 border border-sage-500/10">
+              {store.banner_path && (
+                <img src={projectPhotoUrl(store.banner_path)} alt="" class="w-full h-full object-cover" />
+              )}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1">Banner</p>
+              <p class="text-[11px] text-charcoal/45">Bred (16:5), minst 1200×400 px</p>
+            </div>
+          </div>
+          <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/avif" required
+            class="w-full text-xs text-charcoal/70 file:mr-2 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:text-xs file:font-medium hover:file:bg-terracotta-500 file:cursor-pointer file:transition-colors" />
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+            Last opp banner
+          </button>
+        </form>
+      </div>
     </div>
 
     <form method="post" action={`/api/stores/${store.slug}`} class="space-y-6">
@@ -47,13 +116,48 @@ if (!can.editStoreSettings(role)) return Astro.redirect(`/market/store/${store.s
         </div>
 
         <div>
-          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Aksent-farge (hex)</label>
-          <div class="flex items-center gap-2">
-            <input type="text" name="accent_color" value={store.accent_color ?? ''} placeholder="#C97B5D" maxlength="7"
-              class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono" />
-            <div class="w-10 h-10 rounded-xl border border-sage-500/15" style={`background: ${store.accent_color ?? '#FAF3E6'}`}></div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Aksent-farge</label>
+          <div class="flex items-center gap-2" data-color-picker>
+            <label class="relative w-10 h-10 rounded-xl border border-sage-500/15 overflow-hidden shrink-0 cursor-pointer">
+              <input type="color"
+                data-color-input
+                value={store.accent_color ?? '#C97B5D'}
+                class="absolute inset-0 w-full h-full cursor-pointer appearance-none border-0 p-0"
+                style="background: transparent;" />
+            </label>
+            <input type="text" name="accent_color"
+              data-color-text
+              value={store.accent_color ?? ''}
+              placeholder="#C97B5D"
+              maxlength="7"
+              pattern="^#[0-9A-Fa-f]{6}$"
+              class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono uppercase" />
           </div>
+          <p class="text-xs text-charcoal/45 mt-2">
+            Brukes for små aksenter på butikksiden. Bruk en farge som passer med Strikketorgets palett.
+          </p>
         </div>
+
+        <script>
+          function initColorPicker() {
+            document.querySelectorAll<HTMLElement>('[data-color-picker]').forEach((root) => {
+              const colorInput = root.querySelector<HTMLInputElement>('[data-color-input]');
+              const textInput = root.querySelector<HTMLInputElement>('[data-color-text]');
+              if (!colorInput || !textInput) return;
+              // If text starts empty, leave color input alone but don't push its default to the text field
+              const isValidHex = (s: string) => /^#[0-9A-Fa-f]{6}$/.test(s);
+              if (textInput.value) colorInput.value = textInput.value;
+              colorInput.addEventListener('input', () => {
+                textInput.value = colorInput.value.toUpperCase();
+              });
+              textInput.addEventListener('input', () => {
+                const v = textInput.value.trim();
+                if (isValidHex(v)) colorInput.value = v;
+              });
+            });
+          }
+          document.addEventListener('astro:page-load', initColorPicker);
+        </script>
       </div>
 
       <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">

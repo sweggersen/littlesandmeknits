@@ -19,6 +19,7 @@ export interface CreateStoreInput {
   slug?: string;
   tagline?: string;
   description?: string;
+  website_url?: string;
   contact_email?: string;
 }
 
@@ -86,6 +87,7 @@ export async function createStore(
       name,
       tagline: input.tagline?.trim() || null,
       description: input.description?.trim() || null,
+      website_url: input.website_url?.trim() || null,
       contact_email: contactEmail,
       location_city: org.city,
       status: 'pending_review' as StoreStatus,
@@ -229,6 +231,68 @@ export async function restoreStore(
     .eq('id', storeId);
   if (error) return fail('server_error', 'Kunne ikke gjenopprette butikk');
   return ok({ ok: true });
+}
+
+const MAX_STORE_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_STORE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/avif']);
+
+/** Upload (or replace) a store's logo or banner. Uploaded images are
+ *  pending moderator review until the store reaches active status — a
+ *  freshly uploaded image on an active store gets a moderation queue
+ *  entry of item_type='store_image'. */
+export async function uploadStoreImage(
+  ctx: ServiceContext,
+  storeId: string,
+  kind: 'logo' | 'banner',
+  file: File,
+): Promise<ServiceResult<{ path: string }>> {
+  const role = await getMyRole(ctx, storeId);
+  if (!can.editBranding(role)) return fail('forbidden', 'Ikke tilgang');
+
+  if (file.size > MAX_STORE_IMAGE_BYTES) return fail('bad_input', 'Bildet er for stort (maks 5 MB)');
+  if (!ALLOWED_STORE_IMAGE_TYPES.has(file.type)) return fail('bad_input', 'Ugyldig filtype (JPEG, PNG, WebP eller AVIF)');
+
+  const extMap: Record<string, string> = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif',
+  };
+  const ext = extMap[file.type] ?? 'jpg';
+  const path = `stores/${storeId}/${kind}-${crypto.randomUUID()}.${ext}`;
+
+  const { error: upErr } = await ctx.admin.storage
+    .from('projects').upload(path, file, { contentType: file.type, upsert: false });
+  if (upErr) {
+    console.error('Store image upload failed', upErr);
+    return fail('server_error', 'Kunne ikke laste opp bilde');
+  }
+
+  // Delete old image (if any) so storage doesn't accumulate orphans.
+  const { data: prev } = await ctx.admin.from('stores').select(`${kind}_path`).eq('id', storeId).maybeSingle();
+  const prevPath = prev?.[`${kind}_path` as keyof typeof prev] as string | null;
+  if (prevPath && prevPath !== path) {
+    await ctx.admin.storage.from('projects').remove([prevPath]).catch(() => {});
+  }
+
+  const updateField = kind === 'logo' ? 'logo_path' : 'banner_path';
+  const { error: updErr } = await ctx.admin
+    .from('stores').update({ [updateField]: path }).eq('id', storeId);
+  if (updErr) {
+    console.error('Store image update failed', updErr);
+    return fail('server_error', 'Kunne ikke lagre bilde');
+  }
+
+  // If the store is already active, queue the new image for moderation.
+  // Drafts and pending_review stores get reviewed as part of the original
+  // store moderation pass.
+  const { data: store } = await ctx.admin.from('stores').select('status').eq('id', storeId).maybeSingle();
+  if (store?.status === 'active') {
+    await ctx.admin.from('moderation_queue').insert({
+      item_type: 'store_image',
+      item_id: storeId,
+      submitter_id: ctx.user.id,
+    }).select('id').maybeSingle();
+  }
+
+  return ok({ path });
 }
 
 /** Public-storefront read. Returns null if the store is not publicly visible. */

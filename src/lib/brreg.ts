@@ -59,6 +59,7 @@ interface BrregEnhet {
   navn: string;
   organisasjonsform: { kode: string; beskrivelse: string };
   stiftelsesdato?: string;
+  registreringsdatoEnhetsregisteret?: string;
   forretningsadresse?: {
     adresse?: string[];
     postnummer?: string;
@@ -185,7 +186,7 @@ export async function lookupOrgnr(input: string): Promise<OrgnrLookupResult> {
       address: addressLines,
       city: addr?.poststed ?? null,
       postalCode: addr?.postnummer ?? null,
-      foundedDate: enhet.stiftelsesdato ?? null,
+      foundedDate: enhet.stiftelsesdato ?? enhet.registreringsdatoEnhetsregisteret ?? null,
       status,
     },
   };

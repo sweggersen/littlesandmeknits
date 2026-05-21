@@ -19,14 +19,14 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 
 let { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
   .eq('id', id)
   .maybeSingle();
 
 if (!listing) {
   const { data: fallback } = await supabase
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id')
     .eq('id', id)
     .maybeSingle();
   if (fallback) listing = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null, buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null } as any;
@@ -39,13 +39,13 @@ if (!listing && isStaff) {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
   let { data } = await admin
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
     .eq('id', id)
     .maybeSingle();
   if (!data) {
     const { data: fallback } = await admin
       .from('listings')
-      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok')
+      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id')
       .eq('id', id)
       .maybeSingle();
     if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
@@ -60,11 +60,15 @@ const isBuyer = user?.id === listing.buyer_id;
 const viewableStatuses = new Set(['active', 'reserved', 'shipped', 'sold', 'disputed']);
 if (!isOwner && !isBuyer && !isStaff && !viewableStatuses.has(listing.status)) return Astro.redirect('/market');
 
-const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }] = await Promise.all([
+const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }] = await Promise.all([
   supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
   supabase.from('seller_reviews').select('id, reviewer_id, rating, comment, created_at').eq('listing_id', id),
+  listing.store_id
+    ? supabase.from('stores').select('id, slug, name, logo_path, location_city, verified, stripe_onboarded').eq('id', listing.store_id).maybeSingle()
+    : Promise.resolve({ data: null }),
 ]);
+const isStoreListing = !!storeRow;
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
 
@@ -86,7 +90,9 @@ if (user && !isOwner) {
 const justPublished = Astro.url.searchParams.get('published') === '1';
 const justPromoted = Astro.url.searchParams.get('promoted') === '1';
 const justPurchased = Astro.url.searchParams.get('purchased') === '1';
-const sellerOnboarded = !!sellerProfile?.stripe_onboarded;
+const sellerOnboarded = isStoreListing
+  ? !!storeRow?.stripe_onboarded
+  : !!sellerProfile?.stripe_onboarded;
 const autoReleaseDays = listing.auto_release_at
   ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
   : null;
@@ -319,11 +325,11 @@ const autoReleaseDays = listing.auto_release_at
                     </div>
                   ) : photos.length < 3 ? (
                     <p class="text-sm text-charcoal/65 mb-4">
-                      Publisering koster 29 NOK. <span class="text-terracotta-500 font-medium">Tips: Annonser med 3+ bilder får betydelig flere visninger og henvendelser.</span>
+                      Publisering er gratis. <span class="text-terracotta-500 font-medium">Tips: Annonser med 3+ bilder får betydelig flere visninger og henvendelser.</span>
                     </p>
                   ) : (
                     <p class="text-sm text-charcoal/65 mb-4">
-                      Publisering koster 29 NOK. Du betaler via Stripe — annonsen blir aktiv med en gang.
+                      Publisering er gratis. Annonsen sendes til kort moderering før den blir synlig.
                     </p>
                   )}
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/publish`}>
@@ -332,7 +338,7 @@ const autoReleaseDays = listing.auto_release_at
                         photos.length === 0
                           ? 'bg-charcoal/30 text-linen cursor-not-allowed'
                           : 'bg-charcoal text-linen hover:bg-terracotta-500']}>
-                      Betal og publiser (29 NOK)
+                      Publiser
                     </button>
                   </form>
                 </section>
@@ -340,6 +346,34 @@ const autoReleaseDays = listing.auto_release_at
               {listing.status === 'active' && (
                 <div class="bg-sage-100 rounded-2xl p-4 text-sm text-sage-900">
                   Annonsen er publisert og synlig for alle.
+                </div>
+              )}
+
+              {/* Trygg betaling upgrade — only for personal sellers (not store listings) without it enabled. */}
+              {isOwner && listing.status === 'active' && !listing.escrow_enabled && !listing.store_id && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
+                  <div class="flex items-start gap-3">
+                    <div class="text-2xl">🛡️</div>
+                    <div class="flex-1">
+                      <h3 class="font-serif text-lg mb-1">Aktiver trygg betaling</h3>
+                      <p class="text-sm text-charcoal/65">
+                        For 29 NOK kan kjøpere betale gjennom Strikketorget med full
+                        kjøperbeskyttelse. Pengene holdes i sikker forvaring til
+                        kjøper bekrefter mottak. Du får flere kjøpere som tør å handle.
+                      </p>
+                    </div>
+                  </div>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`}>
+                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                      Aktiver trygg betaling (29 NOK)
+                    </button>
+                  </form>
+                </section>
+              )}
+              {isOwner && listing.escrow_enabled && (
+                <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center gap-2">
+                  <span>🛡️</span>
+                  <span>Trygg betaling er aktivert. Kjøpere kan kjøpe gjennom Strikketorget.</span>
                 </div>
               )}
               {justPromoted && listing.status === 'active' && (
@@ -532,9 +566,13 @@ const autoReleaseDays = listing.auto_release_at
               )}
 
 
-              {/* ── Buy button (active listing, not owner, not already buyer) ── */}
-              {!isOwner && !isBuyer && listing.status === 'active' && sellerOnboarded && (
+              {/* ── Buy button (active, escrow enabled, seller onboarded) ── */}
+              {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && sellerOnboarded && (
                 <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
+                  <div class="flex items-center gap-1.5 mb-1">
+                    <span class="text-sage-700">🛡️</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Trygg betaling aktivert</span>
+                  </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
                     <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
                       Kjøp nå — {listing.price_nok} NOK
@@ -542,6 +580,18 @@ const autoReleaseDays = listing.auto_release_at
                   </form>
                   <p class="text-[11px] text-charcoal/45 text-center">
                     Pengene holdes trygt til du bekrefter mottak. 14 dagers kjøperbeskyttelse.
+                  </p>
+                </section>
+              )}
+
+              {/* ── No escrow: buyer must contact seller directly ── */}
+              {!isOwner && !isBuyer && listing.status === 'active' && !listing.escrow_enabled && (
+                <section class="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 text-sm">
+                  <p class="font-medium text-amber-900 mb-1">⚠️ Trygg betaling er ikke aktivert</p>
+                  <p class="text-charcoal/65">
+                    Selger har ikke aktivert trygg betaling på denne annonsen. Du må
+                    avtale betaling direkte (Vipps, bankoverføring, kontant ved henting).
+                    <strong>Strikketorget gir ikke kjøperbeskyttelse på dette salget.</strong>
                   </p>
                 </section>
               )}
@@ -569,17 +619,38 @@ const autoReleaseDays = listing.auto_release_at
             </div>
           )}
 
-          <a href={`/market/seller/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
-            <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
-            <div class="min-w-0">
-              <p class="font-medium group-hover:text-terracotta-500 transition-colors">
-                {sellerProfile?.display_name ?? 'Anonym'}
-              </p>
-              <p class="text-xs text-charcoal/45">
-                {sellerProfile?.location ?? listing.location ?? 'Selger'}
-              </p>
-            </div>
-          </a>
+          {isStoreListing && storeRow ? (
+            <a href={`/market/store/${storeRow.slug}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
+              {storeRow.logo_path ? (
+                <img src={projectPhotoUrl(storeRow.logo_path)} alt="" class="w-10 h-10 rounded-xl object-cover shrink-0" />
+              ) : (
+                <div class="w-10 h-10 rounded-xl bg-sage-100 flex items-center justify-center font-serif text-lg text-sage-700 shrink-0">
+                  {storeRow.name[0]?.toUpperCase()}
+                </div>
+              )}
+              <div class="min-w-0">
+                <p class="font-medium group-hover:text-terracotta-500 transition-colors flex items-center gap-1.5">
+                  {storeRow.name}
+                  {storeRow.verified && <span class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full">✓</span>}
+                </p>
+                <p class="text-xs text-charcoal/45">
+                  Butikk · {storeRow.location_city ?? 'Strikketorget'}
+                </p>
+              </div>
+            </a>
+          ) : (
+            <a href={`/market/seller/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
+              <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
+              <div class="min-w-0">
+                <p class="font-medium group-hover:text-terracotta-500 transition-colors">
+                  {sellerProfile?.display_name ?? 'Anonym'}
+                </p>
+                <p class="text-xs text-charcoal/45">
+                  {sellerProfile?.location ?? listing.location ?? 'Selger'}
+                </p>
+              </div>
+            </a>
+          )}
         </div>
       </div>
   </MarketplaceShell>

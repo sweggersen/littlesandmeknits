@@ -106,9 +106,13 @@ test.describe('Strikketorget — butikker', () => {
     await expect(page.getByRole('heading', { name: 'Oversikt' })).toBeVisible();
     await expect(page.getByText('Til moderering').first()).toBeVisible();
 
-    // Public storefront should NOT be visible while pending_review
-    const beforeApproval = await page.request.get('/market/store/test-butikken');
-    expect(beforeApproval.status()).toBe(404);
+    // Public storefront should NOT be visible to anonymous viewers while
+    // pending_review. (Members + moderators CAN preview — that's an
+    // intentional moderator-tooling feature.)
+    const anonCtx = await page.context().browser()!.newContext();
+    const anonRes = await anonCtx.request.get('/market/store/test-butikken');
+    expect(anonRes.status()).toBe(404);
+    await anonCtx.close();
 
     // ── Approve via dev endpoint
     await approveStore(page, 'test-butikken');
