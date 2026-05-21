@@ -140,9 +140,9 @@ const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
         </div>
 
         <!-- Logo overlapping the banner's bottom-left edge -->
-        <div class="px-4 sm:px-6 -mt-10 sm:-mt-14 mb-3 sm:mb-4">
+        <div class="relative z-10 px-4 sm:px-6 -mt-10 sm:-mt-14 mb-3 sm:mb-4">
           <div
-            class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md overflow-hidden"
+            class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md overflow-hidden box-border"
             style="border: 3px solid var(--store-accent);"
           >
             {store.logo_path ? (
