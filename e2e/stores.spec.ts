@@ -95,6 +95,7 @@ test.describe('Strikketorget — butikker', () => {
     await page.fill('#name-input', 'Test-butikken');
     await page.fill('#slug-input', 'test-butikken');
     await page.fill('input[name="contact_email"]', 'kunde@test-butikken.no');
+    await page.check('input[name="privacy_consent"]');
 
     // ── Submit creates store + sends to moderation; we land on /admin
     await Promise.all([

@@ -66,7 +66,7 @@ test.describe('Strikketorget — kjøp og levering', () => {
 
     // Verify active listing page (logged out is fine — it's public)
     await loginAs(page, LIV);
-    await page.goto(`/marked/listing/${listingId}`);
+    await page.goto(`/market/listing/${listingId}`);
     await expect(page.getByRole('heading', { name: 'Strikket genser str 2 år' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Kjøp nå/ })).toBeVisible();
 
@@ -89,7 +89,7 @@ test.describe('Strikketorget — kjøp og levering', () => {
 
     // Eline now sees the buyer's shipping address
     await loginAs(page, ELINE);
-    await page.goto(`/marked/listing/${listingId}`);
+    await page.goto(`/market/listing/${listingId}`);
     await expect(page.getByText('Noen har kjøpt varen din!')).toBeVisible();
     await expect(page.getByText('Liv Johansen')).toBeVisible();
     await expect(page.getByText('Storgata 12')).toBeVisible();
@@ -108,7 +108,7 @@ test.describe('Strikketorget — kjøp og levering', () => {
 
     // Buyer sees the same tracking code on her side
     await loginAs(page, LIV);
-    await page.goto(`/marked/listing/${listingId}`);
+    await page.goto(`/market/listing/${listingId}`);
     await expect(page.getByRole('heading', { name: /Varen er sendt/ })).toBeVisible();
     await expect(page.getByText('POSTEN-98765')).toBeVisible();
 
