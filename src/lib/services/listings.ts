@@ -135,11 +135,23 @@ export async function publishListing(
   }
 
   if (!autoApprove) {
-    await ctx.admin.from('moderation_queue').insert({
+    const { data: queued } = await ctx.admin.from('moderation_queue').insert({
       item_type: 'listing',
       item_id: input.listingId,
       submitter_id: ctx.user.id,
-    });
+    }).select('id').maybeSingle();
+
+    if (queued) {
+      const { data: l } = await ctx.admin.from('listings').select('title').eq('id', input.listingId).maybeSingle();
+      const { notifyModeratorsNewItem } = await import('../notify');
+      await notifyModeratorsNewItem(ctx.admin, {
+        itemType: 'listing',
+        itemId: input.listingId,
+        queueId: queued.id,
+        submitterId: ctx.user.id,
+        title: l?.title,
+      }, ctx.env);
+    }
   }
 
   return ok({ redirect: `/market/listing/${input.listingId}?published=1` });

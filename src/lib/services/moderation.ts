@@ -117,7 +117,22 @@ export async function reviewItem(
     });
   }
 
-  if (isShadow) return ok({ redirect: '/admin/moderation' });
+  if (isShadow) {
+    // Notify admins + shadow-eligible moderators so the decision gets
+    // confirmed quickly. Best-effort; don't block on errors.
+    try {
+      const { notifyShadowConfirmPending } = await import('../notify');
+      await notifyShadowConfirmPending(ctx.admin, {
+        queueId: input.queueId,
+        decisionById: ctx.user.id,
+        itemType: qi.item_type,
+        itemId: qi.item_id,
+      }, ctx.env);
+    } catch (err) {
+      console.error('Shadow-pending broadcast failed', err);
+    }
+    return ok({ redirect: '/admin/moderation' });
+  }
 
   const stripeOpts = { stripeSecretKey: ctx.env.STRIPE_SECRET_KEY, createStripe };
   const qiWithReason = { ...qi, rejection_reason: input.rejectionReason || null };
@@ -139,8 +154,20 @@ export async function shadowConfirm(
   }
 
   const role = await getProfileRole(ctx);
-  const denied = requireRole(role, ['admin']);
-  if (denied) return denied;
+  if (!role || (role !== 'admin' && role !== 'moderator')) {
+    return fail('forbidden', 'Forbidden');
+  }
+
+  // Eligibility: admin or moderator with >=50 reviews and <=3 overrides.
+  const { isShadowEligible } = await import('../admin-auth');
+  let eligible = role === 'admin';
+  if (!eligible) {
+    const { data: stats } = await ctx.admin
+      .from('moderator_stats').select('total_reviews, shadow_overrides')
+      .eq('user_id', ctx.user.id).maybeSingle();
+    eligible = isShadowEligible(role, stats);
+  }
+  if (!eligible) return fail('forbidden', 'Du må ha gjennomført 50+ vurderinger for å bekrefte skyggevurderinger');
 
   const now = new Date().toISOString();
   const stripeOpts = { stripeSecretKey: ctx.env.STRIPE_SECRET_KEY, createStripe };
@@ -150,6 +177,10 @@ export async function shadowConfirm(
     .eq('shadow_review', true).is('shadow_confirmed_at', null).maybeSingle();
 
   if (!qi) return fail('not_found', 'Not found');
+  // Reviewer can't confirm their own decision.
+  if (qi.decision_by === ctx.user.id) {
+    return fail('forbidden', 'Du kan ikke bekrefte din egen skyggevurdering');
+  }
 
   if (input.action === 'confirm') {
     await ctx.admin.from('moderation_queue').update({

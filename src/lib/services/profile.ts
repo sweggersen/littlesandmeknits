@@ -142,9 +142,34 @@ export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>>
   const isStaff = profile?.role === 'admin' || profile?.role === 'moderator';
   let pendingModeration = 0;
   if (isStaff) {
-    const { count } = await ctx.supabase
+    // 1. Items waiting for a first moderator decision
+    const { count: pending } = await ctx.supabase
       .from('moderation_queue').select('id', { count: 'exact', head: true }).in('status', ['pending', 'escalated']);
-    pendingModeration = count ?? 0;
+
+    // 2. Shadow reviews waiting for confirmation. Only counted if the
+    // current user is eligible (admin OR senior moderator) and NOT the
+    // original reviewer.
+    let shadowCount = 0;
+    const { isShadowEligible } = await import('../admin-auth');
+    let eligible = profile?.role === 'admin';
+    if (!eligible && profile?.role === 'moderator') {
+      const { data: stats } = await ctx.admin
+        .from('moderator_stats').select('total_reviews, shadow_overrides')
+        .eq('user_id', ctx.user.id).maybeSingle();
+      eligible = isShadowEligible('moderator', stats);
+    }
+    if (eligible) {
+      const { count } = await ctx.supabase
+        .from('moderation_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('shadow_review', true)
+        .is('shadow_confirmed_at', null)
+        .in('status', ['approved', 'rejected'])
+        .neq('decision_by', ctx.user.id);
+      shadowCount = count ?? 0;
+    }
+
+    pendingModeration = (pending ?? 0) + shadowCount;
   }
 
   return ok({
