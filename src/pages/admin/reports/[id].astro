@@ -19,28 +19,79 @@ const { data: report } = await supabase
   .from('reports').select('*').eq('id', id).maybeSingle();
 if (!report) return Astro.redirect('/admin/reports');
 
-// Resolve the linked item URL so we can embed it in an iframe
+// Resolve the linked item URL so we can embed it in an iframe.
+// Also figure out who the moderator might want to contact (the seller/
+// owner) — their display name, account email, and existing message
+// conversation with the reporter (if any).
 let itemUrl: string | null = null;
 let itemTitle: string | null = null;
+let subjectName: string | null = null;
+let subjectEmail: string | null = null;
+let subjectKind: 'selger' | 'kjøper' | 'butikk' | 'innmelder' = 'selger';
+let existingConversationId: string | null = null;
+
 if (report.target_type === 'listing') {
-  const { data: l } = await admin.from('listings').select('id, title, status').eq('id', report.target_id).maybeSingle();
+  const { data: l } = await admin.from('listings')
+    .select('id, title, status, seller_id, store_id').eq('id', report.target_id).maybeSingle();
   if (l) {
     itemUrl = `/market/listing/${l.id}`;
     itemTitle = l.title;
+    if (l.store_id) {
+      const { data: s } = await admin.from('stores').select('name, contact_email').eq('id', l.store_id).maybeSingle();
+      if (s) { subjectKind = 'butikk'; subjectName = s.name; subjectEmail = s.contact_email; }
+    } else {
+      const { data: p } = await admin.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
+      const { data: u } = await admin.auth.admin.getUserById(l.seller_id);
+      subjectName = p?.display_name ?? null;
+      subjectEmail = u?.user?.email ?? null;
+    }
+    // Conversation between reporter and seller for this listing
+    const { data: conv } = await admin.from('marketplace_conversations')
+      .select('id').eq('listing_id', l.id).eq('buyer_id', report.reporter_id).maybeSingle();
+    existingConversationId = conv?.id ?? null;
   }
 } else if (report.target_type === 'commission_request') {
-  const { data: r } = await admin.from('commission_requests').select('id, title').eq('id', report.target_id).maybeSingle();
+  const { data: r } = await admin.from('commission_requests').select('id, title, buyer_id').eq('id', report.target_id).maybeSingle();
   if (r) {
     itemUrl = `/market/commissions/${r.id}`;
     itemTitle = r.title;
+    subjectKind = 'kjøper';
+    const { data: p } = await admin.from('profiles').select('display_name').eq('id', r.buyer_id).maybeSingle();
+    const { data: u } = await admin.auth.admin.getUserById(r.buyer_id);
+    subjectName = p?.display_name ?? null;
+    subjectEmail = u?.user?.email ?? null;
   }
 } else if (report.target_type === 'store') {
-  const { data: s } = await admin.from('stores').select('id, slug, name').eq('id', report.target_id).maybeSingle();
+  const { data: s } = await admin.from('stores')
+    .select('id, slug, name, contact_email, created_by').eq('id', report.target_id).maybeSingle();
   if (s) {
     itemUrl = `/market/store/${s.slug}`;
     itemTitle = s.name;
+    subjectKind = 'butikk';
+    subjectName = s.name;
+    subjectEmail = s.contact_email;
   }
 }
+
+// Reporter contact info too (so mod can ask follow-up questions)
+const { data: reporterProfile } = await admin.from('profiles').select('display_name').eq('id', report.reporter_id).maybeSingle();
+const { data: reporterUser } = await admin.auth.admin.getUserById(report.reporter_id);
+const reporterDisplayName = reporterProfile?.display_name ?? null;
+const reporterEmail = reporterUser?.user?.email ?? null;
+
+// Pre-composed email subject + body for outreach to the subject
+const reasonLabel: Record<string, string> = {
+  scam: 'svindel', inappropriate: 'upassende innhold',
+  wrong_category: 'feil kategori', spam: 'spam', other: 'annet',
+};
+const targetLabel = report.target_type === 'listing' ? 'annonsen'
+  : report.target_type === 'store' ? 'butikken' : 'oppdraget';
+const subjectMailto = subjectEmail
+  ? `mailto:${subjectEmail}?subject=${encodeURIComponent(`Strikketorget — vi har mottatt en rapport på ${targetLabel}`)}&body=${encodeURIComponent(`Hei${subjectName ? ' ' + subjectName : ''},\n\nVi har mottatt en rapport om ${targetLabel} «${itemTitle ?? ''}». Innmelderen oppga grunnen «${reasonLabel[report.reason] ?? report.reason}»${report.description ? `, med beskrivelse: «${report.description}»` : ''}.\n\nKan du gi oss din side av saken så vi kan vurdere videre?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  : null;
+const reporterMailto = reporterEmail
+  ? `mailto:${reporterEmail}?subject=${encodeURIComponent('Strikketorget — oppfølging av rapporten din')}&body=${encodeURIComponent(`Hei${reporterDisplayName ? ' ' + reporterDisplayName : ''},\n\nTakk for at du varslet oss om ${targetLabel} «${itemTitle ?? ''}». Vi har noen tilleggsspørsmål:\n\n[skriv her]\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  : null;
 
 const REASON_LABEL: Record<string, string> = {
   scam: 'Svindel',
@@ -106,6 +157,42 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Beskrivelse</p>
           <p class="text-sm text-charcoal/75 whitespace-pre-wrap bg-linen rounded-lg p-3">{report.description}</p>
+        </div>
+      )}
+
+      <!-- Contact / resolution-process shortcuts -->
+      {isOpen && (subjectEmail || reporterEmail || existingConversationId) && (
+        <div class="border-t border-sage-500/10 pt-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kontakt for utredning</p>
+          <div class="space-y-1.5">
+            {subjectMailto && (
+              <a href={subjectMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">✉️</span>
+                <span>
+                  <strong class="block">Send e-post til {subjectKind}</strong>
+                  <span class="text-charcoal/55 font-mono break-all">{subjectEmail}</span>
+                </span>
+              </a>
+            )}
+            {existingConversationId && (
+              <a href={`/market/messages/${existingConversationId}`} target="_blank" rel="noopener" class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">💬</span>
+                <span>
+                  <strong class="block">Se eksisterende samtale</strong>
+                  <span class="text-charcoal/55">Mellom innmelder og {subjectKind}</span>
+                </span>
+              </a>
+            )}
+            {reporterMailto && (
+              <a href={reporterMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">✉️</span>
+                <span>
+                  <strong class="block">Spør innmelderen om mer info</strong>
+                  <span class="text-charcoal/55 font-mono break-all">{reporterEmail}</span>
+                </span>
+              </a>
+            )}
+          </div>
         </div>
       )}
 

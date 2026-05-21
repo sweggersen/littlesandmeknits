@@ -173,7 +173,17 @@ export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>>
     const { count: openReports } = await ctx.supabase
       .from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
 
-    pendingModeration = (pending ?? 0) + shadowCount + (openReports ?? 0);
+    // 4. Open disputes (admin-only flow)
+    let openDisputes = 0;
+    if (profile?.role === 'admin') {
+      const [{ count: dl }, { count: dc }] = await Promise.all([
+        ctx.supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'disputed'),
+        ctx.supabase.from('commission_requests').select('id', { count: 'exact', head: true }).eq('status', 'disputed'),
+      ]);
+      openDisputes = (dl ?? 0) + (dc ?? 0);
+    }
+
+    pendingModeration = (pending ?? 0) + shadowCount + (openReports ?? 0) + openDisputes;
   }
 
   return ok({

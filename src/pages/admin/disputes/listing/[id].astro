@@ -1,0 +1,150 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../../lib/supabase';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/market');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/admin/disputes');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: listing } = await admin
+  .from('listings')
+  .select('id, title, price_nok, seller_id, buyer_id, store_id, status, disputed_at, dispute_reason, dispute_resolution, dispute_resolved_at')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!listing) return Astro.redirect('/admin/disputes');
+
+// Pull buyer + seller (or store) contact info so the mod can investigate
+const [{ data: buyerProfile }, buyerAuth, { data: sellerProfile }, sellerAuth, { data: storeRow }] = await Promise.all([
+  listing.buyer_id ? admin.from('profiles').select('display_name').eq('id', listing.buyer_id).maybeSingle() : Promise.resolve({ data: null }),
+  listing.buyer_id ? admin.auth.admin.getUserById(listing.buyer_id) : Promise.resolve({ data: { user: null } as any }),
+  admin.from('profiles').select('display_name').eq('id', listing.seller_id).maybeSingle(),
+  admin.auth.admin.getUserById(listing.seller_id),
+  listing.store_id ? admin.from('stores').select('name, contact_email, slug').eq('id', listing.store_id).maybeSingle() : Promise.resolve({ data: null }),
+]);
+
+const buyerName = buyerProfile?.display_name ?? null;
+const buyerEmail = buyerAuth.data.user?.email ?? null;
+const sellerName = storeRow?.name ?? sellerProfile?.display_name ?? null;
+const sellerEmail = storeRow?.contact_email ?? sellerAuth.data.user?.email ?? null;
+const sellerKind: 'butikk' | 'selger' = storeRow ? 'butikk' : 'selger';
+
+// Existing conversation between buyer and seller for this listing
+const { data: conv } = listing.buyer_id
+  ? await admin.from('marketplace_conversations').select('id').eq('listing_id', listing.id).eq('buyer_id', listing.buyer_id).maybeSingle()
+  : { data: null };
+
+const itemUrl = `/market/listing/${listing.id}`;
+const isOpen = listing.status === 'disputed';
+
+const buyerMailto = buyerEmail
+  ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget — oppfølging av tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten du åpnet på annonsen «${listing.title}». Kan du gi oss mer informasjon:\n\n- Hva har skjedd?\n- Har du dokumentasjon (skjermbilder, kvitteringer, sporing)?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  : null;
+const sellerMailto = sellerEmail
+  ? `mailto:${sellerEmail}?subject=${encodeURIComponent(`Strikketorget — tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${sellerName ? ' ' + sellerName : ''},\n\nKjøperen har åpnet en tvist på annonsen «${listing.title}». Grunnen oppgitt: «${listing.dispute_reason ?? ''}».\n\nKan du gi oss din side av saken?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  : null;
+---
+
+<AdminLayout title="Tvist" current="tvister">
+  <a href="/admin/disputes" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til tvister</a>
+
+  <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
+    <!-- Left: dispute details + decision -->
+    <div class="bg-white rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
+      <div>
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Annonse</span>
+          <span class:list={[
+            'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+            isOpen ? 'text-red-600 bg-red-50' : 'text-sage-700 bg-sage-100',
+          ]}>{isOpen ? 'Åpen tvist' : 'Løst'}</span>
+        </div>
+        <h1 class="font-serif text-xl">{listing.title}</h1>
+        <p class="text-xs text-charcoal/55 mt-1">{listing.price_nok} NOK</p>
+        <a href={itemUrl} target="_blank" rel="noopener" class="text-xs text-terracotta-500 hover:underline mt-1 inline-block">Åpne i ny fane &nearr;</a>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-0.5">Kjøper</p>
+          <p>{buyerName ?? '—'}</p>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-0.5">{sellerKind === 'butikk' ? 'Butikk' : 'Selger'}</p>
+          <p>{sellerName ?? '—'}</p>
+        </div>
+      </div>
+
+      {listing.dispute_reason && (
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kjøperens beskrivelse</p>
+          <p class="text-sm text-charcoal/75 whitespace-pre-wrap bg-linen rounded-lg p-3">{listing.dispute_reason}</p>
+        </div>
+      )}
+
+      {!isOpen && listing.dispute_resolution && (
+        <div class="bg-sage-100/40 rounded-lg p-3 text-xs">
+          <p class="font-medium">Løst {listing.dispute_resolved_at && new Date(listing.dispute_resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+          <p class="mt-1 text-charcoal/65">{listing.dispute_resolution}</p>
+        </div>
+      )}
+
+      {isOpen && (
+        <div class="border-t border-sage-500/10 pt-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kontakt for utredning</p>
+          <div class="space-y-1.5">
+            {buyerMailto && (
+              <a href={buyerMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">✉️</span>
+                <span><strong class="block">Send e-post til kjøper</strong><span class="text-charcoal/55 font-mono break-all">{buyerEmail}</span></span>
+              </a>
+            )}
+            {sellerMailto && (
+              <a href={sellerMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">✉️</span>
+                <span><strong class="block">Send e-post til {sellerKind}</strong><span class="text-charcoal/55 font-mono break-all">{sellerEmail}</span></span>
+              </a>
+            )}
+            {conv && (
+              <a href={`/market/messages/${conv.id}`} target="_blank" rel="noopener" class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">💬</span>
+                <span><strong class="block">Se samtale</strong><span class="text-charcoal/55">Kjøper ↔ {sellerKind}</span></span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isOpen && (
+        <form method="post" action="/api/admin/disputes/resolve" class="border-t border-sage-500/10 pt-4 space-y-3">
+          <input type="hidden" name="item_type" value="listing" />
+          <input type="hidden" name="item_id" value={listing.id} />
+          <label class="block">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Avgjørelse og notat</span>
+            <textarea name="notes" rows="3" maxlength="500" placeholder="Begrunn avgjørelsen — synlig for begge parter."
+              class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+          </label>
+          <div class="flex gap-2">
+            <button type="submit" name="decision" value="refund" class="flex-1 bg-red-600 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-red-700">Refunder kjøper</button>
+            <button type="submit" name="decision" value="release" class="flex-1 bg-sage-600 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-700">Frigi til {sellerKind === 'butikk' ? 'butikk' : 'selger'}</button>
+          </div>
+        </form>
+      )}
+    </div>
+
+    <!-- Right: live preview of the listing -->
+    <div class="bg-white rounded-xl border border-sage-500/10 p-2 lg:p-3">
+      <div class="flex items-center justify-between mb-2 px-2 pt-1">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
+        <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/45 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
+      </div>
+      <iframe src={itemUrl} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Annonse"></iframe>
+    </div>
+  </div>
+</AdminLayout>
