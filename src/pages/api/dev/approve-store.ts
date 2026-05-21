@@ -74,6 +74,18 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     status: 'approved', decision_by: actorId, decision_at: now,
   }).eq('item_type', 'store').eq('item_id', store.id);
 
+  // Grant store achievements to all members
+  try {
+    const { checkAndGrantAchievements } = await import('../../../lib/achievements');
+    const { data: members } = await admin
+      .from('store_members').select('user_id').eq('store_id', store.id);
+    for (const m of members ?? []) {
+      await checkAndGrantAchievements(admin, m.user_id, env as any);
+    }
+  } catch (err) {
+    console.error('Store achievement grant failed', err);
+  }
+
   return new Response(JSON.stringify({ ok: true, founding: isFounding }), {
     status: 200, headers: { 'Content-Type': 'application/json' },
   });

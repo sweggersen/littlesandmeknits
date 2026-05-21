@@ -334,6 +334,17 @@ export async function applyApproval(
       status: 'active', approved_at: now, reviewed_at: now, reviewed_by: actorId,
       promo_year_one_free: isFoundingMember,
     }).eq('id', qi.item_id);
+    // Grant achievements immediately for all store members
+    try {
+      const { checkAndGrantAchievements } = await import('./achievements');
+      const { data: members } = await admin
+        .from('store_members').select('user_id').eq('store_id', qi.item_id);
+      for (const m of members ?? []) {
+        await checkAndGrantAchievements(admin, m.user_id, runtimeEnv);
+      }
+    } catch (err) {
+      console.error('Store achievement grant failed', err);
+    }
   } else {
     await admin.from('commission_requests').update({
       status: 'open', reviewed_at: now, reviewed_by: actorId,

@@ -71,6 +71,19 @@ export async function reviewItem(
   if (qi.submitter_id === ctx.user.id) return fail('forbidden', 'Cannot review your own submission');
   if (qi.assigned_to && qi.assigned_to !== ctx.user.id) return fail('forbidden', 'Not assigned to you');
 
+  // For store items: moderator can't approve a store they're a member of
+  // (any role). Submitter is one case of this, but co-owners and other
+  // members are caught here.
+  if (qi.item_type === 'store') {
+    const { data: membership } = await ctx.admin
+      .from('store_members')
+      .select('id')
+      .eq('store_id', qi.item_id)
+      .eq('user_id', ctx.user.id)
+      .maybeSingle();
+    if (membership) return fail('forbidden', 'Du er medlem av denne butikken og kan ikke vurdere den');
+  }
+
   const { data: modStats } = await ctx.admin
     .from('moderator_stats').select('total_reviews, shadow_overrides')
     .eq('user_id', ctx.user.id).maybeSingle();

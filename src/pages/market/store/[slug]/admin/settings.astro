@@ -47,13 +47,48 @@ if (!can.editStoreSettings(role)) return Astro.redirect(`/market/store/${store.s
         </div>
 
         <div>
-          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Aksent-farge (hex)</label>
-          <div class="flex items-center gap-2">
-            <input type="text" name="accent_color" value={store.accent_color ?? ''} placeholder="#C97B5D" maxlength="7"
-              class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono" />
-            <div class="w-10 h-10 rounded-xl border border-sage-500/15" style={`background: ${store.accent_color ?? '#FAF3E6'}`}></div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Aksent-farge</label>
+          <div class="flex items-center gap-2" data-color-picker>
+            <label class="relative w-10 h-10 rounded-xl border border-sage-500/15 overflow-hidden shrink-0 cursor-pointer">
+              <input type="color"
+                data-color-input
+                value={store.accent_color ?? '#C97B5D'}
+                class="absolute inset-0 w-full h-full cursor-pointer appearance-none border-0 p-0"
+                style="background: transparent;" />
+            </label>
+            <input type="text" name="accent_color"
+              data-color-text
+              value={store.accent_color ?? ''}
+              placeholder="#C97B5D"
+              maxlength="7"
+              pattern="^#[0-9A-Fa-f]{6}$"
+              class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono uppercase" />
           </div>
+          <p class="text-xs text-charcoal/45 mt-2">
+            Brukes for små aksenter på butikksiden. Bruk en farge som passer med Strikketorgets palett.
+          </p>
         </div>
+
+        <script>
+          function initColorPicker() {
+            document.querySelectorAll<HTMLElement>('[data-color-picker]').forEach((root) => {
+              const colorInput = root.querySelector<HTMLInputElement>('[data-color-input]');
+              const textInput = root.querySelector<HTMLInputElement>('[data-color-text]');
+              if (!colorInput || !textInput) return;
+              // If text starts empty, leave color input alone but don't push its default to the text field
+              const isValidHex = (s: string) => /^#[0-9A-Fa-f]{6}$/.test(s);
+              if (textInput.value) colorInput.value = textInput.value;
+              colorInput.addEventListener('input', () => {
+                textInput.value = colorInput.value.toUpperCase();
+              });
+              textInput.addEventListener('input', () => {
+                const v = textInput.value.trim();
+                if (isValidHex(v)) colorInput.value = v;
+              });
+            });
+          }
+          document.addEventListener('astro:page-load', initColorPicker);
+        </script>
       </div>
 
       <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">

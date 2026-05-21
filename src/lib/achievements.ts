@@ -157,6 +157,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { key: 'revenue_50000', emoji: '💰', label: 'Femti tusen', description: 'Tjent 50 000 kr — strikkeentreprenør!', category: 'marked', tier: 'platinum' },
   { key: 'revenue_100000', emoji: '💰', label: 'Hundre tusen', description: 'Tjent 100 000 kr — strikkeimperiet!', category: 'marked', tier: 'diamond' },
 
+  // Stores
+  { key: 'store_owner', emoji: '🏪', label: 'Butikkeier', description: 'Eier en aktiv butikk på Strikketorget', category: 'marked' },
+  { key: 'store_founding_member', emoji: '🎉', label: 'Grunnleggermedlem', description: 'Blant de første 20 godkjente butikkene', category: 'marked', tier: 'gold' },
+  { key: 'store_verified', emoji: '🛡️', label: 'Verifisert butikk', description: 'Eier en verifisert butikk', category: 'marked', tier: 'silver' },
+  { key: 'store_team_member', emoji: '👥', label: 'Teammedlem', description: 'Medlem av en butikk med flere personer', category: 'marked' },
+
   // ═══════════════════════════════════════════
   // ── Fellesskap ──
   // ═══════════════════════════════════════════
@@ -279,6 +285,7 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
     { data: shadowConfirms },
     { data: escalations },
     { data: revenueData },
+    { data: storeMemberships },
   ] = await Promise.all([
     admin.from('profiles')
       .select('created_at, avatar_path, bio, location, instagram_handle, stripe_onboarded, trust_tier, role')
@@ -351,6 +358,9 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
       .select('price_nok')
       .eq('seller_id', userId)
       .eq('status', 'sold'),
+    admin.from('store_members')
+      .select('role, stores:stores!inner(id, status, deleted_at, verified, promo_year_one_free)')
+      .eq('user_id', userId),
   ]);
 
   if (!profile) return [];
@@ -489,6 +499,33 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
   if (totalRevenue >= 10000) await grant('revenue_10000');
   if (totalRevenue >= 50000) await grant('revenue_50000');
   if (totalRevenue >= 100000) await grant('revenue_100000');
+
+  // Stores
+  const memberships = (storeMemberships ?? []) as Array<{ role: string; stores: any }>;
+  const liveStores = memberships
+    .map(m => m.stores)
+    .filter(s => s && !s.deleted_at && s.status === 'active');
+  if (liveStores.some(s => s)) {
+    // Owner of any active store
+    if (memberships.some(m => m.role === 'owner' && m.stores?.status === 'active' && !m.stores?.deleted_at)) {
+      await grant('store_owner');
+    }
+    if (liveStores.some(s => s.promo_year_one_free)) await grant('store_founding_member');
+    if (liveStores.some(s => s.verified)) await grant('store_verified');
+  }
+  if (memberships.length > 0 && memberships.some(m => m.role !== 'owner' || m.stores?.status === 'active')) {
+    // We give "team member" if the user is in >1 person store (i.e., there are
+    // other members besides them). Need a separate count — fetch lazily.
+    const storeIds = memberships.map(m => m.stores?.id).filter(Boolean);
+    if (storeIds.length > 0) {
+      const { data: peers } = await admin
+        .from('store_members')
+        .select('store_id, user_id')
+        .in('store_id', storeIds);
+      const hasTeamMate = (peers ?? []).some(p => p.store_id && p.user_id !== userId);
+      if (hasTeamMate) await grant('store_team_member');
+    }
+  }
 
   // ── Fellesskap ──
   const myReviews = reviews ?? [];

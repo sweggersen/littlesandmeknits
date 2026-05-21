@@ -189,7 +189,21 @@ const { data: prevQueue } = await supabase
 const isAdmin = auth.role === 'admin';
 const isShadowPending = queueItem.shadow_review && !queueItem.shadow_confirmed_at && ['approved', 'rejected'].includes(queueItem.status);
 const isSpotCheckPending = queueItem.spot_check && !queueItem.spot_check_at && ['approved', 'rejected'].includes(queueItem.status);
-const canDecide = ['pending', 'assigned', 'escalated'].includes(queueItem.status) && queueItem.submitter_id !== auth.user.id;
+// For store items, also block decision if the moderator is a member of
+// the store (broader rule than just "submitter is reviewer").
+let isStoreMember = false;
+if (queueItem.item_type === 'store') {
+  const { data: mb } = await admin
+    .from('store_members')
+    .select('id')
+    .eq('store_id', queueItem.item_id)
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+  isStoreMember = !!mb;
+}
+const canDecide = ['pending', 'assigned', 'escalated'].includes(queueItem.status)
+  && queueItem.submitter_id !== auth.user.id
+  && !isStoreMember;
 
 const storeRecommendation = queueItem.item_type === 'store'
   ? recommendationForStoreScore(confidence.total)
@@ -224,6 +238,9 @@ function scoreColor(s: number) {
             }</span>
             {queueItem.submitter_id === auth.user.id && (
               <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Ditt eget — kan ikke vurdere</span>
+            )}
+            {isStoreMember && queueItem.submitter_id !== auth.user.id && (
+              <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Du er medlem — kan ikke vurdere</span>
             )}
           </div>
           <a
