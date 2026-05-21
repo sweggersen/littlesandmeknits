@@ -13,6 +13,7 @@ interface Props {
   promoted?: boolean;
   storeName?: string | null;
   storeSlug?: string | null;
+  escrowEnabled?: boolean;
 }
 const {
   id,
@@ -28,6 +29,7 @@ const {
   promoted = false,
   storeName,
   storeSlug,
+  escrowEnabled = false,
 } = Astro.props;
 ---
 
@@ -54,7 +56,10 @@ const {
       {inactiveLabel ? (
         <p class="text-xs text-charcoal/45 mt-1">{inactiveLabel}</p>
       ) : (
-        <p class="font-mono tabular-nums text-sm mt-1">{price} NOK</p>
+        <div class="flex items-center gap-1.5 mt-1">
+          <p class="font-mono tabular-nums text-sm">{price} NOK</p>
+          {escrowEnabled && <span class="text-[10px] text-sage-700" title="Trygg betaling">🛡️</span>}
+        </div>
       )}
       {storeName && storeSlug && (
         <p class="text-[10px] text-charcoal/45 mt-1.5 truncate">

@@ -64,10 +64,14 @@ export async function createListing(
     storeId = input.storeId;
   }
 
+  // Store-owned listings get trygg betaling free (included with subscription).
+  const escrowEnabled = !!storeId;
+
   const { data, error } = await ctx.supabase
     .from('listings')
     .insert({
       seller_id: ctx.user.id, store_id: storeId,
+      escrow_enabled: escrowEnabled,
       kind: input.kind, title, description: input.description?.trim() || null,
       price_nok: priceNok, size_label: sizeLabel,
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
@@ -93,16 +97,18 @@ export async function createListing(
 
 const LISTING_FEE_NOK = 29;
 
+/** Publish a draft listing. Free for everyone. The listing goes to
+ *  pending_review (or active for trusted sellers / auto-approved stores).
+ *  Stripe is NOT involved at publish time. */
 export async function publishListing(
   ctx: ServiceContext,
-  input: { listingId: string; stripeSecretKey: string },
+  input: { listingId: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.listingId) return fail('bad_input', 'Missing id');
-  if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
 
   const { data: listing } = await ctx.supabase
     .from('listings')
-    .select('id, seller_id, title, status')
+    .select('id, seller_id, status')
     .eq('id', input.listingId)
     .maybeSingle();
 
@@ -113,22 +119,69 @@ export async function publishListing(
     .from('listing_photos').select('*', { count: 'exact', head: true }).eq('listing_id', input.listingId);
   if (!photoCount || photoCount < 1) return fail('bad_input', 'Legg til minst ett bilde før du publiserer');
 
+  const { data: profile } = await ctx.admin
+    .from('profiles').select('trust_tier').eq('id', ctx.user.id).maybeSingle();
+  const autoApprove = profile?.trust_tier === 'trusted';
+  const newStatus = autoApprove ? 'active' : 'pending_review';
+
+  const { error: updateErr } = await ctx.admin
+    .from('listings').update({
+      status: newStatus,
+      published_at: autoApprove ? new Date().toISOString() : null,
+    }).eq('id', input.listingId).eq('status', 'draft');
+  if (updateErr) {
+    console.error('Publish update failed', updateErr);
+    return fail('server_error', 'Kunne ikke publisere annonse');
+  }
+
+  if (!autoApprove) {
+    await ctx.admin.from('moderation_queue').insert({
+      item_type: 'listing',
+      item_id: input.listingId,
+      submitter_id: ctx.user.id,
+    });
+  }
+
+  return ok({ redirect: `/market/listing/${input.listingId}?published=1` });
+}
+
+/** Pay the 29 NOK fee to enable trygg betaling on a listing. Personal
+ *  sellers only — store-owned listings get this free via subscription. */
+const ESCROW_UPGRADE_FEE_NOK = 29;
+
+export async function upgradeListingEscrow(
+  ctx: ServiceContext,
+  input: { listingId: string; stripeSecretKey: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (!input.listingId) return fail('bad_input', 'Missing id');
+  if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
+
+  const { data: listing } = await ctx.admin
+    .from('listings')
+    .select('id, seller_id, store_id, title, status, escrow_enabled')
+    .eq('id', input.listingId)
+    .maybeSingle();
+
+  if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
+  if (listing.escrow_enabled) return fail('conflict', 'Trygg betaling er allerede aktivert');
+  if (listing.store_id) return fail('conflict', 'Butikk-annonser har trygg betaling inkludert');
+
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(input.stripeSecretKey);
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: [{
       price_data: {
-        currency: 'nok', unit_amount: LISTING_FEE_NOK * 100,
-        product_data: { name: `Annonsegebyr: ${listing.title}` },
+        currency: 'nok', unit_amount: ESCROW_UPGRADE_FEE_NOK * 100,
+        product_data: { name: `Trygg betaling: ${listing.title}` },
       },
       quantity: 1,
     }],
-    success_url: `${siteUrl}/market/listing/${input.listingId}?published=1`,
+    success_url: `${siteUrl}/market/listing/${input.listingId}?escrow=on`,
     cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,
-    metadata: { type: 'listing_fee', listing_id: input.listingId, user_id: ctx.user.id, seller_id: ctx.user.id },
+    metadata: { type: 'escrow_upgrade', listing_id: input.listingId, user_id: ctx.user.id },
     locale: 'nb',
   });
 
@@ -227,13 +280,14 @@ export async function purchaseListing(
 
   const { data: listing } = await ctx.supabase
     .from('listings')
-    .select('id, seller_id, store_id, title, price_nok, status, hero_photo_path')
+    .select('id, seller_id, store_id, title, price_nok, status, hero_photo_path, escrow_enabled')
     .eq('id', input.listingId)
     .maybeSingle();
 
   if (!listing) return fail('not_found', 'Listing not found');
   if (listing.status !== 'active') return fail('conflict', 'Listing not available');
   if (listing.seller_id === ctx.user.id) return fail('bad_input', 'Cannot buy own listing');
+  if (!listing.escrow_enabled) return fail('conflict', 'Selger har ikke aktivert trygg betaling på denne annonsen — kontakt selger direkte');
 
   // For store-owned listings, payment routes to the store's Stripe account
   // (NOT the individual member's). The store is the seller of record.

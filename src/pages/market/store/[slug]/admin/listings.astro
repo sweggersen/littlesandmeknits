@@ -8,7 +8,7 @@ import { createServerSupabase } from '../../../../../lib/supabase';
 
 const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
 if (guard instanceof Response) return guard;
-const { store, role } = guard;
+const { ctx, store, role } = guard;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: listings } = await supabase

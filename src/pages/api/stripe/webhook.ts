@@ -71,6 +71,24 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response('ok', { status: 200 });
     }
 
+    // ── Escrow upgrade fee ──────────────────────────────────
+    if (listingId && session.metadata?.type === 'escrow_upgrade') {
+      const { error } = await supabase
+        .from('listings')
+        .update({
+          escrow_enabled: true,
+          escrow_fee_paid_at: new Date().toISOString(),
+          escrow_fee_session_id: session.id,
+          listing_fee_nok: session.amount_total ? Math.round(session.amount_total / 100) : 0,
+        })
+        .eq('id', listingId);
+      if (error) {
+        console.error('Escrow upgrade webhook update failed', error);
+        return new Response('DB error', { status: 500 });
+      }
+      return new Response('ok', { status: 200 });
+    }
+
     // ── Listing promotion ─────────────────────────────────────
     if (session.metadata?.type === 'listing_promotion') {
       const promoListingId = session.metadata.listing_id;
