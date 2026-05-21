@@ -1,0 +1,118 @@
+---
+import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
+import EmptyState from '../../../../../components/EmptyState.astro';
+import StatusBadge from '../../../../../components/StatusBadge.astro';
+import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { projectPhotoUrl } from '../../../../../lib/storage';
+import { createServerSupabase } from '../../../../../lib/supabase';
+
+const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
+if (guard instanceof Response) return guard;
+const { store, role } = guard;
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: listings } = await supabase
+  .from('listings')
+  .select('id, title, price_nok, hero_photo_path, status, size_label, created_at, published_at')
+  .eq('store_id', store.id)
+  .order('created_at', { ascending: false });
+
+// Show conversion prompt if user has personal listings that could be moved
+let personalListingsCount = 0;
+if (role === 'owner') {
+  const { count } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', ctx.user.id)
+    .is('store_id', null);
+  personalListingsCount = count ?? 0;
+}
+
+const STATUS_VARIANT: Record<string, 'sage' | 'amber' | 'red' | 'muted' | 'default' | 'blue'> = {
+  draft: 'muted',
+  pending_review: 'amber',
+  active: 'sage',
+  reserved: 'amber',
+  shipped: 'blue',
+  sold: 'sage',
+  rejected: 'red',
+  archived: 'muted',
+  disputed: 'red',
+};
+const STATUS_LABEL: Record<string, string> = {
+  draft: 'Utkast',
+  pending_review: 'Til moderering',
+  active: 'Aktiv',
+  reserved: 'Reservert',
+  shipped: 'Sendt',
+  sold: 'Solgt',
+  rejected: 'Avvist',
+  archived: 'Arkivert',
+  disputed: 'Tvist',
+};
+---
+
+<StoreAdminLayout store={store} myRole={role} current="listings">
+  <div class="space-y-6">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <div>
+        <h1 class="font-serif text-2xl sm:text-3xl mb-1">Annonser</h1>
+        <p class="text-charcoal/55 text-sm">{listings?.length ?? 0} annonser</p>
+      </div>
+      <a
+        href={`/market/listing/new?store=${store.id}`}
+        class="bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        + Ny annonse
+      </a>
+    </div>
+
+    {personalListingsCount > 0 && (
+      <div class="bg-sage-100/50 rounded-2xl p-5 flex items-start gap-4">
+        <div class="flex-1">
+          <p class="font-medium mb-1">
+            Du har {personalListingsCount} privat annonse{personalListingsCount === 1 ? '' : 'r'}
+          </p>
+          <p class="text-sm text-charcoal/65">
+            Flytt dem inn under butikken så de vises i butikkens katalog og
+            vurderinger samles ett sted.
+          </p>
+        </div>
+        <form method="post" action={`/api/stores/${store.slug}/convert`}
+          onsubmit="return confirm('Flytte alle dine private annonser inn i butikken? Dette kan ikke reverseres automatisk.')">
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap">
+            Flytt {personalListingsCount}
+          </button>
+        </form>
+      </div>
+    )}
+
+    {(!listings || listings.length === 0) ? (
+      <EmptyState
+        message="Ingen annonser ennå."
+        ctaText="Lag den første"
+        ctaHref={`/market/listing/new?store=${store.id}`}
+      />
+    ) : (
+      <ul class="space-y-2">
+        {listings.map((l) => (
+          <li class="bg-white rounded-2xl border border-sage-500/10 p-3 flex items-center gap-3">
+            <div class="w-14 h-14 rounded-xl bg-oatmeal/40 overflow-hidden shrink-0">
+              {l.hero_photo_path && (
+                <img src={projectPhotoUrl(l.hero_photo_path)} alt="" class="w-full h-full object-cover" />
+              )}
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium truncate">{l.title}</p>
+              <p class="text-xs text-charcoal/55">
+                {l.price_nok} kr {l.size_label && `· str ${l.size_label}`}
+              </p>
+            </div>
+            <StatusBadge label={STATUS_LABEL[l.status] ?? l.status} variant={STATUS_VARIANT[l.status] ?? 'default'} />
+            <a href={`/market/listing/${l.id}`} class="text-xs text-terracotta-500 hover:underline shrink-0">Åpne</a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</StoreAdminLayout>

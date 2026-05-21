@@ -1,0 +1,220 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import MarketplaceShell from '../../../../components/MarketplaceShell.astro';
+import ListingCard from '../../../../components/ListingCard.astro';
+import EmptyState from '../../../../components/EmptyState.astro';
+import StarRating from '../../../../components/StarRating.astro';
+import { buildServiceContext } from '../../../../lib/services/context';
+import { getPublicStorefront } from '../../../../lib/services/stores';
+import { projectPhotoUrl } from '../../../../lib/storage';
+import { createServerSupabase } from '../../../../lib/supabase';
+
+const slug = Astro.params.slug ?? '';
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+// Use service when ctx exists; fall back to anon Supabase for non-logged in viewers
+let storefront;
+if (ctx) {
+  const res = await getPublicStorefront(ctx, slug);
+  if (!res.ok) return new Response('Not found', { status: 404 });
+  storefront = res.data;
+} else {
+  const { data: store } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('slug', slug)
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .maybeSingle();
+  if (!store) return new Response('Not found', { status: 404 });
+  const { data: members } = await supabase
+    .from('store_members')
+    .select('user_id, public_title, role, profiles:profiles!store_members_user_id_fkey(display_name, avatar_path)')
+    .eq('store_id', store.id)
+    .eq('visible_on_storefront', true);
+  storefront = {
+    store,
+    publicMembers: (members ?? []).map((m: any) => ({
+      user_id: m.user_id,
+      public_title: m.public_title,
+      role: m.role,
+      display_name: m.profiles?.display_name ?? null,
+      avatar_path: m.profiles?.avatar_path ?? null,
+    })),
+  };
+}
+
+const { store, publicMembers } = storefront;
+
+// Active listings
+const { data: listings } = await supabase
+  .from('listings')
+  .select('id, title, price_nok, hero_photo_path, status, kind, size_label, category')
+  .eq('store_id', store.id)
+  .eq('status', 'active')
+  .order('promoted_until', { ascending: false, nullsFirst: false })
+  .order('published_at', { ascending: false })
+  .limit(60);
+
+// Aggregate review rating
+const { data: reviews } = await supabase
+  .from('seller_reviews')
+  .select('rating')
+  .eq('store_id', store.id);
+const reviewCount = (reviews ?? []).length;
+const avgRating = reviewCount > 0
+  ? ((reviews ?? []).reduce((s, r) => s + r.rating, 0) / reviewCount).toFixed(1)
+  : null;
+
+const accentStyle = store.accent_color
+  ? `--store-accent: ${store.accent_color};`
+  : '';
+---
+
+<Layout title={`${store.name} — Strikketorget`} description={store.tagline ?? ''} lang="nb">
+  <MarketplaceShell>
+    <div style={accentStyle}>
+      <!-- Banner + brand head -->
+      <div class="relative">
+        <div class="aspect-[16/5] sm:aspect-[16/4] w-full overflow-hidden rounded-3xl border border-sage-500/10 bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
+          {store.banner_path && (
+            <img src={projectPhotoUrl(store.banner_path)} alt="" class="w-full h-full object-cover" />
+          )}
+        </div>
+        <div class="px-2 sm:px-6 flex items-end gap-4 -mt-8 sm:-mt-12">
+          <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md border border-sage-500/15 overflow-hidden shrink-0">
+            {store.logo_path ? (
+              <img src={projectPhotoUrl(store.logo_path)} alt={store.name} class="w-full h-full object-cover" />
+            ) : (
+              <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-charcoal/40">
+                {store.name?.[0]?.toUpperCase() ?? '?'}
+              </div>
+            )}
+          </div>
+          <div class="flex-1 min-w-0 pb-1 sm:pb-2">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="font-serif text-2xl sm:text-4xl truncate">{store.name}</h1>
+              {store.verified && (
+                <span class="text-[10px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-2 py-0.5 rounded-full">Verifisert</span>
+              )}
+            </div>
+            {store.tagline && <p class="text-sm sm:text-base text-charcoal/65 mt-0.5">{store.tagline}</p>}
+            {store.location_city && (
+              <p class="text-xs text-charcoal/45 mt-1">📍 {store.location_city}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <!-- Body grid: listings + sidebar -->
+      <div class="mt-8 sm:mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        <!-- Listings + about -->
+        <div class="lg:col-span-2 space-y-8">
+          {store.description && (
+            <section class="bg-white rounded-3xl border border-sage-500/10 p-6">
+              <h2 class="font-serif text-xl mb-3">Om butikken</h2>
+              <p class="text-charcoal/75 whitespace-pre-wrap">{store.description}</p>
+            </section>
+          )}
+
+          <section>
+            <div class="flex items-baseline justify-between mb-4">
+              <h2 class="font-serif text-2xl">Annonser</h2>
+              {listings && listings.length > 0 && (
+                <span class="text-sm text-charcoal/55">{listings.length} aktive</span>
+              )}
+            </div>
+            {(!listings || listings.length === 0) ? (
+              <EmptyState message="Ingen aktive annonser akkurat nå." />
+            ) : (
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                {listings.map((l: any) => (
+                  <ListingCard
+                    id={l.id}
+                    title={l.title}
+                    price={l.price_nok}
+                    imgUrl={l.hero_photo_path ? projectPhotoUrl(l.hero_photo_path) : undefined}
+                    meta={l.size_label}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {publicMembers.length > 0 && (
+            <section class="bg-white rounded-3xl border border-sage-500/10 p-6">
+              <h2 class="font-serif text-xl mb-4">Teamet</h2>
+              <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {publicMembers.map((m) => (
+                  <li class="flex items-center gap-3 min-w-0">
+                    {m.avatar_path ? (
+                      <img src={projectPhotoUrl(m.avatar_path)} alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sm font-serif text-sage-700 shrink-0">
+                        {m.display_name?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                    )}
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium truncate">{m.display_name ?? 'Medlem'}</p>
+                      <p class="text-xs text-charcoal/50 truncate">{m.public_title ?? ''}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="space-y-6">
+          {reviewCount > 0 && (
+            <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+              <div class="flex items-center gap-3">
+                <div class="text-3xl font-serif">{avgRating}</div>
+                <div>
+                  <StarRating rating={parseFloat(avgRating!)} />
+                  <p class="text-xs text-charcoal/55 mt-0.5">{reviewCount} vurderinger</p>
+                </div>
+              </div>
+            </section>
+          )}
+
+          <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-3">Kontakt</h3>
+            <dl class="space-y-2 text-sm">
+              {store.contact_email && (
+                <div><dt class="text-charcoal/55 text-xs">E-post</dt><dd><a href={`mailto:${store.contact_email}`} class="text-terracotta-500 hover:underline">{store.contact_email}</a></dd></div>
+              )}
+              {store.contact_phone && (
+                <div><dt class="text-charcoal/55 text-xs">Telefon</dt><dd>{store.contact_phone}</dd></div>
+              )}
+              {store.website_url && (
+                <div><dt class="text-charcoal/55 text-xs">Nettside</dt><dd><a href={store.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{store.website_url}</a></dd></div>
+              )}
+              <div class="pt-3 mt-2 border-t border-sage-500/10 flex flex-wrap gap-3">
+                {store.instagram_url && <a href={store.instagram_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Instagram</a>}
+                {store.etsy_url && <a href={store.etsy_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Etsy</a>}
+                {store.pinterest_url && <a href={store.pinterest_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Pinterest</a>}
+                {store.tiktok_url && <a href={store.tiktok_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">TikTok</a>}
+              </div>
+            </dl>
+          </section>
+
+          <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+            <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Registrert virksomhet</h3>
+            <p class="text-sm font-medium">{store.legal_name}</p>
+            {store.legal_address && <p class="text-xs text-charcoal/55">{store.legal_address}</p>}
+          </section>
+
+          <section>
+            <a href={`/report?type=store&id=${store.id}`} class="block text-center text-xs text-charcoal/45 hover:text-red-700 transition-colors">
+              Rapporter denne butikken
+            </a>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </MarketplaceShell>
+</Layout>

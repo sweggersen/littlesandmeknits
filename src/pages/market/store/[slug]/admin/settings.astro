@@ -1,0 +1,135 @@
+---
+import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
+import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { can } from '../../../../../lib/services/store-permissions';
+
+const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
+if (guard instanceof Response) return guard;
+const { store, role } = guard;
+
+if (!can.editStoreSettings(role)) return Astro.redirect(`/market/store/${store.slug}/admin`);
+---
+
+<StoreAdminLayout store={store} myRole={role} current="settings">
+  <div class="space-y-8">
+    <div>
+      <h1 class="font-serif text-2xl sm:text-3xl mb-1">Innstillinger</h1>
+      <p class="text-charcoal/55 text-sm">Endre hvordan butikken vises på Strikketorget.</p>
+    </div>
+
+    <form method="post" action={`/api/stores/${store.slug}`} class="space-y-6">
+      <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
+        <h2 class="font-serif text-lg">Profil</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Visningsnavn</label>
+            <input type="text" name="name" value={store.name} required maxlength="60"
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">By</label>
+            <input type="text" name="location_city" value={store.location_city ?? ''} maxlength="60"
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Slagord</label>
+          <input type="text" name="tagline" value={store.tagline ?? ''} maxlength="100"
+            class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Beskrivelse</label>
+          <textarea name="description" rows="6" maxlength="2000"
+            class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none resize-none">{store.description ?? ''}</textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Aksent-farge (hex)</label>
+          <div class="flex items-center gap-2">
+            <input type="text" name="accent_color" value={store.accent_color ?? ''} placeholder="#C97B5D" maxlength="7"
+              class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono" />
+            <div class="w-10 h-10 rounded-xl border border-sage-500/15" style={`background: ${store.accent_color ?? '#FAF3E6'}`}></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
+        <h2 class="font-serif text-lg">Kontakt</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">E-post</label>
+            <input type="email" name="contact_email" value={store.contact_email ?? ''}
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Telefon</label>
+            <input type="tel" name="contact_phone" value={store.contact_phone ?? ''}
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Nettside</label>
+            <input type="url" name="website_url" value={store.website_url ?? ''} placeholder="https://"
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Instagram</label>
+            <input type="url" name="instagram_url" value={store.instagram_url ?? ''}
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Etsy</label>
+            <input type="url" name="etsy_url" value={store.etsy_url ?? ''}
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Pinterest</label>
+            <input type="url" name="pinterest_url" value={store.pinterest_url ?? ''}
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">TikTok</label>
+            <input type="url" name="tiktok_url" value={store.tiktok_url ?? ''}
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6">
+        <h2 class="font-serif text-lg mb-3">Registrert i Brønnøysundregistrene</h2>
+        <dl class="text-sm space-y-1">
+          <div class="flex gap-2"><dt class="text-charcoal/55">Navn:</dt><dd>{store.legal_name}</dd></div>
+          <div class="flex gap-2"><dt class="text-charcoal/55">Orgnr:</dt><dd class="font-mono">{store.orgnr}</dd></div>
+          {store.legal_address && (<div class="flex gap-2"><dt class="text-charcoal/55">Adresse:</dt><dd>{store.legal_address}</dd></div>)}
+          {store.legal_business_type && (<div class="flex gap-2"><dt class="text-charcoal/55">Type:</dt><dd>{store.legal_business_type}</dd></div>)}
+        </dl>
+        <p class="text-xs text-charcoal/45 mt-3">
+          Disse feltene er låst og synkronisert med Brønnøysund.
+        </p>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="submit" class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          Lagre endringer
+        </button>
+      </div>
+    </form>
+
+    {can.deleteStore(role) && (
+      <div class="bg-white rounded-3xl border border-red-200 p-5 sm:p-6">
+        <h2 class="font-serif text-lg text-red-700 mb-2">Slett butikk</h2>
+        <p class="text-sm text-charcoal/65 mb-4">
+          Butikken og alle annonser arkiveres. Du kan gjenopprette innen 90 dager.
+        </p>
+        <form method="post" action={`/api/stores/${store.slug}`} onsubmit="return confirm('Sikker på at du vil slette butikken? Den kan gjenopprettes innen 90 dager.')">
+          <input type="hidden" name="_method" value="delete" />
+          <button type="submit" class="text-red-700 border border-red-300 px-4 py-2 rounded-full text-sm font-medium hover:bg-red-50 transition-colors">
+            Slett butikk
+          </button>
+        </form>
+      </div>
+    )}
+  </div>
+</StoreAdminLayout>

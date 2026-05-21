@@ -1,0 +1,143 @@
+---
+import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
+import ProfileAvatar from '../../../../../components/ProfileAvatar.astro';
+import { projectPhotoUrl } from '../../../../../lib/storage';
+import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { listMembers } from '../../../../../lib/services/store-members';
+import { listInvitations } from '../../../../../lib/services/store-invitations';
+import { can, ROLE_LABEL_NB, ROLE_DESCRIPTION_NB } from '../../../../../lib/services/store-permissions';
+import type { StoreRole } from '../../../../../lib/types/stores';
+
+const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
+if (guard instanceof Response) return guard;
+const { ctx, store, role } = guard;
+
+const membersRes = await listMembers(ctx, store.id);
+const members = membersRes.ok ? membersRes.data : [];
+const invitesRes = can.inviteMembers(role) ? await listInvitations(ctx, store.id) : null;
+const invites = invitesRes?.ok ? invitesRes.data : [];
+
+const me = members.find((m) => m.user_id === ctx.user.id);
+const roleOptions: StoreRole[] = role === 'owner'
+  ? ['owner', 'admin', 'manager', 'contributor']
+  : ['admin', 'manager', 'contributor'];
+---
+
+<StoreAdminLayout store={store} myRole={role} current="members">
+  <div class="space-y-8">
+    <div>
+      <h1 class="font-serif text-2xl sm:text-3xl mb-1">Medlemmer</h1>
+      <p class="text-charcoal/55 text-sm">
+        Bidragsytere kan opprette egne annonser. Høyere roller kan administrere mer.
+      </p>
+    </div>
+
+    {/* My presentation */}
+    {me && (
+      <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+        <h2 class="font-serif text-lg mb-3">Min profil i butikken</h2>
+        <form method="post" action={`/api/stores/${store.slug}/members`} class="space-y-3">
+          <input type="hidden" name="action" value="update-presentation" />
+          <label class="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="visible_on_storefront" checked={me.visible_on_storefront} class="rounded" />
+            Vis meg i butikkens "team"-seksjon
+          </label>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1">Tittel (valgfritt)</label>
+            <input type="text" name="public_title" value={me.public_title ?? ''}
+              placeholder="Eier, Designer, Daglig leder …"
+              maxlength="60"
+              class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          </div>
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+            Lagre
+          </button>
+        </form>
+      </section>
+    )}
+
+    {/* Invite */}
+    {can.inviteMembers(role) && (
+      <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+        <h2 class="font-serif text-lg mb-3">Inviter medlem</h2>
+        <form method="post" action={`/api/stores/${store.slug}/members`} class="flex flex-col sm:flex-row gap-2">
+          <input type="hidden" name="action" value="invite" />
+          <input type="email" name="email" required placeholder="navn@example.no"
+            class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          <select name="role" class="bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
+            {roleOptions.map((r) => (
+              <option value={r}>{ROLE_LABEL_NB[r]}</option>
+            ))}
+          </select>
+          <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            Send invitasjon
+          </button>
+        </form>
+      </section>
+    )}
+
+    {/* Pending invites */}
+    {invites && invites.length > 0 && (
+      <section>
+        <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Ventende invitasjoner</h3>
+        <ul class="space-y-2">
+          {invites.map((inv: any) => (
+            <li class="bg-oatmeal/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3 text-sm">
+              <div class="min-w-0">
+                <p class="truncate">{inv.email}</p>
+                <p class="text-xs text-charcoal/55">{ROLE_LABEL_NB[inv.role as StoreRole]} · utløper {new Date(inv.expires_at).toLocaleDateString('nb-NO')}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {/* Members list */}
+    <section>
+      <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-3">Nåværende medlemmer</h3>
+      <ul class="space-y-2">
+        {members.map((m) => (
+          <li class="bg-white rounded-2xl border border-sage-500/10 px-4 py-3 flex items-center gap-3">
+            <ProfileAvatar name={m.display_name ?? ''} url={m.avatar_path ? projectPhotoUrl(m.avatar_path) : null} size="sm" />
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate">{m.display_name ?? 'Medlem'}</p>
+              <p class="text-xs text-charcoal/55 truncate">
+                {ROLE_LABEL_NB[m.role]}
+                {m.public_title && ` · ${m.public_title}`}
+              </p>
+            </div>
+
+            {can.changeMemberRole(role) && m.user_id !== ctx.user.id && (
+              <form method="post" action={`/api/stores/${store.slug}/members`} class="flex items-center gap-1">
+                <input type="hidden" name="action" value="change-role" />
+                <input type="hidden" name="user_id" value={m.user_id} />
+                <select name="role" class="bg-linen rounded-lg px-2 py-1 text-xs border border-sage-500/15" onchange="this.form.requestSubmit()">
+                  {roleOptions.map((r) => (
+                    <option value={r} selected={m.role === r}>{ROLE_LABEL_NB[r]}</option>
+                  ))}
+                </select>
+              </form>
+            )}
+
+            {can.removeMembers(role) && m.user_id !== ctx.user.id && m.role !== 'owner' && (
+              <form method="post" action={`/api/stores/${store.slug}/members`}>
+                <input type="hidden" name="action" value="remove" />
+                <input type="hidden" name="user_id" value={m.user_id} />
+                <button type="submit" class="text-xs text-red-600/70 hover:text-red-700" title="Fjern medlem"
+                  onclick="return confirm('Fjerne dette medlemmet?')">Fjern</button>
+              </form>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    <section class="bg-sage-100/30 rounded-2xl p-4 text-xs text-charcoal/65 space-y-1">
+      <p class="font-medium text-charcoal/80">Roller</p>
+      {(Object.keys(ROLE_LABEL_NB) as StoreRole[]).map((r) => (
+        <p><strong>{ROLE_LABEL_NB[r]}:</strong> {ROLE_DESCRIPTION_NB[r]}</p>
+      ))}
+    </section>
+  </div>
+</StoreAdminLayout>

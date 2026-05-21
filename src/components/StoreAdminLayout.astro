@@ -1,0 +1,82 @@
+---
+// Shared admin shell for store dashboard pages. Wraps content in a sidebar
+// + content layout (sidebar collapses to top tabs on mobile).
+import Layout from '../layouts/Layout.astro';
+import MarketplaceShell from './MarketplaceShell.astro';
+import { ROLE_LABEL_NB } from '../lib/services/store-permissions';
+import type { Store, StoreRole } from '../lib/types/stores';
+import { projectPhotoUrl } from '../lib/storage';
+
+interface Props {
+  store: Store;
+  myRole: StoreRole;
+  current: 'overview' | 'listings' | 'members' | 'settings' | 'payouts';
+  title?: string;
+}
+
+const { store, myRole, current, title } = Astro.props;
+const base = `/market/store/${store.slug}/admin`;
+
+const items: Array<{ key: Props['current']; href: string; label: string; visible: boolean }> = [
+  { key: 'overview', href: base, label: 'Oversikt', visible: true },
+  { key: 'listings', href: `${base}/listings`, label: 'Annonser', visible: true },
+  { key: 'members', href: `${base}/members`, label: 'Medlemmer', visible: true },
+  { key: 'settings', href: `${base}/settings`, label: 'Innstillinger', visible: myRole !== 'contributor' },
+];
+---
+
+<Layout title={title ?? `${store.name} — Administrasjon`} lang="nb">
+  <MarketplaceShell>
+    <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 sm:gap-8">
+      <!-- Sidebar (or top tabs on mobile) -->
+      <aside class="space-y-2">
+        <div class="bg-white rounded-2xl border border-sage-500/10 p-4 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-sage-100 overflow-hidden shrink-0">
+            {store.logo_path ? (
+              <img src={projectPhotoUrl(store.logo_path)} alt="" class="w-full h-full object-cover" />
+            ) : (
+              <div class="w-full h-full flex items-center justify-center font-serif text-lg text-sage-700">
+                {store.name[0]?.toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div class="min-w-0">
+            <p class="font-medium text-sm truncate">{store.name}</p>
+            <p class="text-[11px] text-charcoal/55">{ROLE_LABEL_NB[myRole]}</p>
+          </div>
+        </div>
+
+        <nav class="flex lg:flex-col gap-1 overflow-x-auto no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+          {items.filter((i) => i.visible).map((item) => (
+            <a
+              href={item.href}
+              class:list={[
+                'shrink-0 px-3 py-2 rounded-xl text-sm font-medium transition-colors',
+                item.key === current
+                  ? 'bg-charcoal text-linen'
+                  : 'text-charcoal/65 hover:bg-sage-100/60',
+              ]}
+            >
+              {item.label}
+            </a>
+          ))}
+          <a
+            href={`/market/store/${store.slug}`}
+            class="shrink-0 px-3 py-2 rounded-xl text-sm font-medium text-charcoal/55 hover:bg-sage-100/60"
+          >
+            Se butikken →
+          </a>
+        </nav>
+      </aside>
+
+      <div>
+        <slot />
+      </div>
+    </div>
+  </MarketplaceShell>
+
+  <style>
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</Layout>

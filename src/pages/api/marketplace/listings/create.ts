@@ -23,6 +23,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     sizeAgeMonthsMax: form.get('size_age_months_max')?.toString(),
     location: form.get('location')?.toString(),
     shippingInfo: form.get('shipping_info')?.toString(),
+    storeId: form.get('store_id')?.toString() || undefined,
   });
   return toResponse(result, redirect);
 };

@@ -23,6 +23,7 @@ export async function createListing(
     patternSlug?: string; patternExternalTitle?: string;
     sizeAgeMonthsMin?: string; sizeAgeMonthsMax?: string;
     location?: string; shippingInfo?: string;
+    storeId?: string;
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!VALID_KIND.has(input.kind)) return fail('bad_input', 'Invalid kind');
@@ -42,10 +43,32 @@ export async function createListing(
     condition = input.condition;
   }
 
+  // If selling under a store, verify membership AND that the store is active.
+  let storeId: string | null = null;
+  if (input.storeId) {
+    const { data: member } = await ctx.admin
+      .from('store_members')
+      .select('role')
+      .eq('store_id', input.storeId)
+      .eq('user_id', ctx.user.id)
+      .maybeSingle();
+    if (!member) return fail('forbidden', 'Ikke medlem av denne butikken');
+    const { data: store } = await ctx.admin
+      .from('stores')
+      .select('status, deleted_at')
+      .eq('id', input.storeId)
+      .maybeSingle();
+    if (!store || store.status !== 'active' || store.deleted_at) {
+      return fail('conflict', 'Butikken er ikke aktiv ennå');
+    }
+    storeId = input.storeId;
+  }
+
   const { data, error } = await ctx.supabase
     .from('listings')
     .insert({
-      seller_id: ctx.user.id, kind: input.kind, title, description: input.description?.trim() || null,
+      seller_id: ctx.user.id, store_id: storeId,
+      kind: input.kind, title, description: input.description?.trim() || null,
       price_nok: priceNok, size_label: sizeLabel,
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
       size_age_months_max: toIntOrNull(input.sizeAgeMonthsMax),
@@ -204,7 +227,7 @@ export async function purchaseListing(
 
   const { data: listing } = await ctx.supabase
     .from('listings')
-    .select('id, seller_id, title, price_nok, status, hero_photo_path')
+    .select('id, seller_id, store_id, title, price_nok, status, hero_photo_path')
     .eq('id', input.listingId)
     .maybeSingle();
 
@@ -212,17 +235,38 @@ export async function purchaseListing(
   if (listing.status !== 'active') return fail('conflict', 'Listing not available');
   if (listing.seller_id === ctx.user.id) return fail('bad_input', 'Cannot buy own listing');
 
-  const { data: seller } = await ctx.admin
-    .from('profiles')
-    .select('stripe_account_id, stripe_onboarded, role')
-    .eq('id', listing.seller_id)
-    .maybeSingle();
-
-  if (!seller?.stripe_onboarded || !seller.stripe_account_id) {
-    return fail('conflict', 'Seller has not set up payments');
+  // For store-owned listings, payment routes to the store's Stripe account
+  // (NOT the individual member's). The store is the seller of record.
+  let payoutAccountId: string | null = null;
+  let onboarded = false;
+  let feePercent: number;
+  if (listing.store_id) {
+    const { data: store } = await ctx.admin
+      .from('stores')
+      .select('stripe_account_id, stripe_onboarded, tier, status')
+      .eq('id', listing.store_id)
+      .maybeSingle();
+    if (!store || store.status !== 'active') return fail('conflict', 'Store not active');
+    payoutAccountId = store.stripe_account_id;
+    onboarded = !!store.stripe_onboarded;
+    // Tier-based commission: Starter +2%, Pro +1%, Elite +0%
+    const tierDelta = store.tier === 'elite' ? 0 : store.tier === 'pro' ? 1 : 2;
+    feePercent = PLATFORM_FEE_PERCENT + tierDelta;
+  } else {
+    const { data: seller } = await ctx.admin
+      .from('profiles')
+      .select('stripe_account_id, stripe_onboarded, role')
+      .eq('id', listing.seller_id)
+      .maybeSingle();
+    if (!seller) return fail('not_found', 'Seller not found');
+    payoutAccountId = seller.stripe_account_id;
+    onboarded = !!seller.stripe_onboarded;
+    feePercent = seller.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   }
 
-  const feePercent = seller.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
+  if (!onboarded || !payoutAccountId) {
+    return fail('conflict', 'Seller has not set up payments');
+  }
   const amountOre = listing.price_nok * 100;
   const platformFee = Math.round(amountOre * feePercent / 100);
 
@@ -242,7 +286,7 @@ export async function purchaseListing(
     payment_intent_data: {
       capture_method: 'manual',
       application_fee_amount: platformFee,
-      transfer_data: { destination: seller.stripe_account_id },
+      transfer_data: { destination: payoutAccountId },
     },
     success_url: `${siteUrl}/market/listing/${input.listingId}?purchased=1`,
     cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
@@ -253,6 +297,7 @@ export async function purchaseListing(
       listing_id: input.listingId,
       buyer_id: ctx.user.id,
       seller_id: listing.seller_id,
+      store_id: listing.store_id ?? '',
     },
     locale: 'nb',
   });

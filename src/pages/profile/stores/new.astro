@@ -1,0 +1,263 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import { getCurrentUser } from '../../../lib/auth';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/profile/stores/new');
+---
+
+<Layout title="Opprett butikk — Strikketorget" lang="nb">
+  <div class="bg-linen min-h-[80vh]">
+    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+      <a href="/profile/stores" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-flex items-center gap-1">
+        ← Mine butikker
+      </a>
+      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Opprett butikk</h1>
+      <p class="text-charcoal/55 mb-8">
+        Butikker er for registrerte virksomheter (orgnr). Vi henter informasjon
+        fra Brønnøysundregistrene automatisk.
+      </p>
+
+      <form id="store-form" method="post" action="/api/stores" class="space-y-6">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            Organisasjonsnummer
+          </label>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              name="orgnr"
+              id="orgnr-input"
+              placeholder="9 sifre"
+              required
+              autocomplete="off"
+              class="flex-1 bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono tracking-widest"
+            />
+            <button
+              type="button"
+              id="lookup-btn"
+              class="bg-charcoal text-linen px-4 py-3 rounded-xl text-sm font-medium hover:bg-terracotta-500 transition-colors shrink-0"
+            >
+              Slå opp
+            </button>
+          </div>
+          <p class="text-xs text-charcoal/45 mt-2">
+            Aksjeselskap, enkeltpersonforetak, samvirkeforetak osv. fungerer.
+            Vi sjekker at organisasjonen er aktiv i Brønnøysund.
+          </p>
+        </div>
+
+        <div id="error-message" class="hidden bg-red-50 text-red-700 rounded-xl p-4 text-sm"></div>
+
+        <div id="lookup-result" class="hidden">
+          <div class="bg-white rounded-2xl border border-sage-500/15 p-5 space-y-2">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Registrert i Brønnøysund</p>
+            <h2 class="font-serif text-2xl" data-legal-name>—</h2>
+            <p class="text-sm text-charcoal/70" data-legal-address></p>
+            <p class="text-xs text-charcoal/45">
+              <span data-business-type></span> · Etablert <span data-founded-date></span>
+            </p>
+          </div>
+        </div>
+
+        <div id="details-section" class="hidden space-y-5">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Visningsnavn
+            </label>
+            <input
+              type="text"
+              name="name"
+              id="name-input"
+              required
+              maxlength="60"
+              placeholder="Slik vises navnet i butikken"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              URL-navn
+            </label>
+            <div class="flex items-center gap-1">
+              <span class="text-sm text-charcoal/55 font-mono">strikketorget.no/market/store/</span>
+              <input
+                type="text"
+                name="slug"
+                id="slug-input"
+                pattern="[a-z0-9\-]{3,48}"
+                placeholder="butikk-navn"
+                class="flex-1 bg-white rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono"
+              />
+            </div>
+            <p class="text-xs text-charcoal/45 mt-2">3-48 tegn, bare a-z, 0-9 og bindestrek</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Slagord (valgfritt)
+            </label>
+            <input
+              type="text"
+              name="tagline"
+              maxlength="100"
+              placeholder="En kort beskrivelse av butikken"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Kontakt-e-post
+            </label>
+            <input
+              type="email"
+              name="contact_email"
+              required
+              placeholder="kunde@butikk.no"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+            />
+            <p class="text-xs text-charcoal/45 mt-2">
+              Brukes for kundekontakt og av moderator for å verifisere
+              eierskapet ved behov.
+            </p>
+          </div>
+
+          <div class="bg-sage-100/50 rounded-2xl p-4 text-sm text-charcoal/70">
+            <p class="font-medium mb-1">Etter opprettelse</p>
+            <p>Butikken sendes til moderering. Når den er godkjent kan du
+              redigere alle detaljer, laste opp logo og banner, og invitere
+              medlemmer.</p>
+          </div>
+
+          <label class="flex items-start gap-2.5 text-sm text-charcoal/75 cursor-pointer">
+            <input type="checkbox" name="privacy_consent" required class="mt-0.5 rounded" />
+            <span>
+              Jeg samtykker til at navn, e-postadresse og opplysninger fra
+              Brønnøysundregistrene kan deles med moderatorer for å bekrefte
+              at jeg er autorisert til å representere virksomheten.
+              <a href="/privacy#butikker" target="_blank" class="text-terracotta-500 hover:underline whitespace-nowrap">Les mer</a>
+            </span>
+          </label>
+
+          <button
+            type="submit"
+            class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          >
+            Opprett butikk
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    function initStoreCreate() {
+      const orgnrInput = document.getElementById('orgnr-input') as HTMLInputElement | null;
+      const lookupBtn = document.getElementById('lookup-btn') as HTMLButtonElement | null;
+      const lookupResult = document.getElementById('lookup-result');
+      const detailsSection = document.getElementById('details-section');
+      const nameInput = document.getElementById('name-input') as HTMLInputElement | null;
+      const slugInput = document.getElementById('slug-input') as HTMLInputElement | null;
+      const errorEl = document.getElementById('error-message');
+      const form = document.getElementById('store-form') as HTMLFormElement | null;
+      if (!orgnrInput || !lookupBtn || !form) return;
+
+      function slugify(s: string): string {
+        return s.toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/æ/g, 'ae').replace(/ø/g, 'o').replace(/å/g, 'a')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+          .slice(0, 48);
+      }
+
+      async function doLookup() {
+        const orgnr = orgnrInput!.value.replace(/\D/g, '');
+        if (orgnr.length !== 9) {
+          showError('Organisasjonsnummer må være 9 sifre');
+          return;
+        }
+        showError(null);
+        lookupBtn!.disabled = true;
+        lookupBtn!.textContent = 'Slår opp …';
+        try {
+          const res = await fetch(`/api/stores/orgnr-lookup?orgnr=${orgnr}`);
+          const data = await res.json();
+          if (!data.ok) {
+            const errMap: Record<string, string> = {
+              invalid_format: 'Ugyldig organisasjonsnummer',
+              invalid_checksum: 'Ugyldig sjekksum — sjekk at nummeret er riktig',
+              not_found: 'Fant ikke organisasjonen i Brønnøysund',
+              network_error: 'Kunne ikke nå Brønnøysund. Prøv igjen.',
+              brreg_error: 'Brønnøysund-feil. Prøv igjen.',
+            };
+            showError(errMap[data.error] ?? 'Ukjent feil');
+            return;
+          }
+          if (data.data.status !== 'normal') {
+            const statusLabels: Record<string, string> = {
+              deleted: 'slettet', bankrupt: 'konkurs', liquidation: 'under avvikling',
+            };
+            showError(`Organisasjonen er ${statusLabels[data.data.status]} og kan ikke registreres`);
+            return;
+          }
+          renderResult(data.data);
+        } finally {
+          lookupBtn!.disabled = false;
+          lookupBtn!.textContent = 'Slå opp';
+        }
+      }
+
+      function renderResult(d: any) {
+        document.querySelector('[data-legal-name]')!.textContent = d.legalName;
+        document.querySelector('[data-legal-address]')!.textContent = d.address || '';
+        document.querySelector('[data-business-type]')!.textContent = d.businessTypeDescription || d.businessType;
+        document.querySelector('[data-founded-date]')!.textContent = d.foundedDate || 'ukjent';
+        lookupResult!.classList.remove('hidden');
+        detailsSection!.classList.remove('hidden');
+        if (nameInput && !nameInput.value) nameInput.value = d.legalName;
+        if (slugInput && !slugInput.value) slugInput.value = slugify(d.legalName);
+      }
+
+      function showError(msg: string | null) {
+        if (!errorEl) return;
+        if (msg) {
+          errorEl.textContent = msg;
+          errorEl.classList.remove('hidden');
+        } else {
+          errorEl.classList.add('hidden');
+        }
+      }
+
+      lookupBtn.addEventListener('click', doLookup);
+      orgnrInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
+      });
+      nameInput?.addEventListener('input', () => {
+        if (slugInput && !slugInput.dataset.manual) {
+          slugInput.value = slugify(nameInput.value);
+        }
+      });
+      slugInput?.addEventListener('input', () => { slugInput.dataset.manual = '1'; });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        showError(null);
+        const formData = new FormData(form);
+        const res = await fetch('/api/stores', { method: 'POST', body: formData });
+        if (res.redirected) { window.location.href = res.url; return; }
+        if (!res.ok) {
+          const text = await res.text();
+          showError(text || 'Kunne ikke opprette butikk');
+          return;
+        }
+        const data = await res.json();
+        if (data?.redirect) window.location.href = data.redirect;
+        else window.location.href = '/profile/stores';
+      });
+    }
+    document.addEventListener('astro:page-load', initStoreCreate);
+  </script>
+</Layout>

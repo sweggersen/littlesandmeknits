@@ -108,6 +108,102 @@ export function computeConfidenceScore(
   return { total, breakdown };
 }
 
+/** Confidence score for a store registration. Heavier weighting on whether
+ *  the submitter actually appears in Brønnøysund's registered roles for the
+ *  organisation — that's the strongest legitimacy signal we have without
+ *  full KYC. */
+export interface StoreScoreInput {
+  profileCreatedAt: string;
+  profileTotalRejections: number;
+  stripeOnboarded: boolean;
+  submitterDisplayName: string | null;
+  submitterEmail: string | null;
+  storeContactEmail: string | null;
+  storeWebsiteUrl: string | null;
+  storeDescription: string | null;
+  legalFoundedDate: string | null;
+  legalBusinessType: string | null;
+  /** Names from Brønnøysund's roles endpoint (non-resigned only). */
+  registeredRoleNames: string[];
+  /** Subset of registeredRoleNames that the submitter's display_name matched. */
+  matchedRoleNames: string[];
+  /** True if the submitter matches a role with signing/CEO/chair-level authority. */
+  matchedKeyRole: boolean;
+}
+
+export function computeStoreConfidenceScore(
+  input: StoreScoreInput,
+): { total: number; breakdown: { label: string; points: number; max: number }[] } {
+  const breakdown: { label: string; points: number; max: number }[] = [];
+
+  // 1. Innmelder samsvarer med registrert rolle (0-40)
+  let rolePts = 0;
+  if (input.matchedKeyRole) rolePts = 40;
+  else if (input.matchedRoleNames.length > 0) rolePts = 30;
+  else if (input.registeredRoleNames.length === 0) rolePts = 0;
+  breakdown.push({ label: 'Innmelder samsvarer med registrert rolle', points: rolePts, max: 40 });
+
+  // 2. Email-domene match (0-10)
+  let emailPts = 0;
+  if (input.storeWebsiteUrl && input.submitterEmail) {
+    try {
+      const host = new URL(input.storeWebsiteUrl).hostname.replace(/^www\./, '');
+      const emailDomain = input.submitterEmail.split('@')[1];
+      if (host && emailDomain && (emailDomain.endsWith(host) || host.endsWith(emailDomain))) {
+        emailPts = 10;
+      }
+    } catch { /* invalid URL */ }
+  }
+  breakdown.push({ label: 'E-post-domene matcher nettside', points: emailPts, max: 10 });
+
+  // 3. Kontoalder (0-10)
+  const days = (Date.now() - new Date(input.profileCreatedAt).getTime()) / 86400_000;
+  let agePts = 0;
+  if (days >= 365) agePts = 10;
+  else if (days >= 90) agePts = 7;
+  else if (days >= 30) agePts = 4;
+  else if (days >= 7) agePts = 2;
+  breakdown.push({ label: 'Kontoalder', points: agePts, max: 10 });
+
+  // 4. Virksomhetens alder (0-10)
+  let bizAgePts = 0;
+  if (input.legalFoundedDate) {
+    const bizDays = (Date.now() - new Date(input.legalFoundedDate).getTime()) / 86400_000;
+    if (bizDays >= 365 * 5) bizAgePts = 10;
+    else if (bizDays >= 365 * 2) bizAgePts = 7;
+    else if (bizDays >= 365) bizAgePts = 4;
+    else if (bizDays >= 90) bizAgePts = 2;
+  }
+  breakdown.push({ label: 'Virksomhetens alder', points: bizAgePts, max: 10 });
+
+  // 5. Beskrivelse + nettside fylt ut (0-10)
+  let completenessPts = 0;
+  if (input.storeDescription && input.storeDescription.length >= 50) completenessPts += 5;
+  if (input.storeWebsiteUrl) completenessPts += 5;
+  breakdown.push({ label: 'Butikkprofil fylt ut', points: completenessPts, max: 10 });
+
+  // 6. Stripe Connect verifisert (0-15)
+  // For stores this should reflect store.stripe_onboarded, not the user's.
+  // We pass it through stripeOnboarded; caller decides what to populate.
+  breakdown.push({ label: 'Stripe verifisert', points: input.stripeOnboarded ? 15 : 0, max: 15 });
+
+  // 7. Selskapsform — AS/SA/SAS er mer formelle enn ENK (0-5)
+  let bizTypePts = 0;
+  if (input.legalBusinessType) {
+    const formal = ['AS', 'ASA', 'SA', 'SAMV', 'STAT'];
+    if (formal.includes(input.legalBusinessType)) bizTypePts = 5;
+    else if (input.legalBusinessType === 'ENK') bizTypePts = 2;
+  }
+  breakdown.push({ label: 'Selskapsform', points: bizTypePts, max: 5 });
+
+  // 8. Tidligere avvisninger (0 til -20)
+  const rejPenalty = Math.min(input.profileTotalRejections * 5, 20);
+  breakdown.push({ label: 'Tidligere avvisninger', points: -rejPenalty, max: 0 });
+
+  const total = Math.max(0, Math.min(100, breakdown.reduce((s, b) => s + b.points, 0)));
+  return { total, breakdown };
+}
+
 export async function getReviewStats(admin: SupabaseClient, userId: string): Promise<ReviewStats> {
   const { data } = await admin
     .from('transaction_reviews')
@@ -177,19 +273,42 @@ export async function applyApproval(
     await admin.from('listings').update({
       status: 'active', published_at: now, reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
+  } else if (qi.item_type === 'store') {
+    // Approve the store. Tag it as a founding member if among the first 20 approved.
+    const { count: approvedSoFar } = await admin
+      .from('stores').select('id', { count: 'exact', head: true })
+      .not('approved_at', 'is', null);
+    const isFoundingMember = (approvedSoFar ?? 0) < 20;
+    await admin.from('stores').update({
+      status: 'active', approved_at: now, reviewed_at: now, reviewed_by: actorId,
+      promo_year_one_free: isFoundingMember,
+    }).eq('id', qi.item_id);
   } else {
     await admin.from('commission_requests').update({
       status: 'open', reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
   }
+  let approvedTitle: string, approvedBody: string, approvedUrl: string;
+  if (qi.item_type === 'listing') {
+    approvedTitle = 'Annonsen din er godkjent!';
+    approvedBody = 'Annonsen er nå synlig på Strikketorget.';
+    approvedUrl = `/market/listing/${qi.item_id}`;
+  } else if (qi.item_type === 'store') {
+    approvedTitle = 'Butikken din er godkjent!';
+    approvedBody = 'Butikken er nå offentlig på Strikketorget.';
+    const { data: s } = await admin.from('stores').select('slug').eq('id', qi.item_id).maybeSingle();
+    approvedUrl = s?.slug ? `/market/store/${s.slug}` : `/profile/stores`;
+  } else {
+    approvedTitle = 'Forespørselen din er godkjent!';
+    approvedBody = 'Forespørselen er nå synlig og strikkere kan gi tilbud.';
+    approvedUrl = `/market/commissions/${qi.item_id}`;
+  }
   await notify(admin, {
     userId: qi.submitter_id,
     type: 'item_approved',
-    title: qi.item_type === 'listing' ? 'Annonsen din er godkjent!' : 'Forespørselen din er godkjent!',
-    body: qi.item_type === 'listing'
-      ? 'Annonsen er nå synlig på Strikketorget.'
-      : 'Forespørselen er nå synlig og strikkere kan gi tilbud.',
-    url: qi.item_type === 'listing' ? `/market/listing/${qi.item_id}` : `/market/commissions/${qi.item_id}`,
+    title: approvedTitle,
+    body: approvedBody,
+    url: approvedUrl,
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);
@@ -231,18 +350,40 @@ export async function applyRejection(
         }
       }
     }
+  } else if (qi.item_type === 'store') {
+    await admin.from('stores').update({
+      status: 'suspended', reviewed_at: now, reviewed_by: actorId,
+    }).eq('id', qi.item_id);
+    // Hide store listings while suspended. In-flight sales are left alone
+    // so buyer flow keeps working.
+    await admin.from('listings')
+      .update({ status: 'archived' })
+      .eq('store_id', qi.item_id)
+      .in('status', ['active', 'draft', 'pending_review']);
   } else {
     await admin.from('commission_requests').update({
       status: 'rejected', moderation_notes: reason, reviewed_at: now, reviewed_by: actorId,
     }).eq('id', qi.item_id);
   }
 
+  let rejTitle: string, rejUrl: string;
+  if (qi.item_type === 'listing') {
+    rejTitle = 'Annonsen din ble avvist';
+    rejUrl = `/market/listing/${qi.item_id}`;
+  } else if (qi.item_type === 'store') {
+    rejTitle = 'Butikken din ble avvist';
+    const { data: s } = await admin.from('stores').select('slug').eq('id', qi.item_id).maybeSingle();
+    rejUrl = s?.slug ? `/market/store/${s.slug}/admin` : '/profile/stores';
+  } else {
+    rejTitle = 'Forespørselen din ble avvist';
+    rejUrl = `/market/commissions/${qi.item_id}`;
+  }
   await notify(admin, {
     userId: qi.submitter_id,
     type: 'item_rejected',
-    title: qi.item_type === 'listing' ? 'Annonsen din ble avvist' : 'Forespørselen din ble avvist',
+    title: rejTitle,
     body: reason ?? 'Innholdet oppfyller ikke retningslinjene våre.',
-    url: qi.item_type === 'listing' ? `/market/listing/${qi.item_id}` : `/market/commissions/${qi.item_id}`,
+    url: rejUrl,
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);

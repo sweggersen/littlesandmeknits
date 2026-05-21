@@ -1,9 +1,10 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
-import { createServerSupabase } from '../../../lib/supabase';
+import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { MODERATION_QUEUE_STATUS } from '../../../lib/labels';
+import { env } from 'cloudflare:workers';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -61,7 +62,33 @@ const tabs = [
 const TYPE_LABEL: Record<string, string> = {
   listing: 'Annonse',
   commission_request: 'Oppdrag',
+  store: 'Butikk',
 };
+
+// Batch-fetch the title/name for each queued item so the list shows
+// something meaningful instead of just the submitter id. Use the admin
+// client so we can read pending_review stores etc.
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const listingIds = items.filter(i => i.item_type === 'listing').map(i => i.item_id);
+const requestIds = items.filter(i => i.item_type === 'commission_request').map(i => i.item_id);
+const storeIds = items.filter(i => i.item_type === 'store').map(i => i.item_id);
+const submitterIds = [...new Set(items.map(i => i.submitter_id))];
+
+const [listingsRes, requestsRes, storesRes, submittersRes] = await Promise.all([
+  listingIds.length ? admin.from('listings').select('id, title').in('id', listingIds) : { data: [] as any[] },
+  requestIds.length ? admin.from('commission_requests').select('id, title').in('id', requestIds) : { data: [] as any[] },
+  storeIds.length ? admin.from('stores').select('id, name, orgnr, legal_name').in('id', storeIds) : { data: [] as any[] },
+  submitterIds.length ? admin.from('profiles').select('id, display_name').in('id', submitterIds) : { data: [] as any[] },
+]);
+
+const itemMetaById = new Map<string, { title: string; subtitle?: string }>();
+for (const l of listingsRes.data ?? []) itemMetaById.set(l.id, { title: l.title });
+for (const r of requestsRes.data ?? []) itemMetaById.set(r.id, { title: r.title });
+for (const s of storesRes.data ?? []) itemMetaById.set(s.id, { title: s.name, subtitle: `${s.legal_name} · ${s.orgnr}` });
+
+const submitterNameById = new Map<string, string>();
+for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_name ?? '');
 ---
 
 <AdminLayout title="Modereringskø" current="moderering">
@@ -94,8 +121,16 @@ const TYPE_LABEL: Record<string, string> = {
               {item.shadow_review && <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">Skygge</span>}
               {item.spot_check && <span class="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">Stikkprøve</span>}
             </div>
-            <p class="text-sm font-medium">{anonymizeUser(item.submitter_id)}</p>
-            <p class="text-xs text-charcoal/40">{new Date(item.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <p class="text-sm font-medium">{itemMetaById.get(item.item_id)?.title ?? anonymizeUser(item.submitter_id)}</p>
+            {itemMetaById.get(item.item_id)?.subtitle && (
+              <p class="text-xs text-charcoal/55">{itemMetaById.get(item.item_id)!.subtitle}</p>
+            )}
+            <p class="text-xs text-charcoal/40">
+              av {item.item_type === 'store'
+                ? (submitterNameById.get(item.submitter_id) || anonymizeUser(item.submitter_id))
+                : anonymizeUser(item.submitter_id)}
+              · {new Date(item.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+            </p>
           </div>
           <span class="text-charcoal/30">&rarr;</span>
         </a>

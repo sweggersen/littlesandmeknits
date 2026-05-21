@@ -1,0 +1,100 @@
+---
+import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
+import StatusBadge from '../../../../../components/StatusBadge.astro';
+import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { createServerSupabase } from '../../../../../lib/supabase';
+
+const STORE_STATUS_BADGE: Record<string, { label: string; variant: 'sage' | 'amber' | 'red' | 'muted' | 'default' }> = {
+  draft: { label: 'Utkast', variant: 'muted' },
+  pending_review: { label: 'Til moderering', variant: 'amber' },
+  active: { label: 'Aktiv', variant: 'sage' },
+  suspended: { label: 'Suspendert', variant: 'red' },
+  archived: { label: 'Slettet', variant: 'muted' },
+};
+
+const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
+if (guard instanceof Response) return guard;
+const { ctx, store, role } = guard;
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+// Quick stats
+const { count: activeListings } = await supabase
+  .from('listings').select('id', { count: 'exact', head: true })
+  .eq('store_id', store.id).eq('status', 'active');
+const { count: pendingListings } = await supabase
+  .from('listings').select('id', { count: 'exact', head: true })
+  .eq('store_id', store.id).in('status', ['reserved', 'shipped']);
+const { count: memberCount } = await ctx.admin
+  .from('store_members').select('id', { count: 'exact', head: true })
+  .eq('store_id', store.id);
+---
+
+<StoreAdminLayout store={store} myRole={role} current="overview">
+  <div class="space-y-6">
+    <div>
+      <h1 class="font-serif text-2xl sm:text-3xl mb-1">Oversikt</h1>
+      <p class="text-charcoal/55 text-sm">
+        Status: <StatusBadge label={STORE_STATUS_BADGE[store.status].label} variant={STORE_STATUS_BADGE[store.status].variant} />
+        {store.promo_year_one_free && (
+          <span class="ml-2 inline-block text-[10px] font-bold uppercase tracking-widest bg-terracotta-500/20 text-terracotta-500 px-2 py-0.5 rounded-full">
+            🎉 Grunnleggermedlem
+          </span>
+        )}
+      </p>
+    </div>
+
+    {store.status === 'pending_review' && (
+      <div class="bg-amber-50 text-amber-900 rounded-2xl p-5 text-sm">
+        <p class="font-medium mb-1">Til moderering</p>
+        <p>Butikken venter på godkjenning. Du kan fortsatt redigere
+          innstillingene og invitere medlemmer i mellomtiden.</p>
+      </div>
+    )}
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 sm:p-5">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Aktive annonser</p>
+        <p class="font-serif text-3xl mt-1">{activeListings ?? 0}</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 sm:p-5">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Pågående salg</p>
+        <p class="font-serif text-3xl mt-1">{pendingListings ?? 0}</p>
+      </div>
+      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 sm:p-5">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Medlemmer</p>
+        <p class="font-serif text-3xl mt-1">{memberCount ?? 0}</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-sage-500/10 p-5">
+      <h2 class="font-serif text-lg mb-3">Kom i gang</h2>
+      <ul class="space-y-2 text-sm">
+        <li class="flex items-start gap-2">
+          <span class={store.logo_path ? 'text-sage-600' : 'text-charcoal/30'}>●</span>
+          <a href={`/market/store/${store.slug}/admin/settings`} class="hover:text-charcoal text-charcoal/70">
+            {store.logo_path ? 'Logo lastet opp' : 'Last opp logo og banner'}
+          </a>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class={store.description ? 'text-sage-600' : 'text-charcoal/30'}>●</span>
+          <a href={`/market/store/${store.slug}/admin/settings`} class="hover:text-charcoal text-charcoal/70">
+            {store.description ? 'Beskrivelse fylt ut' : 'Skriv en beskrivelse'}
+          </a>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class={store.stripe_onboarded ? 'text-sage-600' : 'text-charcoal/30'}>●</span>
+          <span class="text-charcoal/70">
+            {store.stripe_onboarded ? 'Utbetalinger satt opp' : 'Sett opp utbetalinger (kommer snart)'}
+          </span>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class={(memberCount ?? 0) > 1 ? 'text-sage-600' : 'text-charcoal/30'}>●</span>
+          <a href={`/market/store/${store.slug}/admin/members`} class="hover:text-charcoal text-charcoal/70">
+            {(memberCount ?? 0) > 1 ? 'Team på plass' : 'Inviter teammedlemmer'}
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</StoreAdminLayout>
