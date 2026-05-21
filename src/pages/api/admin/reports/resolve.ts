@@ -12,6 +12,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     reportId: form.get('report_id')?.toString() ?? '',
     action: form.get('action')?.toString() ?? '',
     notes: form.get('notes')?.toString(),
+    affectItem: form.get('affect_item')?.toString(),
   });
   return toResponse(result, redirect);
 };

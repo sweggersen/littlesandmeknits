@@ -57,6 +57,17 @@ const TARGET_LABEL: Record<string, string> = {
 
 const reporterName = anonymizeUser(report.reporter_id);
 const isOpen = report.status === 'open';
+
+const itemLabel = report.target_type === 'listing' ? 'annonsen'
+  : report.target_type === 'store' ? 'butikken'
+  : 'oppdraget';
+const itemArchiveTitle = report.target_type === 'store'
+  ? `Lukk og suspender ${itemLabel}`
+  : `Lukk og arkiver ${itemLabel}`;
+const itemArchiveDesc = report.target_type === 'store'
+  ? 'Suspenderer butikken og arkiverer alle aktive annonser tilknyttet.'
+  : `Fjerner ${itemLabel} fra Strikketorget.`;
+const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å påvirke ${itemLabel}.`;
 ---
 
 <AdminLayout title="Rapport" current="rapporter">
@@ -113,10 +124,32 @@ const isOpen = report.status === 'open';
             <textarea name="notes" rows="3" maxlength="1000" placeholder="Hva ble gjort? F.eks. 'Kontaktet selger, fjernet villedende bilde.'"
               class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
           </label>
-          <div class="flex gap-2">
-            <button type="submit" name="action" value="resolve" class="flex-1 bg-sage-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-600">Løs (gyldig rapport)</button>
-            <button type="submit" name="action" value="dismiss" class="flex-1 border border-sage-500/30 text-charcoal/65 px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-100/50">Avvis (ikke gyldig)</button>
+
+          <fieldset class="space-y-1.5">
+            <legend class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1.5">
+              Hvis rapporten er gyldig, hva skal gjøres med {itemLabel}?
+            </legend>
+            <label class="flex items-start gap-2 text-xs cursor-pointer bg-linen rounded-lg px-3 py-2 border border-sage-500/15">
+              <input type="radio" name="affect_item" value="none" checked class="mt-0.5" />
+              <span>
+                <strong class="block">Bare lukk rapporten</strong>
+                <span class="text-charcoal/55">Allerede håndtert utenfor systemet (DM, samtale med selger, e.l.).</span>
+              </span>
+            </label>
+            <label class="flex items-start gap-2 text-xs cursor-pointer bg-linen rounded-lg px-3 py-2 border border-sage-500/15">
+              <input type="radio" name="affect_item" value="archive" class="mt-0.5" />
+              <span>
+                <strong class="block">{itemArchiveTitle}</strong>
+                <span class="text-charcoal/55">{itemArchiveDesc}</span>
+              </span>
+            </label>
+          </fieldset>
+
+          <div class="flex gap-2 pt-1">
+            <button type="submit" name="action" value="resolve" class="flex-1 bg-sage-500 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-600">Løs (gyldig rapport)</button>
+            <button type="submit" name="action" value="dismiss" class="flex-1 border border-sage-500/30 text-charcoal/65 px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-100/50">Avvis (ikke gyldig)</button>
           </div>
+          <p class="text-[10px] text-charcoal/40 leading-tight">{dismissNote}</p>
         </form>
       )}
     </div>

@@ -262,17 +262,34 @@ export async function spotCheck(
   return ok({ redirect: `/admin/moderation/${input.queueId}` });
 }
 
+/** Resolve or dismiss a report, optionally also taking action on the
+ *  reported item itself.
+ *
+ *  action:
+ *    'resolve' — report is valid (mod acknowledges it). If
+ *                affectItem='archive', also archive/suspend the reported
+ *                listing/store/commission.
+ *    'dismiss' — report is NOT valid. No effect on the item.
+ */
 export async function resolveReport(
   ctx: ServiceContext,
-  input: { reportId: string; action: string; notes?: string },
+  input: { reportId: string; action: string; notes?: string; affectItem?: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.reportId || !input.action || !['resolve', 'dismiss'].includes(input.action)) {
     return fail('bad_input', 'Invalid input');
+  }
+  const affect = input.affectItem === 'archive' ? 'archive' : 'none';
+  if (input.action === 'dismiss' && affect !== 'none') {
+    return fail('bad_input', 'Cannot affect item when dismissing');
   }
 
   const role = await getProfileRole(ctx);
   const denied = requireRole(role, ['admin', 'moderator']);
   if (denied) return denied;
+
+  const { data: report } = await ctx.admin
+    .from('reports').select('target_type, target_id').eq('id', input.reportId).maybeSingle();
+  if (!report) return fail('not_found', 'Report not found');
 
   const now = new Date().toISOString();
   await ctx.admin.from('reports').update({
@@ -281,10 +298,39 @@ export async function resolveReport(
     resolution_notes: input.notes || null,
   }).eq('id', input.reportId);
 
+  // Apply the chosen effect on the reported item
+  let itemAction: string | null = null;
+  if (affect === 'archive') {
+    if (report.target_type === 'listing') {
+      await ctx.admin.from('listings').update({
+        status: 'archived', reviewed_at: now, reviewed_by: ctx.user.id,
+        moderation_notes: input.notes || null,
+      }).eq('id', report.target_id);
+      itemAction = 'listing_archived';
+    } else if (report.target_type === 'store') {
+      await ctx.admin.from('stores').update({
+        status: 'suspended', reviewed_at: now, reviewed_by: ctx.user.id,
+      }).eq('id', report.target_id);
+      // Hide store's active listings as well (matches the moderation
+      // rejection flow).
+      await ctx.admin.from('listings')
+        .update({ status: 'archived' })
+        .eq('store_id', report.target_id)
+        .in('status', ['active', 'draft', 'pending_review']);
+      itemAction = 'store_suspended';
+    } else if (report.target_type === 'commission_request') {
+      await ctx.admin.from('commission_requests').update({
+        status: 'rejected', reviewed_at: now, reviewed_by: ctx.user.id,
+        moderation_notes: input.notes || null,
+      }).eq('id', report.target_id);
+      itemAction = 'commission_rejected';
+    }
+  }
+
   await ctx.admin.from('moderation_audit_log').insert({
     actor_id: ctx.user.id, action: `report_${input.action}`,
     target_type: 'report', target_id: input.reportId,
-    details: { notes: input.notes },
+    details: { notes: input.notes, affect_item: itemAction },
   });
 
   return ok({ redirect: `/admin/reports?${input.action}=1` });
