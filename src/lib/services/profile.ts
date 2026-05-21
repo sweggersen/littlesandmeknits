@@ -169,7 +169,11 @@ export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>>
       shadowCount = count ?? 0;
     }
 
-    pendingModeration = (pending ?? 0) + shadowCount;
+    // 3. Open reports awaiting moderator action
+    const { count: openReports } = await ctx.supabase
+      .from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
+
+    pendingModeration = (pending ?? 0) + shadowCount + (openReports ?? 0);
   }
 
   return ok({
