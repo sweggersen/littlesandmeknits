@@ -190,7 +190,7 @@ const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
             {(!listings || listings.length === 0) ? (
               <EmptyState message="Ingen aktive annonser akkurat nå." />
             ) : (
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 list-none p-0 m-0">
                 {listings.map((l: any) => (
                   <ListingCard
                     id={l.id}
@@ -200,7 +200,7 @@ const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
                     meta={l.size_label}
                   />
                 ))}
-              </div>
+              </ul>
             )}
           </section>
 
