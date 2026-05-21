@@ -116,9 +116,9 @@ const avgRating = reviewCount > 0
   ? ((reviews ?? []).reduce((s, r) => s + r.rating, 0) / reviewCount).toFixed(1)
   : null;
 
-const accentStyle = store.accent_color
-  ? `--store-accent: ${store.accent_color};`
-  : '';
+// Apply accent_color via a CSS variable so descendants can reference it.
+// Fallback to the terracotta brand colour when no accent is set.
+const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
 ---
 
 <Layout title={`${store.name} — Strikketorget`} description={store.tagline ?? ''} lang="nb">
@@ -132,24 +132,32 @@ const accentStyle = store.accent_color
       )}
       <!-- Banner + brand head -->
       <div class="relative">
-        <div class="aspect-[16/5] sm:aspect-[16/4] w-full overflow-hidden rounded-3xl border border-sage-500/10 bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
+        <div
+          class="aspect-[16/5] sm:aspect-[16/4] w-full overflow-hidden rounded-3xl bg-gradient-to-br from-oatmeal/60 to-sage-100/60"
+          style="border: 2px solid color-mix(in srgb, var(--store-accent) 35%, transparent);"
+        >
           {store.banner_path && (
             <img src={projectPhotoUrl(store.banner_path)} alt="" class="w-full h-full object-cover" />
           )}
         </div>
+        {/* Thin accent stripe under the banner */}
+        <div class="h-1 rounded-full mx-4 sm:mx-8 -mt-px" style="background: var(--store-accent);"></div>
         <div class="px-2 sm:px-6 flex items-end gap-4 -mt-8 sm:-mt-12">
-          <div class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md border border-sage-500/15 overflow-hidden shrink-0">
+          <div
+            class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md overflow-hidden shrink-0"
+            style="border: 2px solid var(--store-accent);"
+          >
             {store.logo_path ? (
               <img src={projectPhotoUrl(store.logo_path)} alt={store.name} class="w-full h-full object-cover" />
             ) : (
-              <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-charcoal/40">
+              <div class="w-full h-full flex items-center justify-center font-serif text-3xl" style="color: var(--store-accent);">
                 {store.name?.[0]?.toUpperCase() ?? '?'}
               </div>
             )}
           </div>
           <div class="flex-1 min-w-0 pb-1 sm:pb-2">
             <div class="flex items-center gap-2 flex-wrap">
-              <h1 class="font-serif text-2xl sm:text-4xl truncate">{store.name}</h1>
+              <h1 class="font-serif text-2xl sm:text-4xl truncate" style="color: var(--store-accent);">{store.name}</h1>
               {store.verified && (
                 <span class="text-[10px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-2 py-0.5 rounded-full">Verifisert</span>
               )}
