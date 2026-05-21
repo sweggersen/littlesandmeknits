@@ -8,11 +8,13 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (!ctx) return new Response('Forbidden', { status: 403 });
 
   const form = await request.formData();
+  const applyToAllRaw = form.get('apply_to_all')?.toString();
   const result = await resolveReport(ctx, {
     reportId: form.get('report_id')?.toString() ?? '',
     action: form.get('action')?.toString() ?? '',
     notes: form.get('notes')?.toString(),
     affectItem: form.get('affect_item')?.toString(),
+    applyToAll: applyToAllRaw === undefined ? true : applyToAllRaw !== 'false',
   });
   return toResponse(result, redirect);
 };

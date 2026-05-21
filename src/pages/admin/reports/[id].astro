@@ -19,6 +19,17 @@ const { data: report } = await supabase
   .from('reports').select('*').eq('id', id).maybeSingle();
 if (!report) return Astro.redirect('/admin/reports');
 
+// Sibling reports: every report (open OR closed) targeting the same item.
+const { data: siblingsData } = await admin
+  .from('reports')
+  .select('id, reporter_id, reason, description, status, anonymous, created_at')
+  .eq('target_type', report.target_type)
+  .eq('target_id', report.target_id)
+  .order('created_at', { ascending: true });
+const siblings: any[] = siblingsData ?? [];
+const openSiblings = siblings.filter(s => s.status === 'open');
+const openSiblingIds = openSiblings.map(s => s.id);
+
 // Resolve the linked item URL so we can embed it in an iframe.
 // Also figure out who the moderator might want to contact (the seller/
 // owner) — their display name, account email, and existing message
@@ -157,17 +168,43 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
       </div>
 
       <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Innmelder</p>
-        <p class="text-sm">{reporterName}</p>
-        <p class="text-[11px] text-charcoal/40">{new Date(report.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-      </div>
-
-      {report.description && (
-        <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Beskrivelse</p>
-          <p class="text-sm text-charcoal/75 whitespace-pre-wrap bg-linen rounded-lg p-3">{report.description}</p>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">
+            {siblings.length === 1 ? '1 rapport' : `${siblings.length} rapporter`}
+          </p>
+          {openSiblings.length > 1 && (
+            <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{openSiblings.length} åpne</p>
+          )}
         </div>
-      )}
+        <ul class="space-y-2">
+          {siblings.map((s) => {
+            const sReason = ({
+              scam: 'Svindel', inappropriate: 'Upassende innhold',
+              wrong_category: 'Feil kategori', spam: 'Spam', other: 'Annet',
+            } as Record<string, string>)[s.reason] ?? s.reason;
+            return (
+              <li class="bg-linen rounded-lg p-3 text-xs">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                  <span class:list={[
+                    'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                    s.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
+                  ]}>{sReason}</span>
+                  <span class:list={[
+                    'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                    s.status === 'open' ? 'text-terracotta-500 bg-terracotta-500/10'
+                      : s.status === 'resolved' ? 'text-sage-700 bg-sage-100'
+                      : 'text-charcoal/40 bg-oatmeal/60',
+                  ]}>{REPORT_STATUS[s.status]}</span>
+                  <span class="text-charcoal/40 text-[10px] ml-auto">{new Date(s.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+                {s.description && (
+                  <p class="text-charcoal/75 whitespace-pre-wrap mt-1">{s.description}</p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       <!-- Contact / resolution-process shortcuts -->
       {isOpen && (subjectEmail || reporterEmail || existingConversationId) && (
@@ -251,10 +288,18 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
           </fieldset>
 
           <div class="flex gap-2 pt-1">
-            <button type="submit" name="action" value="resolve" class="flex-1 bg-sage-500 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-600">Løs (gyldig rapport)</button>
-            <button type="submit" name="action" value="dismiss" class="flex-1 border border-sage-500/30 text-charcoal/65 px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-100/50">Avvis (ikke gyldig)</button>
+            <button type="submit" name="action" value="resolve" class="flex-1 bg-sage-500 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-600">
+              {openSiblings.length > 1 ? `Løs alle ${openSiblings.length}` : 'Løs (gyldig)'}
+            </button>
+            <button type="submit" name="action" value="dismiss" class="flex-1 border border-sage-500/30 text-charcoal/65 px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-100/50">
+              {openSiblings.length > 1 ? `Avvis alle ${openSiblings.length}` : 'Avvis (ikke gyldig)'}
+            </button>
           </div>
-          <p class="text-[10px] text-charcoal/40 leading-tight">{dismissNote}</p>
+          <p class="text-[10px] text-charcoal/40 leading-tight">
+            {openSiblings.length > 1
+              ? `Begge knappene gjelder alle ${openSiblings.length} åpne rapporter på dette elementet. «Avvis» påvirker ikke ${itemLabel}.`
+              : dismissNote}
+          </p>
         </form>
       )}
     </div>
