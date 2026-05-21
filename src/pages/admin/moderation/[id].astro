@@ -61,9 +61,10 @@ if (queueItem.item_type === 'listing') {
   photoUrls = photos.map(p => projectPhotoUrl(p.path)).filter(Boolean) as string[];
 }
 
-// Compute confidence score
+// Compute confidence score (only for listings/commissions — stores carry
+// their own legitimacy signal via orgnr verification).
 const reviewStats = submitter ? await getReviewStats(admin, submitter.id) : { avg_rating: 0, review_count: 0 };
-const confidence = submitter && itemData
+const confidence = submitter && itemData && queueItem.item_type !== 'store'
   ? computeConfidenceScore(submitter, {
       title: itemData.title,
       description: itemData.description,
@@ -105,17 +106,76 @@ function scoreColor(s: number) {
       <div class="bg-white rounded-xl border border-sage-500/10 p-5">
         <div class="flex items-center justify-between mb-3">
           <div class="flex items-center gap-2">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{queueItem.item_type === 'listing' ? 'Annonse' : 'Oppdrag'}</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{
+              queueItem.item_type === 'listing' ? 'Annonse'
+                : queueItem.item_type === 'store' ? 'Butikk'
+                : 'Oppdrag'
+            }</span>
             {queueItem.submitter_id === auth.user.id && (
               <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Ditt eget — kan ikke vurdere</span>
             )}
           </div>
-          <a href={queueItem.item_type === 'listing' ? `/market/listing/${queueItem.item_id}` : `/market/commissions/${queueItem.item_id}`} target="_blank" class="text-[10px] font-medium text-charcoal/50 hover:text-terracotta-500 transition-colors border border-sage-500/15 rounded-lg px-2.5 py-1">
+          <a
+            href={
+              queueItem.item_type === 'listing' ? `/market/listing/${queueItem.item_id}`
+                : queueItem.item_type === 'store' ? `/market/store/${itemData?.slug ?? ''}`
+                : `/market/commissions/${queueItem.item_id}`
+            }
+            target="_blank"
+            class="text-[10px] font-medium text-charcoal/50 hover:text-terracotta-500 transition-colors border border-sage-500/15 rounded-lg px-2.5 py-1">
             Se offentlig visning &nearr;
           </a>
         </div>
 
-        {itemData ? (
+        {!itemData ? (
+          <p class="text-sm text-charcoal/45">Element ikke funnet.</p>
+        ) : queueItem.item_type === 'store' ? (
+          <div>
+            <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
+            <p class="text-xs text-charcoal/55 mb-3">/market/store/{itemData.slug}</p>
+
+            <div class="bg-sage-100/50 rounded-lg p-3 mb-3">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Brønnøysund-registrert</p>
+              <p class="text-sm font-medium">{itemData.legal_name}</p>
+              <p class="text-xs text-charcoal/65 font-mono">{itemData.orgnr} {itemData.legal_business_type && `· ${itemData.legal_business_type}`}</p>
+              {itemData.legal_address && <p class="text-xs text-charcoal/55 mt-1">{itemData.legal_address}</p>}
+            </div>
+
+            {itemData.tagline && (
+              <p class="text-sm text-charcoal/75 italic mb-2">"{itemData.tagline}"</p>
+            )}
+            {itemData.description && (
+              <div class="bg-linen rounded-lg p-3 mb-3">
+                <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Beskrivelse</span>
+                <p class="text-sm text-charcoal/75 whitespace-pre-line mt-1">{itemData.description}</p>
+              </div>
+            )}
+
+            <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+              {itemData.contact_email && (
+                <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">E-post</span><p class="truncate">{itemData.contact_email}</p></div>
+              )}
+              {itemData.contact_phone && (
+                <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Telefon</span><p>{itemData.contact_phone}</p></div>
+              )}
+              {itemData.location_city && (
+                <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">By</span><p>{itemData.location_city}</p></div>
+              )}
+              {itemData.website_url && (
+                <div class="col-span-2"><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Nettside</span><p class="truncate"><a href={itemData.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{itemData.website_url}</a></p></div>
+              )}
+            </div>
+
+            {(itemData.instagram_url || itemData.etsy_url || itemData.pinterest_url || itemData.tiktok_url) && (
+              <div class="flex flex-wrap gap-2 text-xs">
+                {itemData.instagram_url && <a href={itemData.instagram_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">Instagram</a>}
+                {itemData.etsy_url && <a href={itemData.etsy_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">Etsy</a>}
+                {itemData.pinterest_url && <a href={itemData.pinterest_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">Pinterest</a>}
+                {itemData.tiktok_url && <a href={itemData.tiktok_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">TikTok</a>}
+              </div>
+            )}
+          </div>
+        ) : (
           <div>
             <h2 class="font-serif text-xl mb-2">{itemData.title}</h2>
             {photoUrls.length > 0 && (
@@ -155,8 +215,6 @@ function scoreColor(s: number) {
               </div>
             )}
           </div>
-        ) : (
-          <p class="text-sm text-charcoal/45">Element ikke funnet.</p>
         )}
       </div>
 
