@@ -108,6 +108,102 @@ export function computeConfidenceScore(
   return { total, breakdown };
 }
 
+/** Confidence score for a store registration. Heavier weighting on whether
+ *  the submitter actually appears in Brønnøysund's registered roles for the
+ *  organisation — that's the strongest legitimacy signal we have without
+ *  full KYC. */
+export interface StoreScoreInput {
+  profileCreatedAt: string;
+  profileTotalRejections: number;
+  stripeOnboarded: boolean;
+  submitterDisplayName: string | null;
+  submitterEmail: string | null;
+  storeContactEmail: string | null;
+  storeWebsiteUrl: string | null;
+  storeDescription: string | null;
+  legalFoundedDate: string | null;
+  legalBusinessType: string | null;
+  /** Names from Brønnøysund's roles endpoint (non-resigned only). */
+  registeredRoleNames: string[];
+  /** Subset of registeredRoleNames that the submitter's display_name matched. */
+  matchedRoleNames: string[];
+  /** True if the submitter matches a role with signing/CEO/chair-level authority. */
+  matchedKeyRole: boolean;
+}
+
+export function computeStoreConfidenceScore(
+  input: StoreScoreInput,
+): { total: number; breakdown: { label: string; points: number; max: number }[] } {
+  const breakdown: { label: string; points: number; max: number }[] = [];
+
+  // 1. Innmelder samsvarer med registrert rolle (0-40)
+  let rolePts = 0;
+  if (input.matchedKeyRole) rolePts = 40;
+  else if (input.matchedRoleNames.length > 0) rolePts = 30;
+  else if (input.registeredRoleNames.length === 0) rolePts = 0;
+  breakdown.push({ label: 'Innmelder samsvarer med registrert rolle', points: rolePts, max: 40 });
+
+  // 2. Email-domene match (0-10)
+  let emailPts = 0;
+  if (input.storeWebsiteUrl && input.submitterEmail) {
+    try {
+      const host = new URL(input.storeWebsiteUrl).hostname.replace(/^www\./, '');
+      const emailDomain = input.submitterEmail.split('@')[1];
+      if (host && emailDomain && (emailDomain.endsWith(host) || host.endsWith(emailDomain))) {
+        emailPts = 10;
+      }
+    } catch { /* invalid URL */ }
+  }
+  breakdown.push({ label: 'E-post-domene matcher nettside', points: emailPts, max: 10 });
+
+  // 3. Kontoalder (0-10)
+  const days = (Date.now() - new Date(input.profileCreatedAt).getTime()) / 86400_000;
+  let agePts = 0;
+  if (days >= 365) agePts = 10;
+  else if (days >= 90) agePts = 7;
+  else if (days >= 30) agePts = 4;
+  else if (days >= 7) agePts = 2;
+  breakdown.push({ label: 'Kontoalder', points: agePts, max: 10 });
+
+  // 4. Virksomhetens alder (0-10)
+  let bizAgePts = 0;
+  if (input.legalFoundedDate) {
+    const bizDays = (Date.now() - new Date(input.legalFoundedDate).getTime()) / 86400_000;
+    if (bizDays >= 365 * 5) bizAgePts = 10;
+    else if (bizDays >= 365 * 2) bizAgePts = 7;
+    else if (bizDays >= 365) bizAgePts = 4;
+    else if (bizDays >= 90) bizAgePts = 2;
+  }
+  breakdown.push({ label: 'Virksomhetens alder', points: bizAgePts, max: 10 });
+
+  // 5. Beskrivelse + nettside fylt ut (0-10)
+  let completenessPts = 0;
+  if (input.storeDescription && input.storeDescription.length >= 50) completenessPts += 5;
+  if (input.storeWebsiteUrl) completenessPts += 5;
+  breakdown.push({ label: 'Butikkprofil fylt ut', points: completenessPts, max: 10 });
+
+  // 6. Stripe Connect verifisert (0-15)
+  // For stores this should reflect store.stripe_onboarded, not the user's.
+  // We pass it through stripeOnboarded; caller decides what to populate.
+  breakdown.push({ label: 'Stripe verifisert', points: input.stripeOnboarded ? 15 : 0, max: 15 });
+
+  // 7. Selskapsform — AS/SA/SAS er mer formelle enn ENK (0-5)
+  let bizTypePts = 0;
+  if (input.legalBusinessType) {
+    const formal = ['AS', 'ASA', 'SA', 'SAMV', 'STAT'];
+    if (formal.includes(input.legalBusinessType)) bizTypePts = 5;
+    else if (input.legalBusinessType === 'ENK') bizTypePts = 2;
+  }
+  breakdown.push({ label: 'Selskapsform', points: bizTypePts, max: 5 });
+
+  // 8. Tidligere avvisninger (0 til -20)
+  const rejPenalty = Math.min(input.profileTotalRejections * 5, 20);
+  breakdown.push({ label: 'Tidligere avvisninger', points: -rejPenalty, max: 0 });
+
+  const total = Math.max(0, Math.min(100, breakdown.reduce((s, b) => s + b.points, 0)));
+  return { total, breakdown };
+}
+
 export async function getReviewStats(admin: SupabaseClient, userId: string): Promise<ReviewStats> {
   const { data } = await admin
     .from('transaction_reviews')

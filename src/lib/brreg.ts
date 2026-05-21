@@ -73,6 +73,76 @@ interface BrregEnhet {
   slettedato?: string;
 }
 
+/** A registered role at a Norwegian business (board member, CEO, etc.). */
+export interface OrgRole {
+  roleCode: string;
+  roleDescription: string;
+  groupCode: string;
+  groupDescription: string;
+  personName: string | null;
+  birthDate: string | null;
+  resignedFlag: boolean;
+  /** True if the role is held by another organisation, not a person. */
+  isOrganisation: boolean;
+  organisationName: string | null;
+}
+
+interface BrregRolesResponse {
+  rollegrupper?: Array<{
+    type?: { kode?: string; beskrivelse?: string };
+    roller?: Array<{
+      type?: { kode?: string; beskrivelse?: string };
+      person?: {
+        fodselsdato?: string;
+        navn?: { fornavn?: string; mellomnavn?: string; etternavn?: string };
+        erDoed?: boolean;
+      };
+      enhet?: { navn?: string; organisasjonsnummer?: string };
+      fratraadt?: boolean;
+    }>;
+  }>;
+}
+
+/** Fetch registered roles (board, CEO, signing rights, proprietor) for an orgnr. */
+export async function lookupOrgnrRoles(input: string): Promise<{ ok: boolean; roles?: OrgRole[]; error?: OrgnrLookupError }> {
+  const orgnr = normalizeOrgnr(input);
+  if (!/^\d{9}$/.test(orgnr)) return { ok: false, error: 'invalid_format' };
+
+  let res: Response;
+  try {
+    res = await fetch(`${BRREG_URL}/${orgnr}/roller`, {
+      headers: { Accept: 'application/json' },
+    });
+  } catch {
+    return { ok: false, error: 'network_error' };
+  }
+  if (res.status === 404 || res.status === 410) return { ok: false, error: 'not_found' };
+  if (!res.ok) return { ok: false, error: 'brreg_error' };
+
+  const body = (await res.json()) as BrregRolesResponse;
+  const roles: OrgRole[] = [];
+  for (const group of body.rollegrupper ?? []) {
+    for (const r of group.roller ?? []) {
+      const navn = r.person?.navn;
+      const personName = navn
+        ? [navn.fornavn, navn.mellomnavn, navn.etternavn].filter(Boolean).join(' ').trim()
+        : null;
+      roles.push({
+        roleCode: r.type?.kode ?? '',
+        roleDescription: r.type?.beskrivelse ?? '',
+        groupCode: group.type?.kode ?? '',
+        groupDescription: group.type?.beskrivelse ?? '',
+        personName,
+        birthDate: r.person?.fodselsdato ?? null,
+        resignedFlag: !!r.fratraadt,
+        isOrganisation: !!r.enhet,
+        organisationName: r.enhet?.navn ?? null,
+      });
+    }
+  }
+  return { ok: true, roles };
+}
+
 /** Look up a Norwegian orgnr against Brønnøysundregistrene. */
 export async function lookupOrgnr(input: string): Promise<OrgnrLookupResult> {
   const orgnr = normalizeOrgnr(input);

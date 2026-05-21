@@ -2,10 +2,11 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
-import { computeConfidenceScore, getReviewStats } from '../../../lib/moderation';
+import { computeConfidenceScore, computeStoreConfidenceScore, getReviewStats } from '../../../lib/moderation';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { CATEGORY_LABEL } from '../../../lib/labels';
+import { lookupOrgnrRoles, type OrgRole } from '../../../lib/brreg';
 import { env } from 'cloudflare:workers';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
@@ -28,7 +29,7 @@ if (!queueItem) return Astro.redirect('/admin/moderation');
 // Fetch submitter profile
 const { data: submitter } = await admin
   .from('profiles')
-  .select('id, stripe_onboarded, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+  .select('id, display_name, stripe_onboarded, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
   .eq('id', queueItem.submitter_id)
   .single();
 
@@ -43,6 +44,77 @@ if (queueItem.item_type === 'listing') {
 } else {
   const { data } = await admin.from('commission_requests').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
+}
+
+// For store items: fetch the registered roles from Brønnøysund and the
+// submitter's auth email (so the moderator can compare names + reach out
+// to verify identity if needed).
+let storeRoles: OrgRole[] = [];
+let rolesError: string | null = null;
+let submitterEmail: string | null = null;
+let matchedRoleNames: Set<string> = new Set();
+
+if (queueItem.item_type === 'store' && itemData?.orgnr) {
+  const rolesRes = await lookupOrgnrRoles(itemData.orgnr);
+  if (rolesRes.ok && rolesRes.roles) {
+    storeRoles = rolesRes.roles.filter(r => !r.resignedFlag);
+  } else {
+    rolesError = rolesRes.error ?? 'unknown';
+  }
+
+  const { data: authUser } = await admin.auth.admin.getUserById(queueItem.submitter_id);
+  submitterEmail = authUser?.user?.email ?? null;
+
+  // Fuzzy name-match: case-insensitive, normalised, check if submitter's
+  // display_name appears in any role person's name (or vice versa). Lets
+  // "Ola N." or "Ola Hansen Nordmann" match "Ola Nordmann".
+  const normalize = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z\s]/g, '').trim();
+  const submitterName = submitter?.display_name ? normalize(submitter.display_name) : '';
+  if (submitterName) {
+    for (const role of storeRoles) {
+      if (!role.personName) continue;
+      const rn = normalize(role.personName);
+      const tokens = rn.split(/\s+/).filter(t => t.length > 1);
+      const submitterTokens = submitterName.split(/\s+/).filter(t => t.length > 1);
+      // Match if at least 2 name tokens overlap (or both are short names)
+      const shared = tokens.filter(t => submitterTokens.includes(t));
+      if (shared.length >= 2 || (tokens.length === 1 && submitterTokens.includes(tokens[0]))) {
+        matchedRoleNames.add(role.personName);
+      }
+    }
+  }
+
+  // Compute store confidence now that we have all signals
+  if (submitter && itemData) {
+    const matchedNames = [...matchedRoleNames];
+    const KEY_ROLE_CODES = new Set([
+      'INNH',  // proprietor (ENK)
+      'DAGL',  // CEO
+      'LEDE',  // chair of the board
+      'KONT',  // contact person
+      'KOMP',  // partner with personal liability (ANS/DA)
+      'BEST',  // managing partner
+      'SIGN',  // signing rights
+    ]);
+    const matchedKey = storeRoles.some(r =>
+      r.personName && matchedRoleNames.has(r.personName) && KEY_ROLE_CODES.has(r.roleCode),
+    );
+    confidence = computeStoreConfidenceScore({
+      profileCreatedAt: submitter.created_at,
+      profileTotalRejections: submitter.total_rejections ?? 0,
+      stripeOnboarded: !!itemData.stripe_onboarded,
+      submitterDisplayName: submitter.display_name ?? null,
+      submitterEmail: submitterEmail,
+      storeContactEmail: itemData.contact_email,
+      storeWebsiteUrl: itemData.website_url,
+      storeDescription: itemData.description,
+      legalFoundedDate: itemData.legal_founded_date,
+      legalBusinessType: itemData.legal_business_type,
+      registeredRoleNames: storeRoles.map(r => r.personName).filter((n): n is string => !!n),
+      matchedRoleNames: matchedNames,
+      matchedKeyRole: matchedKey,
+    });
+  }
 }
 
 // Fetch listing photos
@@ -61,19 +133,25 @@ if (queueItem.item_type === 'listing') {
   photoUrls = photos.map(p => projectPhotoUrl(p.path)).filter(Boolean) as string[];
 }
 
-// Compute confidence score (only for listings/commissions — stores carry
-// their own legitimacy signal via orgnr verification).
+// Compute confidence score.
 const reviewStats = submitter ? await getReviewStats(admin, submitter.id) : { avg_rating: 0, review_count: 0 };
-const confidence = submitter && itemData && queueItem.item_type !== 'store'
-  ? computeConfidenceScore(submitter, {
-      title: itemData.title,
-      description: itemData.description,
-      price_nok: itemData.price_nok,
-      budget_nok_min: itemData.budget_nok_min,
-      budget_nok_max: itemData.budget_nok_max,
-      category: itemData.category,
-    }, reviewStats)
-  : { total: 0, breakdown: [] };
+let confidence: { total: number; breakdown: { label: string; points: number; max: number }[] };
+if (submitter && itemData && queueItem.item_type === 'store') {
+  // For stores, score is built later (after roles + email are fetched).
+  // Initialise empty and compute below.
+  confidence = { total: 0, breakdown: [] };
+} else if (submitter && itemData) {
+  confidence = computeConfidenceScore(submitter, {
+    title: itemData.title,
+    description: itemData.description,
+    price_nok: itemData.price_nok,
+    budget_nok_min: itemData.budget_nok_min,
+    budget_nok_max: itemData.budget_nok_max,
+    category: itemData.category,
+  }, reviewStats);
+} else {
+  confidence = { total: 0, breakdown: [] };
+}
 
 // Previous moderation history for submitter
 const { data: prevQueue } = await supabase
@@ -174,6 +252,75 @@ function scoreColor(s: number) {
                 {itemData.tiktok_url && <a href={itemData.tiktok_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">TikTok</a>}
               </div>
             )}
+
+            {/* === Verification: registered representatives === */}
+            <div class="mt-5 pt-5 border-t border-sage-500/15">
+              <div class="flex items-center justify-between mb-2">
+                <h3 class="text-sm font-medium">Registrerte representanter</h3>
+                <a href={`https://virksomhet.brreg.no/nb/oppslag/enheter/${itemData.orgnr}/roller`} target="_blank" rel="noopener"
+                  class="text-[10px] text-charcoal/45 hover:text-terracotta-500 underline">
+                  Se på brreg.no &nearr;
+                </a>
+              </div>
+              {rolesError ? (
+                <p class="text-xs text-charcoal/55 bg-amber-50 rounded-lg p-2">
+                  Kunne ikke hente roller fra Brønnøysund ({rolesError}).
+                </p>
+              ) : storeRoles.length === 0 ? (
+                <p class="text-xs text-charcoal/55">Ingen aktive registrerte roller funnet.</p>
+              ) : (
+                <ul class="space-y-1.5">
+                  {storeRoles.map(role => {
+                    const isMatch = role.personName ? matchedRoleNames.has(role.personName) : false;
+                    return (
+                      <li class:list={[
+                        'text-xs flex items-center justify-between gap-2 rounded px-2 py-1',
+                        isMatch && 'bg-sage-100/60',
+                      ]}>
+                        <div>
+                          <span class={isMatch ? 'font-bold' : 'font-medium'}>
+                            {role.isOrganisation ? role.organisationName : role.personName}
+                          </span>
+                          {role.isOrganisation && <span class="text-charcoal/45 ml-1">(org)</span>}
+                          <span class="text-charcoal/55"> · {role.roleDescription}</span>
+                        </div>
+                        {isMatch && <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">samsvarer</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            {/* === Submitter contact + email-query buttons === */}
+            <div class="mt-5 pt-5 border-t border-sage-500/15">
+              <h3 class="text-sm font-medium mb-2">Verifisering</h3>
+              <div class="space-y-1.5 text-xs">
+                <div class="flex justify-between"><span class="text-charcoal/55">Innmelders navn:</span><span class:list={['font-medium', matchedRoleNames.size > 0 && 'text-sage-700']}>{submitter?.display_name ?? '—'} {matchedRoleNames.size > 0 && '✓'}</span></div>
+                <div class="flex justify-between"><span class="text-charcoal/55">Innmelders konto-e-post:</span><span class="font-mono">{submitterEmail ?? '—'}</span></div>
+                <div class="flex justify-between"><span class="text-charcoal/55">Oppgitt kontakt-e-post:</span><span class="font-mono">{itemData.contact_email ?? '—'}</span></div>
+              </div>
+
+              <p class="text-xs text-charcoal/55 mt-3 mb-2">
+                Hvis usikker på eierskap: send forespørsel om bekreftelse til kontakt-e-posten.
+              </p>
+              <div class="flex flex-wrap gap-2">
+                {itemData.contact_email && (
+                  <a
+                    href={`mailto:${itemData.contact_email}?subject=${encodeURIComponent('Verifisering av butikkregistrering på Strikketorget')}&body=${encodeURIComponent(`Hei,\n\nVi har mottatt en søknad om å opprette butikk på Strikketorget med organisasjonsnummer ${itemData.orgnr} (${itemData.legal_name}).\n\nFor å bekrefte at registreringen er gjort av en autorisert representant for virksomheten, kan du svare på denne e-posten og bekrefte:\n\n• Ditt navn og stilling i ${itemData.legal_name}\n• At du ønsker å være representert på Strikketorget\n\nDenne e-posten er sendt til den oppgitte kontakt-adressen.\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`}
+                    class="text-xs bg-charcoal text-linen px-3 py-1.5 rounded-full font-medium hover:bg-terracotta-500 transition-colors">
+                    Send til kontakt-e-post
+                  </a>
+                )}
+                {submitterEmail && submitterEmail !== itemData.contact_email && (
+                  <a
+                    href={`mailto:${submitterEmail}?subject=${encodeURIComponent('Verifisering av butikkregistrering på Strikketorget')}&body=${encodeURIComponent(`Hei,\n\nVi behandler søknaden din om butikk for organisasjonsnummer ${itemData.orgnr} (${itemData.legal_name}).\n\nKan du bekrefte din rolle i virksomheten?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`}
+                    class="text-xs border border-sage-500/30 text-charcoal/70 px-3 py-1.5 rounded-full font-medium hover:bg-sage-100/50 transition-colors">
+                    Send til innmelder
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
         ) : (
           <div>
@@ -231,7 +378,11 @@ function scoreColor(s: number) {
             </div>
             <label class="block">
               <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Avvisningsgrunn (valgfritt)</span>
-              <input name="rejection_reason" type="text" maxlength="500" placeholder="F.eks. ikke et strikkeprodukt" class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              <input name="rejection_reason" type="text" maxlength="500" placeholder={
+                queueItem.item_type === 'store' ? 'F.eks. eier ikke virksomheten, mistanke om impersonasjon'
+                  : queueItem.item_type === 'commission_request' ? 'F.eks. urealistisk budsjett'
+                  : 'F.eks. ikke et strikkeprodukt'
+              } class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
             </label>
             <label class="block">
               <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Interne notater</span>
@@ -291,16 +442,32 @@ function scoreColor(s: number) {
         </div>
       </div>
 
-      <!-- Submitter profile -->
+      <!-- Submitter profile.
+           For store moderation we show the real name + email so the
+           moderator can verify identity against Brønnøysund roles. For
+           listings/commissions, identity stays anonymised. -->
       {submitter && (
         <div class="bg-white rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Innmelder</p>
           <div class="flex items-center gap-3 mb-3">
-            <div class="w-8 h-8 rounded-full bg-sage-100 flex items-center justify-center">
-              <span class="font-serif text-sm text-sage-700">#</span>
+            <div class:list={['w-8 h-8 rounded-full flex items-center justify-center shrink-0', matchedRoleNames.size > 0 ? 'bg-sage-100' : 'bg-sage-100']}>
+              <span class="font-serif text-sm text-sage-700">{
+                queueItem.item_type === 'store' && submitter.display_name
+                  ? submitter.display_name[0]?.toUpperCase() ?? '#'
+                  : '#'
+              }</span>
             </div>
-            <div>
-              <p class="text-sm font-medium">{anonymizeUser(submitter.id)}</p>
+            <div class="min-w-0">
+              <p class="text-sm font-medium truncate">{
+                queueItem.item_type === 'store'
+                  ? (submitter.display_name || anonymizeUser(submitter.id))
+                  : anonymizeUser(submitter.id)
+              }{
+                queueItem.item_type === 'store' && matchedRoleNames.size > 0 ? ' ✓' : ''
+              }</p>
+              {queueItem.item_type === 'store' && submitterEmail && (
+                <p class="text-[10px] text-charcoal/55 font-mono truncate">{submitterEmail}</p>
+              )}
               <p class="text-[10px] text-charcoal/40">
                 {submitter.trust_tier} · score {submitter.trust_score} · {submitter.total_completed_transactions} fullførte
               </p>

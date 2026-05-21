@@ -28,6 +28,10 @@ export async function createStore(
 ): Promise<ServiceResult<{ storeId: string; slug: string; redirect: string }>> {
   if (!input.orgnr) return fail('bad_input', 'Orgnr er påkrevd');
 
+  const contactEmail = input.contact_email?.trim().toLowerCase();
+  if (!contactEmail) return fail('bad_input', 'Kontakt-e-post er påkrevd');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return fail('bad_input', 'Ugyldig e-postadresse');
+
   const lookup = await lookupOrgnr(input.orgnr);
   if (!lookup.ok || !lookup.data) {
     if (lookup.error === 'not_found') return fail('not_found', 'Fant ikke organisasjonen i Brønnøysundregistrene');
@@ -82,7 +86,7 @@ export async function createStore(
       name,
       tagline: input.tagline?.trim() || null,
       description: input.description?.trim() || null,
-      contact_email: input.contact_email?.trim() || null,
+      contact_email: contactEmail,
       location_city: org.city,
       status: 'pending_review' as StoreStatus,
       created_by: ctx.user.id,

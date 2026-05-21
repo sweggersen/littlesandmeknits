@@ -91,9 +91,10 @@ test.describe('Strikketorget — butikker', () => {
     await expect(page.locator('#name-input')).not.toHaveValue('');
     await expect(page.locator('#slug-input')).not.toHaveValue('');
 
-    // Override name + slug to predictable values
+    // Override name + slug to predictable values + fill required email
     await page.fill('#name-input', 'Test-butikken');
     await page.fill('#slug-input', 'test-butikken');
+    await page.fill('input[name="contact_email"]', 'kunde@test-butikken.no');
 
     // ── Submit creates store + sends to moderation; we land on /admin
     await Promise.all([
@@ -236,7 +237,7 @@ test.describe('Strikketorget — butikker', () => {
 
     // Try to create a second store with the same orgnr
     const res = await page.request.post('/api/stores', {
-      data: { orgnr: TEST_ORGNR, name: 'Duplikat', slug: 'duplikat' },
+      data: { orgnr: TEST_ORGNR, name: 'Duplikat', slug: 'duplikat', contact_email: 'a@b.no' },
     });
     expect(res.status()).toBe(409);
   });

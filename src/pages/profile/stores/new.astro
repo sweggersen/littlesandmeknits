@@ -109,14 +109,19 @@ if (!user) return Astro.redirect('/login?next=/profile/stores/new');
 
           <div>
             <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Kontakt-e-post (valgfritt)
+              Kontakt-e-post
             </label>
             <input
               type="email"
               name="contact_email"
+              required
               placeholder="kunde@butikk.no"
               class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
+            <p class="text-xs text-charcoal/45 mt-2">
+              Brukes for kundekontakt og av moderator for å verifisere
+              eierskapet ved behov.
+            </p>
           </div>
 
           <div class="bg-sage-100/50 rounded-2xl p-4 text-sm text-charcoal/70">
@@ -125,6 +130,16 @@ if (!user) return Astro.redirect('/login?next=/profile/stores/new');
               redigere alle detaljer, laste opp logo og banner, og invitere
               medlemmer.</p>
           </div>
+
+          <label class="flex items-start gap-2.5 text-sm text-charcoal/75 cursor-pointer">
+            <input type="checkbox" name="privacy_consent" required class="mt-0.5 rounded" />
+            <span>
+              Jeg samtykker til at navn, e-postadresse og opplysninger fra
+              Brønnøysundregistrene kan deles med moderatorer for å bekrefte
+              at jeg er autorisert til å representere virksomheten.
+              <a href="/privacy#butikker" target="_blank" class="text-terracotta-500 hover:underline whitespace-nowrap">Les mer</a>
+            </span>
+          </label>
 
           <button
             type="submit"
