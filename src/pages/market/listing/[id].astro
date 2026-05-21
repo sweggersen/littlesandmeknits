@@ -60,11 +60,15 @@ const isBuyer = user?.id === listing.buyer_id;
 const viewableStatuses = new Set(['active', 'reserved', 'shipped', 'sold', 'disputed']);
 if (!isOwner && !isBuyer && !isStaff && !viewableStatuses.has(listing.status)) return Astro.redirect('/market');
 
-const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }] = await Promise.all([
+const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }] = await Promise.all([
   supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
   supabase.from('seller_reviews').select('id, reviewer_id, rating, comment, created_at').eq('listing_id', id),
+  listing.store_id
+    ? supabase.from('stores').select('id, slug, name, logo_path, location_city, verified, stripe_onboarded').eq('id', listing.store_id).maybeSingle()
+    : Promise.resolve({ data: null }),
 ]);
+const isStoreListing = !!storeRow;
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
 
@@ -86,7 +90,9 @@ if (user && !isOwner) {
 const justPublished = Astro.url.searchParams.get('published') === '1';
 const justPromoted = Astro.url.searchParams.get('promoted') === '1';
 const justPurchased = Astro.url.searchParams.get('purchased') === '1';
-const sellerOnboarded = !!sellerProfile?.stripe_onboarded;
+const sellerOnboarded = isStoreListing
+  ? !!storeRow?.stripe_onboarded
+  : !!sellerProfile?.stripe_onboarded;
 const autoReleaseDays = listing.auto_release_at
   ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
   : null;
@@ -613,17 +619,38 @@ const autoReleaseDays = listing.auto_release_at
             </div>
           )}
 
-          <a href={`/market/seller/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
-            <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
-            <div class="min-w-0">
-              <p class="font-medium group-hover:text-terracotta-500 transition-colors">
-                {sellerProfile?.display_name ?? 'Anonym'}
-              </p>
-              <p class="text-xs text-charcoal/45">
-                {sellerProfile?.location ?? listing.location ?? 'Selger'}
-              </p>
-            </div>
-          </a>
+          {isStoreListing && storeRow ? (
+            <a href={`/market/store/${storeRow.slug}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
+              {storeRow.logo_path ? (
+                <img src={projectPhotoUrl(storeRow.logo_path)} alt="" class="w-10 h-10 rounded-xl object-cover shrink-0" />
+              ) : (
+                <div class="w-10 h-10 rounded-xl bg-sage-100 flex items-center justify-center font-serif text-lg text-sage-700 shrink-0">
+                  {storeRow.name[0]?.toUpperCase()}
+                </div>
+              )}
+              <div class="min-w-0">
+                <p class="font-medium group-hover:text-terracotta-500 transition-colors flex items-center gap-1.5">
+                  {storeRow.name}
+                  {storeRow.verified && <span class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full">✓</span>}
+                </p>
+                <p class="text-xs text-charcoal/45">
+                  Butikk · {storeRow.location_city ?? 'Strikketorget'}
+                </p>
+              </div>
+            </a>
+          ) : (
+            <a href={`/market/seller/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
+              <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
+              <div class="min-w-0">
+                <p class="font-medium group-hover:text-terracotta-500 transition-colors">
+                  {sellerProfile?.display_name ?? 'Anonym'}
+                </p>
+                <p class="text-xs text-charcoal/45">
+                  {sellerProfile?.location ?? listing.location ?? 'Selger'}
+                </p>
+              </div>
+            </a>
+          )}
         </div>
       </div>
   </MarketplaceShell>
