@@ -24,7 +24,7 @@ export async function submitReport(
 
   if (count && count > 0) return fail('conflict', 'already_reported');
 
-  await ctx.supabase.from('reports').insert({
+  const { error } = await ctx.supabase.from('reports').insert({
     reporter_id: ctx.user.id,
     target_type: input.targetType,
     target_id: input.targetId,
@@ -32,6 +32,10 @@ export async function submitReport(
     description: input.description || null,
     anonymous: !!input.anonymous,
   });
+  if (error) {
+    console.error('Report insert failed', error);
+    return fail('server_error', 'Kunne ikke sende rapport — prøv igjen.');
+  }
 
   return ok(undefined as void);
 }

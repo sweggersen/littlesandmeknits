@@ -62,8 +62,7 @@ const formId = `report-${targetId}`;
       const body = new FormData(form);
       try {
         const res = await fetch('/api/report', { method: 'POST', body, credentials: 'same-origin' });
-        const data = await res.json();
-        if (data.ok) {
+        if (res.ok) {
           status.textContent = 'Rapport sendt. Takk!';
           status.classList.remove('hidden', 'text-red-600');
           status.classList.add('text-sage-700');
@@ -72,9 +71,12 @@ const formId = `report-${targetId}`;
             submitBtn.disabled = true;
             submitBtn.textContent = 'Rapport sendt';
           }
-        } else if (data.error === 'already_reported') {
-          status.textContent = 'Du har allerede rapportert dette.';
-          status.classList.remove('hidden');
+        } else {
+          const text = await res.text();
+          status.textContent = text.includes('already_reported')
+            ? 'Du har allerede rapportert dette.'
+            : text || 'Noe gikk galt. Prøv igjen.';
+          status.classList.remove('hidden', 'text-sage-700');
           status.classList.add('text-red-600');
         }
       } catch {
