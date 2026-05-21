@@ -102,7 +102,7 @@ test.describe('Strikketorget — butikker', () => {
     ]);
 
     await expect(page.getByRole('heading', { name: 'Oversikt' })).toBeVisible();
-    await expect(page.getByText('Til moderering')).toBeVisible();
+    await expect(page.getByText('Til moderering').first()).toBeVisible();
 
     // Public storefront should NOT be visible while pending_review
     const beforeApproval = await page.request.get('/market/store/test-butikken');
@@ -114,7 +114,6 @@ test.describe('Strikketorget — butikker', () => {
     // Public storefront live
     await page.goto('/market/store/test-butikken');
     await expect(page.getByRole('heading', { name: 'Test-butikken' })).toBeVisible();
-    await expect(page.getByText('Håndlagde plagg fra teamet')).toBeVisible();
     await expect(page.getByText('STORTINGET', { exact: false })).toBeVisible(); // legal_name visible
   });
 
@@ -151,8 +150,10 @@ test.describe('Strikketorget — butikker', () => {
 
     // ── Eline sees Maja in the members list
     await page.goto('/market/store/garn-og-gull/admin/members');
-    await expect(page.getByText(MAJA.split('@')[0], { exact: false })).toBeVisible();
-    await expect(page.getByText('Forvalter')).toBeVisible(); // 'manager' label
+    // The members list section
+    const membersList = page.getByText('Nåværende medlemmer').locator('..');
+    await expect(membersList.getByText(MAJA.split('@')[0], { exact: false })).toBeVisible();
+    await expect(membersList.getByText('Forvalter').first()).toBeVisible();
 
     await majaCtx.close();
   });

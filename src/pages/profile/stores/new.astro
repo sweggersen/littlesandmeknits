@@ -47,6 +47,8 @@ if (!user) return Astro.redirect('/login?next=/profile/stores/new');
           </p>
         </div>
 
+        <div id="error-message" class="hidden bg-red-50 text-red-700 rounded-xl p-4 text-sm"></div>
+
         <div id="lookup-result" class="hidden">
           <div class="bg-white rounded-2xl border border-sage-500/15 p-5 space-y-2">
             <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Registrert i Brønnøysund</p>
@@ -123,8 +125,6 @@ if (!user) return Astro.redirect('/login?next=/profile/stores/new');
               redigere alle detaljer, laste opp logo og banner, og invitere
               medlemmer.</p>
           </div>
-
-          <div id="error-message" class="hidden bg-red-50 text-red-700 rounded-xl p-4 text-sm"></div>
 
           <button
             type="submit"
