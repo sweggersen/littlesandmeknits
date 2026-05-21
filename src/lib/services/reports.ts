@@ -1,13 +1,13 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 
-const VALID_TARGET_TYPES = new Set(['listing', 'commission_request', 'profile']);
+const VALID_TARGET_TYPES = new Set(['listing', 'commission_request', 'profile', 'store']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VALID_REASONS = ['scam', 'inappropriate', 'wrong_category', 'spam', 'other'];
 
 export async function submitReport(
   ctx: ServiceContext,
-  input: { targetType: string; targetId: string; reason: string; description?: string },
+  input: { targetType: string; targetId: string; reason: string; description?: string; anonymous?: boolean },
 ): Promise<ServiceResult<void>> {
   if (!input.targetType || !VALID_TARGET_TYPES.has(input.targetType) ||
       !input.targetId || !UUID_RE.test(input.targetId) ||
@@ -30,6 +30,7 @@ export async function submitReport(
     target_id: input.targetId,
     reason: input.reason,
     description: input.description || null,
+    anonymous: !!input.anonymous,
   });
 
   return ok(undefined as void);

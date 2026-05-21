@@ -31,6 +31,10 @@ const formId = `report-${targetId}`;
         <option value="other">Annet</option>
       </select>
       <textarea name="description" rows="2" maxlength="500" placeholder="Beskriv problemet (valgfritt)…" class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+      <label class="flex items-start gap-1.5 text-[11px] text-charcoal/65 cursor-pointer">
+        <input type="checkbox" name="anonymous" class="mt-0.5" />
+        <span>Hold meg anonym. Moderator kan ikke kontakte meg for oppfølging.</span>
+      </label>
       <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors">Send rapport</button>
       <p class="text-[10px] text-charcoal/40 hidden" data-report-status></p>
     </form>

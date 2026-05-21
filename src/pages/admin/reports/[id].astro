@@ -73,11 +73,18 @@ if (report.target_type === 'listing') {
   }
 }
 
-// Reporter contact info too (so mod can ask follow-up questions)
-const { data: reporterProfile } = await admin.from('profiles').select('display_name').eq('id', report.reporter_id).maybeSingle();
-const { data: reporterUser } = await admin.auth.admin.getUserById(report.reporter_id);
-const reporterDisplayName = reporterProfile?.display_name ?? null;
-const reporterEmail = reporterUser?.user?.email ?? null;
+// Reporter contact info. If the report is anonymous, we deliberately
+// don't fetch the email — moderator can't contact the reporter and the
+// UI says so.
+const isAnonymous = !!report.anonymous;
+let reporterDisplayName: string | null = null;
+let reporterEmail: string | null = null;
+if (!isAnonymous) {
+  const { data: reporterProfile } = await admin.from('profiles').select('display_name').eq('id', report.reporter_id).maybeSingle();
+  const { data: reporterUser } = await admin.auth.admin.getUserById(report.reporter_id);
+  reporterDisplayName = reporterProfile?.display_name ?? null;
+  reporterEmail = reporterUser?.user?.email ?? null;
+}
 
 // Pre-composed email subject + body for outreach to the subject
 const reasonLabel: Record<string, string> = {
@@ -106,7 +113,7 @@ const TARGET_LABEL: Record<string, string> = {
   store: 'Butikk',
 };
 
-const reporterName = anonymizeUser(report.reporter_id);
+const reporterName = isAnonymous ? 'Anonym' : anonymizeUser(report.reporter_id);
 const isOpen = report.status === 'open';
 
 const itemLabel = report.target_type === 'listing' ? 'annonsen'
@@ -191,6 +198,15 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
                   <span class="text-charcoal/55 font-mono break-all">{reporterEmail}</span>
                 </span>
               </a>
+            )}
+            {isAnonymous && (
+              <div class="flex items-start gap-2 text-xs bg-linen rounded-lg px-3 py-2 opacity-60 cursor-not-allowed">
+                <span class="text-base leading-none mt-0.5 grayscale">✉️</span>
+                <span>
+                  <strong class="block">Kan ikke kontakte innmelder</strong>
+                  <span class="text-charcoal/55">Rapporten er anonym — moderator kan ikke be om oppfølging.</span>
+                </span>
+              </div>
             )}
           </div>
         </div>

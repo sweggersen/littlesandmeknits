@@ -13,6 +13,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     targetId: form.get('target_id')?.toString() ?? '',
     reason: form.get('reason')?.toString() ?? '',
     description: form.get('description')?.toString(),
+    anonymous: form.get('anonymous')?.toString() === 'on' || form.get('anonymous')?.toString() === 'true',
   });
   return toResponse(result);
 };
