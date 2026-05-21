@@ -208,6 +208,28 @@ test.describe('Strikketorget — butikker', () => {
     await expect(page.getByText(/Organisasjonsnummer må være 9 sifre|Ugyldig/)).toBeVisible({ timeout: 5_000 });
   });
 
+  test('store creation enqueues a moderation_queue item', async ({ page, request }) => {
+    await loginAs(page, ELINE);
+    const created = await createStoreAs(page, { name: 'Queue test', slug: 'queue-test' });
+
+    // Inspect the queue via test-exec — there should be exactly one item of
+    // type=store pointing at the new store id.
+    const res = await request.post('/api/dev/test-exec', {
+      headers: { 'X-Admin-Token': adminToken, 'Content-Type': 'application/json' },
+      data: {
+        action: 'get-state',
+        params: { include_queue: true },
+      },
+    });
+    expect(res.ok()).toBeTruthy();
+    const { data } = await res.json();
+    const storeQueueItems = (data.queue ?? []).filter(
+      (q: any) => q.item_type === 'store' && q.item_id === created.storeId,
+    );
+    expect(storeQueueItems.length, 'expected exactly one moderation queue item for the new store').toBe(1);
+    expect(storeQueueItems[0].status).toBe('pending');
+  });
+
   test('duplicate orgnr is rejected', async ({ page }) => {
     await loginAs(page, ELINE);
     await createStoreAs(page, { name: 'Første', slug: 'forste' });
