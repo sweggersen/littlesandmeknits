@@ -287,7 +287,7 @@ export async function resolveReport(
     details: { notes: input.notes },
   });
 
-  return ok({ redirect: '/admin/reports' });
+  return ok({ redirect: `/admin/reports?${input.action}=1` });
 }
 
 const ROLE_LABEL: Record<string, string> = {

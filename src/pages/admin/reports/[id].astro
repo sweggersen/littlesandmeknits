@@ -1,0 +1,139 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../../lib/admin-auth';
+import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { anonymizeUser } from '../../../lib/anonymize';
+import { REPORT_STATUS } from '../../../lib/labels';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/market');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/admin/reports');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: report } = await supabase
+  .from('reports').select('*').eq('id', id).maybeSingle();
+if (!report) return Astro.redirect('/admin/reports');
+
+// Resolve the linked item URL so we can embed it in an iframe
+let itemUrl: string | null = null;
+let itemTitle: string | null = null;
+if (report.target_type === 'listing') {
+  const { data: l } = await admin.from('listings').select('id, title, status').eq('id', report.target_id).maybeSingle();
+  if (l) {
+    itemUrl = `/market/listing/${l.id}`;
+    itemTitle = l.title;
+  }
+} else if (report.target_type === 'commission_request') {
+  const { data: r } = await admin.from('commission_requests').select('id, title').eq('id', report.target_id).maybeSingle();
+  if (r) {
+    itemUrl = `/market/commissions/${r.id}`;
+    itemTitle = r.title;
+  }
+} else if (report.target_type === 'store') {
+  const { data: s } = await admin.from('stores').select('id, slug, name').eq('id', report.target_id).maybeSingle();
+  if (s) {
+    itemUrl = `/market/store/${s.slug}`;
+    itemTitle = s.name;
+  }
+}
+
+const REASON_LABEL: Record<string, string> = {
+  scam: 'Svindel',
+  inappropriate: 'Upassende innhold',
+  wrong_category: 'Feil kategori',
+  spam: 'Spam',
+  other: 'Annet',
+};
+const TARGET_LABEL: Record<string, string> = {
+  listing: 'Annonse',
+  commission_request: 'Oppdrag',
+  store: 'Butikk',
+};
+
+const reporterName = anonymizeUser(report.reporter_id);
+const isOpen = report.status === 'open';
+---
+
+<AdminLayout title="Rapport" current="rapporter">
+  <a href="/admin/reports" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til rapporter</a>
+
+  <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
+    <!-- Left: report details + decision -->
+    <div class="bg-white rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
+      <div>
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TARGET_LABEL[report.target_type] ?? report.target_type}</span>
+          <span class:list={[
+            'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+            report.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
+          ]}>{REASON_LABEL[report.reason] ?? report.reason}</span>
+          <span class:list={[
+            'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+            report.status === 'open' ? 'text-terracotta-500 bg-terracotta-500/10'
+              : report.status === 'resolved' ? 'text-sage-700 bg-sage-100'
+              : 'text-charcoal/40 bg-oatmeal/60',
+          ]}>{REPORT_STATUS[report.status]}</span>
+        </div>
+        <h1 class="font-serif text-xl">{itemTitle ?? 'Rapportert element'}</h1>
+        {itemUrl && (
+          <a href={itemUrl} target="_blank" rel="noopener" class="text-xs text-terracotta-500 hover:underline mt-1 inline-block">Åpne i ny fane &nearr;</a>
+        )}
+      </div>
+
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Innmelder</p>
+        <p class="text-sm">{reporterName}</p>
+        <p class="text-[11px] text-charcoal/40">{new Date(report.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+      </div>
+
+      {report.description && (
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Beskrivelse</p>
+          <p class="text-sm text-charcoal/75 whitespace-pre-wrap bg-linen rounded-lg p-3">{report.description}</p>
+        </div>
+      )}
+
+      {report.status !== 'open' && (
+        <div class="bg-sage-100/40 rounded-lg p-3 text-xs">
+          <p class="font-medium mb-0.5">Behandlet {report.resolved_at && new Date(report.resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+          {report.resolution_notes && <p class="text-charcoal/65 whitespace-pre-wrap mt-1">{report.resolution_notes}</p>}
+        </div>
+      )}
+
+      {isOpen && (
+        <form method="post" action="/api/admin/reports/resolve" class="space-y-3">
+          <input type="hidden" name="report_id" value={report.id} />
+          <label class="block">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Interne notater (valgfritt)</span>
+            <textarea name="notes" rows="3" maxlength="1000" placeholder="Hva ble gjort? F.eks. 'Kontaktet selger, fjernet villedende bilde.'"
+              class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+          </label>
+          <div class="flex gap-2">
+            <button type="submit" name="action" value="resolve" class="flex-1 bg-sage-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-600">Løs (gyldig rapport)</button>
+            <button type="submit" name="action" value="dismiss" class="flex-1 border border-sage-500/30 text-charcoal/65 px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-100/50">Avvis (ikke gyldig)</button>
+          </div>
+        </form>
+      )}
+    </div>
+
+    <!-- Right: live preview of the reported item -->
+    <div class="bg-white rounded-xl border border-sage-500/10 p-2 lg:p-3">
+      <div class="flex items-center justify-between mb-2 px-2 pt-1">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
+        {itemUrl && (
+          <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/45 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
+        )}
+      </div>
+      {itemUrl ? (
+        <iframe src={itemUrl} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Rapportert element"></iframe>
+      ) : (
+        <p class="p-5 text-sm text-charcoal/55">Elementet finnes ikke lenger eller er ikke tilgjengelig.</p>
+      )}
+    </div>
+  </div>
+</AdminLayout>
