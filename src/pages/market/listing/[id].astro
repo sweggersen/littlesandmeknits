@@ -3,6 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
 import ProfileAvatar from '../../../components/ProfileAvatar.astro';
+import StarRating from '../../../components/StarRating.astro';
 import Alert from '../../../components/Alert.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
@@ -59,6 +60,16 @@ const isOwner = user?.id === listing.seller_id;
 const isBuyer = user?.id === listing.buyer_id;
 const viewableStatuses = new Set(['active', 'reserved', 'shipped', 'sold', 'disputed']);
 if (!isOwner && !isBuyer && !isStaff && !viewableStatuses.has(listing.status)) return Astro.redirect('/market');
+
+// Aggregate seller stats (all reviews ever — not just for this listing)
+const { data: sellerRatingRows } = await supabase
+  .from('seller_reviews')
+  .select('rating')
+  .eq('seller_id', listing.seller_id);
+const sellerReviewCount = sellerRatingRows?.length ?? 0;
+const sellerAvgRating = sellerReviewCount
+  ? (sellerRatingRows!.reduce((s, r) => s + (r.rating ?? 0), 0) / sellerReviewCount)
+  : 0;
 
 const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }] = await Promise.all([
   supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
@@ -667,9 +678,16 @@ const autoReleaseDays = listing.auto_release_at
                 <p class="font-medium group-hover:text-terracotta-500 transition-colors">
                   {sellerProfile?.display_name ?? 'Anonym'}
                 </p>
-                <p class="text-xs text-charcoal/45">
-                  {sellerProfile?.location ?? listing.location ?? 'Selger'}
-                </p>
+                {sellerReviewCount > 0 ? (
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <StarRating rating={Math.round(sellerAvgRating)} />
+                    <span class="text-xs text-charcoal/55">{sellerAvgRating.toFixed(1)} · {sellerReviewCount} {sellerReviewCount === 1 ? 'omtale' : 'omtaler'}</span>
+                  </div>
+                ) : (
+                  <p class="text-xs text-charcoal/45">
+                    {sellerProfile?.location ?? listing.location ?? 'Selger'}
+                  </p>
+                )}
               </div>
             </a>
           )}
@@ -704,7 +722,9 @@ const autoReleaseDays = listing.auto_release_at
   </style>
 
   <script define:vars={{ photoData: photos.map((p) => ({ url: projectPhotoUrl(p.path), caption: p.caption, id: p.id })), listingId: listing.id }}>
+  function initListingGallery() {
     const mainPhoto = document.getElementById('main-photo');
+    if (!mainPhoto) return; // page swapped to a non-listing route
     const thumbs = document.querySelectorAll('[data-thumb-idx]');
     const counter = document.querySelector('[data-gallery-counter]');
     const captionEl = document.querySelector('[data-photo-caption]');
@@ -926,6 +946,8 @@ const autoReleaseDays = listing.auto_release_at
         await postAction(body);
       });
     });
+  }
+  document.addEventListener('astro:page-load', initListingGallery);
   </script>
   <script>
     function initFavBtn() {

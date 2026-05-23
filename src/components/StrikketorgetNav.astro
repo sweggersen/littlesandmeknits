@@ -1,6 +1,20 @@
 ---
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/market';
 
+// Show a mobile back button on detail/sub pages — anywhere that isn't a
+// section root. The button defers to history.back() when there's same-
+// origin history, otherwise falls back to a sensible parent.
+const ROOT_PATHS = new Set(['/market', '/inbox']);
+const showBack = !ROOT_PATHS.has(currentPath);
+// Parent fallback: strip the last path segment ("/market/listing/abc" → "/market/listing").
+// If the result is empty, default to /market.
+const parentPath = (() => {
+  const parts = currentPath.split('/').filter(Boolean);
+  if (parts.length <= 1) return '/market';
+  parts.pop();
+  return '/' + parts.join('/');
+})();
+
 const navLinks = [
   { href: '/market/used', label: 'Brukt' },
   { href: '/market/new', label: 'Nytt' },
@@ -14,10 +28,22 @@ const externalLinks = [
 ];
 ---
 
-<nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
+<nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:persist>
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-    <div class="flex items-center gap-6">
-      <a href="/market" class="group shrink-0 flex items-center gap-2.5" transition:name="brand-logo">
+    <div class="flex items-center gap-2 sm:gap-6">
+      <!-- Always rendered; JS toggles `hidden` based on route (nav is
+           transition:persist'd, so we can't rely on server-side conditional). -->
+      <a
+        href={parentPath}
+        data-st-back
+        class:list={['lg:hidden -ml-1 p-2 text-charcoal/70 hover:text-charcoal', !showBack && 'hidden']}
+        aria-label="Tilbake"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </a>
+      <a href="/market" class="group shrink-0 flex items-center gap-2.5">
         <img src="/strikketorget-icon.svg" alt="" width="32" height="32" class="shrink-0 group-hover:opacity-90 transition-opacity" />
         <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
           Strikketorget
@@ -25,22 +51,15 @@ const externalLinks = [
       </a>
 
       <div class="hidden sm:flex items-center gap-1">
-      {navLinks.map((l) => {
-        const isActive = currentPath.startsWith(l.href);
-        return (
-          <a
-            href={l.href}
-            class:list={[
-              'text-sm font-medium px-3 py-1.5 rounded-full transition-colors',
-              isActive
-                ? 'bg-terracotta-500/10 text-terracotta-500'
-                : 'text-charcoal/70 hover:text-charcoal',
-            ]}
-          >
-            {l.label}
-          </a>
-        );
-      })}
+      {navLinks.map((l) => (
+        <a
+          href={l.href}
+          data-nav-link={l.href}
+          class="text-sm font-medium px-3 py-1.5 rounded-full transition-colors text-charcoal/70 hover:text-charcoal"
+        >
+          {l.label}
+        </a>
+      ))}
       </div>
     </div>
 
@@ -86,8 +105,13 @@ const externalLinks = [
         <span data-inbox-badge class="hidden absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-terracotta-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
       </a>
 
-      <!-- Profile dropdown -->
-      <div class="hidden sm:block relative" data-auth-link="profile-menu" style="display:none;">
+      <!-- Mobile/tablet: avatar that links straight to the profile page -->
+      <a href="/profile" class="lg:hidden inline-flex" data-auth-link="profile-avatar-mobile" style="display:none;" aria-label="Min profil">
+        <span data-profile-avatar-mobile class="w-7 h-7 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-[11px] font-serif text-sage-700">?</span>
+      </a>
+
+      <!-- Desktop: clickable avatar with dropdown -->
+      <div class="hidden lg:block relative" data-auth-link="profile-menu" style="display:none;">
         <button type="button" data-profile-menu-trigger class="flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors p-1.5 rounded-full">
           <span data-profile-avatar class="w-6 h-6 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-[10px] font-serif text-sage-700">?</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -124,7 +148,7 @@ const externalLinks = [
 
       <button
         type="button"
-        class="sm:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal relative"
+        class="lg:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal relative"
         aria-label="Meny"
         data-mobile-menu-trigger
       >
@@ -136,14 +160,14 @@ const externalLinks = [
     </div>
   </div>
 
-  <div class="hidden sm:hidden border-t border-sage-500/10 px-6 py-4" data-mobile-menu>
+  <!-- Click-to-dismiss backdrop, sibling of the dropdown, covers content below the nav -->
+  <div class="hidden fixed inset-x-0 top-[64px] bottom-0 bg-charcoal/20 backdrop-blur-[1px] z-40 lg:hidden" data-mobile-backdrop aria-hidden="true"></div>
+
+  <div class="hidden absolute left-0 right-0 top-full bg-linen border-t border-sage-500/10 px-6 py-4 shadow-lg z-50 lg:hidden" data-mobile-menu>
     <ul class="flex flex-col gap-1">
       {navLinks.map((l) => (
         <li>
-          <a href={l.href} class:list={[
-            'block py-2 text-base font-medium',
-            currentPath.startsWith(l.href) ? 'text-terracotta-500' : 'text-charcoal/80',
-          ]}>
+          <a href={l.href} data-mobile-nav-link={l.href} class="block py-2 text-base font-medium text-charcoal/80">
             {l.label}
           </a>
         </li>
@@ -192,13 +216,11 @@ const externalLinks = [
 <script is:inline>
   function applyAuthUI(loggedIn) {
     if (!loggedIn) {
-      document.querySelectorAll('[data-auth-link="profile-menu"]').forEach(function(el) {
+      document.querySelectorAll('[data-auth-link="profile-menu"], [data-auth-link="profile-avatar-mobile"]').forEach(function(el) {
         el.style.display = 'none';
-        el.classList.add('hidden');
       });
       document.querySelectorAll('[data-auth-link="bell"]').forEach(function(el) {
         el.style.display = 'none';
-        el.classList.add('hidden');
       });
       document.querySelectorAll('[data-st-auth]').forEach(function(el) {
         el.classList.add('hidden');
@@ -211,13 +233,17 @@ const externalLinks = [
     document.querySelectorAll('[data-auth-link="login"]').forEach(function(el) {
       el.style.display = 'none';
     });
+    // Only clear inline display:none — keep responsive `hidden lg:block`
+    // / `hidden sm:inline-flex` classes intact so the elements respect
+    // the viewport breakpoints.
     document.querySelectorAll('[data-auth-link="profile-menu"]').forEach(function(el) {
       el.style.display = '';
-      el.classList.remove('hidden');
+    });
+    document.querySelectorAll('[data-auth-link="profile-avatar-mobile"]').forEach(function(el) {
+      el.style.display = '';
     });
     document.querySelectorAll('[data-auth-link="bell"]').forEach(function(el) {
       el.style.display = '';
-      el.classList.remove('hidden');
     });
     document.querySelectorAll('[data-st-auth]').forEach(function(el) {
       el.classList.remove('hidden');
@@ -227,8 +253,10 @@ const externalLinks = [
   }
 
   function applyProfileInfo(u) {
-    var avatarEl = document.querySelector('[data-profile-avatar]');
-    if (avatarEl && u.display_name) avatarEl.textContent = u.display_name[0].toUpperCase();
+    var initial = (u.display_name || '?')[0].toUpperCase();
+    document.querySelectorAll('[data-profile-avatar], [data-profile-avatar-mobile]').forEach(function(el) {
+      if (u.display_name) el.textContent = initial;
+    });
 
     var inboxN = u.inbox_unread || ((u.notifications || 0) + (u.unread || 0));
     var badgeText = inboxN > 99 ? '99+' : String(inboxN);
@@ -258,10 +286,99 @@ const externalLinks = [
 </script>
 
 <script>
+  function syncRouteState() {
+    const path = location.pathname.replace(/\/$/, '') || '/market';
+    const ROOTS = new Set(['/market', '/inbox']);
+
+    // Active tab pills
+    document.querySelectorAll<HTMLAnchorElement>('[data-nav-link]').forEach((el) => {
+      const href = el.dataset.navLink!;
+      const active = path.startsWith(href);
+      el.classList.toggle('bg-terracotta-500/10', active);
+      el.classList.toggle('text-terracotta-500', active);
+      el.classList.toggle('text-charcoal/70', !active);
+      el.classList.toggle('hover:text-charcoal', !active);
+    });
+    document.querySelectorAll<HTMLAnchorElement>('[data-mobile-nav-link]').forEach((el) => {
+      const href = el.dataset.mobileNavLink!;
+      const active = path.startsWith(href);
+      el.classList.toggle('text-terracotta-500', active);
+      el.classList.toggle('text-charcoal/80', !active);
+    });
+
+    // Mobile back button visibility + parent fallback
+    const back = document.querySelector<HTMLAnchorElement>('[data-st-back]');
+    if (back) {
+      const showBack = !ROOTS.has(path);
+      back.classList.toggle('hidden', !showBack);
+      // Recompute parent path for fallback
+      const parts = path.split('/').filter(Boolean);
+      let parent = '/market';
+      if (parts.length > 1) { parts.pop(); parent = '/' + parts.join('/'); }
+      back.href = parent;
+    }
+  }
+
   function initStrikketorgetNav() {
     const trigger = document.querySelector<HTMLButtonElement>('[data-mobile-menu-trigger]');
     const menu = document.querySelector<HTMLElement>('[data-mobile-menu]');
-    trigger?.addEventListener('click', () => menu?.classList.toggle('hidden'));
+    const backdrop = document.querySelector<HTMLElement>('[data-mobile-backdrop]');
+
+    function setMenuOpen(open: boolean) {
+      menu?.classList.toggle('hidden', !open);
+      backdrop?.classList.toggle('hidden', !open);
+      document.body.style.overflow = open ? 'hidden' : '';
+    }
+
+    // Always reset state on a fresh page-load — nav is transition:persist'd,
+    // so without this the menu could carry the "open" state across navigations.
+    setMenuOpen(false);
+
+    // Bind listeners ONCE — nav is persisted, so initStrikketorgetNav runs
+    // on every navigation. Guard with a sentinel on each element.
+    if (trigger && !(trigger as any)._stBound) {
+      (trigger as any)._stBound = true;
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setMenuOpen(menu?.classList.contains('hidden') ?? false);
+      });
+    }
+    if (backdrop && !(backdrop as any)._stBound) {
+      (backdrop as any)._stBound = true;
+      backdrop.addEventListener('click', () => setMenuOpen(false));
+    }
+    if (menu && !(menu as any)._stBound) {
+      (menu as any)._stBound = true;
+      // Use event delegation so newly-added links also close the menu.
+      menu.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('a, button')) setMenuOpen(false);
+      });
+    }
+    if (!(window as any)._stEscBound) {
+      (window as any)._stEscBound = true;
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !(menu?.classList.contains('hidden') ?? true)) setMenuOpen(false);
+      });
+    }
+
+    // Nav is `transition:persist`'d across page changes, so we manually
+    // re-sync per-route state (active tab pill + back-button visibility).
+    syncRouteState();
+
+    // Mobile back button: prefer history.back() when we have same-origin
+    // history; the href fallback (parent path) is what runs otherwise.
+    const back = document.querySelector<HTMLAnchorElement>('[data-st-back]');
+    if (back && !(back as any)._bound) {
+      (back as any)._bound = true;
+      back.addEventListener('click', (e) => {
+        const ref = document.referrer;
+        const sameOrigin = ref && new URL(ref).origin === location.origin;
+        if (history.length > 1 && sameOrigin) {
+          e.preventDefault();
+          history.back();
+        }
+      });
+    }
 
     // Dev menu — localhost-only convenience.
     const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -279,18 +396,25 @@ const externalLinks = [
       });
     }
 
-    // Profile dropdown
+    // Profile dropdown (also persisted — guard against re-binding)
     const profileTrigger = document.querySelector<HTMLButtonElement>('[data-profile-menu-trigger]');
     const profileMenu = document.querySelector<HTMLElement>('[data-profile-menu]');
-    profileTrigger?.addEventListener('click', (e) => {
-      e.stopPropagation();
-      profileMenu?.classList.toggle('hidden');
-    });
-    document.addEventListener('click', (e) => {
-      if (!profileMenu) return;
-      const wrapper = profileTrigger?.parentElement;
-      if (!wrapper?.contains(e.target as Node)) profileMenu.classList.add('hidden');
-    });
+    if (profileTrigger && !(profileTrigger as any)._stBound) {
+      (profileTrigger as any)._stBound = true;
+      profileTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profileMenu?.classList.toggle('hidden');
+      });
+    }
+    if (!(window as any)._stProfileOutsideBound) {
+      (window as any)._stProfileOutsideBound = true;
+      document.addEventListener('click', (e) => {
+        const pm = document.querySelector<HTMLElement>('[data-profile-menu]');
+        const pt = document.querySelector<HTMLButtonElement>('[data-profile-menu-trigger]');
+        if (!pm || !pt) return;
+        if (!pt.parentElement?.contains(e.target as Node)) pm.classList.add('hidden');
+      });
+    }
 
     if (sessionStorage.getItem('lm-auth') === '1') {
       (window as any).applyAuthUI(true);

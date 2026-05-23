@@ -2,6 +2,10 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { createAdminSupabase, createServerSupabase } from '../../../lib/supabase';
 
+// A GET on this endpoint usually means the user hit refresh on the URL.
+// Bounce them back to the picker form instead of showing a 404.
+export const GET: APIRoute = async ({ redirect }) => redirect('/dev/login', 303);
+
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (import.meta.env.PROD) {
     return new Response('Dev only', { status: 403 });
