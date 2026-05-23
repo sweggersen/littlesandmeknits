@@ -1,0 +1,101 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import MarketplaceShell from '../../../components/MarketplaceShell.astro';
+import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { getCurrentUser } from '../../../lib/auth';
+import { env } from 'cloudflare:workers';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect(`/login?next=/market/moderasjon/${Astro.params.id ?? ''}`);
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/market');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: thread } = await supabase
+  .from('moderation_threads').select('*').eq('id', id).maybeSingle();
+if (!thread) return Astro.redirect('/market');
+
+const { data: messagesData } = await supabase
+  .from('moderation_messages')
+  .select('id, sender_id, is_moderator, body, created_at')
+  .eq('thread_id', thread.id)
+  .order('created_at', { ascending: true });
+const messages: any[] = messagesData ?? [];
+
+let itemTitle: string | null = null;
+let itemUrl: string | null = null;
+if (thread.target_type === 'listing') {
+  const { data: l } = await admin.from('listings').select('id, title').eq('id', thread.target_id).maybeSingle();
+  if (l) { itemTitle = l.title; itemUrl = `/market/listing/${l.id}`; }
+} else if (thread.target_type === 'store') {
+  const { data: s } = await admin.from('stores').select('slug, name').eq('id', thread.target_id).maybeSingle();
+  if (s) { itemTitle = s.name; itemUrl = `/market/store/${s.slug}`; }
+} else if (thread.target_type === 'commission_request') {
+  const { data: c } = await admin.from('commission_requests').select('id, title').eq('id', thread.target_id).maybeSingle();
+  if (c) { itemTitle = c.title; itemUrl = `/market/commissions/${c.id}`; }
+}
+
+// Mark moderator messages as read for this recipient.
+if (thread.recipient_id === user.id) {
+  await supabase.from('moderation_messages')
+    .update({ read_at: new Date().toISOString() })
+    .eq('thread_id', thread.id)
+    .eq('is_moderator', true)
+    .is('read_at', null);
+}
+
+const isOpen = thread.status === 'open';
+---
+
+<Layout title="Viktig melding fra moderator">
+  <MarketplaceShell active="">
+    <div class="space-y-4">
+      <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-amber-800 mb-1">Viktig — moderator</p>
+        <h1 class="font-serif text-2xl text-amber-900">Samtale om {itemTitle ? `«${itemTitle}»` : 'et av elementene dine'}</h1>
+        <p class="text-sm text-amber-900/80 mt-2">
+          {isOpen
+            ? 'Elementet er midlertidig skjult fra Strikketorget mens vi behandler saken. Svar moderator her — det blir tilgjengelig igjen så snart saken er løst.'
+            : 'Denne saken er avsluttet.'}
+        </p>
+        {itemUrl && (
+          <a href={itemUrl} class="text-xs text-amber-900 underline mt-2 inline-block">Se elementet &rarr;</a>
+        )}
+      </div>
+
+      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 space-y-3">
+        {messages.map((m) => (
+          <div class:list={[
+            'rounded-xl p-3 text-sm',
+            m.is_moderator
+              ? 'bg-amber-50 border border-amber-200'
+              : (m.sender_id === user.id ? 'bg-sage-100/60 border border-sage-500/15 ml-8' : 'bg-linen border border-sage-500/10'),
+          ]}>
+            <div class="flex items-center gap-2 mb-1">
+              <span class:list={[
+                'text-[10px] font-bold uppercase tracking-widest',
+                m.is_moderator ? 'text-amber-700' : 'text-charcoal/55',
+              ]}>{m.is_moderator ? 'Moderator' : (m.sender_id === user.id ? 'Du' : 'Annen')}</span>
+              <span class="text-[10px] text-charcoal/40 ml-auto">{new Date(m.created_at).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <p class="whitespace-pre-wrap text-charcoal/85">{m.body}</p>
+          </div>
+        ))}
+      </div>
+
+      {isOpen && thread.recipient_id === user.id && (
+        <form method="post" action={`/api/moderation-threads/${thread.id}/message`} class="bg-white rounded-2xl border border-sage-500/10 p-4 space-y-2">
+          <label class="block">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Svar til moderator</span>
+            <textarea name="body" rows="4" required maxlength="4000"
+              class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+          </label>
+          <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">Send svar</button>
+        </form>
+      )}
+    </div>
+  </MarketplaceShell>
+</Layout>

@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { buildServiceContext } from '../../../../lib/services/context';
-import { resolveReport } from '../../../../lib/services/moderation';
+import { decideReport } from '../../../../lib/services/moderation-threads';
 import { toResponse } from '../../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
@@ -9,11 +9,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
 
   const form = await request.formData();
   const applyToAllRaw = form.get('apply_to_all')?.toString();
-  const result = await resolveReport(ctx, {
+  const result = await decideReport(ctx, {
     reportId: form.get('report_id')?.toString() ?? '',
     action: form.get('action')?.toString() ?? '',
+    firstMessage: form.get('first_message')?.toString(),
     notes: form.get('notes')?.toString(),
-    affectItem: form.get('affect_item')?.toString(),
     applyToAll: applyToAllRaw === undefined ? true : applyToAllRaw !== 'false',
   });
   return toResponse(result, redirect);

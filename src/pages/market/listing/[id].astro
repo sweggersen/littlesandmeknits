@@ -93,6 +93,19 @@ const justPurchased = Astro.url.searchParams.get('purchased') === '1';
 const sellerOnboarded = isStoreListing
   ? !!storeRow?.stripe_onboarded
   : !!sellerProfile?.stripe_onboarded;
+let frozenThreadId: string | null = null;
+if (isOwner && listing.status === 'frozen') {
+  const { data: t } = await supabase
+    .from('moderation_threads')
+    .select('id')
+    .eq('target_type', 'listing')
+    .eq('target_id', listing.id)
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  frozenThreadId = t?.id ?? null;
+}
 const autoReleaseDays = listing.auto_release_at
   ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
   : null;
@@ -106,6 +119,15 @@ const autoReleaseDays = listing.auto_release_at
 
       {isOwner && listing.status === 'pending_review' && (
         <Alert type="warning" class="mb-6">Annonsen din er under vurdering. Den blir synlig når den er godkjent.</Alert>
+      )}
+
+      {isOwner && listing.status === 'frozen' && (
+        <Alert type="warning" class="mb-6">
+          <strong>Annonsen er frosset av moderator.</strong> Den er skjult fra Strikketorget mens saken behandles.
+          {frozenThreadId && (
+            <> <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium">Åpne samtalen og svar moderator &rarr;</a></>
+          )}
+        </Alert>
       )}
 
       {isOwner && listing.status === 'rejected' && (

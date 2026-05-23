@@ -28,7 +28,8 @@ export type NotificationType =
   | 'listing_delivered'
   | 'dispute_opened'
   | 'dispute_resolved'
-  | 'achievement_unlocked';
+  | 'achievement_unlocked'
+  | 'moderation_message';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -56,6 +57,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   dispute_opened: 'email_item_approved',
   dispute_resolved: 'email_item_approved',
   achievement_unlocked: 'email_item_approved',
+  moderation_message: 'email_item_approved',
 };
 
 interface NotifyEnv {

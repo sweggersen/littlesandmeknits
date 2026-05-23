@@ -1,0 +1,140 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../lib/supabase';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/market');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/admin/reports');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: thread } = await admin
+  .from('moderation_threads').select('*').eq('id', id).maybeSingle();
+if (!thread) return Astro.redirect('/admin/reports');
+
+const { data: messagesData } = await admin
+  .from('moderation_messages')
+  .select('id, sender_id, is_moderator, body, created_at')
+  .eq('thread_id', thread.id)
+  .order('created_at', { ascending: true });
+const messages: any[] = messagesData ?? [];
+
+// Resolve item info for preview + recipient name.
+let itemUrl: string | null = null;
+let itemTitle: string | null = null;
+if (thread.target_type === 'listing') {
+  const { data: l } = await admin.from('listings').select('id, title, status').eq('id', thread.target_id).maybeSingle();
+  if (l) { itemUrl = `/market/listing/${l.id}`; itemTitle = l.title; }
+} else if (thread.target_type === 'store') {
+  const { data: s } = await admin.from('stores').select('slug, name').eq('id', thread.target_id).maybeSingle();
+  if (s) { itemUrl = `/market/store/${s.slug}`; itemTitle = s.name; }
+} else if (thread.target_type === 'commission_request') {
+  const { data: c } = await admin.from('commission_requests').select('id, title').eq('id', thread.target_id).maybeSingle();
+  if (c) { itemUrl = `/market/commissions/${c.id}`; itemTitle = c.title; }
+}
+
+const { data: recipient } = await admin.from('profiles').select('display_name').eq('id', thread.recipient_id).maybeSingle();
+
+const senderIds = Array.from(new Set(messages.map(m => m.sender_id)));
+const { data: profilesData } = senderIds.length
+  ? await admin.from('profiles').select('id, display_name').in('id', senderIds)
+  : { data: [] };
+const nameById = new Map<string, string>();
+for (const p of profilesData ?? []) nameById.set(p.id, p.display_name ?? 'Bruker');
+
+const isOpen = thread.status === 'open';
+const TARGET_LABEL: Record<string, string> = { listing: 'Annonse', commission_request: 'Oppdrag', store: 'Butikk' };
+---
+
+<AdminLayout title="Moderasjon-samtale" current="rapporter">
+  <a href="/admin/reports" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til rapporter</a>
+
+  <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
+    <div class="bg-white rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
+      <div>
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TARGET_LABEL[thread.target_type] ?? thread.target_type}</span>
+          <span class:list={[
+            'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+            isOpen ? 'text-amber-700 bg-amber-100' : 'text-charcoal/40 bg-oatmeal/60',
+          ]}>{isOpen ? 'Åpen' : 'Lukket'}</span>
+        </div>
+        <h1 class="font-serif text-xl">{itemTitle ?? 'Element'}</h1>
+        <p class="text-xs text-charcoal/55 mt-1">Eier: {recipient?.display_name ?? 'Bruker'}</p>
+        {itemUrl && (
+          <a href={itemUrl} target="_blank" rel="noopener" class="text-xs text-terracotta-500 hover:underline mt-1 inline-block">Åpne element &nearr;</a>
+        )}
+      </div>
+
+      <div class="border-t border-sage-500/10 pt-4 space-y-2">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Samtale</p>
+        <div class="space-y-2 max-h-[400px] overflow-y-auto">
+          {messages.map((m) => (
+            <div class:list={[
+              'rounded-lg p-3 text-xs',
+              m.is_moderator ? 'bg-amber-50 border border-amber-200' : 'bg-linen border border-sage-500/10',
+            ]}>
+              <div class="flex items-center gap-2 mb-1">
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-widest',
+                  m.is_moderator ? 'text-amber-700' : 'text-charcoal/55',
+                ]}>{m.is_moderator ? 'Moderator' : (nameById.get(m.sender_id) ?? 'Eier')}</span>
+                <span class="text-[10px] text-charcoal/40 ml-auto">{new Date(m.created_at).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <p class="whitespace-pre-wrap text-charcoal/85">{m.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {isOpen && (
+        <form method="post" action={`/api/moderation-threads/${thread.id}/message`} class="space-y-2 border-t border-sage-500/10 pt-4">
+          <label class="block">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Svar til eier</span>
+            <textarea name="body" rows="3" required maxlength="4000"
+              class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+          </label>
+          <button type="submit" class="w-full bg-charcoal text-linen px-3 py-2 rounded-lg text-xs font-medium hover:bg-terracotta-500">Send melding</button>
+        </form>
+      )}
+
+      {isOpen && (
+        <div class="border-t border-sage-500/10 pt-4 space-y-2">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Avslutt saken</p>
+          <form method="post" action={`/api/moderation-threads/${thread.id}/close`}>
+            <input type="hidden" name="unfreeze" value="true" />
+            <button type="submit" class="w-full bg-sage-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-600">Slipp og lukk</button>
+          </form>
+          <form method="post" action={`/api/moderation-threads/${thread.id}/close`}>
+            <input type="hidden" name="unfreeze" value="false" />
+            <button type="submit" class="w-full border border-sage-500/30 text-charcoal/65 px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-100/50">Behold frosset og lukk</button>
+          </form>
+        </div>
+      )}
+
+      {!isOpen && (
+        <div class="bg-sage-100/40 rounded-lg p-3 text-xs">
+          <p class="font-medium">Tråd lukket {thread.closed_at && new Date(thread.closed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</p>
+        </div>
+      )}
+    </div>
+
+    <div class="bg-white rounded-xl border border-sage-500/10 p-2 lg:p-3">
+      <div class="flex items-center justify-between mb-2 px-2 pt-1">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
+        {itemUrl && (
+          <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/45 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
+        )}
+      </div>
+      {itemUrl ? (
+        <iframe src={`${itemUrl}?embed=1`} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Element"></iframe>
+      ) : (
+        <p class="p-5 text-sm text-charcoal/55">Elementet finnes ikke lenger.</p>
+      )}
+    </div>
+  </div>
+</AdminLayout>

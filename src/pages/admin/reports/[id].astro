@@ -2,7 +2,6 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
-import { anonymizeUser } from '../../../lib/anonymize';
 import { REPORT_STATUS } from '../../../lib/labels';
 import { env } from 'cloudflare:workers';
 
@@ -28,132 +27,66 @@ const { data: siblingsData } = await admin
   .order('created_at', { ascending: true });
 const siblings: any[] = siblingsData ?? [];
 const openSiblings = siblings.filter(s => s.status === 'open');
-const openSiblingIds = openSiblings.map(s => s.id);
 
-// Resolve the linked item URL so we can embed it in an iframe.
-// Also figure out who the moderator might want to contact (the seller/
-// owner) — their display name, account email, and existing message
-// conversation with the reporter (if any).
+// Look up the item title + URL for the iframe preview.
 let itemUrl: string | null = null;
 let itemTitle: string | null = null;
-let subjectName: string | null = null;
-let subjectEmail: string | null = null;
-let subjectKind: 'selger' | 'kjøper' | 'butikk' | 'innmelder' = 'selger';
-let existingConversationId: string | null = null;
 
 if (report.target_type === 'listing') {
   const { data: l } = await admin.from('listings')
-    .select('id, title, status, seller_id, store_id').eq('id', report.target_id).maybeSingle();
-  if (l) {
-    itemUrl = `/market/listing/${l.id}`;
-    itemTitle = l.title;
-    if (l.store_id) {
-      const { data: s } = await admin.from('stores').select('name, contact_email').eq('id', l.store_id).maybeSingle();
-      if (s) { subjectKind = 'butikk'; subjectName = s.name; subjectEmail = s.contact_email; }
-    } else {
-      const { data: p } = await admin.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
-      const { data: u } = await admin.auth.admin.getUserById(l.seller_id);
-      subjectName = p?.display_name ?? null;
-      subjectEmail = u?.user?.email ?? null;
-    }
-    // Conversation between reporter and seller for this listing
-    const { data: conv } = await admin.from('marketplace_conversations')
-      .select('id').eq('listing_id', l.id).eq('buyer_id', report.reporter_id).maybeSingle();
-    existingConversationId = conv?.id ?? null;
-  }
+    .select('id, title').eq('id', report.target_id).maybeSingle();
+  if (l) { itemUrl = `/market/listing/${l.id}`; itemTitle = l.title; }
 } else if (report.target_type === 'commission_request') {
-  const { data: r } = await admin.from('commission_requests').select('id, title, buyer_id').eq('id', report.target_id).maybeSingle();
-  if (r) {
-    itemUrl = `/market/commissions/${r.id}`;
-    itemTitle = r.title;
-    subjectKind = 'kjøper';
-    const { data: p } = await admin.from('profiles').select('display_name').eq('id', r.buyer_id).maybeSingle();
-    const { data: u } = await admin.auth.admin.getUserById(r.buyer_id);
-    subjectName = p?.display_name ?? null;
-    subjectEmail = u?.user?.email ?? null;
-  }
+  const { data: r } = await admin.from('commission_requests').select('id, title').eq('id', report.target_id).maybeSingle();
+  if (r) { itemUrl = `/market/commissions/${r.id}`; itemTitle = r.title; }
 } else if (report.target_type === 'store') {
-  const { data: s } = await admin.from('stores')
-    .select('id, slug, name, contact_email, created_by').eq('id', report.target_id).maybeSingle();
-  if (s) {
-    itemUrl = `/market/store/${s.slug}`;
-    itemTitle = s.name;
-    subjectKind = 'butikk';
-    subjectName = s.name;
-    subjectEmail = s.contact_email;
-  }
+  const { data: s } = await admin.from('stores').select('id, slug, name').eq('id', report.target_id).maybeSingle();
+  if (s) { itemUrl = `/market/store/${s.slug}`; itemTitle = s.name; }
 }
 
-// Reporter contact info. If the report is anonymous, we deliberately
-// don't fetch the email — moderator can't contact the reporter and the
-// UI says so.
-const isAnonymous = !!report.anonymous;
-let reporterDisplayName: string | null = null;
-let reporterEmail: string | null = null;
-if (!isAnonymous) {
-  const { data: reporterProfile } = await admin.from('profiles').select('display_name').eq('id', report.reporter_id).maybeSingle();
-  const { data: reporterUser } = await admin.auth.admin.getUserById(report.reporter_id);
-  reporterDisplayName = reporterProfile?.display_name ?? null;
-  reporterEmail = reporterUser?.user?.email ?? null;
-}
+// If an OPEN thread already exists for this target, jump straight to it —
+// that's where the active work continues.
+const { data: openThread } = await admin.from('moderation_threads')
+  .select('id').eq('target_type', report.target_type).eq('target_id', report.target_id)
+  .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();
+if (openThread) return Astro.redirect(`/admin/moderation-threads/${openThread.id}`);
 
-// Pre-composed email subject + body for outreach to the subject
-const reasonLabel: Record<string, string> = {
-  scam: 'svindel', inappropriate: 'upassende innhold',
-  wrong_category: 'feil kategori', spam: 'spam', other: 'annet',
-};
-const targetLabel = report.target_type === 'listing' ? 'annonsen'
-  : report.target_type === 'store' ? 'butikken' : 'oppdraget';
-const subjectMailto = subjectEmail
-  ? `mailto:${subjectEmail}?subject=${encodeURIComponent(`Strikketorget — vi har mottatt en rapport på ${targetLabel}`)}&body=${encodeURIComponent(`Hei${subjectName ? ' ' + subjectName : ''},\n\nVi har mottatt en rapport om ${targetLabel} «${itemTitle ?? ''}». Innmelderen oppga grunnen «${reasonLabel[report.reason] ?? report.reason}»${report.description ? `, med beskrivelse: «${report.description}»` : ''}.\n\nKan du gi oss din side av saken så vi kan vurdere videre?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
-  : null;
-const reporterMailto = reporterEmail
-  ? `mailto:${reporterEmail}?subject=${encodeURIComponent('Strikketorget — oppfølging av rapporten din')}&body=${encodeURIComponent(`Hei${reporterDisplayName ? ' ' + reporterDisplayName : ''},\n\nTakk for at du varslet oss om ${targetLabel} «${itemTitle ?? ''}». Vi har noen tilleggsspørsmål:\n\n[skriv her]\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
-  : null;
+// Otherwise show closed/historical thread link if any.
+const { data: existingThread } = await admin.from('moderation_threads')
+  .select('id, status').eq('target_type', report.target_type).eq('target_id', report.target_id)
+  .order('created_at', { ascending: false }).limit(1).maybeSingle();
 
 const REASON_LABEL: Record<string, string> = {
-  scam: 'Svindel',
-  inappropriate: 'Upassende innhold',
-  wrong_category: 'Feil kategori',
-  spam: 'Spam',
-  other: 'Annet',
+  scam: 'Svindel', inappropriate: 'Upassende innhold',
+  wrong_category: 'Feil kategori', spam: 'Spam', other: 'Annet',
 };
 const TARGET_LABEL: Record<string, string> = {
-  listing: 'Annonse',
-  commission_request: 'Oppdrag',
-  store: 'Butikk',
+  listing: 'Annonse', commission_request: 'Oppdrag', store: 'Butikk',
 };
+function reasonLbl(reason: string): string { return REASON_LABEL[reason] ?? reason; }
 
-const reporterName = isAnonymous
-  ? 'Anonym'
-  : (reporterDisplayName ?? anonymizeUser(report.reporter_id));
+const draftSiblings = siblings.filter(s => s.status !== 'dismissed');
+const draftReasonLines = draftSiblings.map((s) =>
+  `- «${reasonLbl(s.reason)}»${s.description ? `: ${s.description}` : ''}`
+).join('\n');
+const draftIntro = draftSiblings.length > 1
+  ? `Vi har mottatt ${draftSiblings.length} rapporter om ${'__ITEM__'} med følgende grunner:\n${draftReasonLines}`
+  : `Vi har mottatt en rapport om ${'__ITEM__'}. Innmelder oppga grunnen «${reasonLbl(draftSiblings[0]?.reason ?? report.reason)}»${draftSiblings[0]?.description ? `, beskrevet som «${draftSiblings[0].description}»` : ''}.`;
+
 const isOpen = report.status === 'open';
-
 const itemLabel = report.target_type === 'listing' ? 'annonsen'
   : report.target_type === 'store' ? 'butikken'
   : 'oppdraget';
-const itemArchiveTitle = report.target_type === 'store'
-  ? `Lukk og suspender ${itemLabel}`
-  : `Lukk og arkiver ${itemLabel}`;
-const itemArchiveDesc = report.target_type === 'store'
-  ? 'Suspenderer butikken og arkiverer alle aktive annonser tilknyttet.'
-  : `Fjerner ${itemLabel} fra Strikketorget.`;
-const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å påvirke ${itemLabel}.`;
 ---
 
 <AdminLayout title="Rapport" current="rapporter">
   <a href="/admin/reports" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til rapporter</a>
 
   <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
-    <!-- Left: report details + decision -->
     <div class="bg-white rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
       <div>
         <div class="flex items-center gap-2 mb-2 flex-wrap">
           <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TARGET_LABEL[report.target_type] ?? report.target_type}</span>
-          <span class:list={[
-            'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-            report.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
-          ]}>{REASON_LABEL[report.reason] ?? report.reason}</span>
           <span class:list={[
             'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
             report.status === 'open' ? 'text-terracotta-500 bg-terracotta-500/10'
@@ -177,78 +110,28 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
           )}
         </div>
         <ul class="space-y-2">
-          {siblings.map((s) => {
-            const sReason = ({
-              scam: 'Svindel', inappropriate: 'Upassende innhold',
-              wrong_category: 'Feil kategori', spam: 'Spam', other: 'Annet',
-            } as Record<string, string>)[s.reason] ?? s.reason;
-            return (
-              <li class="bg-linen rounded-lg p-3 text-xs">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <span class:list={[
-                    'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-                    s.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
-                  ]}>{sReason}</span>
-                  <span class:list={[
-                    'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-                    s.status === 'open' ? 'text-terracotta-500 bg-terracotta-500/10'
-                      : s.status === 'resolved' ? 'text-sage-700 bg-sage-100'
-                      : 'text-charcoal/40 bg-oatmeal/60',
-                  ]}>{REPORT_STATUS[s.status]}</span>
-                  <span class="text-charcoal/40 text-[10px] ml-auto">{new Date(s.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-                {s.description && (
-                  <p class="text-charcoal/75 whitespace-pre-wrap mt-1">{s.description}</p>
-                )}
-              </li>
-            );
-          })}
+          {siblings.map((s) => (
+            <li class="bg-linen rounded-lg p-3 text-xs">
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
+                <span class:list={[
+                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+                  s.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
+                ]}>{reasonLbl(s.reason)}</span>
+                <span class="text-charcoal/40 text-[10px] ml-auto">{new Date(s.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              {s.description && (
+                <p class="text-charcoal/75 whitespace-pre-wrap mt-1">{s.description}</p>
+              )}
+            </li>
+          ))}
         </ul>
       </div>
 
-      <!-- Contact / resolution-process shortcuts -->
-      {isOpen && (subjectEmail || reporterEmail || existingConversationId) && (
-        <div class="border-t border-sage-500/10 pt-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kontakt for utredning</p>
-          <div class="space-y-1.5">
-            {subjectMailto && (
-              <a href={subjectMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
-                <span class="text-base leading-none mt-0.5">✉️</span>
-                <span>
-                  <strong class="block">Send e-post til {subjectKind}</strong>
-                  <span class="text-charcoal/55 font-mono break-all">{subjectEmail}</span>
-                </span>
-              </a>
-            )}
-            {existingConversationId && (
-              <a href={`/market/messages/${existingConversationId}`} target="_blank" rel="noopener" class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
-                <span class="text-base leading-none mt-0.5">💬</span>
-                <span>
-                  <strong class="block">Se eksisterende samtale</strong>
-                  <span class="text-charcoal/55">Mellom innmelder og {subjectKind}</span>
-                </span>
-              </a>
-            )}
-            {reporterMailto && (
-              <a href={reporterMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
-                <span class="text-base leading-none mt-0.5">✉️</span>
-                <span>
-                  <strong class="block">Spør innmelderen om mer info</strong>
-                  <span class="text-charcoal/55 font-mono break-all">{reporterEmail}</span>
-                </span>
-              </a>
-            )}
-            {isAnonymous && (
-              <div class="flex items-start gap-2 text-xs bg-linen rounded-lg px-3 py-2 opacity-60 cursor-not-allowed">
-                <span class="text-base leading-none mt-0.5 grayscale">✉️</span>
-                <span>
-                  <strong class="block">Kan ikke kontakte innmelder</strong>
-                  <span class="text-charcoal/55">Rapporten er anonym — moderator kan ikke be om oppfølging.</span>
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
+      {existingThread && (
+        <a href={`/admin/moderation-threads/${existingThread.id}`} class="block bg-amber-50 border border-amber-300 text-amber-900 rounded-lg p-3 text-xs hover:bg-amber-100 transition-colors">
+          <strong class="block">{existingThread.status === 'open' ? 'Aktiv tråd' : 'Tidligere tråd'} for dette elementet</strong>
+          <span class="text-amber-800/80">Gå til samtalen med eieren &rarr;</span>
+        </a>
       )}
 
       {report.status !== 'open' && (
@@ -259,52 +142,50 @@ const dismissNote = `«Avvis» ignorerer valget over og lukker rapporten uten å
       )}
 
       {isOpen && (
-        <form method="post" action="/api/admin/reports/resolve" class="space-y-3">
-          <input type="hidden" name="report_id" value={report.id} />
-          <label class="block">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Interne notater (valgfritt)</span>
-            <textarea name="notes" rows="3" maxlength="1000" placeholder="Hva ble gjort? F.eks. 'Kontaktet selger, fjernet villedende bilde.'"
-              class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
-          </label>
+        <div class="border-t border-sage-500/10 pt-4 space-y-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Steg 1 — er rapporten gyldig?</p>
 
-          <fieldset class="space-y-1.5">
-            <legend class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1.5">
-              Hvis rapporten er gyldig, hva skal gjøres med {itemLabel}?
-            </legend>
-            <label class="flex items-start gap-2 text-xs cursor-pointer bg-linen rounded-lg px-3 py-2 border border-sage-500/15">
-              <input type="radio" name="affect_item" value="none" checked class="mt-0.5" />
-              <span>
-                <strong class="block">Bare lukk rapporten</strong>
-                <span class="text-charcoal/55">Allerede håndtert utenfor systemet (DM, samtale med selger, e.l.).</span>
-              </span>
+          <!-- VALID: freeze + open thread -->
+          <form method="post" action="/api/admin/reports/resolve" class="space-y-3 bg-amber-50/60 border border-amber-300/40 rounded-xl p-3">
+            <input type="hidden" name="report_id" value={report.id} />
+            <input type="hidden" name="action" value="freeze" />
+            <p class="text-xs font-medium text-amber-900">Ja, gyldig → frys og kontakt eier</p>
+            <label class="block">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Melding til eieren *</span>
+              <textarea name="first_message" rows="12" required maxlength="2000"
+                class="w-full mt-1 bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none">{`Hei,\n\n${draftIntro.replace('__ITEM__', itemLabel)}\n\nMens vi behandler saken er ${itemLabel} midlertidig frosset og skjult fra Strikketorget. Den blir gjenåpnet så snart vi er enige om en løsning.\n\nKan du svare oss her med din side av saken? Hvis vi ikke hører fra deg innen 48 timer, lukker vi saken med utgangspunkt i informasjonen vi har.\n\nVennlig hilsen\nModeratorteamet`}</textarea>
             </label>
-            <label class="flex items-start gap-2 text-xs cursor-pointer bg-linen rounded-lg px-3 py-2 border border-sage-500/15">
-              <input type="radio" name="affect_item" value="archive" class="mt-0.5" />
-              <span>
-                <strong class="block">{itemArchiveTitle}</strong>
-                <span class="text-charcoal/55">{itemArchiveDesc}</span>
-              </span>
+            <label class="block">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Interne notater (valgfritt)</span>
+              <textarea name="notes" rows="2" maxlength="1000"
+                class="w-full mt-1 bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none"></textarea>
             </label>
-          </fieldset>
+            <button type="submit" class="w-full bg-amber-500 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-amber-600">
+              {openSiblings.length > 1 ? `Frys ${itemLabel} og løs alle ${openSiblings.length}` : `Frys ${itemLabel} og åpne samtale`}
+            </button>
+            <p class="text-[10px] text-charcoal/55 leading-tight">
+              {itemLabel.charAt(0).toUpperCase() + itemLabel.slice(1)} blir skjult fra Strikketorget inntil saken er løst. Eieren får en viktig-merket melding i innboksen sin og må svare deg her.
+            </p>
+          </form>
 
-          <div class="flex gap-2 pt-1">
-            <button type="submit" name="action" value="resolve" class="flex-1 bg-sage-500 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-600">
-              {openSiblings.length > 1 ? `Løs alle ${openSiblings.length}` : 'Løs (gyldig)'}
+          <!-- INVALID: dismiss -->
+          <form method="post" action="/api/admin/reports/resolve" class="space-y-2 bg-linen rounded-xl p-3 border border-sage-500/10">
+            <input type="hidden" name="report_id" value={report.id} />
+            <input type="hidden" name="action" value="dismiss" />
+            <p class="text-xs font-medium text-charcoal/75">Nei, ikke gyldig → avvis rapporten</p>
+            <label class="block">
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Interne notater (valgfritt)</span>
+              <textarea name="notes" rows="2" maxlength="1000"
+                class="w-full mt-1 bg-white rounded-lg px-3 py-2 text-xs border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+            </label>
+            <button type="submit" class="w-full border border-sage-500/30 text-charcoal/65 px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-100/50">
+              {openSiblings.length > 1 ? `Avvis alle ${openSiblings.length}` : 'Avvis rapporten'}
             </button>
-            <button type="submit" name="action" value="dismiss" class="flex-1 border border-sage-500/30 text-charcoal/65 px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-100/50">
-              {openSiblings.length > 1 ? `Avvis alle ${openSiblings.length}` : 'Avvis (ikke gyldig)'}
-            </button>
-          </div>
-          <p class="text-[10px] text-charcoal/40 leading-tight">
-            {openSiblings.length > 1
-              ? `Begge knappene gjelder alle ${openSiblings.length} åpne rapporter på dette elementet. «Avvis» påvirker ikke ${itemLabel}.`
-              : dismissNote}
-          </p>
-        </form>
+          </form>
+        </div>
       )}
     </div>
 
-    <!-- Right: live preview of the reported item -->
     <div class="bg-white rounded-xl border border-sage-500/10 p-2 lg:p-3">
       <div class="flex items-center justify-between mb-2 px-2 pt-1">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
