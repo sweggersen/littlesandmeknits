@@ -60,13 +60,16 @@ const nextPageParams = (() => {
 
 ---
 
-<Layout title="Nytt — Strikketorget" lang="nb">
+<Layout title="Ferdigstrikket — Strikketorget" lang="nb">
   <MarketplaceShell current="nytt">
     <div class="flex items-start justify-between mb-2">
-      <h1 class="font-serif text-4xl sm:text-5xl">Nytt</h1>
+      <div>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">Nytt</p>
+        <h1 class="font-serif text-4xl sm:text-5xl">Ferdigstrikket</h1>
+      </div>
       <a href="/market/listing/new" class="shrink-0 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">+ Ny annonse</a>
     </div>
-    <p class="text-charcoal/65 mb-8">Ferdigstrikket av strikkere i fellesskapet.</p>
+    <p class="text-charcoal/65 mb-8">Strikkere selger plagg de har strikket på spec.</p>
 
     <ListingToolbar search={search} hasFilters={hasFilters} filterCount={[search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax].filter(Boolean).length} />
     <FilterPanel category={category} hasFilters={hasFilters} params={url.searchParams} />
