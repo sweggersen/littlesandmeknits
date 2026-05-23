@@ -31,7 +31,11 @@ const formId = `report-${targetId}`;
         <option value="other">Annet</option>
       </select>
       <textarea name="description" rows="2" maxlength="500" placeholder="Beskriv problemet (valgfritt)…" class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
-      <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors">Send rapport</button>
+      <label class="flex items-start gap-1.5 text-[11px] text-charcoal/65 cursor-pointer">
+        <input type="checkbox" name="anonymous" class="mt-0.5" />
+        <span>Hold meg anonym. Moderator kan ikke kontakte meg for oppfølging.</span>
+      </label>
+      <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors disabled:bg-charcoal/20 disabled:hover:bg-charcoal/20 disabled:cursor-not-allowed">Send rapport</button>
       <p class="text-[10px] text-charcoal/40 hidden" data-report-status></p>
     </form>
   </div>
@@ -58,15 +62,21 @@ const formId = `report-${targetId}`;
       const body = new FormData(form);
       try {
         const res = await fetch('/api/report', { method: 'POST', body, credentials: 'same-origin' });
-        const data = await res.json();
-        if (data.ok) {
+        if (res.ok) {
           status.textContent = 'Rapport sendt. Takk!';
           status.classList.remove('hidden', 'text-red-600');
           status.classList.add('text-sage-700');
-          form.querySelector('button[type="submit"]')!.setAttribute('disabled', '');
-        } else if (data.error === 'already_reported') {
-          status.textContent = 'Du har allerede rapportert dette.';
-          status.classList.remove('hidden');
+          const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Rapport sendt';
+          }
+        } else {
+          const text = await res.text();
+          status.textContent = text.includes('already_reported')
+            ? 'Du har allerede rapportert dette.'
+            : text || 'Noe gikk galt. Prøv igjen.';
+          status.classList.remove('hidden', 'text-sage-700');
           status.classList.add('text-red-600');
         }
       } catch {

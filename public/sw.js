@@ -25,7 +25,7 @@ const OFFLINE_HTML = `<!doctype html>
 </style></head><body>
 <main>
   <h1>Du er offline</h1>
-  <p>Studioet trenger nett for å hente prosjektene dine. Sjekk tilkoblingen og prøv igjen.</p>
+  <p>Vi trenger nett for å laste denne siden. Sjekk tilkoblingen og prøv igjen.</p>
   <button onclick="location.reload()">Prøv igjen</button>
 </main></body></html>`;
 

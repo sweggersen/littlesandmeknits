@@ -1,0 +1,131 @@
+---
+import AdminLayout from '../../../../layouts/AdminLayout.astro';
+import { requireAdmin } from '../../../../lib/admin-auth';
+import { createAdminSupabase } from '../../../../lib/supabase';
+import { env } from 'cloudflare:workers';
+
+const auth = await requireAdmin(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/market');
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/admin/disputes');
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: req } = await admin
+  .from('commission_requests')
+  .select('id, title, buyer_id, awarded_offer_id, status, disputed_at, dispute_reason, dispute_resolution, dispute_resolved_at')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!req) return Astro.redirect('/admin/disputes');
+
+const { data: offer } = req.awarded_offer_id
+  ? await admin.from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id).maybeSingle()
+  : { data: null };
+const knitterId = offer?.knitter_id ?? null;
+
+const [{ data: buyerP }, buyerAuth, { data: knitterP }, knitterAuth] = await Promise.all([
+  admin.from('profiles').select('display_name').eq('id', req.buyer_id).maybeSingle(),
+  admin.auth.admin.getUserById(req.buyer_id),
+  knitterId ? admin.from('profiles').select('display_name').eq('id', knitterId).maybeSingle() : Promise.resolve({ data: null }),
+  knitterId ? admin.auth.admin.getUserById(knitterId) : Promise.resolve({ data: { user: null } as any }),
+]);
+const buyerName = buyerP?.display_name ?? null;
+const buyerEmail = buyerAuth.data.user?.email ?? null;
+const knitterName = knitterP?.display_name ?? null;
+const knitterEmail = knitterAuth.data.user?.email ?? null;
+
+const itemUrl = `/market/commissions/${req.id}`;
+const isOpen = req.status === 'disputed';
+
+const buyerMailto = buyerEmail
+  ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget — oppfølging av tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten på oppdraget «${req.title}». Kan du gi oss mer info?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  : null;
+const knitterMailto = knitterEmail
+  ? `mailto:${knitterEmail}?subject=${encodeURIComponent(`Strikketorget — tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${knitterName ? ' ' + knitterName : ''},\n\nKjøperen har åpnet en tvist på oppdraget «${req.title}». Grunn: «${req.dispute_reason ?? ''}».\n\nKan du gi oss din side?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  : null;
+---
+
+<AdminLayout title="Tvist" current="tvister">
+  <a href="/admin/disputes" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til tvister</a>
+
+  <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
+    <div class="bg-white rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
+      <div>
+        <div class="flex items-center gap-2 mb-2 flex-wrap">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Oppdrag</span>
+          <span class:list={[
+            'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
+            isOpen ? 'text-red-600 bg-red-50' : 'text-sage-700 bg-sage-100',
+          ]}>{isOpen ? 'Åpen tvist' : 'Løst'}</span>
+        </div>
+        <h1 class="font-serif text-xl">{req.title}</h1>
+        <a href={itemUrl} target="_blank" rel="noopener" class="text-xs text-terracotta-500 hover:underline mt-1 inline-block">Åpne i ny fane &nearr;</a>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div><p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-0.5">Kjøper</p><p>{buyerName ?? '—'}</p></div>
+        <div><p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-0.5">Strikker</p><p>{knitterName ?? '—'}</p></div>
+      </div>
+
+      {req.dispute_reason && (
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kjøperens beskrivelse</p>
+          <p class="text-sm text-charcoal/75 whitespace-pre-wrap bg-linen rounded-lg p-3">{req.dispute_reason}</p>
+        </div>
+      )}
+
+      {!isOpen && req.dispute_resolution && (
+        <div class="bg-sage-100/40 rounded-lg p-3 text-xs">
+          <p class="font-medium">Løst {req.dispute_resolved_at && new Date(req.dispute_resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+          <p class="mt-1 text-charcoal/65">{req.dispute_resolution}</p>
+        </div>
+      )}
+
+      {isOpen && (
+        <div class="border-t border-sage-500/10 pt-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kontakt for utredning</p>
+          <div class="space-y-1.5">
+            {buyerMailto && (
+              <a href={buyerMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">✉️</span>
+                <span><strong class="block">Send e-post til kjøper</strong><span class="text-charcoal/55 font-mono break-all">{buyerEmail}</span></span>
+              </a>
+            )}
+            {knitterMailto && (
+              <a href={knitterMailto} class="flex items-start gap-2 text-xs bg-linen hover:bg-sage-100/60 rounded-lg px-3 py-2 transition-colors">
+                <span class="text-base leading-none mt-0.5">✉️</span>
+                <span><strong class="block">Send e-post til strikker</strong><span class="text-charcoal/55 font-mono break-all">{knitterEmail}</span></span>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isOpen && (
+        <form method="post" action="/api/admin/disputes/resolve" class="border-t border-sage-500/10 pt-4 space-y-3">
+          <input type="hidden" name="item_type" value="commission" />
+          <input type="hidden" name="item_id" value={req.id} />
+          <label class="block">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Avgjørelse og notat</span>
+            <textarea name="notes" rows="3" maxlength="500" placeholder="Begrunn avgjørelsen — synlig for begge parter."
+              class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+          </label>
+          <div class="flex gap-2">
+            <button type="submit" name="decision" value="refund" class="flex-1 bg-red-600 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-red-700">Refunder kjøper</button>
+            <button type="submit" name="decision" value="release" class="flex-1 bg-sage-600 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-sage-700">Frigi til strikker</button>
+          </div>
+        </form>
+      )}
+    </div>
+
+    <div class="bg-white rounded-xl border border-sage-500/10 p-2 lg:p-3">
+      <div class="flex items-center justify-between mb-2 px-2 pt-1">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
+        <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/45 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
+      </div>
+      <iframe src={`${itemUrl}?embed=1`} class="w-full rounded-lg border border-sage-500/10" style="height: calc(100vh - 200px); min-height: 600px;" title="Oppdrag"></iframe>
+    </div>
+  </div>
+</AdminLayout>

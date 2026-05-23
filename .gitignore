@@ -6,6 +6,8 @@ dist/
 .wrangler/
 # local env vars
 .dev.vars
+.dev.vars.*
+.env.local.*
 
 # dependencies
 node_modules/

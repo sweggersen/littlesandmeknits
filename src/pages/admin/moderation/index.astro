@@ -1,6 +1,6 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
-import { requireModerator } from '../../../lib/admin-auth';
+import { requireModerator, isShadowEligible } from '../../../lib/admin-auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { MODERATION_QUEUE_STATUS } from '../../../lib/labels';

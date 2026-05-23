@@ -12,7 +12,7 @@ export const CONDITION_LABEL: Record<string, string> = {
 export const LISTING_STATUS: Record<string, string> = {
   draft: 'Utkast', active: 'Aktiv', reserved: 'Reservert', shipped: 'Sendt',
   sold: 'Solgt', removed: 'Fjernet', disputed: 'Tvist',
-  pending_review: 'Under vurdering', rejected: 'Avvist',
+  pending_review: 'Under vurdering', rejected: 'Avvist', frozen: 'Frosset',
 };
 
 export const COMMISSION_STATUS: Record<string, string> = {

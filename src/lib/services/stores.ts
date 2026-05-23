@@ -123,16 +123,30 @@ export async function createStore(
   }
 
   // Enqueue for moderation
-  const { error: queueErr } = await ctx.admin.from('moderation_queue').insert({
-    item_type: 'store',
-    item_id: store.id,
-    submitter_id: ctx.user.id,
-  });
+  const { data: queued, error: queueErr } = await ctx.admin
+    .from('moderation_queue')
+    .insert({
+      item_type: 'store',
+      item_id: store.id,
+      submitter_id: ctx.user.id,
+    })
+    .select('id')
+    .maybeSingle();
   if (queueErr) {
     console.error('Moderation queue insert failed for new store', queueErr);
-    // Don't fail the whole creation — store is created, just not in queue.
-    // Moderator can still find it by status='pending_review'. But surface
-    // the issue in logs so we notice in production.
+  } else if (queued) {
+    try {
+      const { notifyModeratorsNewItem } = await import('../notify');
+      await notifyModeratorsNewItem(ctx.admin, {
+        itemType: 'store',
+        itemId: store.id,
+        queueId: queued.id,
+        submitterId: ctx.user.id,
+        title: name,
+      }, ctx.env);
+    } catch (err) {
+      console.error('Moderator broadcast failed', err);
+    }
   }
 
   return ok({

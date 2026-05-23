@@ -1,35 +1,63 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
-import { createServerSupabase } from '../../../lib/supabase';
-import { anonymizeUser } from '../../../lib/anonymize';
+import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { REPORT_STATUS } from '../../../lib/labels';
+import { env } from 'cloudflare:workers';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
 
 const tab = Astro.url.searchParams.get('tab') ?? 'open';
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
+// Fetch ALL reports in the relevant status set; we group client-side below.
 let reports: any[] = [];
-
 if (tab === 'open') {
-  const { data } = await supabase
-    .from('reports')
-    .select('*')
-    .eq('status', 'open')
-    .order('created_at', { ascending: true })
-    .limit(50);
+  const { data } = await supabase.from('reports').select('*').eq('status', 'open')
+    .order('created_at', { ascending: true }).limit(200);
   reports = data ?? [];
 } else {
-  const { data } = await supabase
-    .from('reports')
-    .select('*')
-    .in('status', ['resolved', 'dismissed'])
-    .order('resolved_at', { ascending: false })
-    .limit(50);
+  const { data } = await supabase.from('reports').select('*').in('status', ['resolved', 'dismissed'])
+    .order('resolved_at', { ascending: false }).limit(200);
   reports = data ?? [];
 }
+
+// Group by (target_type, target_id)
+interface Group {
+  target_type: string;
+  target_id: string;
+  reports: any[];
+  reasons: Set<string>;
+  latestReportId: string;
+  newestAt: string;
+}
+const groupsMap = new Map<string, Group>();
+for (const r of reports) {
+  const key = `${r.target_type}:${r.target_id}`;
+  let g = groupsMap.get(key);
+  if (!g) {
+    g = { target_type: r.target_type, target_id: r.target_id, reports: [], reasons: new Set(), latestReportId: r.id, newestAt: r.created_at };
+    groupsMap.set(key, g);
+  }
+  g.reports.push(r);
+  g.reasons.add(r.reason);
+  if (r.created_at > g.newestAt) { g.newestAt = r.created_at; g.latestReportId = r.id; }
+}
+const groups = Array.from(groupsMap.values());
+
+// Batch-fetch titles for the targets so the cards are meaningful.
+const byType = (t: string) => groups.filter(g => g.target_type === t).map(g => g.target_id);
+const [listingsRes, requestsRes, storesRes] = await Promise.all([
+  byType('listing').length ? admin.from('listings').select('id, title').in('id', byType('listing')) : { data: [] as any[] },
+  byType('commission_request').length ? admin.from('commission_requests').select('id, title').in('id', byType('commission_request')) : { data: [] as any[] },
+  byType('store').length ? admin.from('stores').select('id, name').in('id', byType('store')) : { data: [] as any[] },
+]);
+const titleByKey = new Map<string, string>();
+for (const l of listingsRes.data ?? []) titleByKey.set(`listing:${l.id}`, l.title);
+for (const r of requestsRes.data ?? []) titleByKey.set(`commission_request:${r.id}`, r.title);
+for (const s of storesRes.data ?? []) titleByKey.set(`store:${s.id}`, s.name);
 
 const REASON_LABEL: Record<string, string> = {
   scam: 'Svindel',
@@ -38,10 +66,27 @@ const REASON_LABEL: Record<string, string> = {
   spam: 'Spam',
   other: 'Annet',
 };
+const TYPE_LABEL: Record<string, string> = {
+  listing: 'Annonse',
+  commission_request: 'Oppdrag',
+  store: 'Butikk',
+  profile: 'Profil',
+};
+
+const resolvedCount = Number(Astro.url.searchParams.get('count') ?? '1');
+const flash = Astro.url.searchParams.get('resolve') === '1'
+  ? `${resolvedCount > 1 ? `${resolvedCount} rapporter` : 'Rapporten'} er behandlet (løst).`
+  : Astro.url.searchParams.get('dismiss') === '1'
+    ? `${resolvedCount > 1 ? `${resolvedCount} rapporter` : 'Rapporten'} er avvist.`
+    : null;
 ---
 
 <AdminLayout title="Rapporter" current="rapporter">
   <h1 class="font-serif text-2xl mb-4">Rapporter</h1>
+
+  {flash && (
+    <div class="bg-sage-100/70 border border-sage-500/30 text-sage-900 rounded-2xl p-3 text-sm mb-4">{flash}</div>
+  )}
 
   <div class="flex gap-1 mb-6">
     <a href="/admin/reports?tab=open" class:list={[
@@ -54,41 +99,46 @@ const REASON_LABEL: Record<string, string> = {
     ]}>Behandlet</a>
   </div>
 
-  {reports.length === 0 ? (
+  {groups.length === 0 ? (
     <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
       <p class="text-sm text-charcoal/45">Ingen rapporter.</p>
     </div>
   ) : (
     <div class="space-y-2">
-      {reports.map(r => (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
-          <div class="flex items-start justify-between gap-4">
-            <div class="min-w-0">
-              <div class="flex items-center gap-2 mb-1">
-                <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{r.target_type}</span>
-                <span class:list={[
-                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-                  r.reason === 'scam' ? 'text-red-600 bg-red-50' : 'text-amber-600 bg-amber-50',
-                ]}>{REASON_LABEL[r.reason] ?? r.reason}</span>
-                <span class:list={[
-                  'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-                  r.status === 'open' ? 'text-terracotta-500 bg-terracotta-500/10' : r.status === 'resolved' ? 'text-sage-700 bg-sage-100' : 'text-charcoal/40 bg-oatmeal/60',
-                ]}>{REPORT_STATUS[r.status]}</span>
+      {groups.map(g => {
+        const key = `${g.target_type}:${g.target_id}`;
+        const title = titleByKey.get(key) ?? 'Element';
+        const reasons = Array.from(g.reasons).map(r => REASON_LABEL[r] ?? r);
+        return (
+          <a href={`/admin/reports/${g.latestReportId}`} class="block bg-white rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TYPE_LABEL[g.target_type] ?? g.target_type}</span>
+                  {g.reports.length > 1 && (
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 rounded-full px-2 py-0.5">
+                      {g.reports.length} rapporter
+                    </span>
+                  )}
+                  {tab === 'closed' && (
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 bg-oatmeal/60 rounded-full px-2 py-0.5">
+                      {g.reports.length} totalt
+                    </span>
+                  )}
+                </div>
+                <p class="font-medium truncate">{title}</p>
+                <p class="text-xs text-charcoal/55 mt-1">
+                  {reasons.join(' · ')}
+                </p>
+                <p class="text-[10px] text-charcoal/40 mt-1">
+                  Sist {new Date(g.newestAt).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </p>
               </div>
-              <p class="text-sm">{anonymizeUser(r.reporter_id)} rapporterte</p>
-              {r.description && <p class="text-xs text-charcoal/55 mt-1">{r.description}</p>}
-              <p class="text-[10px] text-charcoal/40 mt-1">{new Date(r.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+              <span class="text-charcoal/30 text-lg shrink-0">→</span>
             </div>
-            {r.status === 'open' && (
-              <form method="post" action="/api/admin/reports/resolve" data-astro-reload class="flex gap-1 shrink-0">
-                <input type="hidden" name="report_id" value={r.id} />
-                <button type="submit" name="action" value="resolve" class="px-3 py-1.5 bg-sage-500 text-white rounded-lg text-[10px] font-medium">Løs</button>
-                <button type="submit" name="action" value="dismiss" class="px-3 py-1.5 border border-sage-500/15 rounded-lg text-[10px] font-medium text-charcoal/60">Avvis</button>
-              </form>
-            )}
-          </div>
-        </div>
-      ))}
+          </a>
+        );
+      })}
     </div>
   )}
 </AdminLayout>

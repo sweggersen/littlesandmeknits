@@ -20,6 +20,7 @@ interface Env {
 declare namespace App {
   interface Locals extends Runtime {
     isStrikketorget?: boolean;
+    inMarketSession?: boolean;
   }
 }
 

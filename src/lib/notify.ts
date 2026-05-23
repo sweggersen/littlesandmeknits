@@ -19,6 +19,8 @@ export type NotificationType =
   | 'item_rejected'
   | 'item_reported'
   | 'moderation_assigned'
+  | 'moderation_new_item'
+  | 'moderation_shadow_pending'
   | 'role_changed'
   | 'review_received'
   | 'listing_purchased'
@@ -26,7 +28,8 @@ export type NotificationType =
   | 'listing_delivered'
   | 'dispute_opened'
   | 'dispute_resolved'
-  | 'achievement_unlocked';
+  | 'achievement_unlocked'
+  | 'moderation_message';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -44,6 +47,8 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   item_rejected: 'email_item_rejected',
   item_reported: 'email_item_approved',
   moderation_assigned: 'email_item_approved',
+  moderation_new_item: 'email_item_approved',
+  moderation_shadow_pending: 'email_item_approved',
   role_changed: 'email_item_approved',
   review_received: 'email_review_received',
   listing_purchased: 'email_listing_purchased',
@@ -52,6 +57,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   dispute_opened: 'email_item_approved',
   dispute_resolved: 'email_item_approved',
   achievement_unlocked: 'email_item_approved',
+  moderation_message: 'email_item_approved',
 };
 
 interface NotifyEnv {
@@ -147,5 +153,96 @@ export async function createNotification(
     );
   } catch {
     // Push is best-effort
+  }
+}
+
+/** Notify all eligible moderators about a new item in the queue.
+ *  Excludes the submitter (who can't review their own item anyway).
+ *  Used when a listing/store/commission is enqueued for moderation. */
+export async function notifyModeratorsNewItem(
+  admin: SupabaseClient,
+  opts: {
+    itemType: 'listing' | 'commission_request' | 'store' | 'store_image';
+    itemId: string;
+    queueId: string;
+    submitterId: string;
+    title?: string;
+  },
+  env?: NotifyEnv,
+): Promise<void> {
+  const { data: mods } = await admin
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'moderator']);
+  if (!mods?.length) return;
+
+  const TYPE_LABEL: Record<string, string> = {
+    listing: 'Annonse', commission_request: 'Oppdrag',
+    store: 'Butikk', store_image: 'Butikkbilde',
+  };
+  const label = TYPE_LABEL[opts.itemType] ?? 'Element';
+
+  const title = `Ny i moderatorkø: ${label}`;
+  const body = opts.title ? `«${opts.title}» venter på vurdering.` : 'Et nytt element venter på vurdering.';
+  const url = `/admin/moderation/${opts.queueId}`;
+
+  for (const m of mods) {
+    if (m.id === opts.submitterId) continue; // submitter can't review own item
+    await createNotification(admin, {
+      userId: m.id,
+      type: 'moderation_new_item',
+      title, body, url,
+      referenceId: opts.itemId,
+    }, env);
+  }
+}
+
+/** Notify shadow-eligible moderators + admins about a pending shadow
+ *  confirmation. Excludes the original decision-maker. */
+export async function notifyShadowConfirmPending(
+  admin: SupabaseClient,
+  opts: {
+    queueId: string;
+    decisionById: string | null;
+    itemType: string;
+    itemId: string;
+  },
+  env?: NotifyEnv,
+): Promise<void> {
+  const { data: candidates } = await admin
+    .from('profiles')
+    .select('id, role')
+    .in('role', ['admin', 'moderator']);
+  if (!candidates?.length) return;
+
+  // Pre-fetch stats for moderators so we can filter for eligibility
+  const modIds = candidates.filter((c: any) => c.role === 'moderator').map((c: any) => c.id);
+  let statsByUser: Map<string, { total_reviews: number; shadow_overrides: number }> = new Map();
+  if (modIds.length > 0) {
+    const { data: stats } = await admin
+      .from('moderator_stats')
+      .select('user_id, total_reviews, shadow_overrides')
+      .in('user_id', modIds);
+    for (const s of stats ?? []) {
+      statsByUser.set(s.user_id, { total_reviews: s.total_reviews ?? 0, shadow_overrides: s.shadow_overrides ?? 0 });
+    }
+  }
+
+  const { isShadowEligible } = await import('./admin-auth');
+
+  const title = 'Skyggevurdering venter på bekreftelse';
+  const body = 'En moderator har gjort en avgjørelse i skyggemodus — bekreft eller overstyr.';
+  const url = `/admin/moderation/${opts.queueId}`;
+
+  for (const c of candidates as Array<{ id: string; role: 'admin' | 'moderator' }>) {
+    if (c.id === opts.decisionById) continue;
+    const eligible = c.role === 'admin' || isShadowEligible('moderator', statsByUser.get(c.id));
+    if (!eligible) continue;
+    await createNotification(admin, {
+      userId: c.id,
+      type: 'moderation_shadow_pending',
+      title, body, url,
+      referenceId: opts.itemId,
+    }, env);
   }
 }

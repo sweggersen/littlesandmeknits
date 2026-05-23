@@ -128,23 +128,78 @@ export interface MeData {
   avatar_path: string | null;
   unread: number;
   notifications: number;
+  inbox_unread: number;
   role: string | null;
   pending_moderation: number;
+  has_stores: boolean;
+  has_requests: boolean;
 }
 
 export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>> {
-  const [{ data: profile }, { count: unreadCount }, { count: notifCount }] = await Promise.all([
+  const [{ data: profile }, { count: unreadCount }, { count: notifCount }, modUnreadRes] = await Promise.all([
     ctx.supabase.from('profiles').select('display_name, avatar_path, role').eq('id', ctx.user.id).maybeSingle(),
     ctx.supabase.from('marketplace_messages').select('id', { count: 'exact', head: true }).is('read_at', null).neq('sender_id', ctx.user.id),
     ctx.supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
+    // Unread moderator messages addressed to this user.
+    ctx.supabase.from('moderation_messages')
+      .select('id, moderation_threads!inner(recipient_id)', { count: 'exact', head: true })
+      .is('read_at', null).eq('is_moderator', true)
+      .eq('moderation_threads.recipient_id', ctx.user.id),
   ]);
+  const modUnread = (modUnreadRes as any)?.count ?? 0;
+
+  const [storesRes, requestsRes] = await Promise.all([
+    ctx.supabase.from('store_members').select('store_id', { count: 'exact', head: true }).eq('user_id', ctx.user.id),
+    ctx.supabase.from('commission_requests').select('id', { count: 'exact', head: true }).eq('buyer_id', ctx.user.id),
+  ]);
+  const hasStores = (storesRes.count ?? 0) > 0;
+  const hasRequests = (requestsRes.count ?? 0) > 0;
 
   const isStaff = profile?.role === 'admin' || profile?.role === 'moderator';
   let pendingModeration = 0;
   if (isStaff) {
-    const { count } = await ctx.supabase
+    // 1. Items waiting for a first moderator decision
+    const { count: pending } = await ctx.supabase
       .from('moderation_queue').select('id', { count: 'exact', head: true }).in('status', ['pending', 'escalated']);
-    pendingModeration = count ?? 0;
+
+    // 2. Shadow reviews waiting for confirmation. Only counted if the
+    // current user is eligible (admin OR senior moderator) and NOT the
+    // original reviewer.
+    let shadowCount = 0;
+    const { isShadowEligible } = await import('../admin-auth');
+    let eligible = profile?.role === 'admin';
+    if (!eligible && profile?.role === 'moderator') {
+      const { data: stats } = await ctx.admin
+        .from('moderator_stats').select('total_reviews, shadow_overrides')
+        .eq('user_id', ctx.user.id).maybeSingle();
+      eligible = isShadowEligible('moderator', stats);
+    }
+    if (eligible) {
+      const { count } = await ctx.supabase
+        .from('moderation_queue')
+        .select('id', { count: 'exact', head: true })
+        .eq('shadow_review', true)
+        .is('shadow_confirmed_at', null)
+        .in('status', ['approved', 'rejected'])
+        .neq('decision_by', ctx.user.id);
+      shadowCount = count ?? 0;
+    }
+
+    // 3. Open reports awaiting moderator action
+    const { count: openReports } = await ctx.supabase
+      .from('reports').select('id', { count: 'exact', head: true }).eq('status', 'open');
+
+    // 4. Open disputes (admin-only flow)
+    let openDisputes = 0;
+    if (profile?.role === 'admin') {
+      const [{ count: dl }, { count: dc }] = await Promise.all([
+        ctx.supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'disputed'),
+        ctx.supabase.from('commission_requests').select('id', { count: 'exact', head: true }).eq('status', 'disputed'),
+      ]);
+      openDisputes = (dl ?? 0) + (dc ?? 0);
+    }
+
+    pendingModeration = (pending ?? 0) + shadowCount + (openReports ?? 0) + openDisputes;
   }
 
   return ok({
@@ -154,7 +209,10 @@ export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>>
     avatar_path: profile?.avatar_path ?? null,
     unread: unreadCount ?? 0,
     notifications: notifCount ?? 0,
+    inbox_unread: (unreadCount ?? 0) + (notifCount ?? 0) + modUnread,
     role: isStaff ? profile?.role : null,
     pending_moderation: pendingModeration,
+    has_stores: hasStores,
+    has_requests: hasRequests,
   });
 }

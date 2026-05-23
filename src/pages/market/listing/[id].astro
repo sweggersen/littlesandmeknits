@@ -93,6 +93,19 @@ const justPurchased = Astro.url.searchParams.get('purchased') === '1';
 const sellerOnboarded = isStoreListing
   ? !!storeRow?.stripe_onboarded
   : !!sellerProfile?.stripe_onboarded;
+let frozenThreadId: string | null = null;
+if (isOwner && listing.status === 'frozen') {
+  const { data: t } = await supabase
+    .from('moderation_threads')
+    .select('id')
+    .eq('target_type', 'listing')
+    .eq('target_id', listing.id)
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  frozenThreadId = t?.id ?? null;
+}
 const autoReleaseDays = listing.auto_release_at
   ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
   : null;
@@ -106,6 +119,15 @@ const autoReleaseDays = listing.auto_release_at
 
       {isOwner && listing.status === 'pending_review' && (
         <Alert type="warning" class="mb-6">Annonsen din er under vurdering. Den blir synlig når den er godkjent.</Alert>
+      )}
+
+      {isOwner && listing.status === 'frozen' && (
+        <Alert type="warning" class="mb-6">
+          <strong>Annonsen er frosset av moderator.</strong> Den er skjult fra Strikketorget mens saken behandles.
+          {frozenThreadId && (
+            <> <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium">Åpne samtalen og svar moderator &rarr;</a></>
+          )}
+        </Alert>
       )}
 
       {isOwner && listing.status === 'rejected' && (
@@ -601,7 +623,7 @@ const autoReleaseDays = listing.auto_release_at
                 <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
                   <input type="hidden" name="listing_id" value={listing.id} />
                   <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                    Send melding til {sellerProfile?.display_name ?? 'selger'}
+                    Send melding til {isStoreListing ? 'butikken' : 'selger'}
                   </label>
                   <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
                     class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>

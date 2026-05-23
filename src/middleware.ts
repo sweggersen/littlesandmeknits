@@ -61,6 +61,24 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     || ctx.url.searchParams.get('strikketorget') === '1';
   ctx.locals.isStrikketorget = isStrikketorget;
 
+  // Track whether the visitor is currently *inside* the Strikketorget
+  // section. /market and /inbox set the marker; /profile and similar
+  // "shared" routes preserve it; visiting the main site clears it.
+  const cookieMarker = ctx.cookies.get('st_session')?.value === '1';
+  let inMarketSession = cookieMarker;
+  if (path === '/market' || path.startsWith('/market/') || path === '/inbox' || path.startsWith('/inbox?')) {
+    inMarketSession = true;
+    if (!cookieMarker) ctx.cookies.set('st_session', '1', { path: '/', sameSite: 'lax', httpOnly: false });
+  } else if (
+    path === '/' || path.startsWith('/oppskrifter') || path.startsWith('/prosjekter')
+    || path.startsWith('/p/') || path === '/about' || path.startsWith('/about/')
+    || path.startsWith('/studio') || path === '/login' || path === '/signup'
+  ) {
+    inMarketSession = false;
+    if (cookieMarker) ctx.cookies.delete('st_session', { path: '/' });
+  }
+  ctx.locals.inMarketSession = inMarketSession;
+
   // 301 legacy Norwegian paths to the new English routes.
   const rewritten = rewriteLegacyPath(path);
   if (rewritten) {

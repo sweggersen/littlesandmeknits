@@ -27,38 +27,31 @@ const { data: stores } = await supabase
     {(!stores || stores.length === 0) ? (
       <EmptyState message="Ingen butikker registrert ennå. Vi venter på den første!" />
     ) : (
-      <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stores.map((s) => (
           <li>
             <a
               href={`/market/store/${s.slug}`}
-              class="block bg-white rounded-3xl border border-sage-500/10 hover:border-sage-500/30 transition-colors overflow-hidden"
+              class="flex items-center gap-3 bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-3"
             >
-              <div class="aspect-[16/7] bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
-                {s.banner_path && (
-                  <img src={projectPhotoUrl(s.banner_path)} alt="" class="w-full h-full object-cover" />
+              <div class="w-14 h-14 rounded-xl bg-oatmeal/60 border border-sage-500/15 overflow-hidden shrink-0">
+                {s.logo_path ? (
+                  <img src={projectPhotoUrl(s.logo_path)} alt="" class="w-full h-full object-cover" />
+                ) : (
+                  <div class="w-full h-full flex items-center justify-center font-serif text-lg text-charcoal/40">
+                    {s.name?.[0]?.toUpperCase() ?? '?'}
+                  </div>
                 )}
               </div>
-              <div class="p-4 flex items-center gap-3 -mt-7">
-                <div class="w-14 h-14 rounded-xl bg-white shadow border border-sage-500/15 overflow-hidden shrink-0">
-                  {s.logo_path ? (
-                    <img src={projectPhotoUrl(s.logo_path)} alt="" class="w-full h-full object-cover" />
-                  ) : (
-                    <div class="w-full h-full flex items-center justify-center font-serif text-lg text-charcoal/40">
-                      {s.name?.[0]?.toUpperCase() ?? '?'}
-                    </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <h2 class="font-serif text-base truncate">{s.name}</h2>
+                  {s.verified && (
+                    <span title="Verifisert" class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full shrink-0">✓</span>
                   )}
                 </div>
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5">
-                    <h2 class="font-serif text-lg truncate">{s.name}</h2>
-                    {s.verified && (
-                      <span class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full">✓</span>
-                    )}
-                  </div>
-                  {s.tagline && <p class="text-xs text-charcoal/55 truncate">{s.tagline}</p>}
-                  {s.location_city && <p class="text-[11px] text-charcoal/45">{s.location_city}</p>}
-                </div>
+                {s.tagline && <p class="text-xs text-charcoal/55 truncate">{s.tagline}</p>}
+                {s.location_city && <p class="text-[10px] uppercase tracking-widest text-charcoal/40 mt-0.5">{s.location_city}</p>}
               </div>
             </a>
           </li>

@@ -135,11 +135,23 @@ export async function publishListing(
   }
 
   if (!autoApprove) {
-    await ctx.admin.from('moderation_queue').insert({
+    const { data: queued } = await ctx.admin.from('moderation_queue').insert({
       item_type: 'listing',
       item_id: input.listingId,
       submitter_id: ctx.user.id,
-    });
+    }).select('id').maybeSingle();
+
+    if (queued) {
+      const { data: l } = await ctx.admin.from('listings').select('title').eq('id', input.listingId).maybeSingle();
+      const { notifyModeratorsNewItem } = await import('../notify');
+      await notifyModeratorsNewItem(ctx.admin, {
+        itemType: 'listing',
+        itemId: input.listingId,
+        queueId: queued.id,
+        submitterId: ctx.user.id,
+        title: l?.title,
+      }, ctx.env);
+    }
   }
 
   return ok({ redirect: `/market/listing/${input.listingId}?published=1` });
@@ -205,7 +217,7 @@ export async function deleteListingPhoto(
   if (photo) {
     await ctx.supabase.storage.from('projects').remove([photo.path]);
     await ctx.supabase.from('listing_photos').delete().eq('id', input.photoId);
-    await syncHero(ctx.supabase, input.listingId);
+    await syncHero(ctx.admin, input.listingId);
   }
   return ok(undefined as void);
 }
@@ -230,7 +242,7 @@ export async function reorderListingPhotos(
         .update({ position: i }).eq('id', id).eq('listing_id', input.listingId),
     ),
   );
-  await syncHero(ctx.supabase, input.listingId);
+  await syncHero(ctx.admin, input.listingId);
   return ok(undefined as void);
 }
 
@@ -264,7 +276,7 @@ export async function uploadListingPhotos(
     position++;
   }
 
-  await syncHero(ctx.supabase, input.listingId);
+  await syncHero(ctx.admin, input.listingId);
   return ok({ redirect: `/market/listing/${input.listingId}` });
 }
 

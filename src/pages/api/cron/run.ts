@@ -18,7 +18,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0 };
+  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0 };
 
   // 0. Expire listing promotions
   const { data: expiredPromos } = await admin
@@ -278,6 +278,62 @@ export const POST: APIRoute = async ({ request }) => {
       }, env);
     }
     results.staleShadowAlerts = staleShadows.length;
+  }
+
+  // 7. Auto-close moderation threads when the recipient hasn't replied
+  // within 48 hours of the last moderator message. The item stays frozen
+  // — non-response is treated as concession on a valid report.
+  const fortyEightHoursAgo = new Date(Date.now() - 48 * 3600_000).toISOString();
+  const { data: staleThreads } = await admin
+    .from('moderation_threads')
+    .select('id, target_type, target_id, recipient_id')
+    .eq('status', 'open')
+    .lt('updated_at', fortyEightHoursAgo);
+
+  for (const t of staleThreads ?? []) {
+    const { data: lastMsg } = await admin
+      .from('moderation_messages')
+      .select('is_moderator, sender_id')
+      .eq('thread_id', t.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!lastMsg || !lastMsg.is_moderator) continue; // recipient replied last → don't auto-close
+
+    await admin.from('moderation_threads').update({
+      status: 'closed', closed_at: now,
+    }).eq('id', t.id);
+
+    await admin.from('reports').update({
+      status: 'resolved', resolved_at: now,
+    }).eq('target_type', t.target_type)
+      .eq('target_id', t.target_id)
+      .eq('status', 'open');
+
+    await admin.from('moderation_messages').insert({
+      thread_id: t.id,
+      sender_id: lastMsg.sender_id,
+      is_moderator: true,
+      body: 'Saken er automatisk avsluttet fordi det ikke kom svar innen 48 timer. Elementet forblir frosset. Kontakt moderatorteamet hvis du vil ta opp saken igjen.',
+    });
+
+    await createNotification(admin, {
+      userId: t.recipient_id,
+      type: 'moderation_message',
+      title: 'Saken er avsluttet (ingen svar)',
+      body: 'Vi mottok ikke svar innen 48 timer. Elementet forblir frosset.',
+      url: `/market/moderasjon/${t.id}`,
+    }, env);
+
+    await admin.from('moderation_audit_log').insert({
+      actor_id: null,
+      action: 'thread_auto_close_no_reply',
+      target_type: 'moderation_thread', target_id: t.id,
+      details: { target_type: t.target_type, target_id: t.target_id, reason: 'no_reply_48h' },
+    });
+
+    results.moderationThreadsAutoClosed++;
   }
 
   return new Response(JSON.stringify(results), {

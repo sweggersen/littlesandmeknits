@@ -61,64 +61,32 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
       )}
 
       {(disputedListings ?? []).map((l) => (
-        <div class="bg-white rounded-2xl p-5 border border-sage-500/10 space-y-3">
-          <div class="flex items-center gap-2">
+        <a href={`/admin/disputes/listing/${l.id}`} class="block bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
             <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Annonse</span>
-            <a href={`/market/listing/${l.id}`} class="font-medium hover:text-terracotta-500 transition-colors">{l.title}</a>
+            <span class="font-medium">{l.title}</span>
             <span class="text-xs text-charcoal/45 ml-auto">{l.price_nok} NOK</span>
           </div>
-          <p class="text-sm text-charcoal/65">{l.dispute_reason}</p>
-          <p class="text-xs text-charcoal/45">
+          <p class="text-sm text-charcoal/65 line-clamp-2">{l.dispute_reason}</p>
+          <p class="text-xs text-charcoal/45 mt-2">
             Åpnet: {new Date(l.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+            <span class="ml-2 text-terracotta-500">→ åpne</span>
           </p>
-          <form method="post" action="/api/admin/disputes/resolve" class="flex gap-3 items-end">
-            <input type="hidden" name="item_type" value="listing" />
-            <input type="hidden" name="item_id" value={l.id} />
-            <div class="flex-1">
-              <label class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1 block">Admin-notat</label>
-              <input name="notes" type="text" maxlength="500" placeholder="Valgfritt notat..."
-                class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
-            </div>
-            <button type="submit" name="decision" value="refund"
-              class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors whitespace-nowrap">
-              Refunder kjøper
-            </button>
-            <button type="submit" name="decision" value="release"
-              class="px-4 py-2 bg-sage-600 text-white rounded-lg text-xs font-medium hover:bg-sage-700 transition-colors whitespace-nowrap">
-              Frigi til selger
-            </button>
-          </form>
-        </div>
+        </a>
       ))}
 
       {(disputedCommissions ?? []).map((r) => (
-        <div class="bg-white rounded-2xl p-5 border border-sage-500/10 space-y-3">
-          <div class="flex items-center gap-2">
+        <a href={`/admin/disputes/commission/${r.id}`} class="block bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
             <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Oppdrag</span>
-            <a href={`/market/commissions/${r.id}`} class="font-medium hover:text-terracotta-500 transition-colors">{r.title}</a>
+            <span class="font-medium">{r.title}</span>
           </div>
-          <p class="text-sm text-charcoal/65">{r.dispute_reason}</p>
-          <p class="text-xs text-charcoal/45">
+          <p class="text-sm text-charcoal/65 line-clamp-2">{r.dispute_reason}</p>
+          <p class="text-xs text-charcoal/45 mt-2">
             Åpnet: {new Date(r.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+            <span class="ml-2 text-terracotta-500">→ åpne</span>
           </p>
-          <form method="post" action="/api/admin/disputes/resolve" class="flex gap-3 items-end">
-            <input type="hidden" name="item_type" value="commission" />
-            <input type="hidden" name="item_id" value={r.id} />
-            <div class="flex-1">
-              <label class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1 block">Admin-notat</label>
-              <input name="notes" type="text" maxlength="500" placeholder="Valgfritt notat..."
-                class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
-            </div>
-            <button type="submit" name="decision" value="refund"
-              class="px-4 py-2 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-700 transition-colors whitespace-nowrap">
-              Refunder kjøper
-            </button>
-            <button type="submit" name="decision" value="release"
-              class="px-4 py-2 bg-sage-600 text-white rounded-lg text-xs font-medium hover:bg-sage-700 transition-colors whitespace-nowrap">
-              Frigi til strikker
-            </button>
-          </form>
-        </div>
+        </a>
       ))}
     </div>
   )}

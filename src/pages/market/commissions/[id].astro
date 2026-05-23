@@ -129,6 +129,14 @@ const statusIdx = STATUS_ORDER.indexOf(req.status);
 const isPast = (phase: string) => STATUS_ORDER.indexOf(phase) < statusIdx;
 const isActive = (phase: string) => phase === req.status;
 const yarnPhase = req.yarn_provided_by_buyer;
+
+let frozenThreadId: string | null = null;
+if (isBuyer && req.status === 'frozen') {
+  const { data: t } = await supabase.from('moderation_threads')
+    .select('id').eq('target_type', 'commission_request').eq('target_id', req.id)
+    .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();
+  frozenThreadId = t?.id ?? null;
+}
 ---
 
 <Layout title={`${req.title} — Strikk for meg`} lang="nb">
@@ -149,6 +157,15 @@ const yarnPhase = req.yarn_provided_by_buyer;
       {isBuyer && req.status === 'rejected' && (
         <div class="bg-red-50 text-red-900 rounded-2xl p-4 mb-6 text-sm">
           Forespørselen ble avvist. {(req as any).moderation_notes ? `Grunn: ${(req as any).moderation_notes}` : 'Innholdet oppfyller ikke retningslinjene våre.'}
+        </div>
+      )}
+
+      {isBuyer && req.status === 'frozen' && (
+        <div class="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 mb-6 text-sm">
+          <strong>Oppdraget er frosset av moderator.</strong> Det er skjult fra Strikketorget mens saken behandles.
+          {frozenThreadId && (
+            <> <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium">Åpne samtalen og svar moderator &rarr;</a></>
+          )}
         </div>
       )}
 

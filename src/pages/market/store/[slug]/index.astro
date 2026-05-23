@@ -119,15 +119,28 @@ const avgRating = reviewCount > 0
 // Apply accent_color via a CSS variable so descendants can reference it.
 // Fallback to the terracotta brand colour when no accent is set.
 const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
+
+// Owners/members viewing a suspended (frozen) store get a link straight
+// into the moderator thread, if any.
+let frozenThreadId: string | null = null;
+if (previewBanner === 'suspended' && user) {
+  const { data: t } = await supabase.from('moderation_threads')
+    .select('id').eq('target_type', 'store').eq('target_id', store.id)
+    .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();
+  frozenThreadId = t?.id ?? null;
+}
 ---
 
 <Layout title={`${store.name} — Strikketorget`} description={store.tagline ?? ''} lang="nb">
   <MarketplaceShell>
     <div style={accentStyle}>
       {previewBanner && (
-        <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl px-4 py-3 text-sm flex items-center gap-2">
+        <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl px-4 py-3 text-sm flex items-center gap-2 flex-wrap">
           <span class="text-amber-600">👁</span>
           <span>{PREVIEW_LABEL[previewBanner]}</span>
+          {previewBanner === 'suspended' && frozenThreadId && (
+            <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium ml-auto">Åpne samtalen med moderator &rarr;</a>
+          )}
         </div>
       )}
       <!-- Banner + brand head -->
