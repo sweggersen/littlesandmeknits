@@ -5,18 +5,12 @@ const navLinks = [
   { href: '/market/used', label: 'Brukt' },
   { href: '/market/new', label: 'Nytt' },
   { href: '/market/commissions', label: 'Strikk for meg' },
-];
-
-const authLinks = [
-  { href: '/market/favorites', label: 'Favoritter', authKey: 'notifications' },
-  { href: '/market/my-purchases', label: 'Mine kjøp', authKey: 'profile' },
-  { href: '/market/my-listings', label: 'Mine annonser', authKey: 'profile' },
-  { href: '/market/messages', label: 'Meldinger', authKey: 'profile' },
+  { href: '/market/stores', label: 'Butikker' },
 ];
 
 const externalLinks = [
-  { href: 'https://littlesandmeknits.com', label: 'Littles and Me Knits' },
-  { href: 'https://littlesandmeknits.com/studio', label: 'Strikkestua' },
+  { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
+  { href: 'https://littlesandmeknits.com/studio', label: 'Til Strikkestua' },
 ];
 ---
 
@@ -50,42 +44,76 @@ const externalLinks = [
       </div>
     </div>
 
-    <div class="flex items-center gap-4">
-      <div class="hidden lg:flex items-center gap-3">
-        {externalLinks.map((l) => (
-          <a
-            href={l.href}
-            class="text-xs font-medium text-charcoal/40 hover:text-terracotta-500 transition-colors"
-          >
-            {l.label}
-          </a>
-        ))}
+    <div class="flex items-center gap-2">
+      <!-- Dev/admin menu (localhost or staff only) -->
+      <div class="relative hidden" data-dev-menu>
+        <button type="button" class="p-1.5 text-amber-600 hover:text-amber-800 transition-colors" aria-label="Dev menu" data-dev-menu-trigger>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/>
+          </svg>
+        </button>
+        <div class="hidden absolute right-0 top-full mt-2 w-52 bg-white rounded-xl border border-sage-500/15 shadow-lg py-1.5 z-50" data-dev-menu-dropdown>
+          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-amber-600">Dev</p>
+          <a href="/dev/login" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Dev login</a>
+          <a href="/dev/test-tower" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Test tower</a>
+          <a href="/market/test-panel" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Marked test panel</a>
+          <hr class="my-1 border-sage-500/10" />
+          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/35">Admin</p>
+          <a href="/admin" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Dashboard</a>
+          <a href="/admin/moderation" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Moderering</a>
+          <a href="/admin/users" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Brukere</a>
+          <a href="/admin/reports" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Rapporter</a>
+          <a href="/admin/disputes" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Tvister</a>
+          <a href="/admin/payouts" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Utbetalinger</a>
+          <a href="/admin/moderators" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Moderatorer</a>
+          <a href="/admin/log" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Aktivitetslogg</a>
+        </div>
       </div>
-      <span class="hidden lg:block w-px h-4 bg-sage-500/15" />
 
+      <!-- Unified bell: notifications + messages + moderation -->
       <a
-        href="/notifications"
+        href="/inbox"
         class="hidden sm:inline-flex relative p-1.5 text-charcoal/50 hover:text-charcoal transition-colors"
-        data-auth-link="notifications"
+        data-auth-link="bell"
         data-bell
         style="display:none;"
-        aria-label="Varsler"
+        aria-label="Innboks"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
         </svg>
-        <span data-notif-badge class="hidden absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-terracotta-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
+        <span data-inbox-badge class="hidden absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-terracotta-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
       </a>
-      <a
-        href="/profile"
-        class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
-        data-auth-link="profile"
-        style="display:none;"
-      >
-        <span data-profile-avatar class="w-6 h-6 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-[10px] font-serif text-sage-700">?</span>
-        <span data-profile-name>Min profil</span>
-      </a>
+
+      <!-- Profile dropdown -->
+      <div class="hidden sm:block relative" data-auth-link="profile-menu" style="display:none;">
+        <button type="button" data-profile-menu-trigger class="flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors p-1.5 rounded-full">
+          <span data-profile-avatar class="w-6 h-6 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-[10px] font-serif text-sage-700">?</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+
+        <div data-profile-menu class="hidden absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl border border-sage-500/15 shadow-lg py-2 z-50">
+          <a href="/profile" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Min profil</a>
+          <a href="/market/my-listings" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine annonser</a>
+          <a href="/market/my-purchases" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine kjøp</a>
+          <a href="/market/favorites" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Favoritter</a>
+          <a href="/profile/stores" data-link-my-stores class="hidden px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine butikker</a>
+          <a href="/market/commissions/my-listings" data-link-my-requests class="hidden px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine oppdrag</a>
+          <div class="border-t border-sage-500/10 my-1"></div>
+          {externalLinks.map((l) => (
+            <a href={l.href} class="block px-4 py-2 text-sm text-charcoal/60 hover:bg-sage-100/40">{l.label} →</a>
+          ))}
+          <div class="border-t border-sage-500/10 my-1"></div>
+          <a href="/profile/edit" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Innstillinger</a>
+          <form method="post" action="/api/auth/signout">
+            <button type="submit" class="w-full text-left px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Logg ut</button>
+          </form>
+        </div>
+      </div>
+
       <a
         href="/login"
         class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
@@ -93,21 +121,23 @@ const externalLinks = [
       >
         Logg inn
       </a>
+
       <button
         type="button"
-        class="sm:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal"
+        class="sm:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal relative"
         aria-label="Meny"
         data-mobile-menu-trigger
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <path d="M3 6h18M3 12h18M3 18h18" />
         </svg>
+        <span data-mobile-bell-badge class="hidden absolute top-0 right-0 min-w-[16px] h-4 px-1 rounded-full bg-terracotta-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
       </button>
     </div>
   </div>
 
   <div class="hidden sm:hidden border-t border-sage-500/10 px-6 py-4" data-mobile-menu>
-    <ul class="flex flex-col gap-3">
+    <ul class="flex flex-col gap-1">
       {navLinks.map((l) => (
         <li>
           <a href={l.href} class:list={[
@@ -118,19 +148,31 @@ const externalLinks = [
           </a>
         </li>
       ))}
-      <li class="border-t border-sage-500/10 pt-3 mt-1">
-        <a href="/market/favorites" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Favoritter</a>
-      </li>
-      <li>
-        <a href="/market/my-purchases" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine kjøp</a>
+      <li class="border-t border-sage-500/10 pt-2 mt-1">
+        <a href="/inbox" class="flex items-center justify-between py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>
+          <span>Innboks</span>
+          <span data-mobile-inbox-badge class="hidden min-w-[18px] h-5 px-1.5 rounded-full bg-terracotta-500 text-white text-[11px] font-bold flex items-center justify-center">0</span>
+        </a>
       </li>
       <li>
         <a href="/market/my-listings" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine annonser</a>
       </li>
       <li>
-        <a href="/market/messages" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Meldinger</a>
+        <a href="/market/my-purchases" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Mine kjøp</a>
       </li>
-      <li class="border-t border-sage-500/10 pt-3 mt-1">
+      <li>
+        <a href="/market/favorites" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Favoritter</a>
+      </li>
+      <li>
+        <a href="/profile/stores" data-link-my-stores-mobile class="hidden py-2 text-base font-medium text-charcoal/80">Mine butikker</a>
+      </li>
+      <li>
+        <a href="/market/commissions/my-listings" data-link-my-requests-mobile class="hidden py-2 text-base font-medium text-charcoal/80">Mine oppdrag</a>
+      </li>
+      <li>
+        <a href="/profile" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Min profil</a>
+      </li>
+      <li class="border-t border-sage-500/10 pt-2 mt-1">
         {externalLinks.map((l) => (
           <a href={l.href} class="block py-2 text-sm font-medium text-charcoal/45">{l.label} →</a>
         ))}
@@ -138,21 +180,42 @@ const externalLinks = [
       <li data-auth-link="login">
         <a href="/login" class="block py-2 text-base font-medium text-charcoal/80">Logg inn</a>
       </li>
+      <li class="hidden" data-st-auth>
+        <form method="post" action="/api/auth/signout">
+          <button type="submit" class="block py-2 text-base font-medium text-charcoal/80">Logg ut</button>
+        </form>
+      </li>
     </ul>
   </div>
 </nav>
 
 <script is:inline>
   function applyAuthUI(loggedIn) {
-    if (!loggedIn) return;
+    if (!loggedIn) {
+      document.querySelectorAll('[data-auth-link="profile-menu"]').forEach(function(el) {
+        el.style.display = 'none';
+        el.classList.add('hidden');
+      });
+      document.querySelectorAll('[data-auth-link="bell"]').forEach(function(el) {
+        el.style.display = 'none';
+        el.classList.add('hidden');
+      });
+      document.querySelectorAll('[data-st-auth]').forEach(function(el) {
+        el.classList.add('hidden');
+      });
+      document.querySelectorAll('[data-auth-link="login"]').forEach(function(el) {
+        el.style.display = '';
+      });
+      return;
+    }
     document.querySelectorAll('[data-auth-link="login"]').forEach(function(el) {
       el.style.display = 'none';
     });
-    document.querySelectorAll('[data-auth-link="profile"]').forEach(function(el) {
+    document.querySelectorAll('[data-auth-link="profile-menu"]').forEach(function(el) {
       el.style.display = '';
       el.classList.remove('hidden');
     });
-    document.querySelectorAll('[data-auth-link="notifications"]').forEach(function(el) {
+    document.querySelectorAll('[data-auth-link="bell"]').forEach(function(el) {
       el.style.display = '';
       el.classList.remove('hidden');
     });
@@ -164,19 +227,28 @@ const externalLinks = [
   }
 
   function applyProfileInfo(u) {
-    var nameEl = document.querySelector('[data-profile-name]');
     var avatarEl = document.querySelector('[data-profile-avatar]');
-    var notifBadge = document.querySelector('[data-notif-badge]');
-    if (nameEl && u.display_name) nameEl.textContent = u.display_name;
     if (avatarEl && u.display_name) avatarEl.textContent = u.display_name[0].toUpperCase();
-    var n = u.notifications || 0;
-    if (notifBadge) {
-      if (n > 0) {
-        notifBadge.textContent = n > 99 ? '99+' : String(n);
-        notifBadge.classList.remove('hidden');
-      } else {
-        notifBadge.classList.add('hidden');
-      }
+
+    var inboxN = u.inbox_unread || ((u.notifications || 0) + (u.unread || 0));
+    var badgeText = inboxN > 99 ? '99+' : String(inboxN);
+    [document.querySelector('[data-inbox-badge]'),
+     document.querySelector('[data-mobile-bell-badge]'),
+     document.querySelector('[data-mobile-inbox-badge]')].forEach(function(el) {
+      if (!el) return;
+      if (inboxN > 0) { el.textContent = badgeText; el.classList.remove('hidden'); }
+      else { el.classList.add('hidden'); }
+    });
+
+    if (u.has_stores) {
+      document.querySelectorAll('[data-link-my-stores], [data-link-my-stores-mobile]').forEach(function(el) {
+        el.classList.remove('hidden');
+      });
+    }
+    if (u.has_requests) {
+      document.querySelectorAll('[data-link-my-requests], [data-link-my-requests-mobile]').forEach(function(el) {
+        el.classList.remove('hidden');
+      });
     }
   }
 
@@ -189,8 +261,35 @@ const externalLinks = [
   function initStrikketorgetNav() {
     const trigger = document.querySelector<HTMLButtonElement>('[data-mobile-menu-trigger]');
     const menu = document.querySelector<HTMLElement>('[data-mobile-menu]');
-    trigger?.addEventListener('click', () => {
-      menu?.classList.toggle('hidden');
+    trigger?.addEventListener('click', () => menu?.classList.toggle('hidden'));
+
+    // Dev menu — localhost-only convenience.
+    const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (isLocal) {
+      document.querySelectorAll('[data-dev-menu]').forEach((el) => el.classList.remove('hidden'));
+      document.querySelectorAll<HTMLButtonElement>('[data-dev-menu-trigger]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const dd = btn.parentElement?.querySelector('[data-dev-menu-dropdown]');
+          dd?.classList.toggle('hidden');
+        });
+      });
+      document.addEventListener('click', () => {
+        document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
+      });
+    }
+
+    // Profile dropdown
+    const profileTrigger = document.querySelector<HTMLButtonElement>('[data-profile-menu-trigger]');
+    const profileMenu = document.querySelector<HTMLElement>('[data-profile-menu]');
+    profileTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      profileMenu?.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (!profileMenu) return;
+      const wrapper = profileTrigger?.parentElement;
+      if (!wrapper?.contains(e.target as Node)) profileMenu.classList.add('hidden');
     });
 
     if (sessionStorage.getItem('lm-auth') === '1') {
@@ -208,6 +307,7 @@ const externalLinks = [
         } else {
           sessionStorage.removeItem('lm-auth');
           sessionStorage.removeItem('lm-profile');
+          (window as any).applyAuthUI(false);
         }
       })
       .catch(() => {});

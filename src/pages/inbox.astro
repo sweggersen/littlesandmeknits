@@ -1,0 +1,233 @@
+---
+import Layout from '../layouts/Layout.astro';
+import MarketplaceShell from '../components/MarketplaceShell.astro';
+import { getCurrentUser } from '../lib/auth';
+import { createServerSupabase, createAdminSupabase } from '../lib/supabase';
+import { env } from 'cloudflare:workers';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/inbox');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const filter = Astro.url.searchParams.get('filter') ?? 'all';
+
+const [convsRes, modRes, notifsRes] = await Promise.all([
+  supabase
+    .from('marketplace_conversations')
+    .select(`
+      id, updated_at, listing_id, buyer_id, seller_id, commission_request_id,
+      listings(title, hero_photo_path),
+      commission_requests(title),
+      marketplace_messages(body, sender_id, created_at, read_at)
+    `)
+    .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+    .order('updated_at', { ascending: false })
+    .limit(50),
+  supabase
+    .from('moderation_threads')
+    .select('id, target_type, target_id, status, updated_at')
+    .eq('recipient_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(20),
+  supabase
+    .from('notifications')
+    .select('id, type, title, body, url, read_at, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50),
+]);
+
+const conversations = convsRes.data ?? [];
+const modThreads = modRes.data ?? [];
+const notifications = notifsRes.data ?? [];
+
+// Profile names for conversations
+const profileIds = new Set<string>();
+for (const c of conversations) { profileIds.add(c.buyer_id); profileIds.add(c.seller_id); }
+const { data: profiles } = profileIds.size
+  ? await supabase.from('profiles').select('id, display_name').in('id', [...profileIds])
+  : { data: [] };
+const profileName = new Map((profiles ?? []).map(p => [p.id, p.display_name ?? 'Anonym']));
+
+// Mod thread target titles + last message
+const modTitles = new Map<string, string>();
+const modLast = new Map<string, { body: string; is_moderator: boolean; read_at: string | null }>();
+if (modThreads.length) {
+  const listingIds = modThreads.filter(t => t.target_type === 'listing').map(t => t.target_id);
+  const commIds = modThreads.filter(t => t.target_type === 'commission_request').map(t => t.target_id);
+  const storeIds = modThreads.filter(t => t.target_type === 'store').map(t => t.target_id);
+  const [lRes, cRes, sRes, mRes] = await Promise.all([
+    listingIds.length ? admin.from('listings').select('id, title').in('id', listingIds) : Promise.resolve({ data: [] as any[] }),
+    commIds.length ? admin.from('commission_requests').select('id, title').in('id', commIds) : Promise.resolve({ data: [] as any[] }),
+    storeIds.length ? admin.from('stores').select('id, name').in('id', storeIds) : Promise.resolve({ data: [] as any[] }),
+    supabase.from('moderation_messages')
+      .select('thread_id, body, is_moderator, read_at, created_at')
+      .in('thread_id', modThreads.map(t => t.id))
+      .order('created_at', { ascending: false }),
+  ]);
+  for (const l of lRes.data ?? []) modTitles.set(`listing:${l.id}`, l.title);
+  for (const c of cRes.data ?? []) modTitles.set(`commission_request:${c.id}`, c.title);
+  for (const s of sRes.data ?? []) modTitles.set(`store:${s.id}`, s.name);
+  for (const m of mRes.data ?? []) {
+    if (!modLast.has(m.thread_id)) modLast.set(m.thread_id, m);
+  }
+}
+
+interface Item {
+  kind: 'message' | 'moderation' | 'notification';
+  when: string;
+  href: string;
+  unread: boolean;
+  icon: string;
+  badge: string | null;
+  title: string;
+  preview: string;
+  important?: boolean;
+}
+
+const items: Item[] = [];
+
+for (const c of conversations) {
+  const msgs = (c.marketplace_messages ?? []) as any[];
+  const sorted = msgs.slice().sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const last = sorted[0];
+  const unread = msgs.some((m) => m.sender_id !== user.id && !m.read_at);
+  const otherId = c.buyer_id === user.id ? c.seller_id : c.buyer_id;
+  const ctx = c.commission_request_id
+    ? `Oppdrag: ${(c.commission_requests as any)?.title ?? ''}`
+    : `${(c.listings as any)?.title ?? 'Annonse'}`;
+  items.push({
+    kind: 'message',
+    when: c.updated_at,
+    href: `/market/messages/${c.id}`,
+    unread,
+    icon: '💬',
+    badge: ctx,
+    title: profileName.get(otherId) ?? 'Anonym',
+    preview: last?.body ? (last.body.length > 90 ? last.body.slice(0, 90) + '…' : last.body) : '',
+  });
+}
+
+for (const t of modThreads) {
+  const last = modLast.get(t.id);
+  const unread = !!(last && last.is_moderator && !last.read_at);
+  const title = modTitles.get(`${t.target_type}:${t.target_id}`) ?? 'Element';
+  items.push({
+    kind: 'moderation',
+    when: t.updated_at,
+    href: `/market/moderasjon/${t.id}`,
+    unread,
+    icon: '⚠️',
+    badge: t.status === 'open' ? 'Viktig — moderator' : 'Avsluttet — moderator',
+    title,
+    preview: last?.body ? (last.body.length > 90 ? last.body.slice(0, 90) + '…' : last.body) : '',
+    important: t.status === 'open',
+  });
+}
+
+const TYPE_ICON: Record<string, string> = {
+  new_offer: '💬', offer_accepted: '✅', offer_declined: '❌',
+  payment_received: '💰', project_update: '📸', new_message: '✉️',
+  yarn_shipped: '📦', yarn_received: '🧶', commission_completed: '🎉',
+  commission_delivered: '📬', listing_purchased: '💰', listing_shipped: '📦',
+  listing_delivered: '📬', review_received: '⭐', dispute_opened: '⚠️',
+  dispute_resolved: '✅', achievement_unlocked: '🏆',
+  item_approved: '✅', item_rejected: '❌', item_reported: '🚩',
+  moderation_assigned: '🛡️', moderation_new_item: '🛡️', moderation_shadow_pending: '🛡️',
+  moderation_message: '⚠️', role_changed: '👤', request_expired: '⏰',
+};
+
+for (const n of notifications) {
+  items.push({
+    kind: 'notification',
+    when: n.created_at,
+    href: n.url ?? '#',
+    unread: !n.read_at,
+    icon: TYPE_ICON[n.type] ?? '🔔',
+    badge: null,
+    title: n.title,
+    preview: n.body ?? '',
+  });
+}
+
+const filtered = filter === 'messages'
+  ? items.filter(i => i.kind === 'message' || i.kind === 'moderation')
+  : filter === 'notifications'
+    ? items.filter(i => i.kind === 'notification')
+    : items;
+
+filtered.sort((a, b) => b.when.localeCompare(a.when));
+
+const totalUnread = items.filter(i => i.unread).length;
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'nå';
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} t`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} d`;
+  return new Date(dateStr).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+}
+---
+
+<Layout title="Innboks">
+  <MarketplaceShell current="inbox">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="font-serif text-3xl sm:text-4xl">Innboks{totalUnread > 0 && (<span class="text-terracotta-500 font-sans text-lg ml-2 align-middle">({totalUnread})</span>)}</h1>
+      {totalUnread > 0 && (
+        <form method="post" action="/api/notifications/read-all">
+          <button type="submit" class="text-xs text-charcoal/50 hover:text-terracotta-500 transition-colors">Marker alt som lest</button>
+        </form>
+      )}
+    </div>
+
+    <div class="flex gap-1 mb-4">
+      <a href="/inbox" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'all' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50']}>Alle</a>
+      <a href="/inbox?filter=messages" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'messages' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50']}>Meldinger</a>
+      <a href="/inbox?filter=notifications" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'notifications' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50']}>Varsler</a>
+    </div>
+
+    {filtered.length === 0 ? (
+      <div class="bg-white rounded-2xl p-10 text-center border border-sage-500/10">
+        <p class="text-charcoal/55 text-sm">Ingenting å vise.</p>
+      </div>
+    ) : (
+      <ul class="space-y-2">
+        {filtered.map((i) => (
+          <li>
+            <a href={i.href} class:list={[
+              'block rounded-2xl p-4 border transition-colors',
+              i.important
+                ? (i.unread ? 'bg-amber-50 border-amber-400 hover:border-amber-500' : 'bg-amber-50/40 border-amber-200 hover:border-amber-300')
+                : (i.unread ? 'bg-white border-terracotta-500/30 hover:border-terracotta-500/50' : 'bg-white border-sage-500/10 hover:border-sage-500/30'),
+            ]}>
+              <div class="flex items-start gap-3">
+                <span class="text-xl shrink-0 mt-0.5">{i.icon}</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline gap-2 flex-wrap">
+                    {i.badge && (
+                      <span class:list={[
+                        'text-[10px] font-bold uppercase tracking-widest',
+                        i.important ? 'text-amber-700' : 'text-charcoal/45',
+                      ]}>{i.badge}</span>
+                    )}
+                    <span class="text-[10px] text-charcoal/40 ml-auto">{timeAgo(i.when)}</span>
+                  </div>
+                  <p class:list={['mt-0.5', i.unread ? 'font-semibold' : 'font-medium']}>{i.title}</p>
+                  {i.preview && (
+                    <p class:list={['text-sm truncate mt-1', i.unread ? 'text-charcoal/75' : 'text-charcoal/55']}>{i.preview}</p>
+                  )}
+                </div>
+                {i.unread && <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0 mt-2"></span>}
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </MarketplaceShell>
+</Layout>
