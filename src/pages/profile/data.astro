@@ -1,0 +1,75 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/profile/data');
+
+const flash = Astro.url.searchParams.get('flash');
+const err = Astro.url.searchParams.get('err');
+---
+
+<Layout title="Mine data og personvern" lang="nb">
+  <div class="max-w-2xl mx-auto px-6 py-10">
+    <a href="/profile" class="text-xs text-charcoal/45 hover:text-terracotta-500 mb-4 inline-block">&larr; Tilbake til profilen</a>
+    <h1 class="font-serif text-3xl mb-2">Mine data og personvern</h1>
+    <p class="text-charcoal/55 text-sm mb-8">
+      Her kan du laste ned alle personopplysningene vi har om deg, eller slette kontoen din. Se vår
+      <a href="/privacy" class="text-terracotta-500 hover:underline">personvernerklæring</a> for hvordan vi behandler data.
+    </p>
+
+    {flash && (
+      <div class="mb-6 bg-sage-100 border border-sage-500/30 text-sage-900 rounded-2xl p-3 text-sm">{flash}</div>
+    )}
+    {err && (
+      <div class="mb-6 bg-red-50 border border-red-300 text-red-900 rounded-2xl p-3 text-sm">{err}</div>
+    )}
+
+    <!-- Export -->
+    <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-5">
+      <h2 class="font-serif text-xl mb-2">Last ned dataene mine</h2>
+      <p class="text-sm text-charcoal/65 mb-4">
+        Du får en JSON-fil med konto, profil, annonser, kjøp, samtaler, vurderinger,
+        favoritter og varsler. Filen kan du oppbevare lokalt eller importere til
+        andre tjenester.
+      </p>
+      <a
+        href="/api/profile/export"
+        class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Last ned (.json)
+      </a>
+    </section>
+
+    <!-- Delete -->
+    <section class="bg-white rounded-3xl p-6 border border-red-300/30">
+      <h2 class="font-serif text-xl mb-2 text-red-700">Slett kontoen</h2>
+      <p class="text-sm text-charcoal/65 mb-2">
+        Sletter profil, favoritter, varsler og innstillinger. Anonymiserer historiske
+        meldinger og vurderinger.
+      </p>
+      <p class="text-xs text-charcoal/55 mb-4">
+        <strong>Pågående kjøp og salg må fullføres først.</strong> Av hensyn til bokføringsloven
+        beholder vi transaksjonsdata i 5 år, men disse er ikke lenger knyttet til din identitet.
+      </p>
+      <form method="post" action="/api/profile/delete" class="space-y-3">
+        <label class="block">
+          <span class="text-xs text-charcoal/55">Skriv <strong class="font-mono">SLETT</strong> for å bekrefte</span>
+          <input
+            type="text"
+            name="confirm"
+            required
+            autocomplete="off"
+            class="block w-full mt-1 bg-linen rounded-xl px-4 py-2 text-sm font-mono border border-sage-500/15 focus:outline-none focus:border-red-400"
+          />
+        </label>
+        <button
+          type="submit"
+          class="bg-red-600 text-white px-5 py-2.5 rounded-full text-sm font-medium hover:bg-red-700 transition-colors"
+        >
+          Slett kontoen min
+        </button>
+      </form>
+    </section>
+  </div>
+</Layout>

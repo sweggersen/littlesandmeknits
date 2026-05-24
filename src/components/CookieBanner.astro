@@ -1,0 +1,47 @@
+---
+// Strict-necessary cookie disclosure. We don't use tracking cookies, so
+// this is a "we use only essential cookies, here's why" notice rather
+// than a consent-gate. Stored in lm-cookie-consent so it doesn't show
+// again once dismissed.
+---
+
+<div id="lm-cookie-banner" class="fixed bottom-0 inset-x-0 z-[60] p-3 sm:p-4 pointer-events-none" data-lm-cookie hidden>
+  <div class="max-w-3xl mx-auto pointer-events-auto bg-white border border-sage-500/20 rounded-2xl shadow-lg p-4 sm:p-5">
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium mb-1">Vi bruker kun nødvendige informasjonskapsler</p>
+        <p class="text-xs text-charcoal/55">
+          Innlogging og sesjon. Ingen sporing eller reklame.{' '}
+          <a href="/privacy#cookies" class="text-terracotta-500 hover:underline">Les mer</a>.
+        </p>
+      </div>
+      <button
+        type="button"
+        data-lm-cookie-ok
+        class="shrink-0 bg-charcoal text-linen px-5 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+      >
+        Greit, takk
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function initCookieBanner() {
+    const banner = document.querySelector<HTMLElement>('[data-lm-cookie]');
+    const btn = document.querySelector<HTMLButtonElement>('[data-lm-cookie-ok]');
+    if (!banner || !btn) return;
+    let consented = false;
+    try { consented = localStorage.getItem('lm-cookie-consent') === '1'; } catch {}
+    if (consented) return;
+    banner.hidden = false;
+    if (!(btn as any)._stBound) {
+      (btn as any)._stBound = true;
+      btn.addEventListener('click', () => {
+        try { localStorage.setItem('lm-cookie-consent', '1'); } catch {}
+        banner.hidden = true;
+      });
+    }
+  }
+  document.addEventListener('astro:page-load', initCookieBanner);
+</script>
