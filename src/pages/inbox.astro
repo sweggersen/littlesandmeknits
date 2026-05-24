@@ -76,6 +76,7 @@ if (modThreads.length) {
 
 interface Item {
   kind: 'message' | 'moderation' | 'notification';
+  id?: string; // notification id, if applicable — used to POST a "read" mark on click
   when: string;
   href: string;
   unread: boolean;
@@ -141,6 +142,7 @@ const TYPE_ICON: Record<string, string> = {
 for (const n of notifications) {
   items.push({
     kind: 'notification',
+    id: n.id,
     when: n.created_at,
     href: n.url ?? '#',
     unread: !n.read_at,
@@ -199,30 +201,37 @@ function timeAgo(dateStr: string): string {
       <ul class="space-y-2">
         {filtered.map((i) => (
           <li>
-            <a href={i.href} class:list={[
-              'block rounded-2xl p-4 border transition-colors',
-              i.important
-                ? (i.unread ? 'bg-amber-50 border-amber-400 hover:border-amber-500' : 'bg-amber-50/40 border-amber-200 hover:border-amber-300')
-                : (i.unread ? 'bg-white border-terracotta-500/30 hover:border-terracotta-500/50' : 'bg-white border-sage-500/10 hover:border-sage-500/30'),
-            ]}>
-              <div class="flex items-start gap-3">
-                <span class="text-xl shrink-0 mt-0.5">{i.icon}</span>
+            <a
+              href={i.href}
+              data-inbox-item
+              data-kind={i.kind}
+              data-notif-id={i.kind === 'notification' ? i.id : undefined}
+              data-unread={i.unread ? '1' : undefined}
+              class:list={[
+                'group relative block rounded-2xl px-4 py-3 border transition-colors',
+                i.important
+                  ? (i.unread ? 'bg-amber-50 border-amber-400 hover:border-amber-500' : 'bg-amber-50/40 border-amber-200 hover:border-amber-300')
+                  : (i.unread ? 'bg-white border-terracotta-500/30 hover:border-terracotta-500/50' : 'bg-white border-sage-500/10 hover:border-sage-500/30'),
+              ]}
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="text-xl shrink-0">{i.icon}</span>
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-baseline gap-2 flex-wrap">
+                  <div class="flex items-baseline gap-2 min-w-0">
                     {i.badge && (
                       <span class:list={[
-                        'text-[10px] font-bold uppercase tracking-widest',
+                        'text-[10px] font-bold uppercase tracking-widest truncate shrink min-w-0',
                         i.important ? 'text-amber-700' : 'text-charcoal/45',
                       ]}>{i.badge}</span>
                     )}
-                    <span class="text-[10px] text-charcoal/40 ml-auto">{timeAgo(i.when)}</span>
+                    <span class="text-[10px] text-charcoal/40 ml-auto shrink-0">{timeAgo(i.when)}</span>
                   </div>
-                  <p class:list={['mt-0.5', i.unread ? 'font-semibold' : 'font-medium']}>{i.title}</p>
+                  <p class:list={['truncate', i.unread ? 'font-semibold' : 'font-medium']}>{i.title}</p>
                   {i.preview && (
-                    <p class:list={['text-sm truncate mt-1', i.unread ? 'text-charcoal/75' : 'text-charcoal/55']}>{i.preview}</p>
+                    <p class:list={['text-sm truncate', i.unread ? 'text-charcoal/75' : 'text-charcoal/55']}>{i.preview}</p>
                   )}
                 </div>
-                {i.unread && <span class="w-2 h-2 rounded-full bg-terracotta-500 shrink-0 mt-2"></span>}
+                <span data-unread-dot class:list={['w-2 h-2 rounded-full bg-terracotta-500 shrink-0', !i.unread && 'invisible']}></span>
               </div>
             </a>
           </li>
@@ -230,4 +239,27 @@ function timeAgo(dateStr: string): string {
       </ul>
     )}
   </MarketplaceShell>
+
+  <script>
+    function initInboxRead() {
+      document.querySelectorAll<HTMLAnchorElement>('[data-inbox-item][data-unread]').forEach((el) => {
+        if ((el as any)._stBound) return;
+        (el as any)._stBound = true;
+        el.addEventListener('click', () => {
+          // Optimistically clear the unread chrome so navigating back shows it as read.
+          el.removeAttribute('data-unread');
+          el.querySelector<HTMLElement>('[data-unread-dot]')?.classList.add('invisible');
+          const id = el.dataset.notifId;
+          if (id) {
+            // Beacon-style fire-and-forget so it doesn't block navigation.
+            const fd = new FormData();
+            fd.set('id', id);
+            (navigator.sendBeacon?.('/api/notifications/read', fd))
+              || fetch('/api/notifications/read', { method: 'POST', body: fd, credentials: 'same-origin', keepalive: true });
+          }
+        });
+      });
+    }
+    document.addEventListener('astro:page-load', initInboxRead);
+  </script>
 </Layout>

@@ -43,6 +43,21 @@ export async function updatePreferences(
   return ok(undefined as void);
 }
 
+/** Mark a single notification as read. Idempotent. */
+export async function markRead(
+  ctx: ServiceContext,
+  input: { id: string },
+): Promise<ServiceResult<void>> {
+  if (!input.id) return fail('bad_input', 'id required');
+  await ctx.supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', input.id)
+    .eq('user_id', ctx.user.id)
+    .is('read_at', null);
+  return ok(undefined as void);
+}
+
 export async function markAllRead(
   ctx: ServiceContext,
   input: { referer?: string },

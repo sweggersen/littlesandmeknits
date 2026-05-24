@@ -380,21 +380,33 @@ const externalLinks = [
       });
     }
 
-    // Dev menu — localhost-only convenience.
+    // Dev menu — localhost-only convenience. Nav is transition:persist'd
+    // so we MUST guard against re-binding on every page-load.
     const isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     if (isLocal) {
       document.querySelectorAll('[data-dev-menu]').forEach((el) => el.classList.remove('hidden'));
       document.querySelectorAll<HTMLButtonElement>('[data-dev-menu-trigger]').forEach((btn) => {
+        if ((btn as any)._stBound) return;
+        (btn as any)._stBound = true;
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const dd = btn.parentElement?.querySelector('[data-dev-menu-dropdown]');
           dd?.classList.toggle('hidden');
         });
       });
-      document.addEventListener('click', () => {
-        document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
-      });
+      // Close dev dropdowns on outside click — bind once at the window level.
+      if (!(window as any)._stDevOutsideBound) {
+        (window as any)._stDevOutsideBound = true;
+        document.addEventListener('click', (e) => {
+          const target = e.target as Element | null;
+          // Don't close if the click was inside the dev dropdown (let nav happen).
+          if (target?.closest('[data-dev-menu]')) return;
+          document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
+        });
+      }
     }
+    // Always force-close dev dropdown on a fresh navigation.
+    document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
 
     // Profile dropdown (also persisted — guard against re-binding)
     const profileTrigger = document.querySelector<HTMLButtonElement>('[data-profile-menu-trigger]');
