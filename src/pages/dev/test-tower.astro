@@ -24,14 +24,17 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       <!-- Sticky control bar -->
       <div class="bg-white border-b border-sage-500/10 sticky top-[64px] z-20">
         <div class="max-w-[1400px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
-          <div class="flex items-center gap-6">
-            <div>
+          <div class="flex items-center gap-4 min-w-0">
+            <div class="shrink-0">
               <p class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5">Dev Tool</p>
               <h1 class="font-mono text-base font-bold leading-tight">Test Control Tower</h1>
             </div>
-            <div id="scenario-tabs" class="flex gap-1"></div>
+            <div class="flex items-center gap-2 min-w-0 flex-1">
+              <label for="scenario-select" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 shrink-0">Scenario</label>
+              <select id="scenario-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] max-w-full focus:outline-none focus:border-sage-500"></select>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 shrink-0">
             <button id="btn-cleanup" class="px-3 py-1.5 text-xs font-medium text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-lg hover:bg-red-50 transition-colors">Slett testdata</button>
             <button id="btn-reset" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">Reset</button>
             <button id="btn-step" class="px-3 py-1.5 text-xs font-medium text-charcoal bg-sage-100 hover:bg-sage-200 rounded-lg transition-colors">Step &#9654;</button>
@@ -1207,14 +1210,15 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     // ═══════════════════════════════════════════════
 
     function renderTabs() {
-      const el = document.getElementById('scenario-tabs');
+      const el = document.getElementById('scenario-select');
+      if (!el) return;
       el.innerHTML = Object.entries(SCENARIOS).map(([key, s]) =>
-        `<button data-scenario="${key}" class="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-          key === activeScenario
-            ? 'bg-charcoal text-linen'
-            : 'text-charcoal/60 hover:bg-sage-100/50'
-        }">${s.title}</button>`
+        `<option value="${key}" ${key === activeScenario ? 'selected' : ''}>${s.title}</option>`
       ).join('');
+      if (!el._stBound) {
+        el._stBound = true;
+        el.addEventListener('change', (e) => switchScenario(e.target.value));
+      }
     }
 
     function renderSteps() {
