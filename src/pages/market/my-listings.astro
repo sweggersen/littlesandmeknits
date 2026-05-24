@@ -18,12 +18,13 @@ const [{ data: listings }, { data: conversations }, { data: knitterOffers }] = a
     .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier, buyer_name, buyer_city')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false }),
+  // Conversations with at least one *unread* message (from the other party).
   supabase
     .from('marketplace_conversations')
-    .select('id, updated_at, listing_id')
+    .select('id, marketplace_messages!inner(id, sender_id, read_at)')
     .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-    .order('updated_at', { ascending: false })
-    .limit(5),
+    .neq('marketplace_messages.sender_id', user.id)
+    .is('marketplace_messages.read_at', null),
   supabase
     .from('commission_offers')
     .select('id, price_nok, request_id, status, commission_requests!commission_offers_request_id_fkey(id, title, status, category, delivered_at)')
@@ -35,7 +36,8 @@ const drafts = (listings ?? []).filter((l) => l.status === 'draft');
 const pending = (listings ?? []).filter((l) => ['reserved', 'shipped', 'disputed'].includes(l.status));
 const live = (listings ?? []).filter((l) => l.status === 'active');
 const sold = (listings ?? []).filter((l) => l.status === 'sold');
-const unreadConvos = (conversations ?? []).length;
+// Dedupe by conversation id — the join returns one row per unread message.
+const unreadConvos = new Set((conversations ?? []).map((c: any) => c.id)).size;
 
 // Commissions the user is knitting (or has knit). Filter out commissions
 // where the request itself is in a non-active state, then split into
@@ -78,8 +80,8 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
           >
             <div class="flex items-center justify-between gap-4">
               <div>
-                <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Meldinger</p>
-                <p class="text-sm text-charcoal/70">Du har {unreadConvos} {unreadConvos === 1 ? 'samtale' : 'samtaler'}</p>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Uleste meldinger</p>
+                <p class="text-sm text-charcoal/70">{unreadConvos} {unreadConvos === 1 ? 'samtale' : 'samtaler'} venter på svar</p>
               </div>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/40">
                 <path d="m9 18 6-6-6-6" />
