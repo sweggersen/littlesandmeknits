@@ -23,8 +23,7 @@ const LEGACY_SEGMENTS: Record<string, string> = {
   varsler: 'notifications',
   personvern: 'privacy',
   vilkar: 'terms',
-  om: 'about',
-  // NOTE: the patterns + projects pages still live under their Norwegian
+  // NOTE: the patterns + projects + about pages still live under their Norwegian
   // route dirs (src/pages/oppskrifter, src/pages/prosjekter). We map the
   // English-named paths back to Norwegian below so internal /patterns and
   // /projects links work.
@@ -95,6 +94,9 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
   if (path === '/projects' || path.startsWith('/projects/')) {
     return ctx.redirect(path.replace(/^\/projects/, '/prosjekter') + ctx.url.search, 308);
+  }
+  if (path === '/about') {
+    return ctx.redirect('/om' + ctx.url.search, 308);
   }
 
   // Move the marketplace off of littlesandmeknits.com onto its own domain.
