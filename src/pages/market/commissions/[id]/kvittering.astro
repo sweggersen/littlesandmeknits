@@ -14,11 +14,12 @@ if (!user) return Astro.redirect(`/login?next=/market/commissions/${id}/kvitteri
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-const { data: req } = await admin
+const { data: req, error: reqErr } = await admin
   .from('commission_requests')
-  .select('id, buyer_id, awarded_offer_id, title, category, size_label, status, platform_fee_nok, delivered_at, completed_at, awarded_at, created_at')
+  .select('id, buyer_id, awarded_offer_id, title, category, size_label, status, platform_fee_nok, delivered_at, completed_at, created_at')
   .eq('id', id)
   .maybeSingle();
+if (reqErr) console.error('kvittering: commission_requests select failed', reqErr);
 if (!req) return Astro.redirect('/market/commissions');
 
 // Knitter info via the awarded offer.
@@ -40,7 +41,7 @@ const isKnitter = knitterId === user.id;
 if (!isBuyer && !isKnitter && !isStaff) return Astro.redirect(`/market/commissions/${id}`);
 
 // Receipts only exist once the commission has been awarded.
-if (!req.awarded_at && !req.awarded_offer_id) {
+if (!req.awarded_offer_id) {
   return new Response('Kvittering finnes ikke — oppdraget er ikke tildelt', { status: 404 });
 }
 
@@ -54,7 +55,7 @@ const [{ data: buyer }, { data: knitter }] = await Promise.all([
 const gross = price;
 const fee = req.platform_fee_nok ?? 0;
 const net = gross - fee;
-const dato = req.delivered_at ?? req.completed_at ?? req.awarded_at ?? req.created_at;
+const dato = req.delivered_at ?? req.completed_at ?? req.created_at;
 const dateLabel = new Date(dato).toLocaleDateString('nb-NO', { year: 'numeric', month: 'long', day: 'numeric' });
 const receiptNo = `K-${req.id.slice(0, 8).toUpperCase()}-${(dato).slice(0, 10).replace(/-/g, '')}`;
 
