@@ -163,17 +163,29 @@ filtered.sort((a, b) => b.when.localeCompare(a.when));
 
 const totalUnread = items.filter(i => i.unread).length;
 
+// Today → relative ("12 min" / "5 t") or "13:42" once it gets old enough.
+// Older than today → clock time + short date ("13:42, 23. mai").
 function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'nå';
-  if (mins < 60) return `${mins} min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} t`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} d`;
-  return new Date(dateStr).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+  const then = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - then.getTime();
+  const mins = Math.floor(diffMs / 60_000);
+  const sameDay = then.getFullYear() === now.getFullYear()
+    && then.getMonth() === now.getMonth()
+    && then.getDate() === now.getDate();
+
+  if (sameDay) {
+    if (mins < 1) return 'nå';
+    if (mins < 60) return `${mins} min`;
+    const hours = Math.floor(mins / 60);
+    return `${hours} t`;
+  }
+
+  const time = then.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
+  const date = then.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' });
+  return `${time}, ${date}`;
 }
+
 ---
 
 <Layout title="Innboks">
@@ -217,21 +229,21 @@ function timeAgo(dateStr: string): string {
               <div class="flex items-center gap-3 min-w-0">
                 <span class="text-xl shrink-0">{i.icon}</span>
                 <div class="min-w-0 flex-1">
-                  <div class="flex items-baseline gap-2 min-w-0">
-                    {i.badge && (
-                      <span class:list={[
-                        'text-[10px] font-bold uppercase tracking-widest truncate shrink min-w-0',
-                        i.important ? 'text-amber-700' : 'text-charcoal/45',
-                      ]}>{i.badge}</span>
-                    )}
-                    <span class="text-[10px] text-charcoal/40 ml-auto shrink-0">{timeAgo(i.when)}</span>
-                  </div>
+                  {i.badge && (
+                    <p class:list={[
+                      'text-[10px] font-bold uppercase tracking-widest truncate',
+                      i.important ? 'text-amber-700' : 'text-charcoal/45',
+                    ]}>{i.badge}</p>
+                  )}
                   <p class:list={['truncate', i.unread ? 'font-semibold' : 'font-medium']}>{i.title}</p>
                   {i.preview && (
                     <p class:list={['text-sm truncate', i.unread ? 'text-charcoal/75' : 'text-charcoal/55']}>{i.preview}</p>
                   )}
                 </div>
-                <span data-unread-dot class:list={['w-2 h-2 rounded-full bg-terracotta-500 shrink-0', !i.unread && 'invisible']}></span>
+                <div class="flex flex-col items-end gap-1 shrink-0 self-center">
+                  <span class="text-[10px] text-charcoal/40 whitespace-nowrap">{timeAgo(i.when)}</span>
+                  <span data-unread-dot class:list={['w-2 h-2 rounded-full bg-terracotta-500', !i.unread && 'invisible']}></span>
+                </div>
               </div>
             </a>
           </li>
