@@ -56,7 +56,7 @@ import Layout from '../layouts/Layout.astro';
       <h3 class="font-serif text-lg mt-6 mb-2">3.2 Kjøpers ansvar</h3>
       <ul class="list-disc pl-5 space-y-1">
         <li>Betale innen tidsfristen oppgitt ved kjøp.</li>
-        <li>Bekrefte mottak innen 14 dager — ellers utløses automatisk
+        <li>Bekrefte mottak innen 14 dager etter sending — ellers utløses automatisk
           frigjøring av betaling til selger.</li>
         <li>Melde fra om problemer (uoverensstemmelse, manglende levering,
           skadet vare) før automatisk frigjøring.</li>
@@ -103,8 +103,8 @@ import Layout from '../layouts/Layout.astro';
       <p>Betalinger håndteres av Stripe Payments Europe Ltd. Når trygg
         betaling er aktivert holder vi pengene på sperret konto inntil:</p>
       <ul class="list-disc pl-5 space-y-1">
-        <li>Kjøper bekrefter mottak, ELLER</li>
-        <li>14 dager har gått uten klage etter levering, ELLER</li>
+        <li>Kjøper bekrefter mottak (frigjøres umiddelbart), ELLER</li>
+        <li>14 dager har gått siden selger markerte varen som sendt, ELLER</li>
         <li>En tvist er løst.</li>
       </ul>
       <p>Utbetaling skjer til selgers Stripe-konto, normalt innen 2 virkedager
