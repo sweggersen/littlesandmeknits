@@ -295,22 +295,30 @@ function isPdf(path: string | null): boolean {
             </div>
           ) : (
             <div class="space-y-2">
-              {allRequests.slice(0, 3).map((r) => (
-                <a href={`/market/commissions/${r.id}`} class="flex items-center justify-between gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5 mb-0.5">
-                      <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500/70">Bestiller</span>
-                      <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
-                      <span class:list={[
-                        'text-[9px] font-bold uppercase tracking-widest',
-                        r.status === 'open' ? 'text-sage-700' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
-                      ]}>{COMMISSION_STATUS[r.status]}</span>
-                    </div>
-                    <p class="text-sm font-medium line-clamp-1">{r.title}</p>
+              {allRequests.slice(0, 3).map((r) => {
+                const hasReceipt = ['awarded', 'completed', 'delivered'].includes(r.status);
+                return (
+                  <div class="bg-white rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                    <a href={`/market/commissions/${r.id}`} class="flex items-center justify-between gap-3 p-3">
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-1.5 mb-0.5">
+                          <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500/70">Bestiller</span>
+                          <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{CATEGORY_LABEL[r.category]}</span>
+                          <span class:list={[
+                            'text-[9px] font-bold uppercase tracking-widest',
+                            r.status === 'open' ? 'text-sage-700' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                          ]}>{COMMISSION_STATUS[r.status]}</span>
+                        </div>
+                        <p class="text-sm font-medium line-clamp-1">{r.title}</p>
+                      </div>
+                      <p class="font-mono tabular-nums text-xs shrink-0">{r.budget_nok_min}–{r.budget_nok_max}</p>
+                    </a>
+                    {hasReceipt && (
+                      <a href={`/market/commissions/${r.id}/kvittering`} class="block px-3 py-1.5 text-[11px] text-charcoal/55 hover:text-terracotta-500 border-t border-sage-500/10">📄 Se kvittering</a>
+                    )}
                   </div>
-                  <p class="font-mono tabular-nums text-xs shrink-0">{r.budget_nok_min}–{r.budget_nok_max}</p>
-                </a>
-              ))}
+                );
+              })}
               {allOffers.slice(0, 3).map((o) => {
                 const reqData = (o as any).commission_requests;
                 if (!reqData) return null;
@@ -526,8 +534,11 @@ function isPdf(path: string | null): boolean {
       <div class="mt-8 pt-6 border-t border-sage-500/10 flex flex-wrap gap-4">
         <a href="/profile/edit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger profil →</a>
         <a href={`/market/seller/${user.id}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Offentlig profil →</a>
+        <a href="/market/my-purchases" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine kjøp og kvitteringer →</a>
+        <a href="/market/my-listings" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine annonser →</a>
         <a href="/market/favorites" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine favoritter →</a>
         <a href="/profile/badges" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Merker ({totalEarned}/{visibleAchievements.length}) →</a>
+        <a href="/profile/data" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Personvern og data →</a>
         <a href="/innstillinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Innstillinger →</a>
         <form method="post" action="/api/auth/signout" data-signout-form class="inline">
           <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Logg ut →</button>
