@@ -24,6 +24,7 @@ export async function createListing(
     sizeAgeMonthsMin?: string; sizeAgeMonthsMax?: string;
     location?: string; shippingInfo?: string;
     storeId?: string;
+    shippingOption?: string; escrowEnabled?: string;
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!VALID_KIND.has(input.kind)) return fail('bad_input', 'Invalid kind');
@@ -64,14 +65,23 @@ export async function createListing(
     storeId = input.storeId;
   }
 
-  // Store-owned listings get trygg betaling free (included with subscription).
-  const escrowEnabled = !!storeId;
+  // Trygg betaling is now free. Default ON for stores (their subscription
+  // covers it) and ON for personal sellers when they explicitly tick the
+  // box on step 2 of the wizard.
+  const escrowEnabled = !!storeId || input.escrowEnabled === 'true';
+
+  // Shipping option locked at listing time. Falls back to 'free' for
+  // anything weird so the schema CHECK constraint is satisfied.
+  const { SHIPPING_TIERS } = await import('../shipping');
+  const tier = SHIPPING_TIERS.find(t => t.id === input.shippingOption) ?? SHIPPING_TIERS[0];
 
   const { data, error } = await ctx.supabase
     .from('listings')
     .insert({
       seller_id: ctx.user.id, store_id: storeId,
       escrow_enabled: escrowEnabled,
+      shipping_option: tier.id,
+      shipping_price_nok: tier.priceNok,
       kind: input.kind, title, description: input.description?.trim() || null,
       price_nok: priceNok, size_label: sizeLabel,
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
@@ -157,48 +167,28 @@ export async function publishListing(
   return ok({ redirect: `/market/listing/${input.listingId}?published=1` });
 }
 
-/** Pay the 29 NOK fee to enable trygg betaling on a listing. Personal
- *  sellers only — store-owned listings get this free via subscription. */
-const ESCROW_UPGRADE_FEE_NOK = 29;
-
-export async function upgradeListingEscrow(
+/** Toggle Trygg betaling on/off for a listing.
+ *  Now free for the seller — the buyer pays a small TB fee at checkout. */
+export async function toggleListingEscrow(
   ctx: ServiceContext,
-  input: { listingId: string; stripeSecretKey: string },
+  input: { listingId: string; enabled: boolean },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.listingId) return fail('bad_input', 'Missing id');
-  if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
 
   const { data: listing } = await ctx.admin
     .from('listings')
-    .select('id, seller_id, store_id, title, status, escrow_enabled')
+    .select('id, seller_id, status')
     .eq('id', input.listingId)
     .maybeSingle();
 
   if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
-  if (listing.escrow_enabled) return fail('conflict', 'Trygg betaling er allerede aktivert');
-  if (listing.store_id) return fail('conflict', 'Butikk-annonser har trygg betaling inkludert');
 
-  const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
-  const stripe = createStripe(input.stripeSecretKey);
-  const session = await stripe.checkout.sessions.create({
-    mode: 'payment',
-    line_items: [{
-      price_data: {
-        currency: 'nok', unit_amount: ESCROW_UPGRADE_FEE_NOK * 100,
-        product_data: { name: `Trygg betaling: ${listing.title}` },
-      },
-      quantity: 1,
-    }],
-    success_url: `${siteUrl}/market/listing/${input.listingId}?escrow=on`,
-    cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
-    customer_email: ctx.user.email ?? undefined,
-    client_reference_id: ctx.user.id,
-    metadata: { type: 'escrow_upgrade', listing_id: input.listingId, user_id: ctx.user.id },
-    locale: 'nb',
-  });
+  await ctx.admin
+    .from('listings')
+    .update({ escrow_enabled: !!input.enabled })
+    .eq('id', input.listingId);
 
-  if (!session.url) return fail('server_error', 'Checkout URL missing');
-  return ok({ redirect: session.url });
+  return ok({ redirect: `/market/listing/${input.listingId}?tb=${input.enabled ? 'on' : 'off'}` });
 }
 
 async function syncHero(supabase: SupabaseClient, listingId: string) {
@@ -292,7 +282,7 @@ export async function purchaseListing(
 
   const { data: listing } = await ctx.supabase
     .from('listings')
-    .select('id, seller_id, store_id, title, price_nok, status, hero_photo_path, escrow_enabled')
+    .select('id, seller_id, store_id, title, price_nok, status, hero_photo_path, escrow_enabled, shipping_option, shipping_price_nok')
     .eq('id', input.listingId)
     .maybeSingle();
 
@@ -300,6 +290,13 @@ export async function purchaseListing(
   if (listing.status !== 'active') return fail('conflict', 'Listing not available');
   if (listing.seller_id === ctx.user.id) return fail('bad_input', 'Cannot buy own listing');
   if (!listing.escrow_enabled) return fail('conflict', 'Selger har ikke aktivert trygg betaling på denne annonsen — kontakt selger direkte');
+
+  const { tbFeeForPrice, shippingTier } = await import('../shipping');
+  const tbFee = tbFeeForPrice(listing.price_nok);
+  // shipping_price_nok was locked at listing time; fall back to the tier
+  // default if missing (legacy rows).
+  const tierFallback = shippingTier(listing.shipping_option as any);
+  const shippingNok = listing.shipping_price_nok ?? tierFallback?.priceNok ?? 0;
 
   // For store-owned listings, payment routes to the store's Stripe account
   // (NOT the individual member's). The store is the seller of record.
@@ -333,25 +330,35 @@ export async function purchaseListing(
   if (!onboarded || !payoutAccountId) {
     return fail('conflict', 'Seller has not set up payments');
   }
-  const amountOre = listing.price_nok * 100;
-  const platformFee = Math.round(amountOre * feePercent / 100);
+  const itemOre = listing.price_nok * 100;
+  const shippingOre = shippingNok * 100;
+  const tbFeeOre = tbFee * 100;
+  // Commission applies to the item only, not shipping or TB fee.
+  const platformFeeFromItem = Math.round(itemOre * feePercent / 100);
+  // TB fee goes 100% to the platform.
+  const applicationFeeOre = platformFeeFromItem + tbFeeOre;
+  // Shipping is paid by the buyer and passed through to the seller untouched.
+
+  const lineItems = [
+    { price_data: { currency: 'nok', unit_amount: itemOre, product_data: { name: listing.title } }, quantity: 1 },
+  ];
+  if (shippingOre > 0) {
+    lineItems.push({ price_data: { currency: 'nok', unit_amount: shippingOre, product_data: { name: `Frakt (${tierFallback?.label ?? 'sending'})` } }, quantity: 1 });
+  }
+  if (tbFeeOre > 0) {
+    lineItems.push({ price_data: { currency: 'nok', unit_amount: tbFeeOre, product_data: { name: 'Trygg betaling' } }, quantity: 1 });
+  }
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(input.stripeSecretKey);
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
-    line_items: [{
-      price_data: {
-        currency: 'nok', unit_amount: amountOre,
-        product_data: { name: listing.title },
-      },
-      quantity: 1,
-    }],
+    line_items: lineItems,
     shipping_address_collection: { allowed_countries: ['NO'] },
     payment_intent_data: {
       capture_method: 'manual',
-      application_fee_amount: platformFee,
+      application_fee_amount: applicationFeeOre,
       transfer_data: { destination: payoutAccountId },
     },
     success_url: `${siteUrl}/market/listing/${input.listingId}?purchased=1`,
@@ -363,6 +370,8 @@ export async function purchaseListing(
       listing_id: input.listingId,
       buyer_id: ctx.user.id,
       seller_id: listing.seller_id,
+      tb_fee_nok: String(tbFee),
+      shipping_nok: String(shippingNok),
       store_id: listing.store_id ?? '',
     },
     locale: 'nb',
