@@ -20,13 +20,21 @@ interface Props {
 
 export default function LoginForm({ redirectTo, strings }: Props) {
   const [email, setEmail] = useState('');
+  const [ageOk, setAgeOk] = useState(false);
+  const [termsOk, setTermsOk] = useState(false);
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>(
     'idle'
   );
   const [error, setError] = useState<string | null>(null);
 
+  const consentReady = ageOk && termsOk;
+
   async function handleMagicLink(e: FormEvent) {
     e.preventDefault();
+    if (!consentReady) {
+      setError('Du må bekrefte aldersgrensen og godta vilkårene.');
+      return;
+    }
     setStatus('sending');
     setError(null);
     try {
@@ -35,6 +43,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          data: { age_confirmed_at: new Date().toISOString(), tos_accepted_at: new Date().toISOString() },
         },
       });
       if (authError) throw authError;
@@ -46,6 +55,10 @@ export default function LoginForm({ redirectTo, strings }: Props) {
   }
 
   async function handleGoogle() {
+    if (!consentReady) {
+      setError('Du må bekrefte aldersgrensen og godta vilkårene.');
+      return;
+    }
     setError(null);
     try {
       const supabase = createBrowserSupabase();
@@ -53,6 +66,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`,
+          queryParams: { prompt: 'consent' },
         },
       });
       if (authError) throw authError;
@@ -91,9 +105,36 @@ export default function LoginForm({ redirectTo, strings }: Props) {
             className="w-full bg-white rounded-2xl px-5 py-3 text-base placeholder:text-charcoal/40 border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50"
           />
         </label>
+        <div className="space-y-2 text-xs text-charcoal/70">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={ageOk}
+              onChange={(e) => setAgeOk(e.target.checked)}
+              className="mt-0.5 shrink-0"
+            />
+            <span>
+              Jeg bekrefter at jeg er minst <strong>13 år</strong> (for Strikkestua),
+              eller minst <strong>18 år</strong> hvis jeg skal kjøpe eller selge på Strikketorget.
+            </span>
+          </label>
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={termsOk}
+              onChange={(e) => setTermsOk(e.target.checked)}
+              className="mt-0.5 shrink-0"
+            />
+            <span>
+              Jeg godtar <a href="/terms" className="text-terracotta-500 hover:underline">brukervilkårene</a>
+              {' og '}
+              <a href="/privacy" className="text-terracotta-500 hover:underline">personvernerklæringen</a>.
+            </span>
+          </label>
+        </div>
         <button
           type="submit"
-          disabled={status === 'sending' || !email}
+          disabled={status === 'sending' || !email || !consentReady}
           className="w-full bg-charcoal text-linen py-3 rounded-2xl font-medium hover:bg-terracotta-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {status === 'sending' ? strings.loading : strings.magicLinkCta}
@@ -109,7 +150,8 @@ export default function LoginForm({ redirectTo, strings }: Props) {
       <button
         type="button"
         onClick={handleGoogle}
-        className="w-full flex items-center justify-center gap-3 bg-white border border-sage-500/20 py-3 rounded-2xl font-medium text-charcoal hover:border-charcoal/40 transition-colors"
+        disabled={!consentReady}
+        className="w-full flex items-center justify-center gap-3 bg-white border border-sage-500/20 py-3 rounded-2xl font-medium text-charcoal hover:border-charcoal/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" />

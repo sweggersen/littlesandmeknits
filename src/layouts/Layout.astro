@@ -5,6 +5,7 @@ import Navbar from '../components/Navbar.astro';
 import StrikketorgetNav from '../components/StrikketorgetNav.astro';
 import Footer from '../components/Footer.astro';
 import StrikketorgetFooter from '../components/StrikketorgetFooter.astro';
+import CookieBanner from '../components/CookieBanner.astro';
 import { getLangFromUrl, type Lang } from '../lib/i18n';
 
 const isStrikketorget = Astro.locals.isStrikketorget ?? false;
@@ -119,6 +120,7 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
       <slot />
     </main>
     {!isEmbed && (isMarket ? <StrikketorgetFooter /> : <Footer lang={lang} />)}
+    {!isEmbed && <CookieBanner />}
 
     <a
       data-pwa-preview-exit

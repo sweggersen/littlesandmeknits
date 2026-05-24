@@ -3,65 +3,167 @@ export const prerender = true;
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Personvernerklæring — Littles and Me" lang="nb">
+<Layout title="Personvernerklæring — Littles and Me Knits" lang="nb">
   <div class="max-w-3xl mx-auto px-6 py-14">
-    <h1 class="font-serif text-4xl mb-8">Personvernerklæring</h1>
+    <h1 class="font-serif text-4xl mb-2">Personvernerklæring</h1>
+    <p class="text-charcoal/55 text-sm mb-10">Sist oppdatert 24. mai 2026</p>
+
     <div class="prose prose-sm text-charcoal/80 space-y-6">
-      <p>Sist oppdatert: 14. mai 2026</p>
 
-      <h2 class="font-serif text-xl mt-8 mb-2">Hvem vi er</h2>
-      <p>Littles and Me Knits drives av Weggersen Design. Nettstedet er littlesandmeknits.com, inkludert tjenestene Strikketorget og Strikkestua.</p>
+      <p>Denne erklæringen forklarer hvilke personopplysninger Littles and Me
+        Knits behandler om deg når du bruker nettstedet
+        <strong>littlesandmeknits.com</strong>, markedsplassen
+        <strong>strikketorget.no</strong> og det personlige studioet
+        <strong>Strikkestua</strong>. Vi følger personvernforordningen
+        (GDPR) og personopplysningsloven.</p>
 
-      <h2 class="font-serif text-xl mt-8 mb-2">Hvilke data vi samler inn</h2>
+      <h2 class="font-serif text-xl mt-10 mb-2">1. Behandlingsansvarlig</h2>
+      <p>Behandlingsansvarlig er <strong>Weggersen Design</strong>
+        (Littles and Me Knits), org.nr. <em>under registrering</em>,
+        med kontakt-e-post <a href="mailto:hei@littlesandmeknits.com"
+        class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a>.</p>
+      <p>For personvernspørsmål kan du nå oss på samme e-postadresse.</p>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">2. Hvilke opplysninger vi behandler</h2>
       <ul class="list-disc pl-5 space-y-1">
-        <li>Kontoinformasjon: e-postadresse og visningsnavn ved registrering</li>
-        <li>Profildata: profilbilde, sted og biografi du legger inn frivillig</li>
-        <li>Innhold: annonser, prosjekter, bilder, meldinger og vurderinger du oppretter</li>
-        <li>Betalingsdata: håndteres av Stripe — vi lagrer ikke kortnummer</li>
-        <li>Bruksdata: sidevisninger og handlinger for å forbedre tjenesten</li>
+        <li><strong>Kontoopplysninger</strong>: e-postadresse, visningsnavn,
+          eventuelt profilbilde, sted og en valgfri biografi.</li>
+        <li><strong>Innhold du publiserer</strong>: annonser, prosjekter,
+          bilder, meldinger, vurderinger og kommentarer.</li>
+        <li><strong>Transaksjonsdata</strong>: kjøp og salg, leveringsadresse,
+          ordrenummer og status. Kortinformasjon lagres ikke hos oss — den
+          håndteres direkte av Stripe.</li>
+        <li><strong>Butikkregistrering (Tier-2 verifisering)</strong>:
+          organisasjonsnummer, juridisk navn, adresse og styrets / daglig
+          leders navn hentet fra Brønnøysundregistrene. Brukes til å
+          bekrefte at du har rett til å representere virksomheten.</li>
+        <li><strong>Bruksdata</strong>: hvilke sider du besøker, hvilke
+          annonser du favoriserer, og enkle hendelser for å forbedre
+          tjenesten. Vi sporer ikke deg på tvers av andre nettsteder.</li>
+        <li><strong>Kommunikasjon</strong>: meldinger sendt via plattformen,
+          inkludert tråder med moderator.</li>
       </ul>
 
-      <h2 class="font-serif text-xl mt-8 mb-2">Hvordan vi bruker dataene</h2>
+      <h2 class="font-serif text-xl mt-10 mb-2">3. Formål og rettslig grunnlag</h2>
+      <table class="text-sm w-full">
+        <thead>
+          <tr class="border-b border-sage-500/15 text-left">
+            <th class="py-2 pr-4">Formål</th>
+            <th class="py-2">Rettslig grunnlag</th>
+          </tr>
+        </thead>
+        <tbody class="text-charcoal/70">
+          <tr class="border-b border-sage-500/10">
+            <td class="py-2 pr-4">Levere tjenestene (konto, annonser, kjøp)</td>
+            <td class="py-2">Avtale (GDPR art. 6 (1) b)</td>
+          </tr>
+          <tr class="border-b border-sage-500/10">
+            <td class="py-2 pr-4">Behandle betaling og utbetaling</td>
+            <td class="py-2">Avtale + lovkrav (bokføring)</td>
+          </tr>
+          <tr class="border-b border-sage-500/10">
+            <td class="py-2 pr-4">Modererings- og svindelbeskyttelse</td>
+            <td class="py-2">Berettiget interesse (art. 6 (1) f)</td>
+          </tr>
+          <tr class="border-b border-sage-500/10">
+            <td class="py-2 pr-4">Forbedre tjenesten (aggregert statistikk)</td>
+            <td class="py-2">Berettiget interesse</td>
+          </tr>
+          <tr class="border-b border-sage-500/10">
+            <td class="py-2 pr-4">Markedsføring per e-post (nyhetsbrev)</td>
+            <td class="py-2">Samtykke (art. 6 (1) a)</td>
+          </tr>
+          <tr>
+            <td class="py-2 pr-4">Oppfylle bokførings- og skatteplikt</td>
+            <td class="py-2">Rettslig forpliktelse (art. 6 (1) c)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">4. Hvem vi deler med (databehandlere)</h2>
+      <p>Vi bruker følgende databehandlere. Alle har inngått databehandleravtale
+        med oss og behandler kun data etter våre instrukser.</p>
       <ul class="list-disc pl-5 space-y-1">
-        <li>Drifte og forbedre tjenestene</li>
-        <li>Behandle kjøp og utbetalinger</li>
-        <li>Sende varsler om meldinger, tilbud og bestillinger</li>
-        <li>Nyhetsbrev (kun hvis du melder deg på — du kan melde deg av når som helst)</li>
+        <li><strong>Supabase</strong> (EU/Irland) — autentisering, database
+          og bildelagring.</li>
+        <li><strong>Cloudflare</strong> (globalt) — hosting og CDN. Avtalen
+          inkluderer EU Standard Contractual Clauses.</li>
+        <li><strong>Stripe Payments Europe Ltd.</strong> (Irland) — betalinger,
+          escrow og utbetalinger.</li>
+        <li><strong>Resend</strong> (USA) — utsendelse av transaksjonelle
+          e-poster. Avtalen inkluderer SCC.</li>
+        <li><strong>Brønnøysundregistrene</strong> — offentlig oppslag i forbindelse
+          med butikkverifisering (ingen overføring av personopplysninger fra oss).</li>
+        <li><strong>Bring/Posten</strong> — frakt og sporing for fysiske varer.</li>
+      </ul>
+      <p>Vi selger aldri personopplysninger og deler dem ikke for markedsføring
+        av tredjeparts produkter.</p>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">5. Lagringstid</h2>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><strong>Aktive kontoer</strong>: så lenge kontoen er aktiv.</li>
+        <li><strong>Slettede kontoer</strong>: personlige opplysninger fjernes
+          umiddelbart. Transaksjonsdata oppbevares i 5 år av hensyn til
+          bokføringsloven.</li>
+        <li><strong>Meldinger og samtaler</strong>: så lenge begge partene har
+          aktive kontoer, eller maks 24 måneder etter siste aktivitet.</li>
+        <li><strong>Modereringssaker</strong>: 24 måneder etter avslutning,
+          for å håndtere gjentakende mønstre.</li>
+        <li><strong>E-postlogger fra Resend</strong>: 30 dager.</li>
       </ul>
 
-      <h2 class="font-serif text-xl mt-8 mb-2">Lagring og sikkerhet</h2>
-      <p>Data lagres hos Supabase (EU-region) og Cloudflare. Bilder lagres i Supabase Storage. All trafikk krypteres med HTTPS.</p>
-
-      <h2 class="font-serif text-xl mt-8 mb-2">Dine rettigheter</h2>
-      <p>Du har rett til innsyn, retting og sletting av dine personopplysninger. Kontakt oss på <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a> for å utøve disse rettighetene.</p>
-
-      <h2 class="font-serif text-xl mt-8 mb-2">Informasjonskapsler</h2>
-      <p>Vi bruker nødvendige informasjonskapsler for innlogging og sesjonshåndtering. Vi bruker ikke tredjeparts sporingskapsler.</p>
-
-      <h2 id="butikker" class="font-serif text-xl mt-8 mb-2">Butikkregistrering</h2>
-      <p>Når du registrerer en butikk på Strikketorget samler vi inn og deler følgende
-        informasjon med vårt moderatorteam for å bekrefte at du er autorisert til å
-        representere virksomheten:</p>
-      <ul class="list-disc pl-5 space-y-1 mt-2">
-        <li><strong>Organisasjonsdata</strong>: Navn, organisasjonsnummer, adresse,
-          stiftelsesdato og selskapsform fra Brønnøysundregistrene (offentlig informasjon).</li>
-        <li><strong>Registrerte representanter</strong>: Navn på personer med formelle
-          roller i virksomheten (styremedlemmer, daglig leder, signaturberettigede)
-          fra Brønnøysundregistrene.</li>
-        <li><strong>Din identitet</strong>: Ditt fulle navn (slik det er oppgitt i
-          profilen din) og e-postadresse til din konto.</li>
-        <li><strong>Kontaktinformasjon</strong>: Kontakt-e-post oppgitt i søknaden,
-          som kan brukes av moderatorer til å verifisere eierskap.</li>
+      <h2 class="font-serif text-xl mt-10 mb-2">6. Dine rettigheter</h2>
+      <p>Etter GDPR har du rett til:</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><strong>Innsyn</strong> — be om en kopi av opplysningene vi har om
+          deg. Du kan laste ned alt fra <a href="/profile/data"
+          class="text-terracotta-500 hover:underline">/profile/data</a>.</li>
+        <li><strong>Retting</strong> — be oss korrigere uriktige opplysninger.
+          Mange felt kan du rette selv via profilen.</li>
+        <li><strong>Sletting</strong> ("retten til å bli glemt") — slett kontoen
+          fra <a href="/profile/data" class="text-terracotta-500 hover:underline">/profile/data</a>.
+          Transaksjonsdata beholdes som beskrevet i punkt 5.</li>
+        <li><strong>Dataportabilitet</strong> — eksporter dine data som JSON
+          fra samme side.</li>
+        <li><strong>Begrensning og motsetning</strong> — be oss begrense eller
+          stoppe enkelte behandlinger.</li>
+        <li><strong>Trekke samtykke</strong> — meld deg av nyhetsbrev og varsler
+          når som helst.</li>
+        <li><strong>Klage til Datatilsynet</strong> —
+          <a href="https://www.datatilsynet.no" target="_blank" rel="noopener"
+          class="text-terracotta-500 hover:underline">datatilsynet.no</a>.</li>
       </ul>
-      <p class="mt-2">Moderatorer kan sammenligne navnet ditt mot listen over
-        registrerte representanter for å vurdere om søknaden er legitim. Ved
-        usikkerhet kan moderatorer kontakte deg på de oppgitte e-postadressene
-        for ytterligere bekreftelse.</p>
-      <p class="mt-2">Denne informasjonen er kun tilgjengelig for moderatorer og
-        administrasjon. Den deles aldri med tredjeparter eller andre brukere.</p>
 
-      <h2 class="font-serif text-xl mt-8 mb-2">Kontakt</h2>
-      <p>Spørsmål om personvern? Send e-post til <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a>.</p>
+      <h2 class="font-serif text-xl mt-10 mb-2">7. Aldersgrense</h2>
+      <p>Du må være minst 13 år for å opprette en konto, og minst 18 år for å
+        kjøpe eller selge på Strikketorget. Brukere mellom 13 og 18 år kan
+        bruke Strikkestua med foreldres samtykke. Kontakt oss hvis du er i tvil.</p>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">8. Informasjonskapsler</h2>
+      <p>Vi bruker kun strengt nødvendige informasjonskapsler:</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li><code>sb-*</code> (Supabase) — innlogging og sesjon.</li>
+        <li><code>st_session</code> — husker at du befinner deg i
+          Strikketorget-seksjonen, slik at headeren holder seg riktig.</li>
+        <li><code>lm-cookie-consent</code> — husker at du har lest dette banneret.</li>
+      </ul>
+      <p>Vi setter <strong>ingen</strong> sporings- eller reklamekapsler, og
+        vi deler ikke data med tredjeparter for analyseformål.</p>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">9. Sikkerhet</h2>
+      <p>All trafikk krypteres med HTTPS. Passord lagres aldri i klartekst.
+        Vi bruker rad-nivå tilgangskontroll (RLS) i databasen for å sikre at
+        kun riktig bruker ser sine egne data. Tilgangskontroll og logger
+        revideres jevnlig.</p>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">10. Endringer</h2>
+      <p>Vi kan oppdatere denne erklæringen. Vesentlige endringer varsles via
+        e-post og i appen minst 14 dager før de trer i kraft.</p>
+
+      <h2 class="font-serif text-xl mt-10 mb-2">11. Kontakt</h2>
+      <p>Spørsmål eller forespørsler om dine rettigheter sendes til
+        <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a>.
+        Vi besvarer henvendelser innen 30 dager.</p>
     </div>
   </div>
 </Layout>
