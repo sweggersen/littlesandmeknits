@@ -98,6 +98,22 @@ if (user && !isOwner) {
   } catch {}
 }
 
+// Refund request state (pulled separately because main select is large).
+const { data: refundRow } = await supabase
+  .from('listings')
+  .select('refund_requested_at, refund_reason, refund_description, refund_resolved_at, refund_outcome, refund_notes')
+  .eq('id', listing.id)
+  .maybeSingle();
+const refundOpen = !!(refundRow?.refund_requested_at && !refundRow?.refund_resolved_at);
+const refundReasonLabels: Record<string, string> = {
+  not_received: 'Ikke mottatt',
+  damaged: 'Skadet',
+  not_as_described: 'Ikke som beskrevet',
+  wrong_size: 'Feil størrelse',
+  changed_mind: 'Ombestemte meg',
+  other: 'Annet',
+};
+
 const justPublished = Astro.url.searchParams.get('published') === '1';
 const justPromoted = Astro.url.searchParams.get('promoted') === '1';
 const justPurchased = Astro.url.searchParams.get('purchased') === '1';
@@ -500,6 +516,71 @@ const autoReleaseDays = listing.auto_release_at
               {isBuyer && justPurchased && listing.status === 'reserved' && (
                 <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
                   Kjøpet er registrert! Pengene holdes trygt til du bekrefter mottak.
+                </div>
+              )}
+
+              {(isBuyer || isOwner) && listing.reserved_at && (
+                <a href={`/market/listing/${listing.id}/kvittering`} class="inline-block text-xs text-charcoal/55 hover:text-terracotta-500">📄 Se kvittering →</a>
+              )}
+
+              {/* Refund request — buyer side */}
+              {isBuyer && !refundOpen && ['reserved', 'shipped', 'sold'].includes(listing.status) && refundRow?.refund_outcome !== 'declined' && (
+                <details class="bg-white rounded-3xl p-5 border border-sage-500/10">
+                  <summary class="cursor-pointer text-sm font-medium text-charcoal/70 hover:text-charcoal">Be om refusjon</summary>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-request`} class="mt-3 space-y-3">
+                    <label class="block text-xs">
+                      <span class="text-charcoal/55">Grunn</span>
+                      <select name="reason" required class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15">
+                        <option value="">Velg…</option>
+                        <option value="not_received">Ikke mottatt</option>
+                        <option value="damaged">Skadet</option>
+                        <option value="not_as_described">Ikke som beskrevet</option>
+                        <option value="wrong_size">Feil størrelse</option>
+                        <option value="changed_mind">Ombestemte meg</option>
+                        <option value="other">Annet</option>
+                      </select>
+                    </label>
+                    <label class="block text-xs">
+                      <span class="text-charcoal/55">Beskrivelse (valgfritt)</span>
+                      <textarea name="description" rows="3" maxlength="1000" placeholder="Hva er problemet?" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
+                    </label>
+                    <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Send forespørsel</button>
+                    <p class="text-[10px] text-charcoal/45">Selger får varsel og kan godta eller avvise. Hvis avvist, sendes saken til moderator.</p>
+                  </form>
+                </details>
+              )}
+
+              {/* Refund request — pending state for both parties */}
+              {refundOpen && (isBuyer || isOwner) && (
+                <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-sm">
+                  <p class="font-medium text-amber-900 mb-1">Refusjon etterspurt</p>
+                  <p class="text-amber-900/80 text-xs mb-2">
+                    Grunn: <strong>{refundReasonLabels[refundRow?.refund_reason ?? ''] ?? refundRow?.refund_reason}</strong>
+                  </p>
+                  {refundRow?.refund_description && (
+                    <p class="text-amber-900/80 text-xs mb-3 whitespace-pre-wrap">«{refundRow.refund_description}»</p>
+                  )}
+                  {isOwner ? (
+                    <div class="flex flex-wrap gap-2">
+                      <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-respond`}>
+                        <input type="hidden" name="action" value="accept" />
+                        <button type="submit" class="bg-sage-500 text-white px-4 py-2 rounded-full text-xs font-medium hover:bg-sage-600 transition-colors">Godta refusjon</button>
+                      </form>
+                      <details class="inline-block">
+                        <summary class="cursor-pointer text-xs text-amber-900/80 px-3 py-2 rounded-full border border-amber-300/40 hover:bg-amber-100">Avvis</summary>
+                        <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-respond`} class="mt-2 space-y-2 bg-white rounded-lg p-3 border border-amber-200">
+                          <input type="hidden" name="action" value="decline" />
+                          <label class="block text-xs">
+                            <span class="text-charcoal/55">Begrunnelse (sees av moderator)</span>
+                            <textarea name="notes" rows="2" required maxlength="1000" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
+                          </label>
+                          <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-medium hover:bg-red-700">Avvis og send til moderator</button>
+                        </form>
+                      </details>
+                    </div>
+                  ) : (
+                    <p class="text-amber-900/70 text-xs">Venter på svar fra selger.</p>
+                  )}
                 </div>
               )}
 

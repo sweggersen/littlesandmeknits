@@ -1,0 +1,184 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { getCurrentUser } from '../../../../lib/auth';
+import { env } from 'cloudflare:workers';
+
+const id = Astro.params.id;
+if (!id) return Astro.redirect('/market');
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect(`/login?next=/market/listing/${id}/kvittering`);
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+const { data: listing } = await admin
+  .from('listings')
+  .select('id, seller_id, buyer_id, store_id, title, price_nok, platform_fee_nok, reserved_at, shipped_at, delivered_at, sold_at, status, buyer_name, buyer_address, buyer_postal_code, buyer_city, kind')
+  .eq('id', id)
+  .maybeSingle();
+
+if (!listing) return Astro.redirect('/market');
+
+// Only buyer / seller / staff can view.
+const { data: viewerProfile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle();
+const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
+const isBuyer = listing.buyer_id === user.id;
+const isSeller = listing.seller_id === user.id;
+if (!isBuyer && !isSeller && !isStaff) return Astro.redirect(`/market/listing/${id}`);
+
+// Has the purchase actually happened?
+if (!listing.reserved_at) {
+  return new Response('Kvittering finnes ikke — kjøpet er ikke fullført', { status: 404 });
+}
+
+// Look up seller (private vs store)
+let sellerName = 'Privatperson';
+let sellerOrgnr: string | null = null;
+let sellerOrgFormal: string | null = null;
+let sellerVatRegistered = false;
+if (listing.store_id) {
+  const { data: store } = await admin.from('stores')
+    .select('name, legal_name, orgnr, vat_registered').eq('id', listing.store_id).maybeSingle();
+  if (store) {
+    sellerName = store.legal_name ?? store.name;
+    sellerOrgFormal = store.legal_name ?? null;
+    sellerOrgnr = store.orgnr;
+    sellerVatRegistered = !!store.vat_registered;
+  }
+} else {
+  const { data: seller } = await admin.from('profiles').select('display_name').eq('id', listing.seller_id).maybeSingle();
+  sellerName = seller?.display_name ?? 'Privatperson';
+}
+
+// Buyer block — from the shipping form
+const buyerName = listing.buyer_name ?? 'Kjøper';
+const buyerAddress = [listing.buyer_address, listing.buyer_postal_code, listing.buyer_city].filter(Boolean).join(', ');
+
+// Numbers. We charge buyer the listed price (gross); platform fee comes
+// out of the seller's payout. Buyer's view shows the price they paid;
+// seller's view also shows the platform fee + net payout.
+const gross = listing.price_nok;
+const fee = listing.platform_fee_nok ?? 0;
+const net = gross - fee;
+
+// VAT note: private sellers aren't MVA-registered. Stores may be (boolean
+// on stores.vat_registered). When VAT-registered, the price is shown as
+// "inkl. MVA 25 %"; the MVA-amount is gross * 25 / 125.
+const vatAmount = sellerVatRegistered ? Math.round(gross * 25 / 125) : null;
+
+// Kvittering nr: K + listing-id short + reserved date stamp
+const receiptNo = `K-${listing.id.slice(0, 8).toUpperCase()}-${(listing.reserved_at ?? new Date().toISOString()).slice(0, 10).replace(/-/g, '')}`;
+
+const dato = (listing.sold_at ?? listing.delivered_at ?? listing.shipped_at ?? listing.reserved_at)!;
+const dateLabel = new Date(dato).toLocaleDateString('nb-NO', { year: 'numeric', month: 'long', day: 'numeric' });
+
+function nok(n: number): string {
+  return n.toLocaleString('nb-NO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' kr';
+}
+---
+
+<Layout title={`Kvittering — ${listing.title}`} lang="nb">
+  <div class="max-w-2xl mx-auto px-6 py-10 print:py-2 print:px-0">
+    <div class="flex items-center justify-between mb-6 print:hidden">
+      <a href={`/market/listing/${listing.id}`} class="text-xs text-charcoal/45 hover:text-terracotta-500">&larr; Tilbake til annonsen</a>
+      <button onclick="window.print()" class="bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">Skriv ut / Last ned PDF</button>
+    </div>
+
+    <article class="bg-white rounded-3xl border border-sage-500/15 p-8 sm:p-10 print:border-0 print:rounded-none print:p-0">
+      <header class="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Kvittering</p>
+          <h1 class="font-serif text-3xl mt-1">Strikketorget</h1>
+        </div>
+        <div class="text-right text-xs text-charcoal/55">
+          <p class="font-mono">{receiptNo}</p>
+          <p>{dateLabel}</p>
+        </div>
+      </header>
+
+      <section class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Selger</p>
+          <p class="font-medium">{sellerName}</p>
+          {sellerOrgFormal && <p class="text-sm text-charcoal/65">{sellerOrgFormal}</p>}
+          {sellerOrgnr && <p class="text-xs text-charcoal/55 font-mono">Org.nr. {sellerOrgnr}</p>}
+          {!sellerOrgnr && <p class="text-xs text-charcoal/45">Privatsalg — ikke MVA-pliktig</p>}
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kjøper</p>
+          <p class="font-medium">{buyerName}</p>
+          {buyerAddress && <p class="text-sm text-charcoal/65 whitespace-pre-line">{buyerAddress}</p>}
+        </div>
+      </section>
+
+      <section class="mb-8">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Vare</p>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-sage-500/20 text-left text-xs text-charcoal/55">
+              <th class="py-2 font-medium">Beskrivelse</th>
+              <th class="py-2 font-medium text-right">Pris</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-sage-500/10">
+              <td class="py-3">
+                <p>{listing.title}</p>
+                <p class="text-xs text-charcoal/50">{listing.kind === 'pre_loved' ? 'Brukt' : 'Nytt'}</p>
+              </td>
+              <td class="py-3 text-right font-mono">{nok(gross)}</td>
+            </tr>
+            <tr>
+              <td class="py-3 text-right text-charcoal/55" colspan="1">Sum</td>
+              <td class="py-3 text-right font-mono font-bold">{nok(gross)}</td>
+            </tr>
+            {vatAmount !== null && (
+              <tr>
+                <td class="py-1 text-right text-xs text-charcoal/55">Hvorav MVA 25 %</td>
+                <td class="py-1 text-right text-xs font-mono">{nok(vatAmount)}</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+
+      {isSeller && (
+        <section class="mb-8 bg-linen rounded-xl p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger — payout</p>
+          <table class="w-full text-sm">
+            <tr><td>Brutto salg</td><td class="text-right font-mono">{nok(gross)}</td></tr>
+            <tr><td>Tjenestegebyr Strikketorget</td><td class="text-right font-mono">−{nok(fee)}</td></tr>
+            <tr class="border-t border-sage-500/20"><td class="pt-2 font-medium">Netto utbetaling</td><td class="pt-2 text-right font-mono font-bold">{nok(net)}</td></tr>
+          </table>
+        </section>
+      )}
+
+      <section class="text-xs text-charcoal/55 space-y-2 mb-2">
+        <p><strong>Betaling</strong>: Behandlet via Stripe Payments Europe Ltd. Trygg betaling med automatisk frigjøring 14 dager etter levering.</p>
+        <p><strong>Reklamasjon</strong>: Krav meldes innen 14 dager til <a href="mailto:hei@strikketorget.no" class="text-terracotta-500 hover:underline">hei@strikketorget.no</a> eller via plattformens tvistesystem. Se <a href="/terms" class="text-terracotta-500 hover:underline">vilkår</a> punkt 7.</p>
+        {!sellerOrgnr && (
+          <p><strong>Privatsalg</strong>: Dette er et privatkjøp mellom forbrukere. Forbrukerkjøpsloven gjelder ikke; kjøpsloven gjelder.</p>
+        )}
+      </section>
+
+      <footer class="text-xs text-charcoal/40 mt-8 pt-4 border-t border-sage-500/10">
+        <p>Strikketorget — drevet av Weggersen Design, org.nr. 935 918 146.</p>
+        <p>Spørsmål: hei@strikketorget.no</p>
+      </footer>
+    </article>
+  </div>
+
+  <style>
+    @media print {
+      body { background: white; }
+      .print\:hidden { display: none !important; }
+      .print\:py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+      .print\:px-0 { padding-left: 0; padding-right: 0; }
+      .print\:border-0 { border: 0; }
+      .print\:rounded-none { border-radius: 0; }
+      .print\:p-0 { padding: 0; }
+    }
+  </style>
+</Layout>
