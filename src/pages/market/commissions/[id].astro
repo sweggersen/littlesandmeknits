@@ -241,10 +241,18 @@ if (isBuyer && req.status === 'frozen') {
             commissionConvId ? (
               <a href={`/market/messages/${commissionConvId}`} class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Gå til samtale →</a>
             ) : (
-              <form method="post" action="/api/marketplace/conversations/create-commission" data-astro-reload class="flex items-center gap-2">
+              <form method="post" action="/api/marketplace/conversations/create-commission" data-astro-reload data-commission-msg class="flex items-start gap-2 w-full max-w-sm">
                 <input type="hidden" name="commission_request_id" value={req.id} />
-                <input name="message" required maxlength="1000" placeholder="Skriv en melding…" class="bg-white rounded-full px-4 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 w-48" />
-                <button type="submit" class="bg-charcoal text-linen px-3 py-2 rounded-full text-[10px] font-medium hover:bg-terracotta-500 transition-colors">Send</button>
+                <textarea
+                  name="message"
+                  required
+                  maxlength="1000"
+                  rows="1"
+                  placeholder="Skriv en melding…"
+                  data-autogrow
+                  class="flex-1 min-w-0 bg-white rounded-2xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-[height,padding] duration-150 resize-none leading-snug"
+                ></textarea>
+                <button type="submit" class="bg-charcoal text-linen px-3 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors shrink-0">Send</button>
               </form>
             )
           )}
@@ -705,6 +713,23 @@ if (isBuyer && req.status === 'frozen') {
       )}
 
   </MarketplaceShell>
+
+  <script>
+    function initAutogrow() {
+      document.querySelectorAll<HTMLTextAreaElement>('textarea[data-autogrow]').forEach((el) => {
+        if ((el as any)._stBound) return;
+        (el as any)._stBound = true;
+        const resize = () => {
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 320) + 'px';
+        };
+        el.addEventListener('focus', resize);
+        el.addEventListener('input', resize);
+        resize();
+      });
+    }
+    document.addEventListener('astro:page-load', initAutogrow);
+  </script>
 </Layout>
 
 {req.yarn_bring_shipment_number && (
