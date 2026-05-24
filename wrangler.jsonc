@@ -5,5 +5,8 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
     "enabled": true
+  },
+  "build": {
+    "command": "npm run build && find dist -name '._*' -delete"
   }
 }

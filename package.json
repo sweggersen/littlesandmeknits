@@ -7,9 +7,9 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && find dist -name '._*' -delete",
     "preview": "astro preview",
-    "deploy": "wrangler deploy --config dist/server/wrangler.json",
+    "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json",
     "deploy:preview": "wrangler versions upload --config dist/server/wrangler.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
