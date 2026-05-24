@@ -249,6 +249,7 @@ if (isBuyer && req.status === 'frozen') {
                   maxlength="1000"
                   rows="1"
                   placeholder="Skriv en melding…"
+                  autocomplete="off"
                   data-autogrow
                   class="flex-1 min-w-0 bg-white rounded-2xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-[height,padding] duration-150 resize-none leading-snug"
                 ></textarea>
@@ -725,6 +726,13 @@ if (isBuyer && req.status === 'frozen') {
         };
         el.addEventListener('focus', resize);
         el.addEventListener('input', resize);
+        // After submit, clear the value so the post-redirect view doesn't
+        // show stale text (browsers + view-transitions both retain
+        // <textarea> content otherwise).
+        const form = el.closest('form');
+        form?.addEventListener('submit', () => {
+          setTimeout(() => { el.value = ''; resize(); }, 0);
+        });
         resize();
       });
     }
