@@ -21,14 +21,14 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 
 let { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
   .eq('id', id)
   .maybeSingle();
 
 if (!listing) {
   const { data: fallback } = await supabase
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
     .eq('id', id)
     .maybeSingle();
   if (fallback) listing = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null, buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null } as any;
@@ -41,13 +41,13 @@ if (!listing && isStaff) {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
   let { data } = await admin
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
     .eq('id', id)
     .maybeSingle();
   if (!data) {
     const { data: fallback } = await admin
       .from('listings')
-      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
+      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
       .eq('id', id)
       .maybeSingle();
     if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
@@ -356,6 +356,12 @@ const autoReleaseDays = listing.auto_release_at
               <div class="col-span-2">
                 <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
                 <dd>{listing.pattern_external_title}</dd>
+              </div>
+            )}
+            {(listing as any).knitted_by && (
+              <div class="col-span-2">
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Strikket av</dt>
+                <dd>{(listing as any).knitted_by}</dd>
               </div>
             )}
           </dl>

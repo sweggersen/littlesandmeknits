@@ -25,6 +25,7 @@ export async function createListing(
     location?: string; shippingInfo?: string;
     storeId?: string;
     shippingOption?: string; escrowEnabled?: string;
+    knittedBy?: string;
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!VALID_KIND.has(input.kind)) return fail('bad_input', 'Invalid kind');
@@ -90,6 +91,7 @@ export async function createListing(
       pattern_slug: input.patternSlug?.trim() || null,
       pattern_external_title: input.patternExternalTitle?.trim() || null,
       colorway: input.colorway?.trim() || null,
+      knitted_by: input.knittedBy?.trim() || null,
       location: input.location?.trim() || null,
       shipping_info: input.shippingInfo?.trim() || null,
       status: 'draft',
