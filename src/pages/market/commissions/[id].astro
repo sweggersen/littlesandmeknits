@@ -248,6 +248,9 @@ if (isBuyer && req.status === 'frozen') {
               </form>
             )
           )}
+          {(isBuyer || isKnitter) && acceptedOffer && (
+            <a href={`/market/commissions/${req.id}/kvittering`} class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">📄 Se kvittering →</a>
+          )}
         </div>
       </div>
 
