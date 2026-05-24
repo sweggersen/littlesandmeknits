@@ -108,8 +108,10 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     });
   }
 
+  // On strikketorget.no, serve the marketplace home at the bare domain
+  // instead of redirecting to /market. (Sub-routes still live at /market/...)
   if (isStrikketorget && path === '/') {
-    return ctx.redirect('/market');
+    return ctx.rewrite('/market');
   }
 
   if (path.startsWith('/admin') || path.startsWith('/studio') || path.startsWith('/profile')) {
