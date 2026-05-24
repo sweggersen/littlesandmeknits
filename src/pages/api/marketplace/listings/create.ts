@@ -24,6 +24,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     location: form.get('location')?.toString(),
     shippingInfo: form.get('shipping_info')?.toString(),
     storeId: form.get('store_id')?.toString() || undefined,
+    shippingOption: form.get('shipping_option')?.toString(),
+    escrowEnabled: form.get('escrow_enabled')?.toString(),
   });
   return toResponse(result, redirect);
 };

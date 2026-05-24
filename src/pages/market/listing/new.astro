@@ -4,6 +4,7 @@ import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { getCurrentUser } from '../../../lib/auth';
 import { buildServiceContext } from '../../../lib/services/context';
 import { listMyStores } from '../../../lib/services/stores';
+import { SHIPPING_TIERS } from '../../../lib/shipping';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/login?next=/market/listing/new');
@@ -12,265 +13,304 @@ const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 const myStoresRes = ctx ? await listMyStores(ctx) : null;
 const myStores = myStoresRes?.ok ? myStoresRes.data.filter((s: any) => s.status === 'active') : [];
 const preselectedStoreId = Astro.url.searchParams.get('store') ?? '';
+
+const STEPS = [
+  { id: 1, label: 'Detaljer' },
+  { id: 2, label: 'Pris & frakt' },
+  { id: 3, label: 'Gjennomgang' },
+];
 ---
 
 <Layout title="Ny annonse — Strikketorget" lang="nb">
   <MarketplaceShell current="ny">
+    <div class="max-w-2xl mx-auto">
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
-      <p class="text-sm text-charcoal/55 mb-8">
-        Lagre som utkast først, så kan du legge til bilder og publisere etterpå.
+      <p class="text-sm text-charcoal/55 mb-6">
+        Tre korte steg. Lagre som utkast når som helst — du kan publisere senere.
       </p>
 
-      <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
-        {myStores.length > 0 && (
+      <!-- Step progress -->
+      <ol class="flex items-center gap-1 mb-8 text-xs" data-wizard-progress>
+        {STEPS.map((s, i) => (
+          <>
+            <li class:list={[
+              'flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors',
+              i === 0 ? 'bg-charcoal text-linen' : 'text-charcoal/45',
+            ]} data-step-pill={s.id}>
+              <span class="font-mono font-bold">{s.id}</span>
+              <span class="hidden sm:inline">{s.label}</span>
+            </li>
+            {i < STEPS.length - 1 && <li aria-hidden="true" class="flex-1 h-px bg-sage-500/15"></li>}
+          </>
+        ))}
+      </ol>
+
+      <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6" data-wizard>
+        <!-- ───── Step 1: Detaljer ───── -->
+        <section data-step="1" class="space-y-6">
+          {myStores.length > 0 && (
+            <div>
+              <label for="store_id" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Selg som</label>
+              <select id="store_id" name="store_id" class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+                <option value="">{user.email} (privat)</option>
+                {myStores.map((s: any) => (
+                  <option value={s.id} selected={s.id === preselectedStoreId}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
-            <label for="store_id" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Selg som
-            </label>
-            <select
-              id="store_id"
-              name="store_id"
-              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-            >
-              <option value="">{user.email} (privat)</option>
-              {myStores.map((s: any) => (
-                <option value={s.id} selected={s.id === preselectedStoreId}>{s.name}</option>
-              ))}
+            <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type *</label>
+            <select id="kind" name="kind" required class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+              <option value="pre_loved">Brukt</option>
+              <option value="ready_made">Nytt (strikket av meg)</option>
             </select>
           </div>
-        )}
 
-        <div>
-          <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Type *
-          </label>
-          <select
-            id="kind"
-            name="kind"
-            required
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          >
-            <option value="pre_loved">Brukt</option>
-            <option value="ready_made">Nytt (strikket av meg)</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Tittel *
-          </label>
-          <input
-            id="title"
-            name="title"
-            type="text"
-            required
-            maxlength="80"
-            placeholder="Sondre cardigan str. 92, dustyrosa"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          />
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label for="category" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Kategori *
-            </label>
-            <select
-              id="category"
-              name="category"
-              required
-              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-            >
-              <option value="genser">Genser</option>
-              <option value="cardigan">Cardigan</option>
-              <option value="lue">Lue</option>
-              <option value="votter">Votter</option>
-              <option value="sokker">Sokker</option>
-              <option value="teppe">Teppe</option>
-              <option value="kjole">Kjole</option>
-              <option value="bukser">Bukser</option>
-              <option value="annet">Annet</option>
+            <label for="title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tittel *</label>
+            <input id="title" name="title" type="text" required maxlength="80" placeholder="Sondre cardigan str. 92, dustyrosa"
+              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="category" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kategori *</label>
+              <select id="category" name="category" required class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+                <option value="genser">Genser</option>
+                <option value="cardigan">Cardigan</option>
+                <option value="lue">Lue</option>
+                <option value="votter">Votter</option>
+                <option value="sokker">Sokker</option>
+                <option value="teppe">Teppe</option>
+                <option value="kjole">Kjole</option>
+                <option value="bukser">Bukser</option>
+                <option value="annet">Annet</option>
+              </select>
+            </div>
+            <div>
+              <label for="size_label" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Størrelse *</label>
+              <input id="size_label" name="size_label" type="text" required maxlength="20" placeholder="92, 2 år, S…"
+                class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            </div>
+          </div>
+
+          <div data-condition-wrapper>
+            <label for="condition" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tilstand * (kun for brukt)</label>
+            <select id="condition" name="condition" class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+              <option value="som_ny">Som ny</option>
+              <option value="lite_brukt">Lite brukt</option>
+              <option value="brukt">Brukt</option>
+              <option value="slitt">Slitt</option>
             </select>
           </div>
+
+          <details class="text-sm">
+            <summary class="cursor-pointer text-xs font-bold uppercase tracking-widest text-charcoal/45">Flere detaljer (valgfritt)</summary>
+            <div class="space-y-4 mt-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label for="size_age_months_min" class="block text-xs text-charcoal/55 mb-1">Alder fra (mnd)</label>
+                  <input id="size_age_months_min" name="size_age_months_min" type="number" min="0" max="240" placeholder="18" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+                </div>
+                <div>
+                  <label for="size_age_months_max" class="block text-xs text-charcoal/55 mb-1">Alder til (mnd)</label>
+                  <input id="size_age_months_max" name="size_age_months_max" type="number" min="0" max="240" placeholder="24" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+                </div>
+              </div>
+              <div>
+                <label for="colorway" class="block text-xs text-charcoal/55 mb-1">Farge</label>
+                <input id="colorway" name="colorway" type="text" maxlength="60" placeholder="Dustyrosa, naturhvit…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              </div>
+              <div>
+                <label for="pattern_external_title" class="block text-xs text-charcoal/55 mb-1">Oppskrift</label>
+                <input id="pattern_external_title" name="pattern_external_title" type="text" maxlength="120" placeholder="Sondre cardigan, av Weggersen Design" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              </div>
+              <div>
+                <label for="location" class="block text-xs text-charcoal/55 mb-1">Sted</label>
+                <input id="location" name="location" type="text" maxlength="80" placeholder="Oslo, Bergen, Tromsø…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              </div>
+              <div>
+                <label for="description" class="block text-xs text-charcoal/55 mb-1">Beskrivelse</label>
+                <textarea id="description" name="description" rows="4" maxlength="2000" placeholder="Garn, vask, små feil, hvor lenge brukt…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+              </div>
+            </div>
+          </details>
+        </section>
+
+        <!-- ───── Step 2: Pris & frakt ───── -->
+        <section data-step="2" class="space-y-6 hidden">
           <div>
-            <label for="size_label" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Størrelse *
-            </label>
-            <input
-              id="size_label"
-              name="size_label"
-              type="text"
-              required
-              maxlength="20"
-              placeholder="92, 2 år, S…"
-              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-            />
+            <label for="price_nok" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Pris (NOK) *</label>
+            <input id="price_nok" name="price_nok" type="number" min="0" step="10" required placeholder="350"
+              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            <p class="text-[11px] text-charcoal/45 mt-1.5" data-tb-hint>
+              Med trygg betaling betaler kjøper en liten avgift (9–29 kr avhengig av pris) — du som selger betaler ingenting.
+            </p>
           </div>
-        </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <fieldset class="space-y-2">
+            <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fraktalternativ *</legend>
+            {SHIPPING_TIERS.map((t, i) => (
+              <label class="flex items-start gap-3 bg-linen rounded-xl p-3 cursor-pointer border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/40 transition-colors">
+                <input type="radio" name="shipping_option" value={t.id} required checked={i === 0} class="mt-1 shrink-0" />
+                <span class="flex-1 min-w-0">
+                  <span class="flex items-baseline justify-between gap-2">
+                    <span class="text-sm font-medium">{t.label}</span>
+                    <span class="text-sm font-mono text-charcoal/65 shrink-0">{t.priceNok > 0 ? `${t.priceNok} kr` : 'Gratis'}</span>
+                  </span>
+                  <span class="block text-xs text-charcoal/55 mt-0.5">{t.description}</span>
+                </span>
+              </label>
+            ))}
+            <p class="text-[11px] text-charcoal/45 mt-1.5">Kjøperen ser kostnaden tydelig før kjøp. Du får fraktbeløpet utbetalt sammen med varen.</p>
+          </fieldset>
+
+          <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
+            <input type="checkbox" name="escrow_enabled" value="true" checked class="mt-1 shrink-0" />
+            <span class="flex-1">
+              <span class="block text-sm font-medium">🛡️ Aktiver trygg betaling (anbefalt)</span>
+              <span class="block text-xs text-charcoal/55 mt-1">
+                Kjøper betaler trygt via Strikketorget. Pengene holdes til kjøper bekrefter mottak,
+                eller automatisk frigjøres etter 14 dager. Du som selger betaler ingenting — kjøperen dekker en liten avgift.
+              </span>
+            </span>
+          </label>
+
           <div>
-            <label for="size_age_months_min" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Alder fra (mnd)
-            </label>
-            <input
-              id="size_age_months_min"
-              name="size_age_months_min"
-              type="number"
-              min="0"
-              max="240"
-              placeholder="18"
-              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-            />
+            <label for="shipping_info" class="block text-xs text-charcoal/55 mb-1">Frakt-merknad (valgfritt)</label>
+            <input id="shipping_info" name="shipping_info" type="text" maxlength="200" placeholder="Pakker mandag–onsdag, kan hentes i Oslo…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </div>
-          <div>
-            <label for="size_age_months_max" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Alder til (mnd)
-            </label>
-            <input
-              id="size_age_months_max"
-              name="size_age_months_max"
-              type="number"
-              min="0"
-              max="240"
-              placeholder="24"
-              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-            />
+        </section>
+
+        <!-- ───── Step 3: Gjennomgang ───── -->
+        <section data-step="3" class="space-y-4 hidden">
+          <p class="text-sm text-charcoal/65">Ser dette riktig ut?</p>
+          <div class="bg-linen rounded-2xl p-5 text-sm space-y-2" data-review>
+            <p class="text-charcoal/45 italic" data-review-empty>Fyll inn steg 1 og 2 for å se gjennomgangen.</p>
           </div>
-        </div>
+          <p class="text-xs text-charcoal/45">
+            Annonsen lagres som utkast. Etter at du har lastet opp bilder kan du sende inn til godkjenning og publisere.
+          </p>
+        </section>
 
-        <div data-condition-wrapper>
-          <label for="condition" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Tilstand * (kun for brukt)
-          </label>
-          <select
-            id="condition"
-            name="condition"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          >
-            <option value="som_ny">Som ny</option>
-            <option value="lite_brukt">Lite brukt</option>
-            <option value="brukt">Brukt</option>
-            <option value="slitt">Slitt</option>
-          </select>
-        </div>
-
-        <div>
-          <label for="price_nok" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Pris (NOK) *
-          </label>
-          <input
-            id="price_nok"
-            name="price_nok"
-            type="number"
-            min="0"
-            step="10"
-            required
-            placeholder="350"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label for="location" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Sted
-          </label>
-          <input
-            id="location"
-            name="location"
-            type="text"
-            maxlength="80"
-            placeholder="Oslo, Bergen, Tromsø…"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label for="shipping_info" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Frakt / henting
-          </label>
-          <input
-            id="shipping_info"
-            name="shipping_info"
-            type="text"
-            maxlength="200"
-            placeholder="Sender med Posten, kan hentes i Oslo…"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label for="colorway" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Farge
-          </label>
-          <input
-            id="colorway"
-            name="colorway"
-            type="text"
-            maxlength="60"
-            placeholder="Dustyrosa, naturhvit…"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label for="pattern_external_title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Oppskrift
-          </label>
-          <input
-            id="pattern_external_title"
-            name="pattern_external_title"
-            type="text"
-            maxlength="120"
-            placeholder="Sondre cardigan, av Weggersen Design"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
-          />
-        </div>
-
-        <div>
-          <label for="description" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Beskrivelse
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            rows="5"
-            maxlength="2000"
-            placeholder="Garn, vask, små feil, hvor lenge brukt…"
-            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
-          ></textarea>
-        </div>
-
-        <div class="flex items-center justify-end gap-3 pt-2">
-          <a href="/market/my-listings" class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2">
+        <!-- ───── Navigation ───── -->
+        <div class="flex items-center justify-between gap-3 pt-2 border-t border-sage-500/10 mt-6">
+          <button type="button" data-wizard-back class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2 hidden">
+            ← Tilbake
+          </button>
+          <a href="/market/my-listings" class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2" data-wizard-cancel>
             Avbryt
           </a>
-          <button
-            type="submit"
-            class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-          >
+          <div class="flex-1"></div>
+          <button type="button" data-wizard-next class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+            Neste →
+          </button>
+          <button type="submit" data-wizard-submit class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors hidden">
             Lagre utkast
           </button>
         </div>
       </form>
+    </div>
   </MarketplaceShell>
 
   <script>
-    function initListingForm() {
-      const kind = document.getElementById('kind') as HTMLSelectElement | null;
-      const condition = document.getElementById('condition') as HTMLSelectElement | null;
-      const wrapper = document.querySelector('[data-condition-wrapper]') as HTMLElement | null;
-      function sync() {
-        if (!kind || !condition || !wrapper) return;
-        const isPreLoved = kind.value === 'pre_loved';
-        wrapper.style.display = isPreLoved ? '' : 'none';
-        condition.disabled = !isPreLoved;
-        if (!isPreLoved) condition.removeAttribute('name');
-        else condition.setAttribute('name', 'condition');
+    function initListingWizard() {
+      const form = document.querySelector<HTMLFormElement>('[data-wizard]');
+      if (!form || (form as any)._stBound) return;
+      (form as any)._stBound = true;
+
+      const steps = Array.from(form.querySelectorAll<HTMLElement>('[data-step]'));
+      const pills = Array.from(document.querySelectorAll<HTMLElement>('[data-step-pill]'));
+      const back = document.querySelector<HTMLButtonElement>('[data-wizard-back]')!;
+      const next = document.querySelector<HTMLButtonElement>('[data-wizard-next]')!;
+      const submit = document.querySelector<HTMLButtonElement>('[data-wizard-submit]')!;
+      const reviewEl = form.querySelector<HTMLElement>('[data-review]')!;
+      let current = 1;
+
+      function show(n: number) {
+        current = n;
+        steps.forEach((s) => s.classList.toggle('hidden', s.dataset.step !== String(n)));
+        pills.forEach((p) => {
+          const sn = parseInt(p.dataset.stepPill!, 10);
+          p.classList.toggle('bg-charcoal', sn === n);
+          p.classList.toggle('text-linen', sn === n);
+          p.classList.toggle('text-charcoal/45', sn !== n);
+          p.classList.toggle('bg-sage-100', sn < n);
+          p.classList.toggle('text-sage-900', sn < n);
+        });
+        back.classList.toggle('hidden', n === 1);
+        next.classList.toggle('hidden', n === steps.length);
+        submit.classList.toggle('hidden', n !== steps.length);
+        if (n === steps.length) renderReview();
+        // Scroll to top of the form
+        form.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      kind?.addEventListener('change', sync);
-      sync();
+
+      function fieldVal(name: string): string {
+        const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | RadioNodeList | null;
+        if (!el) return '';
+        if (el instanceof RadioNodeList) {
+          for (const r of Array.from(el) as HTMLInputElement[]) if (r.checked) return r.value;
+          return '';
+        }
+        return (el as HTMLInputElement).value ?? '';
+      }
+
+      function validateStep(n: number): boolean {
+        // Use native validity for the visible step's required fields.
+        const inputs = steps[n - 1].querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input[required], select[required], textarea[required]');
+        for (const el of Array.from(inputs)) {
+          if (el.offsetParent === null) continue;
+          if (!el.checkValidity()) { el.reportValidity(); return false; }
+        }
+        return true;
+      }
+
+      function renderReview() {
+        const kind = fieldVal('kind') === 'pre_loved' ? 'Brukt' : 'Nytt';
+        const title = fieldVal('title');
+        const cat = fieldVal('category');
+        const size = fieldVal('size_label');
+        const cond = fieldVal('condition');
+        const price = fieldVal('price_nok');
+        const shipping = fieldVal('shipping_option');
+        const tbOn = (form.elements.namedItem('escrow_enabled') as HTMLInputElement | null)?.checked;
+        if (!title || !price) {
+          reviewEl.innerHTML = '<p class="text-charcoal/45 italic">Fyll inn steg 1 og 2 for å se gjennomgangen.</p>';
+          return;
+        }
+        const shipLabel = shipping === 'free' ? 'Gratis' : shipping === 'small_letter' ? 'Brev (39 kr)' : shipping === 'small_parcel' ? 'Norgespakke liten (76 kr)' : 'Norgespakke stor (140 kr)';
+        reviewEl.innerHTML = `
+          <p><span class="text-charcoal/55">${kind} · ${cat}${cond ? ' · ' + cond : ''}</span></p>
+          <p class="font-medium text-base">${title}</p>
+          <p class="text-charcoal/65">Størrelse <strong>${size}</strong> · <strong>${price} kr</strong></p>
+          <p class="text-charcoal/65">Frakt: ${shipLabel}</p>
+          <p class="text-charcoal/65">Trygg betaling: ${tbOn ? 'På' : 'Av'}</p>
+        `;
+      }
+
+      back.addEventListener('click', () => show(Math.max(1, current - 1)));
+      next.addEventListener('click', () => { if (validateStep(current)) show(current + 1); });
+
+      // Sync condition/kind visibility (kept from previous form)
+      const kindEl = document.getElementById('kind') as HTMLSelectElement | null;
+      const conditionEl = document.getElementById('condition') as HTMLSelectElement | null;
+      const conditionWrap = document.querySelector('[data-condition-wrapper]') as HTMLElement | null;
+      function syncKind() {
+        if (!kindEl || !conditionEl || !conditionWrap) return;
+        const isPreLoved = kindEl.value === 'pre_loved';
+        conditionWrap.style.display = isPreLoved ? '' : 'none';
+        conditionEl.disabled = !isPreLoved;
+        if (!isPreLoved) conditionEl.removeAttribute('name');
+        else conditionEl.setAttribute('name', 'condition');
+      }
+      kindEl?.addEventListener('change', syncKind);
+      syncKind();
+
+      show(1);
     }
-    document.addEventListener('astro:page-load', initListingForm);
+    document.addEventListener('astro:page-load', initListingWizard);
   </script>
 </Layout>

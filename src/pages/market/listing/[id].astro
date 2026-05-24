@@ -4,6 +4,7 @@ import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
 import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import StarRating from '../../../components/StarRating.astro';
+import { purchaseBreakdown } from '../../../lib/shipping';
 import Alert from '../../../components/Alert.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
@@ -20,14 +21,14 @@ const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cooki
 
 let { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
   .eq('id', id)
   .maybeSingle();
 
 if (!listing) {
   const { data: fallback } = await supabase
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
     .eq('id', id)
     .maybeSingle();
   if (fallback) listing = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null, buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null } as any;
@@ -40,13 +41,13 @@ if (!listing && isStaff) {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
   let { data } = await admin
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
     .eq('id', id)
     .maybeSingle();
   if (!data) {
     const { data: fallback } = await admin
       .from('listings')
-      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, store_id')
+      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
       .eq('id', id)
       .maybeSingle();
     if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
@@ -398,7 +399,7 @@ const autoReleaseDays = listing.auto_release_at
                 </div>
               )}
 
-              {/* Trygg betaling upgrade — only for personal sellers (not store listings) without it enabled. */}
+              {/* Trygg betaling toggle — free for the seller (kjøper betaler ved kjøp). */}
               {isOwner && listing.status === 'active' && !listing.escrow_enabled && !listing.store_id && (
                 <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
                   <div class="flex items-start gap-3">
@@ -406,23 +407,31 @@ const autoReleaseDays = listing.auto_release_at
                     <div class="flex-1">
                       <h3 class="font-serif text-lg mb-1">Aktiver trygg betaling</h3>
                       <p class="text-sm text-charcoal/65">
-                        For 29 NOK kan kjøpere betale gjennom Strikketorget med full
-                        kjøperbeskyttelse. Pengene holdes i sikker forvaring til
-                        kjøper bekrefter mottak. Du får flere kjøpere som tør å handle.
+                        Gratis for deg som selger. Kjøper betaler en liten beskyttelsesavgift
+                        (9–29 kr avhengig av varens pris) som dekker kjøperbeskyttelse
+                        og automatisk frigjøring etter 14 dager. Du får flere kjøpere som
+                        tør å handle.
                       </p>
                     </div>
                   </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`}>
+                    <input type="hidden" name="enabled" value="true" />
                     <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
-                      Aktiver trygg betaling (29 NOK)
+                      Aktiver trygg betaling (gratis)
                     </button>
                   </form>
                 </section>
               )}
               {isOwner && listing.escrow_enabled && (
-                <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center gap-2">
-                  <span>🛡️</span>
-                  <span>Trygg betaling er aktivert. Kjøpere kan kjøpe gjennom Strikketorget.</span>
+                <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center justify-between gap-3 flex-wrap">
+                  <div class="flex items-center gap-2">
+                    <span>🛡️</span>
+                    <span>Trygg betaling er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
+                  </div>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`} class="shrink-0">
+                    <input type="hidden" name="enabled" value="false" />
+                    <button type="submit" class="text-xs text-sage-900/60 hover:text-red-600 underline">Slå av</button>
+                  </form>
                 </div>
               )}
               {justPromoted && listing.status === 'active' && (
@@ -681,22 +690,45 @@ const autoReleaseDays = listing.auto_release_at
 
 
               {/* ── Buy button (active, escrow enabled, seller onboarded) ── */}
-              {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && sellerOnboarded && (
-                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
-                  <div class="flex items-center gap-1.5 mb-1">
-                    <span class="text-sage-700">🛡️</span>
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Trygg betaling aktivert</span>
-                  </div>
-                  <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                      Kjøp nå — {listing.price_nok} NOK
-                    </button>
-                  </form>
-                  <p class="text-[11px] text-charcoal/45 text-center">
-                    Pengene holdes trygt til du bekrefter mottak. 14 dagers kjøperbeskyttelse.
-                  </p>
-                </section>
-              )}
+              {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && sellerOnboarded && (() => {
+                const bd = purchaseBreakdown(listing.price_nok, (listing as any).shipping_option ?? 'free', true);
+                return (
+                  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
+                    <div class="flex items-center gap-1.5 mb-1">
+                      <span class="text-sage-700">🛡️</span>
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Trygg betaling aktivert</span>
+                    </div>
+
+                    <dl class="text-sm space-y-1.5 bg-linen rounded-xl p-4">
+                      <div class="flex items-baseline justify-between">
+                        <dt class="text-charcoal/65">Vare</dt>
+                        <dd class="font-mono tabular-nums">{bd.itemNok} kr</dd>
+                      </div>
+                      <div class="flex items-baseline justify-between">
+                        <dt class="text-charcoal/65">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
+                        <dd class="font-mono tabular-nums">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
+                      </div>
+                      <div class="flex items-baseline justify-between">
+                        <dt class="text-charcoal/65">Trygg betaling</dt>
+                        <dd class="font-mono tabular-nums">{bd.tbFeeNok} kr</dd>
+                      </div>
+                      <div class="flex items-baseline justify-between pt-1.5 border-t border-sage-500/10">
+                        <dt class="font-medium">Du betaler totalt</dt>
+                        <dd class="font-mono tabular-nums font-bold">{bd.totalNok} kr</dd>
+                      </div>
+                    </dl>
+
+                    <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
+                      <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                        Kjøp trygt — {bd.totalNok} kr
+                      </button>
+                    </form>
+                    <p class="text-[11px] text-charcoal/45 text-center">
+                      Pengene holdes trygt til du bekrefter mottak. 14 dagers kjøperbeskyttelse.
+                    </p>
+                  </section>
+                );
+              })()}
 
               {/* ── No escrow: buyer must contact seller directly ── */}
               {!isOwner && !isBuyer && listing.status === 'active' && !listing.escrow_enabled && (

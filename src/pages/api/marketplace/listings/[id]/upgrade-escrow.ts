@@ -1,16 +1,20 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
 import { buildServiceContext } from '../../../../../lib/services/context';
-import { upgradeListingEscrow } from '../../../../../lib/services/listings';
+import { toggleListingEscrow } from '../../../../../lib/services/listings';
 import { toResponse } from '../../../../../lib/services/response';
 
+// TB is now free for sellers — this endpoint just flips the
+// escrow_enabled flag. Endpoint path kept stable for existing forms.
 export const POST: APIRoute = async ({ params, request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
   if (!ctx) return redirect('/login');
 
-  const result = await upgradeListingEscrow(ctx, {
+  const form = await request.formData();
+  const enabled = form.get('enabled')?.toString() !== 'false';
+
+  const result = await toggleListingEscrow(ctx, {
     listingId: params.id ?? '',
-    stripeSecretKey: env.STRIPE_SECRET_KEY,
+    enabled,
   });
   return toResponse(result, redirect);
 };
