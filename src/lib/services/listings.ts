@@ -396,12 +396,19 @@ export async function shipListing(
   if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
   if (listing.status !== 'reserved') return fail('conflict', 'Listing not in reserved state');
 
+  // When the seller marks shipped, recompute the auto-release deadline:
+  // 14 days from the shipping date. This replaces the conservative 21-day
+  // post-purchase fallback that was set at reserved time.
+  const shippedAt = new Date();
+  const autoReleaseAt = new Date(shippedAt.getTime() + 14 * 86400_000);
+
   await ctx.admin
     .from('listings')
     .update({
       status: 'shipped',
-      shipped_at: new Date().toISOString(),
+      shipped_at: shippedAt.toISOString(),
       tracking_code: input.trackingCode.trim() || null,
+      auto_release_at: autoReleaseAt.toISOString(),
     })
     .eq('id', input.listingId);
 

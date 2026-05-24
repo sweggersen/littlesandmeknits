@@ -133,7 +133,9 @@ export const POST: APIRoute = async ({ request }) => {
         ? session.payment_intent
         : session.payment_intent?.id;
 
-      const autoReleaseAt = new Date(Date.now() + 14 * 86400_000).toISOString();
+      // Fallback deadline if the seller never ships (or doesn't mark
+      // shipped). On `shipListing` we recompute this to shipped_at + 14d.
+      const autoReleaseAt = new Date(Date.now() + 21 * 86400_000).toISOString();
       const now = new Date().toISOString();
       const feeNok = session.amount_total ? Math.round((session.amount_total * 0.13) / 100) : 0;
 
