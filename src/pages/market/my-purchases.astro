@@ -37,11 +37,8 @@ const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
               <h2 class="font-serif text-xl mb-3">Pågående</h2>
               <ul class="space-y-2">
                 {active.map((p) => (
-                  <li>
-                    <a
-                      href={`/market/listing/${p.id}`}
-                      class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
-                    >
+                  <li class="bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                    <a href={`/market/listing/${p.id}`} class="block p-4">
                       <div class="flex items-center justify-between gap-4">
                         <div>
                           <div class="flex items-center gap-2 mb-1">
@@ -55,6 +52,7 @@ const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
                         <p class="font-mono tabular-nums text-sm">{p.price_nok} NOK</p>
                       </div>
                     </a>
+                    <a href={`/market/listing/${p.id}/kvittering`} class="block px-4 py-2 text-xs text-charcoal/55 hover:text-terracotta-500 border-t border-sage-500/10">📄 Se kvittering</a>
                   </li>
                 ))}
               </ul>
@@ -66,16 +64,14 @@ const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
               <h2 class="font-serif text-xl mb-3">Levert</h2>
               <ul class="space-y-2">
                 {delivered.map((p) => (
-                  <li>
-                    <a
-                      href={`/market/listing/${p.id}`}
-                      class="block bg-oatmeal/40 rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
-                    >
+                  <li class="bg-oatmeal/40 rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                    <a href={`/market/listing/${p.id}`} class="block p-4">
                       <div class="flex items-center justify-between gap-4">
                         <p class="font-medium text-charcoal/65">{p.title}</p>
                         <p class="font-mono tabular-nums text-sm text-charcoal/55">{p.price_nok} NOK</p>
                       </div>
                     </a>
+                    <a href={`/market/listing/${p.id}/kvittering`} class="block px-4 py-2 text-xs text-charcoal/55 hover:text-terracotta-500 border-t border-sage-500/10">📄 Se kvittering</a>
                   </li>
                 ))}
               </ul>

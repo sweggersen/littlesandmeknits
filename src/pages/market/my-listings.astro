@@ -71,11 +71,8 @@ const unreadConvos = (conversations ?? []).length;
           <h2 class="font-serif text-xl mb-3">Ventende ordrer</h2>
           <ul class="space-y-2">
             {pending.map((l) => (
-              <li>
-                <a
-                  href={`/market/listing/${l.id}`}
-                  class="block bg-white rounded-2xl p-4 border border-terracotta-500/20 hover:border-terracotta-500/40 transition-colors"
-                >
+              <li class="bg-white rounded-2xl border border-terracotta-500/20 hover:border-terracotta-500/40 transition-colors">
+                <a href={`/market/listing/${l.id}`} class="block p-4">
                   <div class="flex items-center justify-between gap-4">
                     <div>
                       <div class="flex items-center gap-2 mb-1">
@@ -89,6 +86,7 @@ const unreadConvos = (conversations ?? []).length;
                     <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
                   </div>
                 </a>
+                <a href={`/market/listing/${l.id}/kvittering`} class="block px-4 py-2 text-xs text-charcoal/55 hover:text-terracotta-500 border-t border-terracotta-500/10">📄 Se kvittering</a>
               </li>
             ))}
           </ul>
@@ -160,11 +158,12 @@ const unreadConvos = (conversations ?? []).length;
           <ul class="space-y-2">
             {sold.map((l) => (
               <li>
-                <div class="bg-oatmeal/40 rounded-2xl p-4 border border-sage-500/10">
-                  <div class="flex items-center justify-between gap-4">
+                <div class="bg-oatmeal/40 rounded-2xl border border-sage-500/10">
+                  <div class="flex items-center justify-between gap-4 p-4">
                     <p class="font-medium text-charcoal/65">{l.title}</p>
                     <p class="font-mono tabular-nums text-sm text-charcoal/55">{l.price_nok} NOK</p>
                   </div>
+                  <a href={`/market/listing/${l.id}/kvittering`} class="block px-4 py-2 text-xs text-charcoal/55 hover:text-terracotta-500 border-t border-sage-500/10">📄 Se kvittering</a>
                 </div>
               </li>
             ))}
