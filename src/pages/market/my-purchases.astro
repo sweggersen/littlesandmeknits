@@ -5,13 +5,14 @@ import EmptyState from '../../components/EmptyState.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
-import { LISTING_STATUS } from '../../lib/labels';
+import { LISTING_STATUS, COMMISSION_STATUS } from '../../lib/labels';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/login?next=/market/my-purchases');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
+// Listing purchases (buyer_id)
 const { data: purchases } = await supabase
   .from('listings')
   .select('id, title, price_nok, status, tracking_code, shipped_at, delivered_at, seller_id, reserved_at')
@@ -19,16 +20,40 @@ const { data: purchases } = await supabase
   .in('status', ['reserved', 'shipped', 'sold', 'disputed'])
   .order('reserved_at', { ascending: false });
 
+// Commissions where the user is the bestiller. We surface awarded /
+// completed / delivered ones — open requests live on /market/commissions/
+// my-listings since they're still searching for a strikker.
+const { data: commissions } = await supabase
+  .from('commission_requests')
+  .select('id, title, status, awarded_offer_id, created_at, completed_at, delivered_at, budget_nok_min, budget_nok_max, category')
+  .eq('buyer_id', user.id)
+  .in('status', ['awarded', 'completed', 'delivered', 'disputed'])
+  .order('created_at', { ascending: false });
+
+// Price for each commission comes from the accepted offer.
+const acceptedOfferIds = (commissions ?? []).map(c => c.awarded_offer_id).filter(Boolean) as string[];
+const { data: acceptedOffers } = acceptedOfferIds.length
+  ? await supabase.from('commission_offers').select('id, price_nok, knitter_id').in('id', acceptedOfferIds)
+  : { data: [] };
+const offerById = new Map((acceptedOffers ?? []).map(o => [o.id, o]));
+
 const active = (purchases ?? []).filter((p) => ['reserved', 'shipped'].includes(p.status));
 const delivered = (purchases ?? []).filter((p) => p.status === 'sold');
 const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
+
+const activeCommissions = (commissions ?? []).filter(c => ['awarded', 'completed'].includes(c.status));
+const deliveredCommissions = (commissions ?? []).filter(c => c.status === 'delivered');
+const disputedCommissions = (commissions ?? []).filter(c => c.status === 'disputed');
+
+const hasAny = (purchases?.length ?? 0) + (commissions?.length ?? 0) > 0;
 ---
 
 <Layout title="Mine kjøp — Strikketorget" lang="nb">
   <MarketplaceShell current="mine-kjop">
-      <h1 class="font-serif text-3xl sm:text-4xl mb-8">Mine kjøp</h1>
+      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Mine kjøp</h1>
+      <p class="text-charcoal/55 mb-8">Alt du har bestilt eller kjøpt — annonser og oppdrag.</p>
 
-      {(purchases ?? []).length === 0 ? (
+      {!hasAny ? (
         <EmptyState message="Du har ikke kjøpt noe ennå." ctaText="Utforsk Strikketorget" ctaHref="/market" compact />
       ) : (
         <>
@@ -79,7 +104,7 @@ const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
           )}
 
           {disputed.length > 0 && (
-            <section>
+            <section class="mb-8">
               <h2 class="font-serif text-xl mb-3 text-amber-700">Tvister</h2>
               <ul class="space-y-2">
                 {disputed.map((p) => (
@@ -98,6 +123,40 @@ const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
                     </a>
                   </li>
                 ))}
+              </ul>
+            </section>
+          )}
+
+          {(activeCommissions.length + deliveredCommissions.length + disputedCommissions.length) > 0 && (
+            <section class="mb-8">
+              <h2 class="font-serif text-xl mb-3">Oppdrag (Strikk for meg)</h2>
+              <ul class="space-y-2">
+                {[...activeCommissions, ...deliveredCommissions, ...disputedCommissions].map((c) => {
+                  const offer = c.awarded_offer_id ? offerById.get(c.awarded_offer_id) : null;
+                  const price = (offer as any)?.price_nok ?? null;
+                  const variant = c.status === 'delivered' ? 'sage' : c.status === 'disputed' ? 'amber' : c.status === 'completed' ? 'sage' : 'amber';
+                  const bg = c.status === 'delivered' ? 'bg-oatmeal/40' : c.status === 'disputed' ? 'bg-amber-50 border-amber-200' : 'bg-white';
+                  return (
+                    <li class:list={[bg, 'rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors']}>
+                      <a href={`/market/commissions/${c.id}`} class="block p-4">
+                        <div class="flex items-center justify-between gap-4">
+                          <div>
+                            <div class="flex items-center gap-2 mb-1">
+                              <StatusBadge label={COMMISSION_STATUS[c.status] ?? c.status} variant={variant as any} />
+                            </div>
+                            <p class:list={['font-medium', c.status === 'delivered' && 'text-charcoal/65']}>{c.title}</p>
+                          </div>
+                          <p class:list={['font-mono tabular-nums text-sm', c.status === 'delivered' && 'text-charcoal/55']}>
+                            {price !== null ? `${price} NOK` : `${c.budget_nok_min ?? '?'}–${c.budget_nok_max ?? '?'}`}
+                          </p>
+                        </div>
+                      </a>
+                      {c.awarded_offer_id && (
+                        <a href={`/market/commissions/${c.id}/kvittering`} class="block px-4 py-2 text-xs text-charcoal/55 hover:text-terracotta-500 border-t border-sage-500/10">📄 Se kvittering</a>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}
