@@ -5,14 +5,14 @@ import EmptyState from '../../components/EmptyState.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
-import { KIND_LABEL, LISTING_STATUS } from '../../lib/labels';
+import { KIND_LABEL, LISTING_STATUS, COMMISSION_STATUS } from '../../lib/labels';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (!user) return Astro.redirect('/login?next=/market/my-listings');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-const [{ data: listings }, { data: conversations }] = await Promise.all([
+const [{ data: listings }, { data: conversations }, { data: knitterOffers }] = await Promise.all([
   supabase
     .from('listings')
     .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier, buyer_name, buyer_city')
@@ -24,6 +24,11 @@ const [{ data: listings }, { data: conversations }] = await Promise.all([
     .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
     .order('updated_at', { ascending: false })
     .limit(5),
+  supabase
+    .from('commission_offers')
+    .select('id, price_nok, request_id, status, commission_requests!commission_offers_request_id_fkey(id, title, status, category, delivered_at)')
+    .eq('knitter_id', user.id)
+    .eq('status', 'accepted'),
 ]);
 
 const drafts = (listings ?? []).filter((l) => l.status === 'draft');
@@ -31,13 +36,31 @@ const pending = (listings ?? []).filter((l) => ['reserved', 'shipped', 'disputed
 const live = (listings ?? []).filter((l) => l.status === 'active');
 const sold = (listings ?? []).filter((l) => l.status === 'sold');
 const unreadConvos = (conversations ?? []).length;
+
+// Commissions the user is knitting (or has knit). Filter out commissions
+// where the request itself is in a non-active state, then split into
+// "pågående" vs "levert".
+const knitterCommissions = ((knitterOffers ?? []) as any[])
+  .filter(o => o.commission_requests)
+  .map(o => ({
+    id: o.commission_requests.id,
+    title: o.commission_requests.title,
+    status: o.commission_requests.status,
+    category: o.commission_requests.category,
+    delivered_at: o.commission_requests.delivered_at,
+    price_nok: o.price_nok,
+  }));
+const commissionsActive = knitterCommissions.filter(c => ['awarded', 'awaiting_payment', 'awaiting_yarn', 'completed'].includes(c.status));
+const commissionsDelivered = knitterCommissions.filter(c => c.status === 'delivered');
+const commissionsDisputed = knitterCommissions.filter(c => c.status === 'disputed');
 ---
 
-<Layout title="Mine annonser — Strikketorget" lang="nb">
+<Layout title="Mine annonser og oppdrag — Strikketorget" lang="nb">
   <MarketplaceShell current="mine">
       <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
         <div>
-          <h1 class="font-serif text-3xl sm:text-4xl">Mine annonser</h1>
+          <h1 class="font-serif text-3xl sm:text-4xl">Mine annonser og oppdrag</h1>
+          <p class="text-charcoal/55 mt-1">Alt jeg selger, har solgt, og strikker for andre.</p>
         </div>
         <a
           href="/market/listing/new"
@@ -153,7 +176,7 @@ const unreadConvos = (conversations ?? []).length;
       </section>
 
       {sold.length > 0 && (
-        <section>
+        <section class="mb-8">
           <h2 class="font-serif text-xl mb-3 text-charcoal/55">Solgt</h2>
           <ul class="space-y-2">
             {sold.map((l) => (
@@ -167,6 +190,36 @@ const unreadConvos = (conversations ?? []).length;
                 </div>
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+
+      {(commissionsActive.length + commissionsDelivered.length + commissionsDisputed.length) > 0 && (
+        <section>
+          <h2 class="font-serif text-xl mb-3">Oppdrag jeg strikker</h2>
+          <ul class="space-y-2">
+            {[...commissionsActive, ...commissionsDelivered, ...commissionsDisputed].map((c) => {
+              const isDone = c.status === 'delivered';
+              const isDisp = c.status === 'disputed';
+              const bg = isDone ? 'bg-oatmeal/40' : isDisp ? 'bg-amber-50 border-amber-200' : 'bg-white';
+              const variant = isDone ? 'sage' : isDisp ? 'amber' : 'amber';
+              return (
+                <li class:list={[bg, 'rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors']}>
+                  <a href={`/market/commissions/${c.id}`} class="block p-4">
+                    <div class="flex items-center justify-between gap-4">
+                      <div>
+                        <div class="flex items-center gap-2 mb-1">
+                          <StatusBadge label={COMMISSION_STATUS[c.status] ?? c.status} variant={variant as any} />
+                        </div>
+                        <p class:list={['font-medium', isDone && 'text-charcoal/65']}>{c.title}</p>
+                      </div>
+                      <p class:list={['font-mono tabular-nums text-sm', isDone && 'text-charcoal/55']}>{c.price_nok} NOK</p>
+                    </div>
+                  </a>
+                  <a href={`/market/commissions/${c.id}/kvittering`} class="block px-4 py-2 text-xs text-charcoal/55 hover:text-terracotta-500 border-t border-sage-500/10">📄 Se kvittering</a>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
