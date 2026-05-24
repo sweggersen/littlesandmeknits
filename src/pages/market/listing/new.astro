@@ -64,7 +64,7 @@ const STEPS = [
             <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type *</label>
             <select id="kind" name="kind" required class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
               <option value="pre_loved">Brukt</option>
-              <option value="ready_made">Nytt (strikket av meg)</option>
+              <option value="ready_made">Nytt — aldri brukt</option>
             </select>
           </div>
 
@@ -131,6 +131,10 @@ const STEPS = [
               <div>
                 <label for="pattern_external_title" class="block text-xs text-charcoal/55 mb-1">Oppskrift</label>
                 <input id="pattern_external_title" name="pattern_external_title" type="text" maxlength="120" placeholder="Sondre cardigan, av Weggersen Design" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              </div>
+              <div>
+                <label for="knitted_by" class="block text-xs text-charcoal/55 mb-1">Strikket av</label>
+                <input id="knitted_by" name="knitted_by" type="text" maxlength="80" placeholder="Meg, mormor, en strikker hos oss…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
               </div>
               <div>
                 <label for="location" class="block text-xs text-charcoal/55 mb-1">Sted</label>

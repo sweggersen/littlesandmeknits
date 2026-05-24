@@ -26,6 +26,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     storeId: form.get('store_id')?.toString() || undefined,
     shippingOption: form.get('shipping_option')?.toString(),
     escrowEnabled: form.get('escrow_enabled')?.toString(),
+    knittedBy: form.get('knitted_by')?.toString(),
   });
   return toResponse(result, redirect);
 };
