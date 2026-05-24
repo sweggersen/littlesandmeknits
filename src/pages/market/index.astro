@@ -14,33 +14,109 @@ import { KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 
-const [{ data: latest }, { data: latestRequests }] = await Promise.all([
-  supabase
-    .from('listings')
-    .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at, promoted_until, promotion_tier')
-    .eq('status', 'active')
-    .order('promoted_until', { ascending: false, nullsFirst: false })
-    .order('published_at', { ascending: false })
-    .limit(8),
-  supabase
-    .from('commission_requests')
-    .select('id, title, category, size_label, budget_nok_min, budget_nok_max, offer_count, needed_by')
-    .eq('status', 'open')
-    .order('created_at', { ascending: false })
-    .limit(4),
-]);
+const SLOTS = 8;
+const LISTING_COLS = 'id, title, kind, price_nok, size_label, hero_photo_path, published_at, promoted_until, promotion_tier, category, favorite_count, store_id';
 
+// 1) Active paid-promotion slots — we always surface a couple of these.
+//    Listings whose promoted_until is still in the future, regardless of
+//    other signals. Boosted, not auto-sorted.
+const nowIso = new Date().toISOString();
+const promotedRes = await supabase
+  .from('listings')
+  .select(LISTING_COLS)
+  .eq('status', 'active')
+  .gt('promoted_until', nowIso)
+  .order('promoted_until', { ascending: false })
+  .limit(3);
+const promoted = promotedRes.data ?? [];
+
+// 2) For-you / popular pool.
+let pool: any[] = [];
 let favIds: string[] = [];
+let preferredCategories: string[] = [];
+
 if (user) {
-  try {
-    const { data: favs } = await supabase
-      .from('favorites')
-      .select('item_id')
-      .eq('user_id', user.id)
-      .eq('item_type', 'listing');
-    favIds = (favs ?? []).map(f => f.item_id);
-  } catch {}
+  // Pull the user's recent favorites to derive preferred categories.
+  const { data: favs } = await supabase
+    .from('favorites')
+    .select('item_id')
+    .eq('user_id', user.id)
+    .eq('item_type', 'listing')
+    .order('created_at', { ascending: false })
+    .limit(40);
+  favIds = (favs ?? []).map((f: any) => f.item_id);
+
+  if (favIds.length) {
+    const { data: favListings } = await supabase
+      .from('listings')
+      .select('category')
+      .in('id', favIds);
+    const counts = new Map<string, number>();
+    for (const l of favListings ?? []) {
+      if (l.category) counts.set(l.category, (counts.get(l.category) ?? 0) + 1);
+    }
+    preferredCategories = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([c]) => c);
+  }
 }
+
+// Pool query: if we have preferred categories, prefer them; otherwise fall
+// back to global popularity (favorite_count) + recency.
+const promotedIds = promoted.map(p => p.id);
+
+if (preferredCategories.length) {
+  const { data } = await supabase
+    .from('listings')
+    .select(LISTING_COLS)
+    .eq('status', 'active')
+    .in('category', preferredCategories)
+    .not('id', 'in', `(${[...promotedIds, ...favIds, '00000000-0000-0000-0000-000000000000'].map(v => `"${v}"`).join(',')})`)
+    .order('favorite_count', { ascending: false })
+    .order('published_at', { ascending: false })
+    .limit(SLOTS * 2);
+  pool = data ?? [];
+}
+
+if (pool.length < SLOTS) {
+  // Top up with popular-then-recent listings.
+  const exclude = [...promotedIds, ...favIds, ...pool.map(p => p.id), '00000000-0000-0000-0000-000000000000'];
+  const { data } = await supabase
+    .from('listings')
+    .select(LISTING_COLS)
+    .eq('status', 'active')
+    .not('id', 'in', `(${exclude.map(v => `"${v}"`).join(',')})`)
+    .order('favorite_count', { ascending: false })
+    .order('published_at', { ascending: false })
+    .limit(SLOTS * 2);
+  pool = [...pool, ...(data ?? [])];
+}
+
+// Interleave: every 4th slot is a promoted item (so paid placements get
+// visibility without monopolising the feed).
+const featured: any[] = [];
+let promotedQueue = [...promoted];
+let poolQueue = [...pool];
+for (let i = 0; i < SLOTS; i++) {
+  if (i > 0 && i % 4 === 0 && promotedQueue.length) {
+    featured.push(promotedQueue.shift()!);
+  } else if (poolQueue.length) {
+    featured.push(poolQueue.shift()!);
+  } else if (promotedQueue.length) {
+    featured.push(promotedQueue.shift()!);
+  }
+}
+
+// 3) Commission requests (unchanged).
+const { data: latestRequests } = await supabase
+  .from('commission_requests')
+  .select('id, title, category, size_label, budget_nok_min, budget_nok_max, offer_count, needed_by')
+  .eq('status', 'open')
+  .order('created_at', { ascending: false })
+  .limit(4);
+
+const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
 
 ---
 
@@ -128,12 +204,12 @@ if (user) {
         </a>
       </div>
 
-      <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">Nyeste annonser</h2>
-      {(latest ?? []).length === 0 ? (
+      <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">{featuredTitle}</h2>
+      {featured.length === 0 ? (
         <EmptyState message="Ingen annonser ennå. Kom tilbake snart." />
       ) : (
         <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          {(latest ?? []).map((l) => (
+          {featured.map((l) => (
             <ListingCard
               id={l.id}
               title={l.title}
@@ -142,7 +218,7 @@ if (user) {
               meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
               showFav={!!user}
               isFav={favIds.includes(l.id)}
-              promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date() && l.promotion_tier === 'highlight')}
+              promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
             />
           ))}
         </ul>
