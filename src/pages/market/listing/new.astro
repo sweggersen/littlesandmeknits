@@ -109,16 +109,21 @@ const STEPS = [
           <details class="text-sm">
             <summary class="cursor-pointer text-xs font-bold uppercase tracking-widest text-charcoal/45">Flere detaljer (valgfritt)</summary>
             <div class="space-y-4 mt-4">
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label for="size_age_months_min" class="block text-xs text-charcoal/55 mb-1">Alder fra (mnd)</label>
-                  <input id="size_age_months_min" name="size_age_months_min" type="number" min="0" max="240" placeholder="18" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              <details class="bg-linen/40 rounded-xl p-3">
+                <summary class="cursor-pointer text-xs text-charcoal/55">Alder (kun for barneklær)</summary>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <label for="size_age_months_min" class="block text-xs text-charcoal/55 mb-1">Fra (mnd)</label>
+                    <input id="size_age_months_min" name="size_age_months_min" type="number" min="0" max="240" placeholder="18" class="w-full bg-white rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+                  </div>
+                  <div>
+                    <label for="size_age_months_max" class="block text-xs text-charcoal/55 mb-1">Til (mnd)</label>
+                    <input id="size_age_months_max" name="size_age_months_max" type="number" min="0" max="240" placeholder="24" class="w-full bg-white rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+                  </div>
                 </div>
-                <div>
-                  <label for="size_age_months_max" class="block text-xs text-charcoal/55 mb-1">Alder til (mnd)</label>
-                  <input id="size_age_months_max" name="size_age_months_max" type="number" min="0" max="240" placeholder="24" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
-                </div>
-              </div>
+                <p class="text-[11px] text-charcoal/45 mt-2">La feltene stå tomme for voksenplagg.</p>
+              </details>
+
               <div>
                 <label for="colorway" class="block text-xs text-charcoal/55 mb-1">Farge</label>
                 <input id="colorway" name="colorway" type="text" maxlength="60" placeholder="Dustyrosa, naturhvit…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
