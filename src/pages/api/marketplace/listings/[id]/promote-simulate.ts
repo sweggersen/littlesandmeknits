@@ -10,6 +10,7 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
   const result = await simulatePromotion(ctx, {
     listingId: params.id ?? '',
     tier: form.get('tier')?.toString() ?? '',
+    requestHost: new URL(request.url).host,
   });
   return toResponse(result, redirect);
 };
