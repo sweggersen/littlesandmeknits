@@ -3,6 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { buildServiceContext } from '../../../lib/services/context';
 import { getPromotionStats, getActivePromotion } from '../../../lib/services/promotions';
+import { CATEGORY_LABEL } from '../../../lib/labels';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market/my-listings');
@@ -13,7 +14,7 @@ if (!ctx) return Astro.redirect('/login?next=/market/my-listings');
 const result = await getPromotionStats(ctx, { listingId: id });
 if (!result.ok) return Astro.redirect('/market/my-listings');
 
-const { organic, promoted, totalDays } = result.data;
+const { organic, promoted, totalDays, audience } = result.data;
 const activePromo = await getActivePromotion(ctx.supabase, id);
 
 const organicCtr = organic.impressions > 0 ? ((organic.clicks / organic.impressions) * 100).toFixed(1) : '0.0';
@@ -67,6 +68,41 @@ const { data: listing } = await ctx.supabase
     {liftPct !== null && liftPct > 0 && (
       <div class="bg-sage-100/50 rounded-2xl p-5 border border-sage-500/15">
         <p class="text-sm">Promotering ga <strong class="text-terracotta-500">{liftPct}%</strong> mer synlighet per dag sammenlignet med organisk.</p>
+      </div>
+    )}
+
+    {audience.viewer_count > 0 && (audience.top_categories.length > 0 || audience.top_sizes.length > 0) && (
+      <div class="bg-white rounded-2xl p-5 border border-sage-500/10 mb-8">
+        <h2 class="font-serif text-lg mb-1">Vist mest til</h2>
+        <p class="text-xs text-charcoal/55 mb-4">Basert på {audience.viewer_count} unike seer{audience.viewer_count === 1 ? '' : 'e'} som favoritter andre annonser.</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {audience.top_categories.length > 0 && (
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Kategorier</p>
+              <ul class="space-y-1">
+                {audience.top_categories.map((c) => (
+                  <li class="flex justify-between text-sm">
+                    <span>{CATEGORY_LABEL[c.category] ?? c.category}</span>
+                    <span class="font-mono tabular-nums text-charcoal/55">{c.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {audience.top_sizes.length > 0 && (
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Størrelser</p>
+              <ul class="space-y-1">
+                {audience.top_sizes.map((s) => (
+                  <li class="flex justify-between text-sm">
+                    <span>{s.size_label}</span>
+                    <span class="font-mono tabular-nums text-charcoal/55">{s.count}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     )}
 

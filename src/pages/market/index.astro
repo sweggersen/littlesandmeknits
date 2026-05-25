@@ -10,12 +10,13 @@ import { createServerSupabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
+import { rankPromoted, type UserPreferences } from '../../lib/promotion-ranker';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 
 const SLOTS = 8;
-const LISTING_COLS = 'id, title, kind, price_nok, size_label, hero_photo_path, published_at, promoted_until, promotion_tier, category, favorite_count, store_id';
+const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_min, size_age_months_max, hero_photo_path, published_at, promoted_until, promoted_at, promotion_tier, category, favorite_count, seller_id, store_id';
 
 // 1) Active paid-promotion slots — we always surface a couple of these.
 //    Listings whose promoted_until is still in the future, regardless of
@@ -27,8 +28,40 @@ const promotedRes = await supabase
   .eq('status', 'active')
   .gt('promoted_until', nowIso)
   .order('promoted_until', { ascending: false })
-  .limit(3);
-const promoted = promotedRes.data ?? [];
+  .limit(20);
+const promotedAll = promotedRes.data ?? [];
+
+// Pull pacing data (daily_budget, daily_impressions_served) for the
+// promoted listings so the ranker can de-prioritise exhausted budgets.
+if (promotedAll.length) {
+  const { data: pacingRows } = await supabase
+    .from('listing_promotions')
+    .select('listing_id, daily_budget, daily_impressions_served')
+    .in('listing_id', promotedAll.map((p) => p.id))
+    .eq('status', 'active');
+  const pacingById = new Map((pacingRows ?? []).map((r: any) => [r.listing_id, r]));
+  for (const p of promotedAll) {
+    const pacing = pacingById.get(p.id);
+    if (pacing) {
+      p.daily_budget = pacing.daily_budget;
+      p.daily_impressions_served = pacing.daily_impressions_served;
+    }
+  }
+}
+
+// Personalised ranking of the promoted pool. Reads from the user_preferences
+// materialized view (refreshed by /api/cron/run). Anonymous viewers fall
+// through with prefs=null → ranker uses the conditionBaseline only.
+let userPrefs: UserPreferences = null;
+if (user) {
+  const { data: prefRow } = await supabase
+    .from('user_preferences')
+    .select('favorited_categories, clicked_categories, clicked_sizes, price_band, age_band')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (prefRow) userPrefs = prefRow as UserPreferences;
+}
+const promoted = rankPromoted(promotedAll, userPrefs).slice(0, 3);
 
 // 2) For-you / popular pool.
 let pool: any[] = [];
@@ -93,11 +126,11 @@ if (pool.length < SLOTS) {
   pool = [...pool, ...(data ?? [])];
 }
 
-// Interleave: every 4th slot is a promoted item (so paid placements get
-// visibility without monopolising the feed).
+// Interleave: every 4th slot is a promoted item so paid placements get
+// visibility without monopolising the feed.
 const featured: any[] = [];
-let promotedQueue = [...promoted];
-let poolQueue = [...pool];
+const promotedQueue = [...promoted];
+const poolQueue = [...pool];
 for (let i = 0; i < SLOTS; i++) {
   if (i > 0 && i % 4 === 0 && promotedQueue.length) {
     featured.push(promotedQueue.shift()!);
@@ -219,6 +252,7 @@ const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
               showFav={!!user}
               isFav={favIds.includes(l.id)}
               promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
+              promotionTier={l.promotion_tier ?? null}
             />
           ))}
         </ul>

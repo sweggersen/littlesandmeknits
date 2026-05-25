@@ -1,0 +1,65 @@
+---
+export const prerender = true;
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Hvordan kjøpe — Hjelp" lang="nb">
+  <div class="max-w-3xl mx-auto px-6 py-14">
+    <a href="/hjelp" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-block">← Tilbake til hjelp</a>
+    <h1 class="font-serif text-4xl sm:text-5xl mb-3">Hvordan kjøpe</h1>
+    <p class="text-charcoal/55 text-base mb-10">
+      Slik finner du et plagg, betaler trygt og mottar varen.
+    </p>
+
+    <div class="prose prose-sm text-charcoal/80 space-y-6">
+
+      <h2 class="font-serif text-2xl mt-0">1. Finn det du leter etter</h2>
+      <p>Bruk søk og filtre på <a href="/market" class="text-terracotta-500 hover:underline">forsiden</a> for å snevre inn etter kategori, størrelse og pris. Du kan også bla i <a href="/market/brukt" class="text-terracotta-500 hover:underline">Brukt</a> eller <a href="/market/nytt" class="text-terracotta-500 hover:underline">Nytt</a>.</p>
+      <p>Trykk på hjerteikonet for å lagre favoritter du vil vurdere senere.</p>
+
+      <h2 class="font-serif text-2xl">2. Sjekk annonsen nøye</h2>
+      <ul class="list-disc pl-5 space-y-2">
+        <li>Les beskrivelsen og se på alle bildene.</li>
+        <li>Sjekk størrelsen — strikkeplagg kan ha varierende mål. Selger oppgir gjerne størrelse i cm i beskrivelsen.</li>
+        <li>For brukte plagg: les tilstanden og se etter nærbilder av eventuelle bruksspor.</li>
+        <li>Trygg betaling-merket (🛡️) betyr at pengene holdes trygt til varen er mottatt.</li>
+      </ul>
+
+      <h2 class="font-serif text-2xl">3. Still spørsmål</h2>
+      <p>Trykk på <strong>Send melding</strong> hvis du er usikker på noe. De fleste selgere svarer innen et døgn.</p>
+
+      <h2 class="font-serif text-2xl">4. Kjøp</h2>
+      <p>Trykk <strong>Kjøp nå</strong>. Du blir tatt til en sikker betalingsside (Stripe) der du fyller inn:</p>
+      <ul class="list-disc pl-5 space-y-2">
+        <li>Leveringsadresse (Norge).</li>
+        <li>Betaling — kort, Apple Pay eller Google Pay.</li>
+      </ul>
+      <p>Med trygg betaling betaler du en liten avgift som dekker plattformen og garantien:</p>
+      <ul class="list-disc pl-5 space-y-2">
+        <li>9 kr for varer opptil 200 kr</li>
+        <li>19 kr for varer 201–500 kr</li>
+        <li>29 kr for varer over 500 kr</li>
+      </ul>
+      <p>Du ser totalbeløpet (vare + frakt + avgift) tydelig før du fullfører.</p>
+
+      <h2 class="font-serif text-2xl">5. Vent på varen</h2>
+      <p>Selger pakker og sender, vanligvis innen 1–3 virkedager. Du får varsel når varen er sendt, gjerne med sporingsnummer fra Posten.</p>
+
+      <h2 class="font-serif text-2xl">6. Bekreft mottak</h2>
+      <p>Når pakken er framme: åpne annonsen og trykk <strong>Bekreft mottatt</strong>. Det frigjør pengene til selger.</p>
+      <p>Hvis du glemmer det, frigjøres pengene automatisk 14 dager etter sending. Det er en sikkerhet for selger — men gjør selgeren glad ved å bekrefte selv.</p>
+
+      <h2 class="font-serif text-2xl">7. Hvis varen ikke er som forventet</h2>
+      <p>Trykk <strong>Rapporter problem</strong> på annonsesiden innen 14 dager. Pengene holdes trygt mens du og selger forsøker å løse saken. Vi tilbyr mekling hvis dere ikke blir enige.</p>
+
+      <h2 class="font-serif text-2xl">8. Gi en anmeldelse</h2>
+      <p>Etter en god handel — gi gjerne selger en stjerne og noen ord. Det hjelper andre kjøpere og oppmuntrer selgerne.</p>
+
+      <hr class="border-sage-500/15 my-10" />
+      <p class="text-sm text-charcoal/55">
+        Se også: <a href="/hjelp/trygg-betaling" class="text-terracotta-500 hover:underline">Trygg betaling forklart</a> ·
+        <a href="/hjelp" class="text-terracotta-500 hover:underline">Tilbake til hjelp</a>
+      </p>
+    </div>
+  </div>
+</Layout>

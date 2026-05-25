@@ -18,7 +18,26 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0 };
+  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0, userPreferencesRefreshed: 0, promotionDailyWindowsReset: 0 };
+
+  // Refresh the user_preferences materialized view powering the
+  // promoted-pool ranker. Cheap (CONCURRENTLY) and safe to call every tick.
+  try {
+    const { error } = await admin.rpc('refresh_user_preferences');
+    if (!error) results.userPreferencesRefreshed = 1;
+    else console.error('refresh_user_preferences failed', error);
+  } catch (e) {
+    console.error('refresh_user_preferences threw', e);
+  }
+
+  // Reset promotion daily impression counters for windows older than 24h.
+  try {
+    const { data, error } = await admin.rpc('reset_promotion_daily_windows');
+    if (!error) results.promotionDailyWindowsReset = (data as number) ?? 0;
+    else console.error('reset_promotion_daily_windows failed', error);
+  } catch (e) {
+    console.error('reset_promotion_daily_windows threw', e);
+  }
 
   // 0. Expire listing promotions
   const { data: expiredPromos } = await admin
@@ -36,7 +55,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       await admin
         .from('listings')
-        .update({ promoted_until: null, promotion_tier: null })
+        .update({ promoted_until: null, promotion_tier: null, promoted_at: null })
         .eq('id', promo.listing_id);
 
       results.promotionsExpired++;

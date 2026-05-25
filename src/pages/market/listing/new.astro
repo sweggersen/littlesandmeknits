@@ -17,7 +17,7 @@ const preselectedStoreId = Astro.url.searchParams.get('store') ?? '';
 const STEPS = [
   { id: 1, label: 'Detaljer' },
   { id: 2, label: 'Pris & frakt' },
-  { id: 3, label: 'Gjennomgang' },
+  { id: 3, label: 'Bilder' },
 ];
 ---
 
@@ -26,7 +26,7 @@ const STEPS = [
     <div class="max-w-2xl mx-auto">
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
       <p class="text-sm text-charcoal/55 mb-6">
-        Tre korte steg. Lagre som utkast når som helst — du kan publisere senere.
+        Detaljer, pris og bilder — tre korte steg. Lagres som utkast underveis.
       </p>
 
       <!-- Step progress -->
@@ -193,17 +193,6 @@ const STEPS = [
           </div>
         </section>
 
-        <!-- ───── Step 3: Gjennomgang ───── -->
-        <section data-step="3" class="space-y-4 hidden">
-          <p class="text-sm text-charcoal/65">Ser dette riktig ut?</p>
-          <div class="bg-linen rounded-2xl p-5 text-sm space-y-2" data-review>
-            <p class="text-charcoal/45 italic" data-review-empty>Fyll inn steg 1 og 2 for å se gjennomgangen.</p>
-          </div>
-          <p class="text-xs text-charcoal/45">
-            Annonsen lagres som utkast. Etter at du har lastet opp bilder kan du sende inn til godkjenning og publisere.
-          </p>
-        </section>
-
         <!-- ───── Navigation ───── -->
         <div class="flex items-center justify-between gap-3 pt-2 border-t border-sage-500/10 mt-6">
           <button type="button" data-wizard-back class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2 hidden">
@@ -217,7 +206,7 @@ const STEPS = [
             Neste →
           </button>
           <button type="submit" data-wizard-submit class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors hidden">
-            Lagre utkast
+            Lagre & last opp bilder →
           </button>
         </div>
       </form>
@@ -235,7 +224,6 @@ const STEPS = [
       const back = document.querySelector<HTMLButtonElement>('[data-wizard-back]')!;
       const next = document.querySelector<HTMLButtonElement>('[data-wizard-next]')!;
       const submit = document.querySelector<HTMLButtonElement>('[data-wizard-submit]')!;
-      const reviewEl = form.querySelector<HTMLElement>('[data-review]')!;
       let current = 1;
 
       function show(n: number) {
@@ -252,52 +240,16 @@ const STEPS = [
         back.classList.toggle('hidden', n === 1);
         next.classList.toggle('hidden', n === steps.length);
         submit.classList.toggle('hidden', n !== steps.length);
-        if (n === steps.length) renderReview();
-        // Scroll to top of the form
         form.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
-      function fieldVal(name: string): string {
-        const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | RadioNodeList | null;
-        if (!el) return '';
-        if (el instanceof RadioNodeList) {
-          for (const r of Array.from(el) as HTMLInputElement[]) if (r.checked) return r.value;
-          return '';
-        }
-        return (el as HTMLInputElement).value ?? '';
-      }
-
       function validateStep(n: number): boolean {
-        // Use native validity for the visible step's required fields.
         const inputs = steps[n - 1].querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input[required], select[required], textarea[required]');
         for (const el of Array.from(inputs)) {
           if (el.offsetParent === null) continue;
           if (!el.checkValidity()) { el.reportValidity(); return false; }
         }
         return true;
-      }
-
-      function renderReview() {
-        const kind = fieldVal('kind') === 'pre_loved' ? 'Brukt' : 'Nytt';
-        const title = fieldVal('title');
-        const cat = fieldVal('category');
-        const size = fieldVal('size_label');
-        const cond = fieldVal('condition');
-        const price = fieldVal('price_nok');
-        const shipping = fieldVal('shipping_option');
-        const tbOn = (form.elements.namedItem('escrow_enabled') as HTMLInputElement | null)?.checked;
-        if (!title || !price) {
-          reviewEl.innerHTML = '<p class="text-charcoal/45 italic">Fyll inn steg 1 og 2 for å se gjennomgangen.</p>';
-          return;
-        }
-        const shipLabel = shipping === 'free' ? 'Gratis' : shipping === 'small_letter' ? 'Brev (39 kr)' : shipping === 'small_parcel' ? 'Norgespakke liten (76 kr)' : 'Norgespakke stor (140 kr)';
-        reviewEl.innerHTML = `
-          <p><span class="text-charcoal/55">${kind} · ${cat}${cond ? ' · ' + cond : ''}</span></p>
-          <p class="font-medium text-base">${title}</p>
-          <p class="text-charcoal/65">Størrelse <strong>${size}</strong> · <strong>${price} kr</strong></p>
-          <p class="text-charcoal/65">Frakt: ${shipLabel}</p>
-          <p class="text-charcoal/65">Trygg betaling: ${tbOn ? 'På' : 'Av'}</p>
-        `;
       }
 
       back.addEventListener('click', () => show(Math.max(1, current - 1)));

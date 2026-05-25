@@ -11,6 +11,7 @@ interface Props {
   inactive?: boolean;
   inactiveLabel?: string;
   promoted?: boolean;
+  promotionTier?: 'boost' | 'highlight' | null;
   storeName?: string | null;
   storeSlug?: string | null;
   escrowEnabled?: boolean;
@@ -27,13 +28,14 @@ const {
   inactive = false,
   inactiveLabel,
   promoted = false,
+  promotionTier,
   storeName,
   storeSlug,
   escrowEnabled = false,
 } = Astro.props;
 ---
 
-<li class:list={['relative', inactive && 'opacity-50']} data-listing-item data-listing-item-id={id} data-promoted={promoted ? 'true' : undefined}>
+<li class:list={['relative', inactive && 'opacity-50']} data-listing-item data-listing-item-id={id} data-promoted={promoted ? 'true' : undefined} data-promotion-tier={promotionTier ?? undefined}>
   <a href={href} class:list={[
     'block bg-white rounded-2xl border border-sage-500/10 overflow-hidden transition-colors',
     !inactive && 'hover:border-sage-500/30',

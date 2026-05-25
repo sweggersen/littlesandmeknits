@@ -104,7 +104,7 @@ export async function createListing(
     return fail('server_error', 'Could not create listing');
   }
 
-  return ok({ redirect: `/market/listing/${data.id}` });
+  return ok({ redirect: `/market/listing/${data.id}/foto` });
 }
 
 const LISTING_FEE_NOK = 29;
