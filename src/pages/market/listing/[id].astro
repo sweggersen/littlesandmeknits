@@ -458,13 +458,13 @@ const autoReleaseDays = listing.auto_release_at
                 <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mt-4">
                   <h2 class="font-serif text-xl mb-2">Fremhev annonsen</h2>
                   <p class="text-sm text-charcoal/65 mb-4">Gi annonsen din mer synlighet — promoterte annonser vises øverst i søk og på forsiden.</p>
-                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div class="space-y-1.5">
-                      <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`}>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
+                    <div class="space-y-1.5 flex flex-col">
+                      <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`} class="flex-1">
                         <input type="hidden" name="tier" value="boost" />
-                        <button type="submit" class="w-full bg-white border-2 border-sage-500/20 rounded-2xl p-4 text-left hover:border-terracotta-500/30 transition-colors">
+                        <button type="submit" class="w-full h-full bg-white border-2 border-sage-500/20 rounded-2xl p-4 text-left hover:border-terracotta-500/30 transition-colors flex flex-col">
                           <p class="font-medium mb-1">Boost</p>
-                          <p class="text-xs text-charcoal/55 mb-2">Vises øverst i 7 dager</p>
+                          <p class="text-xs text-charcoal/55 mb-2 flex-1">Vises øverst i 7 dager</p>
                           <p class="font-mono tabular-nums">49 NOK</p>
                         </button>
                       </form>
@@ -473,12 +473,12 @@ const autoReleaseDays = listing.auto_release_at
                         <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev — uten betaling)</button>
                       </form>
                     </div>
-                    <div class="space-y-1.5">
-                      <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`}>
+                    <div class="space-y-1.5 flex flex-col">
+                      <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`} class="flex-1">
                         <input type="hidden" name="tier" value="highlight" />
-                        <button type="submit" class="w-full bg-terracotta-500/5 border-2 border-terracotta-500/20 rounded-2xl p-4 text-left hover:border-terracotta-500/40 transition-colors">
+                        <button type="submit" class="w-full h-full bg-terracotta-500/5 border-2 border-terracotta-500/20 rounded-2xl p-4 text-left hover:border-terracotta-500/40 transition-colors flex flex-col">
                           <p class="font-medium text-terracotta-500 mb-1">Fremhevet</p>
-                          <p class="text-xs text-charcoal/55 mb-2">Boost + «Fremhevet»-merke + forside</p>
+                          <p class="text-xs text-charcoal/55 mb-2 flex-1">Boost + «Fremhevet»-merke + forside</p>
                           <p class="font-mono tabular-nums">99 NOK</p>
                         </button>
                       </form>

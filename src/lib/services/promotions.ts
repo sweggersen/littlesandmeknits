@@ -82,7 +82,7 @@ export async function promoteListing(
  *  page (localhost) and by admins for manual gifting. */
 export async function simulatePromotion(
   ctx: ServiceContext,
-  input: { listingId: string; tier: string },
+  input: { listingId: string; tier: string; requestHost?: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   const tier = input.tier;
   if (!TIER_PRICE[tier]) return fail('bad_input', 'Ugyldig promoteringstier');
@@ -90,9 +90,12 @@ export async function simulatePromotion(
   const { data: profile } = await ctx.admin
     .from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
   const isStaff = profile?.role === 'admin' || profile?.role === 'moderator';
-  // Allow on localhost (dev) OR when the caller is staff.
-  const host = new URL(ctx.env.PUBLIC_SITE_URL ?? 'http://localhost').hostname;
-  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
+  // Real request host (not the PUBLIC_SITE_URL env, which usually points
+  // at the prod host even during local dev).
+  const host = input.requestHost ?? '';
+  const isLocal = host === 'localhost' || host.startsWith('localhost:')
+    || host === '127.0.0.1' || host.startsWith('127.0.0.1:')
+    || host.startsWith('192.168.');
   if (!isLocal && !isStaff) return fail('forbidden', 'Kun staff kan simulere uten betaling');
 
   const { data: listing } = await ctx.admin
