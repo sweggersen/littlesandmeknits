@@ -77,6 +77,57 @@ export async function promoteListing(
   return ok({ redirect: session.url });
 }
 
+/** Dev/admin convenience: activate a promotion without going through
+ *  Stripe Checkout. Used by the "Simuler" buttons on the listing detail
+ *  page (localhost) and by admins for manual gifting. */
+export async function simulatePromotion(
+  ctx: ServiceContext,
+  input: { listingId: string; tier: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  const tier = input.tier;
+  if (!TIER_PRICE[tier]) return fail('bad_input', 'Ugyldig promoteringstier');
+
+  const { data: profile } = await ctx.admin
+    .from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
+  const isStaff = profile?.role === 'admin' || profile?.role === 'moderator';
+  // Allow on localhost (dev) OR when the caller is staff.
+  const host = new URL(ctx.env.PUBLIC_SITE_URL ?? 'http://localhost').hostname;
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.');
+  if (!isLocal && !isStaff) return fail('forbidden', 'Kun staff kan simulere uten betaling');
+
+  const { data: listing } = await ctx.admin
+    .from('listings')
+    .select('id, seller_id, title, status, promoted_until')
+    .eq('id', input.listingId)
+    .maybeSingle();
+  if (!listing) return fail('not_found', 'Annonse ikke funnet');
+  if (listing.status !== 'active') return fail('bad_input', 'Kun aktive annonser kan promoteres');
+  if (listing.promoted_until && new Date(listing.promoted_until) > new Date()) {
+    return fail('conflict', 'Annonsen er allerede promotert');
+  }
+
+  const now = new Date();
+  const endsAt = new Date(now.getTime() + PROMOTION_DAYS * 86400_000);
+
+  await ctx.admin.from('listing_promotions').insert({
+    listing_id: input.listingId,
+    seller_id: listing.seller_id,
+    tier,
+    starts_at: now.toISOString(),
+    ends_at: endsAt.toISOString(),
+    price_nok: TIER_PRICE[tier],
+    stripe_session_id: `dev-sim-${Date.now()}`,
+    status: 'active',
+  });
+
+  await ctx.admin.from('listings').update({
+    promoted_until: endsAt.toISOString(),
+    promotion_tier: tier,
+  }).eq('id', input.listingId);
+
+  return ok({ redirect: `/market/listing/${input.listingId}?promoted=1` });
+}
+
 export async function getActivePromotion(
   supabase: SupabaseClient,
   listingId: string,
