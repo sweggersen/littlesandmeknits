@@ -33,6 +33,9 @@ const [{ data: listings }, { data: conversations }, { data: knitterOffers }] = a
 ]);
 
 const drafts = (listings ?? []).filter((l) => l.status === 'draft');
+const inReview = (listings ?? []).filter((l) => l.status === 'pending_review');
+const rejected = (listings ?? []).filter((l) => l.status === 'rejected');
+const frozen = (listings ?? []).filter((l) => l.status === 'frozen');
 const pending = (listings ?? []).filter((l) => ['reserved', 'shipped', 'disputed'].includes(l.status));
 const live = (listings ?? []).filter((l) => l.status === 'active');
 const sold = (listings ?? []).filter((l) => l.status === 'sold');
@@ -124,10 +127,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
           <ul class="space-y-2">
             {drafts.map((l) => (
               <li>
-                <a
-                  href={`/market/listing/${l.id}`}
-                  class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
-                >
+                <a href={`/market/listing/${l.id}`} class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex items-center justify-between gap-4">
                     <div>
                       <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
@@ -135,6 +135,66 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
                       </p>
                       <p class="font-medium">{l.title}</p>
                     </div>
+                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {inReview.length > 0 && (
+        <section class="mb-8">
+          <h2 class="font-serif text-xl mb-3">Til vurdering</h2>
+          <ul class="space-y-2">
+            {inReview.map((l) => (
+              <li>
+                <a href={`/market/listing/${l.id}`} class="block bg-amber-50/60 rounded-2xl p-4 border border-amber-200 hover:border-amber-300 transition-colors">
+                  <div class="flex items-center justify-between gap-4">
+                    <div>
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-amber-700 mb-1">
+                        {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
+                      </p>
+                      <p class="font-medium">{l.title}</p>
+                      <p class="text-xs text-charcoal/55 mt-0.5">Sendt til moderering — blir synlig så snart vi har godkjent den.</p>
+                    </div>
+                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {frozen.length > 0 && (
+        <section class="mb-8">
+          <h2 class="font-serif text-xl mb-3 text-amber-700">Frosset av moderator</h2>
+          <ul class="space-y-2">
+            {frozen.map((l) => (
+              <li>
+                <a href={`/market/listing/${l.id}`} class="block bg-amber-50 rounded-2xl p-4 border border-amber-300 hover:border-amber-400 transition-colors">
+                  <div class="flex items-center justify-between gap-4">
+                    <p class="font-medium">{l.title}</p>
+                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {rejected.length > 0 && (
+        <section class="mb-8">
+          <h2 class="font-serif text-xl mb-3 text-red-700">Avvist</h2>
+          <ul class="space-y-2">
+            {rejected.map((l) => (
+              <li>
+                <a href={`/market/listing/${l.id}`} class="block bg-red-50/60 rounded-2xl p-4 border border-red-200 hover:border-red-300 transition-colors">
+                  <div class="flex items-center justify-between gap-4">
+                    <p class="font-medium">{l.title}</p>
                     <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
                   </div>
                 </a>
