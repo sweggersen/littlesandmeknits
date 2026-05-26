@@ -164,6 +164,23 @@ export async function publishListing(
         title: l?.title,
       }, ctx.env);
     }
+  } else {
+    // Trusted seller publishes straight to active — notify followers now.
+    try {
+      const [{ data: l }, { data: profile }] = await Promise.all([
+        ctx.admin.from('listings').select('title').eq('id', input.listingId).maybeSingle(),
+        ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).maybeSingle(),
+      ]);
+      const { notifyFollowersOfNewListing } = await import('../notify');
+      await notifyFollowersOfNewListing(ctx.admin, {
+        sellerId: ctx.user.id,
+        listingId: input.listingId,
+        listingTitle: l?.title ?? 'Ny annonse',
+        sellerName: profile?.display_name,
+      }, ctx.env);
+    } catch (err) {
+      console.error('Follower fan-out (publish) failed', err);
+    }
   }
 
   return ok({ redirect: `/market/listing/${input.listingId}?published=1` });

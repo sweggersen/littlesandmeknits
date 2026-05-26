@@ -606,10 +606,22 @@ async function handle(
     }
 
     case 'publish-listing': {
-      const { error } = await db.from('listings')
+      const { data: l, error } = await db.from('listings')
         .update({ status: 'active', published_at: new Date().toISOString(), listing_fee_nok: 29 })
-        .eq('id', p.listing_id);
+        .eq('id', p.listing_id)
+        .select('id, seller_id, title')
+        .maybeSingle();
       if (error) throw error;
+      if (l?.seller_id) {
+        const { data: profile } = await db.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
+        const { notifyFollowersOfNewListing } = await import('../../../lib/notify');
+        await notifyFollowersOfNewListing(db, {
+          sellerId: l.seller_id,
+          listingId: l.id,
+          listingTitle: l.title ?? 'Ny annonse',
+          sellerName: profile?.display_name,
+        });
+      }
       return { data: { status: 'active' } };
     }
 
@@ -709,6 +721,21 @@ async function handle(
       const id = emailToId.get(email);
       if (!id) throw new Error(`No test user with email ${email}`);
       return { data: { id, email } };
+    }
+
+    case 'count-notifications': {
+      if (!actorId) throw new Error('Actor required');
+      let query = db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', actorId);
+      if (p.type) query = query.eq('type', p.type);
+      const { count } = await query;
+      return { data: { count: count ?? 0 } };
+    }
+
+    case 'count-follows': {
+      const sellerId = p.seller_id as string | undefined;
+      if (!sellerId) throw new Error('seller_id required');
+      const { count } = await db.from('seller_follows').select('follower_id', { count: 'exact', head: true }).eq('seller_id', sellerId);
+      return { data: { count: count ?? 0 } };
     }
 
     case 'set-trust': {

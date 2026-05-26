@@ -374,6 +374,29 @@ export async function applyApproval(
     actorId,
     referenceId: qi.item_id,
   }, runtimeEnv);
+
+  // Approved listings going live for the first time: notify followers.
+  if (qi.item_type === 'listing') {
+    try {
+      const { data: l } = await admin
+        .from('listings')
+        .select('title, seller_id')
+        .eq('id', qi.item_id)
+        .maybeSingle();
+      if (l?.seller_id) {
+        const { data: p } = await admin.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
+        const { notifyFollowersOfNewListing } = await import('./notify');
+        await notifyFollowersOfNewListing(admin, {
+          sellerId: l.seller_id,
+          listingId: qi.item_id,
+          listingTitle: l.title ?? 'Ny annonse',
+          sellerName: p?.display_name,
+        }, runtimeEnv);
+      }
+    } catch (err) {
+      console.error('Follower fan-out (moderation) failed', err);
+    }
+  }
 }
 
 export async function applyRejection(
