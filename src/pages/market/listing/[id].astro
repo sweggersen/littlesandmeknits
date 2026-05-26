@@ -1016,6 +1016,14 @@ const autoReleaseDays = listing.auto_release_at
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* showModal() centering is inconsistent across browsers — pin it explicitly. */
+    dialog[open] {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+    }
   </style>
 
   <script define:vars={{ photoData: photos.map((p) => ({ url: projectPhotoUrl(p.path), caption: p.caption, id: p.id })), listingId: listing.id }}>
