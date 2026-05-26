@@ -747,7 +747,7 @@ const autoReleaseDays = listing.auto_release_at
                         Kjøp trygt
                       </button>
                       <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-3.5 rounded-full text-sm font-medium hover:border-charcoal/40 transition-colors">
-                        Foreslå pris
+                        Gi et tilbud
                       </button>
                     </div>
                     <p class="text-[11px] text-charcoal/45 text-center">
@@ -814,34 +814,36 @@ const autoReleaseDays = listing.auto_release_at
                         <div class="flex items-start justify-between gap-3">
                           <div>
                             <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Tilbud</p>
-                            <h3 class="font-serif text-2xl mt-1">Foreslå pris</h3>
+                            <h3 class="font-serif text-2xl mt-1">Gi et tilbud</h3>
                           </div>
                           <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
                         </div>
 
                         <p class="text-sm text-charcoal/65">
-                          Selger spurte <strong>{listing.price_nok} kr</strong>. Avtalte du en annen
-                          pris med dem? Skriv den her — selger må godkjenne tilbudet før kjøpet
-                          gjennomføres med Trygg betaling.
+                          Annonseprisen er <strong>{listing.price_nok} kr</strong>. Send et tilbud
+                          med din pris — selger får meldingen i innboksen og kan svare deg direkte.
+                          Når dere er enige, fullfører dere kjøpet med Trygg betaling.
                         </p>
 
                         <form method="post" action="/api/marketplace/conversations/create" class="space-y-3">
                           <input type="hidden" name="listing_id" value={listing.id} />
                           <label class="block">
-                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Din pris (NOK)</span>
-                            <input id="bid-amount" type="number" min="1" max={listing.price_nok} required
-                              placeholder={String(Math.round(listing.price_nok * 0.8))}
-                              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Ditt tilbud</span>
+                            <div class="relative">
+                              <input id="bid-amount" type="number" min="1" max={listing.price_nok} required
+                                placeholder={String(Math.round(listing.price_nok * 0.8))}
+                                class="w-full bg-linen rounded-xl pl-4 pr-12 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+                              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-charcoal/45 pointer-events-none">kr</span>
+                            </div>
                           </label>
                           <label class="block">
-                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Melding (valgfritt)</span>
+                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Melding til selger (valgfritt)</span>
                             <textarea id="bid-message" name="message" rows="2" maxlength="500"
-                              placeholder="Hei! Vil du selge for…?"
+                              placeholder="Hei! Kunne du tenke deg å selge den til denne prisen?"
                               class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
                           </label>
                           <p class="text-[11px] text-charcoal/45">
-                            Selger får tilbudet som en melding på Strikketorget og kan svare med
-                            en oppdatert pris-lenke for kjøp.
+                            Selger må godta tilbudet før kjøpet kan gjennomføres.
                           </p>
                           <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
                             Send tilbud
