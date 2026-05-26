@@ -738,6 +738,77 @@ async function handle(
       return { data: { count: count ?? 0 } };
     }
 
+    // Build a representative scenario for /dev/screens manual review:
+    // - Eline: trusted seller, profile visible, one published listing,
+    //   one draft without photos (→ wizard step 3 page is meaningful),
+    //   one draft with photos but not published.
+    // - Liv: follows Eline → home shows the follow row + has notifications.
+    case 'seed-screens': {
+      // Caller must pass user_emails: [ELINE, LIV] so the outer handler
+      // creates them via ensureTestUser before we land here.
+      const elineId = emailToId.get('eline@test.strikketorget.no');
+      const livId = emailToId.get('liv@test.strikketorget.no');
+      if (!elineId || !livId) throw new Error('seed-screens needs user_emails: [eline, liv]');
+      await db.from('profiles').update({
+        profile_visible: true, trust_score: 100, trust_tier: 'trusted', stripe_onboarded: true,
+      }).eq('id', elineId);
+      await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
+
+      async function listing(opts: { title: string; status: string; photoCount: number; category?: string }) {
+        const cat = opts.category ?? 'genser';
+        const { data, error } = await db.from('listings').insert({
+          seller_id: elineId,
+          kind: 'pre_loved',
+          title: opts.title,
+          category: cat,
+          size_label: '2 år',
+          price_nok: 349,
+          condition: 'lite_brukt',
+          description: 'Demo-annonse for /dev/screens.',
+          status: opts.status,
+          published_at: opts.status === 'active' ? new Date().toISOString() : null,
+          listing_fee_nok: opts.status === 'active' ? 29 : null,
+        }).select('id').single();
+        if (error) throw error;
+        if (opts.photoCount > 0) {
+          const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+          for (let i = 0; i < Math.min(opts.photoCount, 6); i++) {
+            const png = await makeTestPng(colors[i % colors.length]);
+            const path = `${elineId}/listings/${data.id}/photo-${crypto.randomUUID()}.png`;
+            await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+            await db.from('listing_photos').insert({ listing_id: data.id, path, position: i });
+          }
+          const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', data.id).order('position').limit(1).maybeSingle();
+          if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', data.id);
+        }
+        return data.id;
+      }
+
+      const liveId = await listing({ title: 'Strikket genser str 2 år (publisert)', status: 'active', photoCount: 2 });
+      const draftEmptyId = await listing({ title: 'Mariusgenser str 4 år (utkast, ingen bilder)', status: 'draft', photoCount: 0 });
+      const draftReadyId = await listing({ title: 'Babylue rosa (utkast, har bilder)', status: 'draft', photoCount: 3, category: 'lue' });
+
+      // Liv follows Eline.
+      await db.from('seller_follows').upsert(
+        { follower_id: livId, seller_id: elineId },
+        { onConflict: 'follower_id,seller_id' }
+      );
+
+      // One unread notification for Liv (so /notifications has content).
+      await db.from('notifications').insert({
+        user_id: livId, type: 'seller_new_listing',
+        title: 'Eline la ut en ny annonse', body: '«Strikket genser str 2 år (publisert)» er nå tilgjengelig.',
+        url: `/market/listing/${liveId}`,
+        actor_id: elineId, reference_id: liveId,
+      });
+
+      // The home "Nye fra sellere du følger" row reads from the matview;
+      // refresh so the seed is visible immediately.
+      await db.rpc('refresh_user_preferences');
+
+      return { data: { elineId, livId, liveListingId: liveId, draftEmptyId, draftReadyId } };
+    }
+
     case 'set-trust': {
       if (!actorId) throw new Error('Actor required');
       await db.from('profiles').update({
