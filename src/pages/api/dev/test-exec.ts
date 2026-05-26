@@ -697,6 +697,20 @@ async function handle(
       return { data: { role, user_id: actorId } };
     }
 
+    case 'set-profile-visible': {
+      if (!actorId) throw new Error('Actor required');
+      await db.from('profiles').update({ profile_visible: p.visible !== false }).eq('id', actorId);
+      return { data: { user_id: actorId, visible: p.visible !== false } };
+    }
+
+    case 'lookup-user': {
+      const email = p.email as string | undefined;
+      if (!email) throw new Error('email required');
+      const id = emailToId.get(email);
+      if (!id) throw new Error(`No test user with email ${email}`);
+      return { data: { id, email } };
+    }
+
     case 'set-trust': {
       if (!actorId) throw new Error('Actor required');
       await db.from('profiles').update({
@@ -1311,6 +1325,8 @@ async function handle(
       await db.from('reports').delete().in('reporter_id', testUserIds);
       await db.from('seller_reviews').delete().in('reviewer_id', testUserIds);
       await db.from('transaction_reviews').delete().in('reviewer_id', testUserIds);
+      await db.from('seller_follows').delete().in('follower_id', testUserIds);
+      await db.from('seller_follows').delete().in('seller_id', testUserIds);
 
       // Queue items submitted by or decided by test users
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);
