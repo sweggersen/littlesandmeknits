@@ -727,21 +727,21 @@ const autoReleaseDays = listing.auto_release_at
                     </div>
 
                     <dl class="text-sm space-y-1.5 bg-linen rounded-xl p-4">
-                      <div class="flex items-baseline justify-between">
-                        <dt class="text-charcoal/65">Vare</dt>
-                        <dd class="font-mono tabular-nums">{bd.itemNok} kr</dd>
+                      <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-charcoal/65 min-w-0">Vare</dt>
+                        <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.itemNok} kr</dd>
                       </div>
-                      <div class="flex items-baseline justify-between">
-                        <dt class="text-charcoal/65">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
-                        <dd class="font-mono tabular-nums">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
+                      <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-charcoal/65 min-w-0">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
+                        <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
                       </div>
-                      <div class="flex items-baseline justify-between">
-                        <dt class="text-charcoal/65">Trygg betaling</dt>
-                        <dd class="font-mono tabular-nums">{bd.tbFeeNok} kr</dd>
+                      <div class="flex items-baseline justify-between gap-3">
+                        <dt class="text-charcoal/65 min-w-0">Trygg betaling</dt>
+                        <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.tbFeeNok} kr</dd>
                       </div>
-                      <div class="flex items-baseline justify-between pt-1.5 border-t border-sage-500/10">
-                        <dt class="font-medium">Du betaler totalt</dt>
-                        <dd class="font-mono tabular-nums font-bold">{bd.totalNok} kr</dd>
+                      <div class="flex items-baseline justify-between gap-3 pt-1.5 border-t border-sage-500/10">
+                        <dt class="font-medium min-w-0">Du betaler totalt</dt>
+                        <dd class="font-mono tabular-nums font-bold whitespace-nowrap shrink-0">{bd.totalNok} kr</dd>
                       </div>
                     </dl>
 
