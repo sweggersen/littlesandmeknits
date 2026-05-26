@@ -321,7 +321,7 @@ const autoReleaseDays = listing.auto_release_at
               </button>
             )}
           </div>
-          <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} NOK</p>
+          <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} kr</p>
 
           <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
             <div>
@@ -737,75 +737,191 @@ const autoReleaseDays = listing.auto_release_at
               )}
 
 
-              {/* ── Buy button (active, escrow enabled, seller onboarded) ── */}
+              {/* ── Buyer CTAs (active listings, viewer is not owner/buyer) ── */}
               {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && sellerOnboarded && (() => {
                 const bd = purchaseBreakdown(listing.price_nok, (listing as any).shipping_option ?? 'free', true);
                 return (
-                  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
-                    <div class="flex items-center gap-1.5 mb-1 text-sage-700">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/>
-                        <path d="m9 12 2 2 4-4"/>
-                      </svg>
-                      <span class="text-[10px] font-bold uppercase tracking-widest">Trygg betaling</span>
-                    </div>
-
-                    <dl class="text-sm space-y-1.5 bg-linen rounded-xl p-4">
-                      <div class="flex items-baseline justify-between gap-3">
-                        <dt class="text-charcoal/65 min-w-0">Vare</dt>
-                        <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.itemNok} kr</dd>
-                      </div>
-                      <div class="flex items-baseline justify-between gap-3">
-                        <dt class="text-charcoal/65 min-w-0">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
-                        <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
-                      </div>
-                      <div class="flex items-baseline justify-between gap-3">
-                        <dt class="text-charcoal/65 min-w-0">Trygg betaling</dt>
-                        <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.tbFeeNok} kr</dd>
-                      </div>
-                      <div class="flex items-baseline justify-between gap-3 pt-1.5 border-t border-sage-500/10">
-                        <dt class="font-medium min-w-0">Du betaler totalt</dt>
-                        <dd class="font-mono tabular-nums font-bold whitespace-nowrap shrink-0">{bd.totalNok} kr</dd>
-                      </div>
-                    </dl>
-
-                    <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
-                      <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                        Kjøp trygt — {bd.totalNok} kr
+                  <section class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                      <button type="button" data-open-buy class="bg-charcoal text-linen px-5 py-3.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                        Kjøp trygt
                       </button>
-                    </form>
+                      <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-3.5 rounded-full text-sm font-medium hover:border-charcoal/40 transition-colors">
+                        Foreslå pris
+                      </button>
+                    </div>
                     <p class="text-[11px] text-charcoal/45 text-center">
-                      Pengene holdes trygt til du bekrefter mottak — ellers automatisk frigjøring 14 dager etter sending.
+                      Pengene holdes trygt til du bekrefter mottak.
                     </p>
+
+                    {/* ── Kjøp-modal ──────────────────────────────────────── */}
+                    <dialog id="buy-modal" class="rounded-3xl p-0 max-w-md w-[92vw] bg-white backdrop:bg-charcoal/55">
+                      <div class="p-6 space-y-5">
+                        <div class="flex items-start justify-between gap-3">
+                          <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Trygg betaling</p>
+                            <h3 class="font-serif text-2xl mt-1">Bekreft kjøp</h3>
+                          </div>
+                          <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
+                        </div>
+
+                        <div class="bg-linen/60 rounded-2xl p-4 flex items-center gap-3">
+                          {(() => {
+                            const heroUrl = photoUrls[0];
+                            return heroUrl
+                              ? <img src={heroUrl} alt="" class="w-14 h-14 rounded-lg object-cover shrink-0" />
+                              : <div class="w-14 h-14 rounded-lg bg-oatmeal/50 shrink-0" />;
+                          })()}
+                          <div class="min-w-0">
+                            <p class="text-sm font-medium line-clamp-2">{listing.title}</p>
+                            <p class="text-xs text-charcoal/55 mt-0.5">str. {listing.size_label}</p>
+                          </div>
+                        </div>
+
+                        <dl class="text-sm space-y-1.5">
+                          <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-charcoal/65 min-w-0">Vare</dt>
+                            <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.itemNok} kr</dd>
+                          </div>
+                          <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-charcoal/65 min-w-0">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
+                            <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
+                          </div>
+                          <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-charcoal/65 min-w-0">Trygg betaling</dt>
+                            <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.tbFeeNok} kr</dd>
+                          </div>
+                          <div class="flex items-baseline justify-between gap-3 pt-2 border-t border-sage-500/10">
+                            <dt class="font-medium min-w-0">Du betaler totalt</dt>
+                            <dd class="font-mono tabular-nums font-bold whitespace-nowrap shrink-0">{bd.totalNok} kr</dd>
+                          </div>
+                        </dl>
+
+                        <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
+                          <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                            Bekreft kjøp — {bd.totalNok} kr
+                          </button>
+                        </form>
+                        <p class="text-[11px] text-charcoal/45 text-center">
+                          Du blir sendt til Stripe for leveringsadresse og betaling.
+                        </p>
+                      </div>
+                    </dialog>
+
+                    {/* ── Foreslå-pris-modal ──────────────────────────────── */}
+                    <dialog id="bid-modal" class="rounded-3xl p-0 max-w-md w-[92vw] bg-white backdrop:bg-charcoal/55">
+                      <div class="p-6 space-y-5">
+                        <div class="flex items-start justify-between gap-3">
+                          <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Tilbud</p>
+                            <h3 class="font-serif text-2xl mt-1">Foreslå pris</h3>
+                          </div>
+                          <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
+                        </div>
+
+                        <p class="text-sm text-charcoal/65">
+                          Selger spurte <strong>{listing.price_nok} kr</strong>. Avtalte du en annen
+                          pris med dem? Skriv den her — selger må godkjenne tilbudet før kjøpet
+                          gjennomføres med Trygg betaling.
+                        </p>
+
+                        <form method="post" action="/api/marketplace/conversations/create" class="space-y-3">
+                          <input type="hidden" name="listing_id" value={listing.id} />
+                          <label class="block">
+                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Din pris (NOK)</span>
+                            <input id="bid-amount" type="number" min="1" max={listing.price_nok} required
+                              placeholder={String(Math.round(listing.price_nok * 0.8))}
+                              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+                          </label>
+                          <label class="block">
+                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Melding (valgfritt)</span>
+                            <textarea id="bid-message" name="message" rows="2" maxlength="500"
+                              placeholder="Hei! Vil du selge for…?"
+                              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+                          </label>
+                          <p class="text-[11px] text-charcoal/45">
+                            Selger får tilbudet som en melding på Strikketorget og kan svare med
+                            en oppdatert pris-lenke for kjøp.
+                          </p>
+                          <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                            Send tilbud
+                          </button>
+                        </form>
+                      </div>
+                    </dialog>
+
+                    <script define:vars={{ listingPrice: listing.price_nok }}>
+                      function init() {
+                        const buyOpen = document.querySelector('[data-open-buy]');
+                        const bidOpen = document.querySelector('[data-open-bid]');
+                        const buyModal = document.querySelector('#buy-modal');
+                        const bidModal = document.querySelector('#bid-modal');
+                        const bidForm = bidModal?.querySelector('form');
+                        const bidAmount = document.querySelector('#bid-amount');
+                        const bidMessage = document.querySelector('#bid-message');
+                        if (!buyOpen || !bidOpen || !buyModal || !bidModal) return;
+
+                        buyOpen.addEventListener('click', () => buyModal.showModal && buyModal.showModal());
+                        bidOpen.addEventListener('click', () => bidModal.showModal && bidModal.showModal());
+                        document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+                          btn.addEventListener('click', (e) => {
+                            const dlg = e.target.closest('dialog');
+                            if (dlg) dlg.close();
+                          });
+                        });
+
+                        // Submit-time: encode the bid as a structured message so the
+                        // seller can recognise it. Server stays a plain conversation
+                        // create — no schema changes needed.
+                        bidForm?.addEventListener('submit', (e) => {
+                          const amount = parseInt(bidAmount?.value || '0', 10);
+                          if (!amount || amount < 1) {
+                            e.preventDefault();
+                            return;
+                          }
+                          const note = (bidMessage?.value || '').trim();
+                          const prefix = `💸 Tilbud: ${amount} kr (full pris: ${listingPrice} kr).`;
+                          bidMessage.value = note ? `${prefix}\n\n${note}` : prefix;
+                        });
+                      }
+                      init();
+                      document.addEventListener('astro:page-load', init);
+                    </script>
                   </section>
                 );
               })()}
 
-              {/* ── No escrow: buyer must contact seller directly ── */}
-              {!isOwner && !isBuyer && listing.status === 'active' && !listing.escrow_enabled && (
+              {/* ── No escrow / no Stripe — keep simple message + meet-up ── */}
+              {!isOwner && !isBuyer && listing.status === 'active' && !(listing.escrow_enabled && sellerOnboarded) && (
                 <section class="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 text-sm">
-                  <p class="font-medium text-amber-900 mb-1">⚠️ Trygg betaling er ikke aktivert</p>
+                  <p class="font-medium text-amber-900 mb-1">⚠️ Trygg betaling er ikke tilgjengelig</p>
                   <p class="text-charcoal/65">
-                    Selger har ikke aktivert trygg betaling på denne annonsen. Du må
-                    avtale betaling direkte (Vipps, bankoverføring, kontant ved henting).
-                    <strong>Strikketorget gir ikke kjøperbeskyttelse på dette salget.</strong>
+                    {listing.escrow_enabled
+                      ? 'Selger har ikke fullført Stripe-onboarding ennå.'
+                      : 'Selger har ikke aktivert Trygg betaling.'}
+                    {' '}Du kan fortsatt sende melding og avtale møte/Vipps — men Strikketorget gir
+                    ingen kjøperbeskyttelse på dette salget.
                   </p>
                 </section>
               )}
 
-              {/* ── Messaging (always available for active listings) ── */}
+              {/* ── Send melding (tertiary, secondary surface) ─────────── */}
               {!isOwner && !isBuyer && listing.status === 'active' && (
-                <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
-                  <input type="hidden" name="listing_id" value={listing.id} />
-                  <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                    Send melding til {isStoreListing ? 'butikken' : 'selger'}
-                  </label>
-                  <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
-                    class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>
-                  <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                    Send melding
-                  </button>
-                </form>
+                <details class="bg-white rounded-3xl border border-sage-500/10 mt-3 group">
+                  <summary class="cursor-pointer p-4 text-sm font-medium text-charcoal/70 hover:text-charcoal flex items-center justify-between">
+                    <span>✉️ Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
+                    <span class="text-charcoal/30 group-open:rotate-180 transition-transform">⌄</span>
+                  </summary>
+                  <form method="post" action="/api/marketplace/conversations/create" class="px-4 pb-4 space-y-3">
+                    <input type="hidden" name="listing_id" value={listing.id} />
+                    <textarea name="message" required rows="3" maxlength="1000"
+                      placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                      class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+                    <button type="submit" class="w-full bg-charcoal/85 text-linen px-6 py-2.5 rounded-full text-sm font-medium hover:bg-charcoal transition-colors">
+                      Send melding
+                    </button>
+                  </form>
+                </details>
               )}
             </div>
           )}
