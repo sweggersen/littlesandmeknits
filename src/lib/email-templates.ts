@@ -109,6 +109,34 @@ ${btn(opts.siteUrl + '/market/listing/new', 'Legg ut første annonse')}
   return { subject: 'Velkommen til Strikketorget', html: html.replaceAll('{{siteUrl}}', opts.siteUrl) };
 }
 
+export function renderDraftNudgeEmail(opts: {
+  name?: string | null;
+  listingTitle: string;
+  listingId: string;
+  siteUrl: string;
+}): { subject: string; html: string } {
+  const greet = opts.name ? `Hei ${opts.name}!` : 'Hei!';
+  const html = wrap(`
+<h2 style="font-size:22px;margin:0 0 12px">${greet}</h2>
+<p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 16px">
+  Du startet på en annonse — <strong>«${opts.listingTitle}»</strong> — men la den ikke ut.
+  Det eneste som mangler er bilder. Det tar et par minutter.
+</p>
+<p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 20px">
+  Tips: annonser med 3+ bilder får betydelig flere visninger.
+</p>
+${btn(opts.siteUrl + '/market/listing/' + opts.listingId + '/foto', 'Last opp bilder nå')}
+<p style="margin:16px 0 0;font-size:14px;color:#888">
+  Eller <a href="${opts.siteUrl}/market/my-listings" style="color:#c2604a;text-decoration:none">se alle utkastene dine</a>.
+</p>
+<p style="margin:32px 0 0;font-size:13px;color:#888;line-height:1.5">
+  Vil du heller slette utkastet? Det kan du gjøre fra annonsesiden — eller bare ignorere denne e-posten,
+  utkast lagres ubegrenset.
+</p>
+`);
+  return { subject: 'Du er nesten ferdig — bare bildene mangler', html: html.replaceAll('{{siteUrl}}', opts.siteUrl) };
+}
+
 export function renderEmail(
   type: NotificationType,
   opts: { title: string; body?: string; url?: string; siteUrl: string },

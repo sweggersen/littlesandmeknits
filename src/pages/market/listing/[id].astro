@@ -72,14 +72,18 @@ const sellerAvgRating = sellerReviewCount
   ? (sellerRatingRows!.reduce((s, r) => s + (r.rating ?? 0), 0) / sellerReviewCount)
   : 0;
 
-const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }] = await Promise.all([
+const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }, { data: followRow }] = await Promise.all([
   supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
   supabase.from('seller_reviews').select('id, reviewer_id, rating, comment, created_at').eq('listing_id', id),
   listing.store_id
     ? supabase.from('stores').select('id, slug, name, logo_path, location_city, verified, stripe_onboarded').eq('id', listing.store_id).maybeSingle()
     : Promise.resolve({ data: null }),
+  user && user.id !== listing.seller_id
+    ? supabase.from('seller_follows').select('seller_id').eq('follower_id', user.id).eq('seller_id', listing.seller_id).maybeSingle()
+    : Promise.resolve({ data: null }),
 ]);
+const isFollowing = !!followRow;
 const isStoreListing = !!storeRow;
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
@@ -808,24 +812,41 @@ const autoReleaseDays = listing.auto_release_at
               </div>
             </a>
           ) : (
-            <a href={`/market/seller/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
-              <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
-              <div class="min-w-0">
-                <p class="font-medium group-hover:text-terracotta-500 transition-colors">
-                  {sellerProfile?.display_name ?? 'Anonym'}
-                </p>
-                {sellerReviewCount > 0 ? (
-                  <div class="flex items-center gap-1.5 mt-0.5">
-                    <StarRating rating={Math.round(sellerAvgRating)} />
-                    <span class="text-xs text-charcoal/55">{sellerAvgRating.toFixed(1)} · {sellerReviewCount} {sellerReviewCount === 1 ? 'omtale' : 'omtaler'}</span>
-                  </div>
-                ) : (
-                  <p class="text-xs text-charcoal/45">
-                    {sellerProfile?.location ?? listing.location ?? 'Selger'}
+            <div class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3">
+              <a href={`/market/seller/${listing.seller_id}`} class="flex items-center gap-3 min-w-0 flex-1 group">
+                <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
+                <div class="min-w-0">
+                  <p class="font-medium group-hover:text-terracotta-500 transition-colors">
+                    {sellerProfile?.display_name ?? 'Anonym'}
                   </p>
-                )}
-              </div>
-            </a>
+                  {sellerReviewCount > 0 ? (
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                      <StarRating rating={Math.round(sellerAvgRating)} />
+                      <span class="text-xs text-charcoal/55">{sellerAvgRating.toFixed(1)} · {sellerReviewCount} {sellerReviewCount === 1 ? 'omtale' : 'omtaler'}</span>
+                    </div>
+                  ) : (
+                    <p class="text-xs text-charcoal/45">
+                      {sellerProfile?.location ?? listing.location ?? 'Selger'}
+                    </p>
+                  )}
+                </div>
+              </a>
+              {user && !isOwner && (
+                <form method="post" action={`/api/seller/${listing.seller_id}/follow`} class="shrink-0">
+                  <input type="hidden" name="action" value="toggle" />
+                  <input type="hidden" name="next" value={`/market/listing/${id}`} />
+                  <button type="submit"
+                    class:list={[
+                      'text-xs font-medium px-3 py-1.5 rounded-full transition-colors',
+                      isFollowing
+                        ? 'bg-sage-100 text-sage-900 hover:bg-sage-200'
+                        : 'bg-charcoal text-linen hover:bg-terracotta-500',
+                    ]}>
+                    {isFollowing ? '✓ Følger' : '+ Følg'}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -9,6 +9,7 @@ export type UserPreferences = {
   favorited_categories: Array<{ category: string; count: number }>;
   clicked_categories: Array<{ category: string; weight: number; count: number }>;
   clicked_sizes: Array<{ size_label: string; weight: number; count: number }>;
+  followed_sellers: string[];
   price_band: { p25: number; p50: number; p75: number; n: number } | null;
   age_band: { min: number | null; max: number | null; n: number } | null;
 } | null;
@@ -80,7 +81,9 @@ export function scorePromoted(listing: RankableListing, prefs: UserPreferences):
     relevance += WEIGHTS.category * categoryAffinity(listing.category, prefs);
     relevance += WEIGHTS.size * sizeAffinity(listing.size_label, prefs);
     relevance += WEIGHTS.priceBand * priceBandAffinity(listing.price_nok, prefs);
-    // followedSeller: TODO when seller_follows table exists
+    if (listing.seller_id && prefs.followed_sellers?.includes(listing.seller_id)) {
+      relevance += WEIGHTS.followedSeller;
+    }
   }
   relevance = Math.max(0.1, Math.min(1.0, relevance));
 

@@ -5,6 +5,8 @@ import { createNotification } from '../../../lib/notify';
 import { createStripe } from '../../../lib/stripe';
 import { recalculateTrust } from '../../../lib/trust';
 import { checkAndGrantAchievements } from '../../../lib/achievements';
+import { sendEmail } from '../../../lib/email';
+import { renderDraftNudgeEmail } from '../../../lib/email-templates';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -18,7 +20,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0, userPreferencesRefreshed: 0, promotionDailyWindowsReset: 0 };
+  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0, userPreferencesRefreshed: 0, promotionDailyWindowsReset: 0, draftsNudged: 0 };
 
   // Refresh the user_preferences materialized view powering the
   // promoted-pool ranker. Cheap (CONCURRENTLY) and safe to call every tick.
@@ -37,6 +39,59 @@ export const POST: APIRoute = async ({ request }) => {
     else console.error('reset_promotion_daily_windows failed', error);
   } catch (e) {
     console.error('reset_promotion_daily_windows threw', e);
+  }
+
+  // Nudge stale photo-less drafts. One-shot per listing.
+  try {
+    const apiKey = (cfEnv as any).RESEND_API_KEY ?? env.RESEND_API_KEY;
+    const siteUrl = (cfEnv as any).PUBLIC_SITE_URL ?? env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
+    if (apiKey) {
+      const cutoff = new Date(Date.now() - 24 * 3600_000).toISOString();
+      const { data: staleDrafts } = await admin
+        .from('listings')
+        .select('id, seller_id, title')
+        .eq('status', 'draft')
+        .is('draft_nudge_sent_at', null)
+        .lt('created_at', cutoff)
+        .limit(50);
+
+      for (const draft of staleDrafts ?? []) {
+        // Skip drafts that already have photos — they're just unpublished, not stuck.
+        const { count: photoCount } = await admin
+          .from('listing_photos')
+          .select('id', { count: 'exact', head: true })
+          .eq('listing_id', draft.id);
+        if ((photoCount ?? 0) > 0) {
+          await admin.from('listings').update({ draft_nudge_sent_at: new Date().toISOString() }).eq('id', draft.id);
+          continue;
+        }
+
+        const { data: profile } = await admin
+          .from('profiles')
+          .select('display_name')
+          .eq('id', draft.seller_id)
+          .maybeSingle();
+
+        const { data: sellerAuth } = await admin.auth.admin.getUserById(draft.seller_id);
+        const toEmail = sellerAuth?.user?.email;
+        if (!toEmail) {
+          await admin.from('listings').update({ draft_nudge_sent_at: new Date().toISOString() }).eq('id', draft.id);
+          continue;
+        }
+
+        const { subject, html } = renderDraftNudgeEmail({
+          name: profile?.display_name,
+          listingTitle: draft.title,
+          listingId: draft.id,
+          siteUrl,
+        });
+        const sent = await sendEmail(apiKey, { to: toEmail, subject, html });
+        await admin.from('listings').update({ draft_nudge_sent_at: new Date().toISOString() }).eq('id', draft.id);
+        if (sent) results.draftsNudged++;
+      }
+    }
+  } catch (e) {
+    console.error('draft nudge failed', e);
   }
 
   // 0. Expire listing promotions
