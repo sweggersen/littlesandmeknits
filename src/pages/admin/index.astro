@@ -39,6 +39,19 @@ const stats = [
 ];
 
 const welcomeEmailStatus = Astro.url.searchParams.get('welcome_email');
+const emailTestStatus = Astro.url.searchParams.get('email_test');
+const emailTestTemplate = Astro.url.searchParams.get('template');
+
+const TEMPLATES = [
+  { key: 'welcome', label: 'Velkomst', desc: 'Sendes på første innlogging.' },
+  { key: 'draft_nudge', label: 'Påminn om utkast', desc: 'Sendes 24t etter et bildeløst utkast.' },
+  { key: 'new_message', label: 'Ny melding', desc: 'Innkommende meldinger.' },
+  { key: 'new_offer', label: 'Nytt tilbud', desc: 'Tilbud på oppdrag.' },
+  { key: 'listing_purchased', label: 'Varen er solgt', desc: 'Selger mottar etter kjøp.' },
+  { key: 'listing_shipped', label: 'Varen er sendt', desc: 'Kjøper mottar sporingsinfo.' },
+  { key: 'seller_new_listing', label: 'Ny fra selger du følger', desc: 'Følgere når en selger publiserer.' },
+  { key: 'review_received', label: 'Omtale mottatt', desc: 'Etter at kjøper har skrevet omtale.' },
+];
 ---
 
 <AdminLayout title="Admin — Oversikt" current="dashboard">
@@ -62,21 +75,34 @@ const welcomeEmailStatus = Astro.url.searchParams.get('welcome_email');
   <section class="mt-10 pt-6 border-t border-sage-500/10">
     <h2 class="font-serif text-lg mb-2">E-postmaler</h2>
     <p class="text-sm text-charcoal/55 mb-4">
-      Send en kopi av en mal til din egen adresse for å sjekke hvordan den ser ut.
+      Send en kopi av en mal til <strong>{auth.user.email}</strong> for å sjekke hvordan den ser ut.
     </p>
-    {welcomeEmailStatus === 'sent' && (
-      <p class="text-sm text-sage-700 mb-3">✓ Velkomst-e-post sendt til {auth.user.email}.</p>
+    {(welcomeEmailStatus === 'sent' || emailTestStatus === 'sent') && (
+      <p class="text-sm text-sage-700 mb-3">✓ Sendt{emailTestTemplate ? ` (${emailTestTemplate})` : ''}. Sjekk innboksen.</p>
     )}
-    {welcomeEmailStatus === 'failed' && (
+    {(welcomeEmailStatus === 'failed' || emailTestStatus === 'failed') && (
       <p class="text-sm text-terracotta-700 mb-3">Klarte ikke å sende. Sjekk Resend-loggen.</p>
     )}
-    {welcomeEmailStatus === 'no_api_key' && (
+    {(welcomeEmailStatus === 'no_api_key' || emailTestStatus === 'no_api_key') && (
       <p class="text-sm text-terracotta-700 mb-3">RESEND_API_KEY mangler i miljøet.</p>
     )}
-    <form method="post" action="/api/admin/test-welcome-email" class="inline">
-      <button type="submit" class="bg-white border border-sage-500/20 px-4 py-2 rounded-full text-xs font-medium hover:border-charcoal/40 transition-colors">
-        ✉️ Send test-velkomst til {auth.user.email}
-      </button>
-    </form>
+    {emailTestStatus === 'unknown' && (
+      <p class="text-sm text-terracotta-700 mb-3">Ukjent mal.</p>
+    )}
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {TEMPLATES.map((t) => (
+        <form method="post" action="/api/admin/test-email" class="bg-white rounded-2xl p-4 border border-sage-500/10 flex items-start justify-between gap-3">
+          <input type="hidden" name="template" value={t.key} />
+          <div class="min-w-0">
+            <p class="text-sm font-medium">{t.label}</p>
+            <p class="text-xs text-charcoal/55 mt-0.5">{t.desc}</p>
+          </div>
+          <button type="submit" class="shrink-0 bg-charcoal text-linen px-3 py-1.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+            Send →
+          </button>
+        </form>
+      ))}
+    </div>
   </section>
 </AdminLayout>
