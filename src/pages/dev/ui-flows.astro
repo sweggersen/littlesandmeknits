@@ -460,13 +460,20 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       const ul = $('#steps-list');
       ul.innerHTML = flow.steps
         .map((s, i) => `
-          <li class="flex items-start gap-2 text-xs font-mono py-1" data-step-row="${i}">
+          <li class="flex items-start gap-2 text-xs font-mono py-1 px-1 -mx-1 rounded cursor-pointer hover:bg-sage-100/40 transition-colors" data-step-row="${i}" title="Kjør til og med dette steget">
             <span class="w-4 text-charcoal/40 tabular-nums">${(i + 1).toString().padStart(2, '0')}</span>
             <span class="w-3 h-3 rounded-full bg-charcoal/15 mt-0.5 shrink-0" data-step-dot></span>
             <span class="text-charcoal/80 break-all">${describe(s)}</span>
           </li>
         `)
         .join('');
+      // Click-to-jump: replay from the start through the clicked step.
+      ul.querySelectorAll<HTMLElement>('[data-step-row]').forEach((row) => {
+        row.addEventListener('click', () => {
+          const i = parseInt(row.dataset.stepRow!, 10);
+          runCurrent(i);
+        });
+      });
     }
 
     function markStep(i: number, state: 'pending' | 'running' | 'ok' | 'fail', msg?: string) {
@@ -620,10 +627,22 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       return out;
     }
 
-    async function runCurrent() {
+    let isRunning = false;
+    async function runCurrent(untilIdx?: number) {
+      if (isRunning) return;
+      isRunning = true;
+      try {
+        await runCurrentInner(untilIdx);
+      } finally {
+        isRunning = false;
+      }
+    }
+
+    async function runCurrentInner(untilIdx?: number) {
       const flow = currentFlow();
       renderSteps(flow);
-      setStatus('Kjører …');
+      const stopText = typeof untilIdx === 'number' ? ` (til steg ${untilIdx + 1})` : '';
+      setStatus(`Kjører${stopText} …`);
 
       try {
         if (flow.persona) {
@@ -659,7 +678,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       const iframe = $<HTMLIFrameElement>('#ui-frame');
       // First resolve any /seed:tag goto URLs, then resolve dynamic $bindings
       // at run time inside the runner via the per-step path.
-      const steps = await resolveSeedUrls(flow.steps);
+      const allSteps = await resolveSeedUrls(flow.steps);
+      const steps = typeof untilIdx === 'number'
+        ? allSteps.slice(0, untilIdx + 1)
+        : allSteps;
       const delayMs = parseInt($<HTMLSelectElement>('#speed-select').value, 10) || 1400;
       const result = await runFlow(steps, {
         iframe,
