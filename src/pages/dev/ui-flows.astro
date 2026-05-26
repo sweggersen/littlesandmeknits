@@ -1,0 +1,281 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { env } from 'cloudflare:workers';
+
+if (import.meta.env.PROD) return Astro.redirect('/market');
+
+const host = Astro.url.hostname;
+if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
+  return Astro.redirect('/market');
+}
+
+const encoder = new TextEncoder();
+const keyData = encoder.encode(env.SUPABASE_SERVICE_ROLE_KEY ?? '');
+const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+const today = new Date().toISOString().slice(0, 10);
+const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(`admin-tower-${today}`));
+const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43);
+---
+
+<Layout title="UI Flows" lang="nb">
+  <div class="min-h-[calc(100vh-64px)] bg-charcoal/[0.03]" data-admin-token={adminToken}>
+    <div class="hidden lg:block">
+      <div class="bg-white border-b border-sage-500/10 sticky top-[64px] z-20">
+        <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5">Dev Tool</p>
+            <h1 class="font-mono text-base font-bold leading-tight">UI Flows</h1>
+            <p class="text-[11px] text-charcoal/55 mt-0.5">Synthetic-click playback. Real page in iframe, programmatic events. <a href="/dev/test-tower" class="text-terracotta-500 hover:underline">API-only tower →</a></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="flow-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
+            <button id="btn-seed" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">🌱 Frø</button>
+            <button id="btn-cleanup" class="px-3 py-1.5 text-xs font-medium text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-lg hover:bg-red-50 transition-colors">Slett</button>
+            <button id="btn-run" class="px-3 py-1.5 text-xs font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">Kjør ▶▶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-[1600px] mx-auto px-6 py-6 grid gap-6" style="grid-template-columns: 380px 1fr;">
+        <!-- Steps panel -->
+        <div class="space-y-3">
+          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55">Steg</h2>
+          <ul id="steps-list" class="space-y-1.5"></ul>
+          <p id="status-line" class="text-xs text-charcoal/55 font-mono mt-3">Klar.</p>
+        </div>
+
+        <!-- Iframe panel -->
+        <div>
+          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Live</h2>
+          <div class="bg-white border border-sage-500/10 rounded-2xl overflow-hidden" style="height: calc(100vh - 200px);">
+            <iframe id="ui-frame" class="w-full h-full block" src="about:blank"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:hidden flex items-center justify-center min-h-[60vh] p-8">
+      <p class="text-charcoal/55 text-center">UI Flows krever en bred skjerm (1024px+).</p>
+    </div>
+  </div>
+
+  <script>
+    import { runFlow, describe, type FlowStep } from '../../lib/ui-runner';
+
+    type Flow = {
+      id: string;
+      title: string;
+      persona: 'liv' | 'eline' | 'nora' | 'kari' | null;
+      steps: FlowStep[];
+    };
+
+    const FLOWS: Flow[] = [
+      {
+        id: 'wizard',
+        title: 'Wizard: detaljer → pris → /foto',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/market/listing/new' },
+          { action: 'select', selector: '#kind', value: 'pre_loved' },
+          { action: 'fill', selector: '#title', value: 'UI-flow demo: barnegenser str. 2 år' },
+          { action: 'select', selector: '#category', value: 'genser' },
+          { action: 'fill', selector: '#size_label', value: '2 år' },
+          { action: 'select', selector: '#condition', value: 'lite_brukt' },
+          { action: 'click', text: 'Neste' },
+          { action: 'fill', selector: '#price_nok', value: '250' },
+          { action: 'click', text: 'Lagre & last opp bilder' },
+          { action: 'expectUrl', match: /\/foto$/, label: 'lander på /foto' },
+          { action: 'expectText', text: 'Last opp bilder' },
+        ],
+      },
+      {
+        id: 'follow',
+        title: 'Følg-knapp på selgerprofil',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/market' },
+          { action: 'expectText', text: 'Strikketorget' },
+          { action: 'wait', ms: 200, label: 'Bytter til selgerprofil' },
+          { action: 'goto', url: '/seed:eline-profile', label: 'goto Eline' },
+          { action: 'click', text: '+ Følg' },
+          { action: 'expectText', text: '✓ Følger' },
+          { action: 'click', text: '✓ Følger' },
+          { action: 'expectText', text: '+ Følg' },
+        ],
+      },
+      {
+        id: 'help',
+        title: 'Hjelp-senter (statiske sider)',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/hjelp' },
+          { action: 'expectText', text: 'Vanlige spørsmål' },
+          { action: 'click', text: 'Hvordan selge' },
+          { action: 'expectUrl', match: /\/hjelp\/selge$/ },
+          { action: 'expectText', text: '1. Lag annonsen' },
+          { action: 'click', text: 'Tilbake til hjelp' },
+          { action: 'expectUrl', match: /\/hjelp$/ },
+        ],
+      },
+    ];
+
+    const PERSONA_EMAIL: Record<string, string> = {
+      liv: 'liv@test.strikketorget.no',
+      eline: 'eline@test.strikketorget.no',
+      nora: 'nora@test.strikketorget.no',
+      kari: 'kari@test.strikketorget.no',
+    };
+
+    function $<T extends HTMLElement>(sel: string): T {
+      const el = document.querySelector(sel) as T | null;
+      if (!el) throw new Error(`Missing element ${sel}`);
+      return el;
+    }
+
+    function setStatus(text: string) {
+      $('#status-line').textContent = text;
+    }
+
+    async function exec(action: string, body: Record<string, unknown> = {}) {
+      const token = (document.querySelector('[data-admin-token]') as HTMLElement | null)?.dataset.adminToken ?? '';
+      const r = await fetch('/api/dev/test-exec', {
+        method: 'POST',
+        headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(`${action}: ${j.error ?? r.status}`);
+      return j;
+    }
+
+    function renderFlowList() {
+      const sel = $<HTMLSelectElement>('#flow-select');
+      sel.innerHTML = FLOWS.map((f) => `<option value="${f.id}">${f.title}</option>`).join('');
+    }
+
+    function currentFlow(): Flow {
+      const id = $<HTMLSelectElement>('#flow-select').value;
+      return FLOWS.find((f) => f.id === id) ?? FLOWS[0];
+    }
+
+    function renderSteps(flow: Flow) {
+      const ul = $('#steps-list');
+      ul.innerHTML = flow.steps
+        .map((s, i) => `
+          <li class="flex items-start gap-2 text-xs font-mono py-1" data-step-row="${i}">
+            <span class="w-4 text-charcoal/40 tabular-nums">${(i + 1).toString().padStart(2, '0')}</span>
+            <span class="w-3 h-3 rounded-full bg-charcoal/15 mt-0.5 shrink-0" data-step-dot></span>
+            <span class="text-charcoal/80 break-all">${describe(s)}</span>
+          </li>
+        `)
+        .join('');
+    }
+
+    function markStep(i: number, state: 'pending' | 'running' | 'ok' | 'fail', msg?: string) {
+      const row = document.querySelector(`[data-step-row="${i}"]`);
+      if (!row) return;
+      const dot = row.querySelector('[data-step-dot]') as HTMLElement;
+      dot.className = 'w-3 h-3 rounded-full mt-0.5 shrink-0 ' + ({
+        pending: 'bg-charcoal/15',
+        running: 'bg-amber-400 animate-pulse',
+        ok: 'bg-sage-500',
+        fail: 'bg-red-500',
+      })[state];
+      if (msg) {
+        let detail = row.querySelector('[data-step-error]') as HTMLElement | null;
+        if (!detail) {
+          detail = document.createElement('span');
+          detail.setAttribute('data-step-error', '');
+          detail.className = 'block text-[11px] text-red-600 mt-0.5';
+          row.appendChild(detail);
+        }
+        detail.textContent = msg;
+      }
+    }
+
+    async function loginAs(email: string) {
+      const r = await fetch('/api/dev/test-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!r.ok) throw new Error(`login as ${email}: ${r.status}`);
+    }
+
+    async function resolveSeedUrls(steps: FlowStep[]): Promise<FlowStep[]> {
+      // Replace placeholders like 'goto /seed:eline-profile' with the real
+      // URL using current seed data.
+      const out: FlowStep[] = [];
+      for (const s of steps) {
+        if (s.action === 'goto' && s.url.startsWith('/seed:')) {
+          const tag = s.url.slice(6);
+          if (tag === 'eline-profile') {
+            const lookup = await exec('lookup-user', { params: { email: 'eline@test.strikketorget.no' } });
+            out.push({ ...s, url: `/market/seller/${lookup.data.id}` });
+            continue;
+          }
+        }
+        out.push(s);
+      }
+      return out;
+    }
+
+    async function runCurrent() {
+      const flow = currentFlow();
+      renderSteps(flow);
+      setStatus('Kjører …');
+
+      try {
+        if (flow.persona) {
+          await loginAs(PERSONA_EMAIL[flow.persona]);
+        } else {
+          await fetch('/api/auth/signout', { method: 'POST' });
+        }
+      } catch (e) {
+        setStatus(`Login feilet: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
+
+      const iframe = $<HTMLIFrameElement>('#ui-frame');
+      const steps = await resolveSeedUrls(flow.steps);
+      const result = await runFlow(steps, {
+        iframe,
+        onStep: (i, _step, res) => {
+          if (res === 'running') markStep(i, 'running');
+          else if (res.ok) markStep(i, 'ok');
+          else markStep(i, 'fail', res.error);
+        },
+      });
+      setStatus(`Ferdig: ${result.passed} OK, ${result.failed} feil.`);
+    }
+
+    function init() {
+      renderFlowList();
+      renderSteps(currentFlow());
+      $('#flow-select').addEventListener('change', () => renderSteps(currentFlow()));
+      $('#btn-run').addEventListener('click', runCurrent);
+      $('#btn-seed').addEventListener('click', async () => {
+        setStatus('Frør …');
+        try {
+          await exec('cleanup');
+          await exec('seed-screens', { params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] } });
+          setStatus('Seed OK.');
+        } catch (e) {
+          setStatus(`Seed feilet: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+      $('#btn-cleanup').addEventListener('click', async () => {
+        setStatus('Sletter …');
+        try {
+          await exec('cleanup');
+          setStatus('Slettet.');
+        } catch (e) {
+          setStatus(`Cleanup feilet: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+    }
+
+    init();
+    document.addEventListener('astro:page-load', init);
+  </script>
+</Layout>
