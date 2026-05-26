@@ -61,6 +61,17 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
               <span data-action-icon class="mr-1">▶</span>
               <span data-action-text>...</span>
             </div>
+            <!-- Shortcut overlay — shows over the iframe during cheat
+                 steps (Stripe, file upload, etc.) to explain what's
+                 happening in real life. -->
+            <div id="action-overlay" class="hidden absolute inset-0 z-20 bg-charcoal/55 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity">
+              <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
+                <div data-overlay-icon class="text-5xl mb-3">⚡</div>
+                <h3 data-overlay-title class="font-serif text-2xl mb-2">Snarvei</h3>
+                <p data-overlay-body class="text-sm text-charcoal/70 leading-relaxed whitespace-pre-line">…</p>
+                <p data-overlay-note class="text-xs text-charcoal/45 mt-4 italic">Hoppet over i denne demoen.</p>
+              </div>
+            </div>
             <iframe id="ui-frame" class="w-full h-full block" src="about:blank"></iframe>
           </div>
         </div>
@@ -277,8 +288,26 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         steps: [
           // Bootstrap: fresh state, Eline as trusted Stripe-onboarded seller,
           // brand-new active listing with 2 photos.
-          { action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata' },
-          { action: 'apiCall', exec: 'seed-buyflow-listing', params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] }, label: 'Frø Eline + ny aktiv annonse' },
+          {
+            action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata',
+            overlay: {
+              icon: '🧹',
+              title: 'Rydder testdata',
+              body: 'I produksjon kjører ingen slik «rensing» — databasen vokser, og hver bruker sletter selv kontoen sin via Mine data og personvern (GDPR Art. 17).',
+              note: 'Bare i demoen.',
+            },
+          },
+          {
+            action: 'apiCall', exec: 'seed-buyflow-listing',
+            params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] },
+            label: 'Frø Eline + ny aktiv annonse',
+            overlay: {
+              icon: '🪡',
+              title: 'I virkeligheten: Selger lager annonsen',
+              body: 'Eline går gjennom 3-stegs-wizarden (Detaljer → Pris & frakt → Bilder), laster opp 2 bilder, og sender til moderering. Eline er «trusted seller» her, så annonsen går rett til aktiv uten manuell godkjenning.',
+              note: 'Forkortet i demoen — vi setter opp annonsen direkte.',
+            },
+          },
 
           // Buyer view
           { action: 'loginAs', persona: 'liv' },
@@ -287,7 +316,16 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           { action: 'expectText', text: 'Kjøp trygt', label: 'Kjøps-CTA synlig (med Trygg betaling)' },
 
           // Purchase (bypasses Stripe via test-exec)
-          { action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no', params: { listing_id: '$listingId' }, label: 'Liv kjøper' },
+          {
+            action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no',
+            params: { listing_id: '$listingId' }, label: 'Liv kjøper',
+            overlay: {
+              icon: '💳',
+              title: 'Stripe Checkout',
+              body: 'Liv blir sendt til Stripes betalingsside, fyller inn leveringsadresse, og betaler 445 kr (350 vare + 76 frakt + 19 trygg betaling) med kort, Apple Pay eller Google Pay.\n\nStripe trekker beløpet og holder det i forvaring til kjøper bekrefter mottak.',
+              note: 'Stripe kan ikke vises i iframe — vi simulerer kjøpet direkte.',
+            },
+          },
 
           // Seller sees the reserved state
           { action: 'loginAs', persona: 'eline' },
@@ -295,7 +333,17 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           { action: 'expectText', text: 'Noen har kjøpt varen din!' },
 
           // Seller marks shipped
-          { action: 'apiCall', exec: 'ship-listing', actor: 'eline@test.strikketorget.no', params: { listing_id: '$listingId', tracking_code: 'CD123456789NO' }, label: 'Eline merker som sendt' },
+          {
+            action: 'apiCall', exec: 'ship-listing', actor: 'eline@test.strikketorget.no',
+            params: { listing_id: '$listingId', tracking_code: 'CD123456789NO' },
+            label: 'Eline merker som sendt',
+            overlay: {
+              icon: '📦',
+              title: 'I virkeligheten: Eline pakker og sender',
+              body: 'Eline tar med pakken til nærmeste Posten-utleveringssted, limer på fraktetiketten, og limer inn sporingsnummeret CD123456789NO i annonsesiden.',
+              note: 'Kjøper får varsel + sporingslenke automatisk.',
+            },
+          },
 
           // Buyer sees shipped + can confirm
           { action: 'loginAs', persona: 'liv' },
@@ -303,7 +351,16 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           { action: 'expectText', text: 'Bekreft' },
 
           // Buyer confirms delivery
-          { action: 'apiCall', exec: 'confirm-listing-delivery', actor: 'liv@test.strikketorget.no', params: { listing_id: '$listingId' }, label: 'Liv bekrefter mottak' },
+          {
+            action: 'apiCall', exec: 'confirm-listing-delivery', actor: 'liv@test.strikketorget.no',
+            params: { listing_id: '$listingId' }, label: 'Liv bekrefter mottak',
+            overlay: {
+              icon: '✅',
+              title: 'I virkeligheten: Liv bekrefter mottak',
+              body: 'Liv åpner pakken, sjekker at genseren er som forventet, og trykker «Bekreft mottatt» på annonsesiden. Stripe frigjør 426 kr (445 minus trygg-betaling-avgiften) til Eline samme dag.\n\nHvis hun ikke svarer, frigjøres pengene automatisk 14 dager etter sending.',
+              note: 'Snarvei i demoen.',
+            },
+          },
 
           // Seller sees sold final state
           { action: 'loginAs', persona: 'eline' },
@@ -431,6 +488,36 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (!banner) return;
       banner.style.opacity = '0';
       setTimeout(() => banner.classList.add('hidden'), 200);
+    }
+
+    // Promise that resolves no sooner than `minMs`, plus we hide the
+    // overlay element. Used so even at Maks speed the cheat overlay
+    // stays on screen long enough to read.
+    let overlayShownAt = 0;
+    function showOverlay(overlay: { icon?: string; title: string; body?: string; note?: string }) {
+      const root = document.querySelector('#action-overlay') as HTMLElement | null;
+      if (!root) return;
+      (root.querySelector('[data-overlay-icon]') as HTMLElement).textContent = overlay.icon ?? '⚡';
+      (root.querySelector('[data-overlay-title]') as HTMLElement).textContent = overlay.title;
+      const body = root.querySelector('[data-overlay-body]') as HTMLElement;
+      body.textContent = overlay.body ?? '';
+      body.style.display = overlay.body ? '' : 'none';
+      const note = root.querySelector('[data-overlay-note]') as HTMLElement;
+      note.textContent = overlay.note ?? 'Hoppet over i denne demoen.';
+      root.classList.remove('hidden');
+      root.style.opacity = '1';
+      overlayShownAt = Date.now();
+    }
+    async function hideOverlay(minMs = 1500) {
+      const root = document.querySelector('#action-overlay') as HTMLElement | null;
+      if (!root || root.classList.contains('hidden')) return;
+      const elapsed = Date.now() - overlayShownAt;
+      if (elapsed < minMs) {
+        await new Promise((r) => setTimeout(r, minMs - elapsed));
+      }
+      root.style.opacity = '0';
+      await new Promise((r) => setTimeout(r, 200));
+      root.classList.add('hidden');
     }
 
     async function loginAs(email: string) {
@@ -582,18 +669,22 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           }
           return r?.data;
         },
-        onStep: (i, step, res) => {
+        onStep: async (i, step, res) => {
           if (res === 'running') {
             markStep(i, 'running');
             showBanner(describe(step), step.action);
-          } else if (res.ok) {
-            markStep(i, 'ok');
+            if ((step as any).overlay) showOverlay((step as any).overlay);
           } else {
-            markStep(i, 'fail', res.error);
+            // For steps that showed an overlay, hold it on screen at
+            // least 1.5s so the reader has time to absorb the text.
+            if ((step as any).overlay) await hideOverlay();
+            if (res.ok) markStep(i, 'ok');
+            else markStep(i, 'fail', res.error);
           }
         },
       });
       hideBanner();
+      await hideOverlay(0);
       setStatus(`Ferdig: ${result.passed} OK, ${result.failed} feil.`);
     }
 

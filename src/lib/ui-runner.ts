@@ -8,17 +8,29 @@
 // and page are real, but clicks are programmatic. See docs/UI_RUNNER.md
 // for the trade-off discussion.
 
-export type FlowStep =
-  | { action: 'goto'; url: string; label?: string }
-  | { action: 'fill'; selector: string; value: string; label?: string }
-  | { action: 'select'; selector: string; value: string; label?: string }
-  | { action: 'check'; selector: string; checked?: boolean; label?: string }
-  | { action: 'click'; selector?: string; text?: string; label?: string }
-  | { action: 'expectText'; text: string; label?: string }
-  | { action: 'expectUrl'; match: string | RegExp; label?: string }
-  | { action: 'wait'; ms: number; label?: string }
-  | { action: 'loginAs'; persona: 'liv' | 'eline' | 'maja' | 'nora' | 'kari' | null; label?: string }
-  | { action: 'apiCall'; exec: string; actor?: string; params?: Record<string, unknown>; label?: string };
+/** Card shown over the iframe during a step. Mainly used on apiCall/loginAs
+ *  steps to explain what the shortcut is standing in for in real life. */
+export type StepOverlay = {
+  icon?: string;
+  title: string;
+  body?: string;
+  note?: string;
+};
+
+type StepCommon = { label?: string; overlay?: StepOverlay };
+
+export type FlowStep = StepCommon & (
+  | { action: 'goto'; url: string }
+  | { action: 'fill'; selector: string; value: string }
+  | { action: 'select'; selector: string; value: string }
+  | { action: 'check'; selector: string; checked?: boolean }
+  | { action: 'click'; selector?: string; text?: string }
+  | { action: 'expectText'; text: string }
+  | { action: 'expectUrl'; match: string | RegExp }
+  | { action: 'wait'; ms: number }
+  | { action: 'loginAs'; persona: 'liv' | 'eline' | 'maja' | 'nora' | 'kari' | null }
+  | { action: 'apiCall'; exec: string; actor?: string; params?: Record<string, unknown> }
+);
 
 export type StepResult = { ok: true } | { ok: false; error: string };
 
