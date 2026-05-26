@@ -149,6 +149,19 @@ const { data: latestRequests } = await supabase
   .order('created_at', { ascending: false })
   .limit(4);
 
+// 4) "Nye fra sellere du følger" — only when the viewer follows ≥1 seller.
+let followedListings: any[] = [];
+if (userPrefs?.followed_sellers && userPrefs.followed_sellers.length > 0) {
+  const { data } = await supabase
+    .from('listings')
+    .select(LISTING_COLS)
+    .eq('status', 'active')
+    .in('seller_id', userPrefs.followed_sellers)
+    .order('published_at', { ascending: false })
+    .limit(8);
+  followedListings = data ?? [];
+}
+
 const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
 
 ---
@@ -236,6 +249,27 @@ const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
           <p class="hidden sm:block text-sm text-charcoal/55">Bestill et plagg fra en strikker i fellesskapet.</p>
         </a>
       </div>
+
+      {followedListings.length > 0 && (
+        <>
+          <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">Nye fra sellere du følger</h2>
+          <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10">
+            {followedListings.map((l) => (
+              <ListingCard
+                id={l.id}
+                title={l.title}
+                price={l.price_nok}
+                imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
+                showFav={!!user}
+                isFav={favIds.includes(l.id)}
+                promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
+                promotionTier={l.promotion_tier ?? null}
+              />
+            ))}
+          </ul>
+        </>
+      )}
 
       <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">{featuredTitle}</h2>
       {featured.length === 0 ? (
