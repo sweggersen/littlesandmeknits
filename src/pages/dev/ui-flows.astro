@@ -30,10 +30,11 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           <div class="flex items-center gap-2">
             <select id="flow-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
             <select id="speed-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Avspillingshastighet">
-              <option value="700">0.5×</option>
-              <option value="350" selected>1×</option>
-              <option value="175">2×</option>
-              <option value="90">4×</option>
+              <option value="2800">0.5×</option>
+              <option value="1400" selected>1×</option>
+              <option value="700">2×</option>
+              <option value="350">4×</option>
+              <option value="90">8×</option>
               <option value="20">Maks</option>
             </select>
             <button id="btn-seed" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">🌱 Frø</button>
@@ -546,7 +547,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // First resolve any /seed:tag goto URLs, then resolve dynamic $bindings
       // at run time inside the runner via the per-step path.
       const steps = await resolveSeedUrls(flow.steps);
-      const delayMs = parseInt($<HTMLSelectElement>('#speed-select').value, 10) || 350;
+      const delayMs = parseInt($<HTMLSelectElement>('#speed-select').value, 10) || 1400;
       const result = await runFlow(steps, {
         iframe,
         delayMs,

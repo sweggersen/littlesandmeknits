@@ -24,7 +24,7 @@ export type StepResult = { ok: true } | { ok: false; error: string };
 
 const HIGHLIGHT_STYLE =
   'outline: 3px solid #C75B39 !important; outline-offset: 3px !important; box-shadow: 0 0 0 6px rgba(199, 91, 57, 0.25) !important; transition: outline 120ms, box-shadow 120ms';
-const DEFAULT_DELAY_MS = 350;
+const DEFAULT_DELAY_MS = 1400;
 
 function describe(step: FlowStep): string {
   if (step.label) return step.label;
@@ -46,33 +46,36 @@ function sleep(ms: number) {
   return new Promise<void>((r) => setTimeout(r, ms));
 }
 
-async function waitForLoad(iframe: HTMLIFrameElement, timeoutMs = 10_000): Promise<void> {
-  // Astro's ClientRouter (view transitions) navigates via History API, so
-  // the iframe's `load` event only fires on a full document swap. We listen
-  // for both, plus `astro:page-load` inside the iframe document, and resolve
-  // on whichever wins.
+async function waitForLoad(iframe: HTMLIFrameElement, expectedUrl: string, timeoutMs = 10_000): Promise<void> {
+  // Poll-based wait. Resolves when:
+  //   - the iframe's current pathname matches the expected URL, and
+  //   - document.readyState is 'complete'.
+  // More reliable than racing on `load` (fires before our listener attaches
+  // at fast playback speeds) or `astro:page-load` (only fires within
+  // ClientRouter context).
+  let expectedPath = expectedUrl;
+  try { expectedPath = new URL(expectedUrl, window.location.href).pathname; } catch { /* keep raw */ }
+
+  const start = Date.now();
   return new Promise((resolve, reject) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      iframe.removeEventListener('load', onLoad);
-      try { iframe.contentDocument?.removeEventListener('astro:page-load', onAstroLoad); } catch {}
-      // Let the iframe's own scripts run a tick before we touch it.
-      setTimeout(resolve, 50);
+    const check = () => {
+      try {
+        const win = iframe.contentWindow;
+        const doc = iframe.contentDocument;
+        if (win && doc) {
+          const path = win.location.pathname;
+          if (path === expectedPath && doc.readyState === 'complete') {
+            // Give the iframe a tick to run hydration scripts before we touch it.
+            return setTimeout(resolve, 60);
+          }
+        }
+      } catch { /* cross-origin during transition */ }
+      if (Date.now() - start > timeoutMs) {
+        return reject(new Error(`iframe load timeout after ${timeoutMs}ms (expected ${expectedPath})`));
+      }
+      setTimeout(check, 40);
     };
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      iframe.removeEventListener('load', onLoad);
-      try { iframe.contentDocument?.removeEventListener('astro:page-load', onAstroLoad); } catch {}
-      reject(new Error(`iframe load timeout after ${timeoutMs}ms`));
-    }, timeoutMs);
-    function onLoad() { finish(); }
-    function onAstroLoad() { finish(); }
-    iframe.addEventListener('load', onLoad);
-    try { iframe.contentDocument?.addEventListener('astro:page-load', onAstroLoad); } catch {}
+    check();
   });
 }
 
@@ -140,7 +143,7 @@ async function highlight(el: Element, durationMs = 250): Promise<void> {
 // Re-exported for callers that want the per-step highlight duration to
 // match the playback speed (longer when slowed down, near-zero on Maks).
 export function highlightDurationFor(delayMs: number): number {
-  return Math.max(180, Math.min(700, Math.round(delayMs * 0.7)));
+  return Math.max(180, Math.min(1200, Math.round(delayMs * 0.55)));
 }
 
 export type RunnerOptions = {
@@ -191,7 +194,7 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
   if (step.action === 'goto') {
     const url = opts.onResolveUrl ? opts.onResolveUrl(step.url) : step.url;
     iframe.src = url;
-    await waitForLoad(iframe);
+    await waitForLoad(iframe, url);
     // Highlight the landing page's main heading so the eye lands on
     // "what just appeared". Safe no-op if no heading found.
     try {
