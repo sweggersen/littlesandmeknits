@@ -16,7 +16,9 @@ export type FlowStep =
   | { action: 'click'; selector?: string; text?: string; label?: string }
   | { action: 'expectText'; text: string; label?: string }
   | { action: 'expectUrl'; match: string | RegExp; label?: string }
-  | { action: 'wait'; ms: number; label?: string };
+  | { action: 'wait'; ms: number; label?: string }
+  | { action: 'loginAs'; persona: 'liv' | 'eline' | 'maja' | 'nora' | 'kari' | null; label?: string }
+  | { action: 'apiCall'; exec: string; actor?: string; params?: Record<string, unknown>; label?: string };
 
 export type StepResult = { ok: true } | { ok: false; error: string };
 
@@ -35,6 +37,8 @@ function describe(step: FlowStep): string {
     case 'expectText': return `expectText "${step.text}"`;
     case 'expectUrl': return `expectUrl ${step.match}`;
     case 'wait': return `wait ${step.ms}ms`;
+    case 'loginAs': return `loginAs ${step.persona ?? '(anon)'}`;
+    case 'apiCall': return `api ${step.exec}${step.actor ? ` (${step.actor})` : ''}`;
   }
 }
 
@@ -43,18 +47,32 @@ function sleep(ms: number) {
 }
 
 async function waitForLoad(iframe: HTMLIFrameElement, timeoutMs = 10_000): Promise<void> {
+  // Astro's ClientRouter (view transitions) navigates via History API, so
+  // the iframe's `load` event only fires on a full document swap. We listen
+  // for both, plus `astro:page-load` inside the iframe document, and resolve
+  // on whichever wins.
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      iframe.removeEventListener('load', onLoad);
-      reject(new Error(`iframe load timeout after ${timeoutMs}ms`));
-    }, timeoutMs);
-    function onLoad() {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       iframe.removeEventListener('load', onLoad);
+      try { iframe.contentDocument?.removeEventListener('astro:page-load', onAstroLoad); } catch {}
       // Let the iframe's own scripts run a tick before we touch it.
       setTimeout(resolve, 50);
-    }
+    };
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      iframe.removeEventListener('load', onLoad);
+      try { iframe.contentDocument?.removeEventListener('astro:page-load', onAstroLoad); } catch {}
+      reject(new Error(`iframe load timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+    function onLoad() { finish(); }
+    function onAstroLoad() { finish(); }
     iframe.addEventListener('load', onLoad);
+    try { iframe.contentDocument?.addEventListener('astro:page-load', onAstroLoad); } catch {}
   });
 }
 
@@ -97,6 +115,12 @@ export type RunnerOptions = {
   delayMs?: number;
   /** Called before/after each step so a UI can render status. */
   onStep?: (i: number, step: FlowStep, result: StepResult | 'running') => void;
+  /** Performs a session login (or signs out when persona is null). */
+  onLoginAs?: (persona: string | null) => Promise<void>;
+  /** Calls a server action (e.g., /api/dev/test-exec) and returns its data. */
+  onApiCall?: (exec: string, body: { actor?: string; params?: Record<string, unknown> }) => Promise<unknown>;
+  /** Resolve dynamic placeholders in a goto URL just before navigation. */
+  onResolveUrl?: (url: string) => string;
 };
 
 export async function runFlow(
@@ -112,7 +136,7 @@ export async function runFlow(
     const step = steps[i];
     onStep?.(i, step, 'running');
     try {
-      await runStep(step, iframe);
+      await runStep(step, iframe, opts);
       onStep?.(i, step, { ok: true });
       passed++;
     } catch (err) {
@@ -127,14 +151,25 @@ export async function runFlow(
   return { passed, failed };
 }
 
-async function runStep(step: FlowStep, iframe: HTMLIFrameElement): Promise<void> {
+async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOptions): Promise<void> {
   if (step.action === 'goto') {
-    iframe.src = step.url;
+    const url = opts.onResolveUrl ? opts.onResolveUrl(step.url) : step.url;
+    iframe.src = url;
     await waitForLoad(iframe);
     return;
   }
   if (step.action === 'wait') {
     await sleep(step.ms);
+    return;
+  }
+  if (step.action === 'loginAs') {
+    if (!opts.onLoginAs) throw new Error('loginAs used but no onLoginAs handler provided');
+    await opts.onLoginAs(step.persona);
+    return;
+  }
+  if (step.action === 'apiCall') {
+    if (!opts.onApiCall) throw new Error('apiCall used but no onApiCall handler provided');
+    await opts.onApiCall(step.exec, { actor: step.actor, params: step.params });
     return;
   }
   if (step.action === 'expectUrl') {
@@ -190,21 +225,27 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement): Promise<void>
     // Capture pre-click URL to detect navigation.
     const beforeUrl = iframe.contentWindow?.location?.href ?? '';
     button.click();
-    // If the click triggered a form submit or anchor nav, wait for load.
+
+    // Wait briefly for the click's side-effects. We try (in order):
+    //  - URL change detected within 200ms → wait for the next paint cycle
+    //    + Astro's view-transition to settle. A short fixed wait is more
+    //    reliable than racing on `load` (never fires for SPA nav) or
+    //    `astro:page-load` (timing-sensitive listener attach).
+    //  - No URL change after 200ms → treat as in-page click and return.
     await new Promise<void>((resolve) => {
       const start = Date.now();
-      const check = () => {
+      const tick = () => {
         const now = iframe.contentWindow?.location?.href ?? '';
         if (now !== beforeUrl) {
-          // Wait for the new document to actually finish loading.
-          waitForLoad(iframe, 10_000).then(resolve, () => resolve());
+          // Navigation started. Give Astro's view transition + new
+          // page scripts a moment to settle.
+          setTimeout(resolve, 400);
           return;
         }
-        // No nav after 200ms — treat click as in-page.
         if (Date.now() - start > 200) return resolve();
-        requestAnimationFrame(check);
+        requestAnimationFrame(tick);
       };
-      check();
+      tick();
     });
     return;
   }

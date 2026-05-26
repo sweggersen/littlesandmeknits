@@ -263,6 +263,49 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ],
       },
 
+      // ────────────────────── Full E2E (kjøpsflyt) ─────────────────────
+      {
+        id: 'full-e2e',
+        title: 'Full E2E — selger lager → kjøper kjøper → bekrefter mottak',
+        persona: null,
+        steps: [
+          // Bootstrap: fresh state, Eline as trusted Stripe-onboarded seller,
+          // brand-new active listing with 2 photos.
+          { action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata' },
+          { action: 'apiCall', exec: 'seed-buyflow-listing', params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] }, label: 'Frø Eline + ny aktiv annonse' },
+
+          // Buyer view
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Liv åpner annonsen' },
+          { action: 'expectText', text: 'E2E demo: Strikket genser str. 2 år' },
+          { action: 'expectText', text: 'Kjøp nå' },
+
+          // Purchase (bypasses Stripe via test-exec)
+          { action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no', params: { listing_id: '$listingId' }, label: 'Liv kjøper' },
+
+          // Seller sees the reserved state
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Eline ser annonsen' },
+          { action: 'expectText', text: 'Noen har kjøpt varen din!' },
+
+          // Seller marks shipped
+          { action: 'apiCall', exec: 'ship-listing', actor: 'eline@test.strikketorget.no', params: { listing_id: '$listingId', tracking_code: 'CD123456789NO' }, label: 'Eline merker som sendt' },
+
+          // Buyer sees shipped + can confirm
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Liv ser «sendt»' },
+          { action: 'expectText', text: 'Bekreft' },
+
+          // Buyer confirms delivery
+          { action: 'apiCall', exec: 'confirm-listing-delivery', actor: 'liv@test.strikketorget.no', params: { listing_id: '$listingId' }, label: 'Liv bekrefter mottak' },
+
+          // Seller sees sold final state
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/market/my-listings', label: 'Eline sjekker Mine annonser' },
+          { action: 'expectText', text: 'Solgt' },
+        ],
+      },
+
       // ─────────────────────── Varsler og admin ────────────────────────
       {
         id: 'notifications',
@@ -419,6 +462,13 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             out.push({ ...s, url: `/market/listing/${seedCache.draftEmptyId}/foto` });
             continue;
           }
+          // Dynamic binding: $-prefixed tag resolves at run time from
+          // seedCache/bindings rather than at flow-prep time. Leave the
+          // placeholder in — the runner's URL interpolation handles it.
+          if (tag.startsWith('$')) {
+            out.push(s);
+            continue;
+          }
           throw new Error(`Unknown seed tag: ${tag}`);
         }
         out.push(s);
@@ -442,12 +492,65 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         return;
       }
 
+      // Bindings captured from apiCall return values. Steps can reference
+      // them by interpolating "$key" into goto URLs or apiCall params.
+      const bindings: Record<string, unknown> = {};
+
+      function interpolate(value: unknown): unknown {
+        if (typeof value === 'string' && value.startsWith('$')) {
+          const key = value.slice(1);
+          if (key in bindings) return bindings[key];
+          if (key in seedCache) return (seedCache as Record<string, unknown>)[key];
+          return value;
+        }
+        if (Array.isArray(value)) return value.map(interpolate);
+        if (value && typeof value === 'object') {
+          const out: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(value)) out[k] = interpolate(v);
+          return out;
+        }
+        return value;
+      }
+
       const iframe = $<HTMLIFrameElement>('#ui-frame');
+      // First resolve any /seed:tag goto URLs, then resolve dynamic $bindings
+      // at run time inside the runner via the per-step path.
       const steps = await resolveSeedUrls(flow.steps);
       const delayMs = parseInt($<HTMLSelectElement>('#speed-select').value, 10) || 350;
       const result = await runFlow(steps, {
         iframe,
         delayMs,
+        onResolveUrl: (url) => {
+          // /seed:$key → resolve from bindings or seedCache at run time.
+          if (url.startsWith('/seed:$')) {
+            const key = url.slice('/seed:$'.length);
+            const val = (bindings as any)[key] ?? (seedCache as any)[key];
+            if (typeof val !== 'string') throw new Error(`No binding for $${key}`);
+            // Convention: a $listingId binding maps to /market/listing/<id>.
+            // For other forms, embed the literal value in the URL.
+            if (key === 'listingId') return `/market/listing/${val}`;
+            return String(val);
+          }
+          return url;
+        },
+        onLoginAs: async (persona) => {
+          if (persona && PERSONA_EMAIL[persona]) {
+            await loginAs(PERSONA_EMAIL[persona]);
+          } else {
+            await fetch('/api/auth/signout', { method: 'POST' });
+          }
+        },
+        onApiCall: async (execName, body) => {
+          const resolvedParams = interpolate(body?.params ?? {}) as Record<string, unknown>;
+          const r = await exec(execName, { actor: body?.actor, params: resolvedParams });
+          // Merge any returned id-bearing fields so later steps can ref them.
+          if (r?.data && typeof r.data === 'object') {
+            Object.assign(bindings, r.data);
+            // Also feed into seedCache for goto /seed:foo resolution.
+            Object.assign(seedCache, r.data);
+          }
+          return r?.data;
+        },
         onStep: (i, _step, res) => {
           if (res === 'running') markStep(i, 'running');
           else if (res.ok) markStep(i, 'ok');

@@ -731,6 +731,52 @@ async function handle(
       return { data: { count: count ?? 0 } };
     }
 
+    // Single-shot prep for the full-buyflow demo: Eline trusted+onboarded,
+    // brand new listing with two photos, status=active. Used by the
+    // /dev/ui-flows "Full E2E" scenario.
+    case 'seed-buyflow-listing': {
+      const elineId = emailToId.get('eline@test.strikketorget.no');
+      const livId = emailToId.get('liv@test.strikketorget.no');
+      if (!elineId || !livId) throw new Error('seed-buyflow-listing needs user_emails: [eline, liv]');
+      await db.from('profiles').update({
+        profile_visible: true,
+        trust_score: 100, trust_tier: 'trusted',
+        stripe_onboarded: true,
+      }).eq('id', elineId);
+      await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
+
+      const cat = 'genser';
+      const { data: l, error } = await db.from('listings').insert({
+        seller_id: elineId,
+        kind: 'pre_loved',
+        title: 'E2E demo: Strikket genser str. 2 år',
+        category: cat,
+        size_label: '2 år',
+        price_nok: 350,
+        condition: 'lite_brukt',
+        description: 'Demo-annonse for full kjøp-flyt.',
+        status: 'active',
+        published_at: new Date().toISOString(),
+        listing_fee_nok: 29,
+        shipping_option: 'small_parcel',
+        shipping_price_nok: 76,
+        escrow_enabled: true,
+      }).select('id').single();
+      if (error) throw error;
+
+      const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+      for (let i = 0; i < 2; i++) {
+        const png = await makeTestPng(colors[i % colors.length]);
+        const path = `${elineId}/listings/${l.id}/photo-${crypto.randomUUID()}.png`;
+        await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+        await db.from('listing_photos').insert({ listing_id: l.id, path, position: i });
+      }
+      const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', l.id).order('position').limit(1).maybeSingle();
+      if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', l.id);
+
+      return { data: { elineId, livId, listingId: l.id } };
+    }
+
     case 'count-follows': {
       const sellerId = p.seller_id as string | undefined;
       if (!sellerId) throw new Error('seller_id required');
