@@ -90,6 +90,34 @@ function findByText(doc: Document, text: string): Element | null {
   return null;
 }
 
+// Find the smallest semantic element that contains the given text.
+// Used by expectText so the runner can scroll/highlight what was asserted.
+function findContainingElement(doc: Document, text: string): Element | null {
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    if (node.textContent?.includes(text)) {
+      let el: HTMLElement | null = node.parentElement;
+      while (el && !el.matches('h1, h2, h3, h4, h5, h6, p, li, a, button, label, dd, dt, td, th, span, strong, em')) {
+        el = el.parentElement;
+      }
+      return el ?? node.parentElement;
+    }
+  }
+  return null;
+}
+
+// Find a good "landing element" to highlight after a page navigation —
+// the first visible h1 if present, else h2, else any heading.
+function findLandingHeading(doc: Document): Element | null {
+  const headings = doc.querySelectorAll('h1, h2');
+  for (const h of Array.from(headings)) {
+    const rect = (h as HTMLElement).getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return h;
+  }
+  return doc.querySelector('h1, h2, h3');
+}
+
 function scrollIntoView(el: Element): void {
   try {
     (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
@@ -158,10 +186,18 @@ export async function runFlow(
 }
 
 async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOptions): Promise<void> {
+  const dur = highlightDurationFor(opts.delayMs ?? DEFAULT_DELAY_MS);
+
   if (step.action === 'goto') {
     const url = opts.onResolveUrl ? opts.onResolveUrl(step.url) : step.url;
     iframe.src = url;
     await waitForLoad(iframe);
+    // Highlight the landing page's main heading so the eye lands on
+    // "what just appeared". Safe no-op if no heading found.
+    try {
+      const heading = findLandingHeading(getDoc(iframe));
+      if (heading) await highlight(heading, dur);
+    } catch { /* iframe might be re-loading */ }
     return;
   }
   if (step.action === 'wait') {
@@ -186,8 +222,12 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
   }
   if (step.action === 'expectText') {
     const doc = getDoc(iframe);
-    const text = doc.body.innerText ?? '';
-    if (!text.includes(step.text)) throw new Error(`Text "${step.text}" not found on page`);
+    const bodyText = doc.body.innerText ?? '';
+    if (!bodyText.includes(step.text)) throw new Error(`Text "${step.text}" not found on page`);
+    // Scroll the asserted text into view + highlight it so the eye
+    // catches the thing that was verified.
+    const el = findContainingElement(doc, step.text);
+    if (el) await highlight(el, dur);
     return;
   }
 
