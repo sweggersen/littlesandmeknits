@@ -29,6 +29,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           </div>
           <div class="flex items-center gap-2">
             <select id="flow-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
+            <select id="viewport-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Visningsstørrelse">
+              <option value="desktop" selected>💻 Desktop</option>
+              <option value="mobile">📱 Mobil (390×844)</option>
+            </select>
             <select id="speed-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Avspillingshastighet">
               <option value="2800">0.5×</option>
               <option value="1400" selected>1×</option>
@@ -55,7 +59,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         <!-- Iframe panel -->
         <div>
           <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Live</h2>
-          <div class="bg-white border border-sage-500/10 rounded-2xl overflow-hidden relative" style="height: calc(100vh - 200px);">
+          <div id="viewport-stage" class="bg-charcoal/[0.03] border border-sage-500/10 rounded-2xl overflow-hidden relative flex items-center justify-center" style="height: calc(100vh - 200px);" data-viewport="desktop">
             <!-- Action banner — shows current step on top of the iframe. -->
             <div id="action-banner" class="hidden absolute left-3 right-3 top-3 z-10 px-4 py-2 rounded-full bg-charcoal/90 text-linen text-sm font-medium shadow-lg backdrop-blur-sm pointer-events-none transition-opacity">
               <span data-action-icon class="mr-1">▶</span>
@@ -72,7 +76,8 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
                 <p data-overlay-note class="text-xs text-charcoal/45 mt-4 italic">Hoppet over i denne demoen.</p>
               </div>
             </div>
-            <iframe id="ui-frame" class="w-full h-full block" src="about:blank"></iframe>
+            <!-- Iframe — sized differently per viewport mode (see CSS). -->
+            <iframe id="ui-frame" src="about:blank"></iframe>
           </div>
         </div>
       </div>
@@ -82,6 +87,27 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       <p class="text-charcoal/55 text-center">UI Flows krever en bred skjerm (1024px+).</p>
     </div>
   </div>
+
+  <style>
+    /* Viewport-aware iframe sizing.
+       Desktop: fills the stage. Mobile: phone-sized, centered, with a bezel. */
+    #viewport-stage[data-viewport="desktop"] #ui-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: white;
+    }
+    #viewport-stage[data-viewport="mobile"] #ui-frame {
+      display: block;
+      width: 390px;
+      height: 844px;
+      max-height: calc(100vh - 240px);
+      background: white;
+      border: 10px solid #1f2937;
+      border-radius: 36px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    }
+  </style>
 
   <script>
     import { runFlow, describe, type FlowStep } from '../../lib/ui-runner';
@@ -693,6 +719,15 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       renderSteps(currentFlow());
       $('#flow-select').addEventListener('change', () => renderSteps(currentFlow()));
       $('#btn-run').addEventListener('click', runCurrent);
+
+      // Viewport toggle — sets data-viewport on the stage; CSS does the rest.
+      const stage = document.querySelector('#viewport-stage') as HTMLElement | null;
+      const vpSelect = $<HTMLSelectElement>('#viewport-select');
+      function applyViewport() {
+        if (stage) stage.setAttribute('data-viewport', vpSelect.value);
+      }
+      vpSelect.addEventListener('change', applyViewport);
+      applyViewport();
       $('#btn-seed').addEventListener('click', async () => {
         setStatus('Frør …');
         try {
