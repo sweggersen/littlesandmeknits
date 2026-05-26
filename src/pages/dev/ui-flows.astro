@@ -192,7 +192,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         steps: [
           { action: 'goto', url: '/seed:live-listing', label: 'goto Elines aktive annonse' },
           { action: 'expectText', text: 'Strikket genser str 2 år (publisert)' },
-          { action: 'expectText', text: 'Kjøp nå' },
+          { action: 'expectText', text: 'Kjøp trygt' },
         ],
       },
       {
@@ -278,7 +278,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           { action: 'loginAs', persona: 'liv' },
           { action: 'goto', url: '/seed:$listingId', label: 'Liv åpner annonsen' },
           { action: 'expectText', text: 'E2E demo: Strikket genser str. 2 år' },
-          { action: 'expectText', text: 'Kjøp nå' },
+          { action: 'expectText', text: 'Kjøp trygt', label: 'Kjøps-CTA synlig (med Trygg betaling)' },
 
           // Purchase (bypasses Stripe via test-exec)
           { action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no', params: { listing_id: '$listingId' }, label: 'Liv kjøper' },
