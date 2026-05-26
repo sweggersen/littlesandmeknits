@@ -207,12 +207,23 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
       <section class="mb-8">
         <h2 class="font-serif text-xl mb-3">Aktive annonser</h2>
         {live.length === 0 ? (
-          <div>
-            <EmptyState message="Ingen aktive annonser ennå." ctaText="Legg ut din første annonse" ctaHref="/market/listing/new" compact />
-            <p class="text-xs text-charcoal/55 text-center mt-3">
-              Førstegang? Les <a href="/hjelp/selge" class="text-terracotta-500 hover:underline">hvordan du selger</a>.
-            </p>
-          </div>
+          (() => {
+            const hasHistory = sold.length > 0 || drafts.length > 0 || inReview.length > 0;
+            const message = hasHistory
+              ? 'Du har ingen aktive annonser akkurat nå.'
+              : 'Ingen aktive annonser ennå.';
+            const cta = hasHistory ? 'Legg ut en ny annonse' : 'Legg ut din første annonse';
+            return (
+              <div>
+                <EmptyState message={message} ctaText={cta} ctaHref="/market/listing/new" compact />
+                {!hasHistory && (
+                  <p class="text-xs text-charcoal/55 text-center mt-3">
+                    Førstegang? Les <a href="/hjelp/selge" class="text-terracotta-500 hover:underline">hvordan du selger</a>.
+                  </p>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <ul class="space-y-2">
             {live.map((l) => {
