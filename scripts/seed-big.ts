@@ -209,11 +209,15 @@ async function createUser(email: string, displayName: string, city: string, role
   if (error || !created.user) { TRACE(`! createUser failed for ${email}: ${error?.message}`); return null; }
 
   // Profile row is usually inserted by an auth trigger; upsert to set fields we care about.
+  // stripe_onboarded=true so seeded listings actually show the buy button —
+  // the listing detail gates Kjøp on this flag.
   await admin.from('profiles').upsert({
     id: created.user.id,
     display_name: displayName,
     location: city,
     role,
+    stripe_onboarded: true,
+    profile_visible: true,
   }, { onConflict: 'id' });
   return { id: created.user.id, email, display: displayName, role, city };
 }
@@ -325,6 +329,21 @@ async function main() {
     // DB constraint: pre_loved → condition required; ready_made → must be null.
     const condition = kind === 'pre_loved' ? pick(CONDITIONS) : null;
 
+    // Most active listings use Trygg betaling so the buy button shows.
+    // 80% Trygg betaling on, 20% off — the off branch demos the manual
+    // "Marker som solgt" path.
+    const escrowEnabled = ['sold', 'reserved', 'shipped'].includes(status) ? true : maybe(0.8);
+
+    // Shipping option mix mirrors what real sellers would pick.
+    const SHIPPING_PICKS: Array<{ id: string; nok: number; weight: number }> = [
+      { id: 'small_parcel', nok: 76, weight: 5 },  // Norgespakke liten
+      { id: 'small_letter', nok: 41, weight: 3 },  // Brev
+      { id: 'large_parcel', nok: 140, weight: 2 }, // Norgespakke stor
+      { id: 'free', nok: 0, weight: 1 },           // Henting / dekker selv
+    ];
+    const shippingExpanded = SHIPPING_PICKS.flatMap((s) => new Array(s.weight).fill(s));
+    const shipping = pick(shippingExpanded);
+
     const insertData: Record<string, any> = {
       seller_id: owner.id,
       store_id: store?.id ?? null,
@@ -339,7 +358,9 @@ async function main() {
       status,
       location: owner.city,
       listing_fee_nok: 0,
-      escrow_enabled: maybe(0.6),
+      escrow_enabled: escrowEnabled,
+      shipping_option: shipping.id,
+      shipping_price_nok: shipping.nok,
     };
 
     if (['active', 'sold', 'reserved', 'shipped', 'frozen'].includes(status)) {

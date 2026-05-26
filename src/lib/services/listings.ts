@@ -186,6 +186,35 @@ export async function publishListing(
   return ok({ redirect: `/market/listing/${input.listingId}?published=1` });
 }
 
+/** Manually mark a non-escrow listing as sold. Used when the seller
+ *  arranged payment outside the platform (Vipps, cash, etc.). For escrow
+ *  listings the status transitions are driven by the buy/ship/confirm
+ *  flow instead. */
+export async function markListingSold(
+  ctx: ServiceContext,
+  input: { listingId: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (!input.listingId) return fail('bad_input', 'Missing id');
+
+  const { data: listing } = await ctx.admin
+    .from('listings')
+    .select('id, seller_id, status, escrow_enabled')
+    .eq('id', input.listingId)
+    .maybeSingle();
+  if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
+  if (listing.status !== 'active') return fail('bad_input', 'Bare aktive annonser kan markeres som solgt');
+  if (listing.escrow_enabled) return fail('bad_input', 'Bruk Trygg betaling-flyten for denne annonsen');
+
+  const now = new Date().toISOString();
+  const { error } = await ctx.admin
+    .from('listings')
+    .update({ status: 'sold', sold_at: now, delivered_at: now })
+    .eq('id', input.listingId);
+  if (error) return fail('server_error', 'Kunne ikke markere som solgt');
+
+  return ok({ redirect: `/market/listing/${input.listingId}?sold=1` });
+}
+
 /** Toggle Trygg betaling on/off for a listing.
  *  Now free for the seller — the buyer pays a small TB fee at checkout. */
 export async function toggleListingEscrow(

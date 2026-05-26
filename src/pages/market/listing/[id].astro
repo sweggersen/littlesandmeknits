@@ -500,6 +500,27 @@ const autoReleaseDays = listing.auto_release_at
                 </section>
               ) : null}
 
+              {/* ── Manual "Marker som solgt" for non-escrow listings ── */}
+              {isOwner && listing.status === 'active' && !listing.escrow_enabled && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 mt-4">
+                  <h2 class="font-serif text-lg mb-2">Solgt utenfor Strikketorget?</h2>
+                  <p class="text-sm text-charcoal/65 mb-4">
+                    Denne annonsen bruker ikke Trygg betaling, så Strikketorget ser ingen kjøp.
+                    Hvis du har solgt varen privat (Vipps, kontant, etc.) — marker den selv så den
+                    forsvinner fra søk.
+                  </p>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/mark-sold`}
+                    onsubmit="return confirm('Marker som solgt? Annonsen forsvinner fra søk og kan ikke gjenåpnes.');">
+                    <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                      Marker som solgt
+                    </button>
+                  </form>
+                  <p class="text-[11px] text-charcoal/45 mt-3">
+                    Tips: Aktiver <a href={`/market/listing/${listing.id}?tb_info=1`} class="text-terracotta-500 hover:underline">Trygg betaling</a> så håndteres alt automatisk neste gang.
+                  </p>
+                </section>
+              )}
+
               {/* ── Seller view for reserved/shipped/disputed listings ── */}
               {listing.status === 'reserved' && (
                 <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-4">
