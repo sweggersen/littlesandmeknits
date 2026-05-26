@@ -48,6 +48,14 @@ const STEPS = [
       <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6" data-wizard>
         <!-- ───── Step 1: Detaljer ───── -->
         <section data-step="1" class="space-y-6">
+          <!-- Example-fill helper. Hidden after first use so it doesn't
+               nudge experienced sellers. -->
+          <div class="bg-sage-100/40 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 text-sm" data-example-row>
+            <p class="text-charcoal/70">
+              Førstegang? <button type="button" data-fill-example class="text-terracotta-500 font-medium hover:underline">Fyll inn et eksempel</button> for å se hvordan en god annonse ser ut.
+            </p>
+          </div>
+
           {myStores.length > 0 && (
             <div>
               <label for="store_id" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Selg som</label>
@@ -269,6 +277,37 @@ const STEPS = [
       }
       kindEl?.addEventListener('change', syncKind);
       syncKind();
+
+      // "Fyll inn et eksempel" — pre-fills the form with a realistic
+      // sample so new sellers see what good copy looks like.
+      const fillBtn = document.querySelector<HTMLButtonElement>('[data-fill-example]');
+      fillBtn?.addEventListener('click', () => {
+        const example: Record<string, string | number> = {
+          kind: 'pre_loved',
+          title: 'Mariusgenser str. 92, naturhvit',
+          category: 'genser',
+          size_label: '92',
+          condition: 'som_ny',
+          size_age_months_min: '18',
+          size_age_months_max: '24',
+          colorway: 'Naturhvit med blå border',
+          pattern_external_title: 'Mariusgenser – Sandnes Garn',
+          knitted_by: 'Mormor (privat)',
+          location: 'Oslo',
+          description: 'Strikket i Sandnes Smart Superwash. Brukt et par ganger på hytta — som ny.\n\nVasket forsiktig på ullprogram, lufttørket. Røykfritt hjem.',
+          price_nok: '350',
+        };
+        for (const [name, value] of Object.entries(example)) {
+          const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+          if (el && 'value' in el) el.value = String(value);
+        }
+        // Make sure dependent UI reflects the new kind/condition.
+        kindEl?.dispatchEvent(new Event('change'));
+        // Open the "Flere detaljer" expander so the seller can see what got filled.
+        document.querySelectorAll('details').forEach((d) => { d.open = true; });
+        // Hide the helper row — it has served its purpose.
+        document.querySelector<HTMLElement>('[data-example-row]')?.remove();
+      });
 
       show(1);
     }
