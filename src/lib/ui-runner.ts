@@ -72,7 +72,18 @@ function findByText(doc: Document, text: string): Element | null {
   return null;
 }
 
+function scrollIntoView(el: Element): void {
+  try {
+    (el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+  } catch {
+    // ignore — older browsers without scroll options
+  }
+}
+
 async function highlight(el: Element, durationMs = 250): Promise<void> {
+  scrollIntoView(el);
+  // Let the smooth scroll catch up before we draw the outline.
+  await sleep(Math.min(180, durationMs));
   const previous = (el as HTMLElement).getAttribute('style') ?? '';
   (el as HTMLElement).setAttribute('style', `${previous};${HIGHLIGHT_STYLE}`);
   await sleep(durationMs);

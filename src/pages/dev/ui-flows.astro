@@ -29,6 +29,13 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           </div>
           <div class="flex items-center gap-2">
             <select id="flow-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
+            <select id="speed-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Avspillingshastighet">
+              <option value="700">0.5×</option>
+              <option value="350" selected>1×</option>
+              <option value="175">2×</option>
+              <option value="90">4×</option>
+              <option value="20">Maks</option>
+            </select>
             <button id="btn-seed" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">🌱 Frø</button>
             <button id="btn-cleanup" class="px-3 py-1.5 text-xs font-medium text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-lg hover:bg-red-50 transition-colors">Slett</button>
             <button id="btn-run" class="px-3 py-1.5 text-xs font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">Kjør ▶▶</button>
@@ -70,9 +77,58 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     };
 
     const FLOWS: Flow[] = [
+      // ────────────────────────── Onboarding ──────────────────────────
+      {
+        id: 'login-magic',
+        title: 'Login — magisk lenke',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/login' },
+          { action: 'expectText', text: 'Logg inn' },
+          { action: 'fill', selector: 'input[type=email]', value: 'demo@example.com' },
+          { action: 'check', selector: 'input[type=checkbox]', checked: true, label: 'godta alder' },
+          // The second checkbox (terms) — we click the label so the bubble works.
+          { action: 'click', text: 'brukervilkårene', label: 'fokuser vilkår' },
+          { action: 'expectText', text: 'Få magisk lenke' },
+        ],
+      },
+      {
+        id: 'login-password-tab',
+        title: 'Login — bytt til passord-modus',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/login' },
+          { action: 'click', text: 'Passord' },
+          { action: 'expectText', text: 'Glemt passord?' },
+          { action: 'click', text: 'Ny her? Opprett konto' },
+          { action: 'expectText', text: 'Opprett konto' },
+        ],
+      },
+      {
+        id: 'help-tour',
+        title: 'Hjelpesenter — gå gjennom alle sidene',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/hjelp' },
+          { action: 'expectText', text: 'Vanlige spørsmål' },
+          { action: 'click', text: 'Hvordan selge' },
+          { action: 'expectUrl', match: /\/hjelp\/selge$/ },
+          { action: 'expectText', text: '1. Lag annonsen' },
+          { action: 'click', text: 'Tilbake til hjelp' },
+          { action: 'click', text: 'Hvordan kjøpe' },
+          { action: 'expectUrl', match: /\/hjelp\/kjope$/ },
+          { action: 'expectText', text: '1. Finn det du leter etter' },
+          { action: 'click', text: 'Tilbake til hjelp' },
+          { action: 'click', text: 'Trygg betaling forklart' },
+          { action: 'expectUrl', match: /\/hjelp\/trygg-betaling$/ },
+          { action: 'expectText', text: 'Hvorfor bruke det?' },
+        ],
+      },
+
+      // ──────────────────────────── Wizard ─────────────────────────────
       {
         id: 'wizard',
-        title: 'Wizard: detaljer → pris → /foto',
+        title: 'Wizard — full happy path (Eline → /foto)',
         persona: 'eline',
         steps: [
           { action: 'goto', url: '/market/listing/new' },
@@ -89,32 +145,142 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ],
       },
       {
-        id: 'follow',
-        title: 'Følg-knapp på selgerprofil',
-        persona: 'liv',
+        id: 'wizard-example',
+        title: 'Wizard — "Fyll inn et eksempel"',
+        persona: 'eline',
         steps: [
-          { action: 'goto', url: '/market' },
-          { action: 'expectText', text: 'Strikketorget' },
-          { action: 'wait', ms: 200, label: 'Bytter til selgerprofil' },
-          { action: 'goto', url: '/seed:eline-profile', label: 'goto Eline' },
-          { action: 'click', text: '+ Følg' },
-          { action: 'expectText', text: '✓ Følger' },
-          { action: 'click', text: '✓ Følger' },
-          { action: 'expectText', text: '+ Følg' },
+          { action: 'goto', url: '/market/listing/new' },
+          { action: 'click', text: 'Fyll inn et eksempel' },
+          { action: 'expectText', text: 'Mariusgenser str. 92, naturhvit', label: 'tittel pre-fyllt' },
         ],
       },
       {
-        id: 'help',
-        title: 'Hjelp-senter (statiske sider)',
+        id: 'wizard-photo-step',
+        title: 'Wizard — Bilder-steget (utkast uten bilder)',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/seed:draft-empty-foto', label: 'goto /foto for utkastet' },
+          { action: 'expectText', text: 'Last opp bilder' },
+          { action: 'expectText', text: 'Last opp minst ett bilde' },
+        ],
+      },
+
+      // ────────────────────────── Marketplace ──────────────────────────
+      {
+        id: 'home-anon',
+        title: 'Marked — anonym (populære)',
         persona: null,
         steps: [
-          { action: 'goto', url: '/hjelp' },
-          { action: 'expectText', text: 'Vanlige spørsmål' },
-          { action: 'click', text: 'Hvordan selge' },
-          { action: 'expectUrl', match: /\/hjelp\/selge$/ },
-          { action: 'expectText', text: '1. Lag annonsen' },
-          { action: 'click', text: 'Tilbake til hjelp' },
-          { action: 'expectUrl', match: /\/hjelp$/ },
+          { action: 'goto', url: '/market' },
+          { action: 'expectText', text: 'Populære annonser' },
+        ],
+      },
+      {
+        id: 'home-personalised',
+        title: 'Marked — innlogget (anbefalinger + følg-rad)',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/market' },
+          { action: 'expectText', text: 'Nye fra sellere du følger' },
+          { action: 'expectText', text: 'Anbefalinger for deg' },
+        ],
+      },
+      {
+        id: 'listing-detail-buyer',
+        title: 'Annonseside — kjøper-visning',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing', label: 'goto Elines aktive annonse' },
+          { action: 'expectText', text: 'Strikket genser str 2 år (publisert)' },
+          { action: 'expectText', text: 'Kjøp nå' },
+        ],
+      },
+      {
+        id: 'listing-detail-follow',
+        title: 'Annonseside — følg selger fra detaljen',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing' },
+          { action: 'click', text: '✓ Følger', label: 'allerede følger (toggle av)' },
+          { action: 'expectText', text: '+ Følg' },
+          { action: 'click', text: '+ Følg' },
+          { action: 'expectText', text: '✓ Følger' },
+        ],
+      },
+
+      // ───────────────────────── Selger og følg ────────────────────────
+      {
+        id: 'follow',
+        title: 'Selgerprofil — følg-toggle',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/seed:eline-profile', label: 'goto Eline' },
+          { action: 'click', text: '✓ Følger', label: 'unfollow (allerede følger)' },
+          { action: 'expectText', text: '+ Følg' },
+          { action: 'click', text: '+ Følg' },
+          { action: 'expectText', text: '✓ Følger' },
+        ],
+      },
+      {
+        id: 'following-feed',
+        title: 'Markedet — egen følger-feed',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/market/following' },
+          { action: 'expectText', text: 'Sellere du følger' },
+          { action: 'expectText', text: 'Strikket genser str 2 år (publisert)' },
+        ],
+      },
+
+      // ───────────────────────── Selger-dashboard ──────────────────────
+      {
+        id: 'my-listings-seller',
+        title: 'Mine annonser — Eline ser stats + promoter-knapper',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/market/my-listings' },
+          { action: 'expectText', text: 'Aktive annonser' },
+          { action: 'expectText', text: 'Statistikk' },
+          { action: 'expectText', text: 'Promoter' },
+        ],
+      },
+      {
+        id: 'stats-page',
+        title: 'Statistikk-side',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing-stats', label: 'goto /market/stats/[id]' },
+          { action: 'expectText', text: 'Synlighet og klikk' },
+        ],
+      },
+      {
+        id: 'promoter-anchor',
+        title: 'Annonse — Fremhev-seksjon (#promoter)',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing-promoter', label: 'goto listing#promoter' },
+          { action: 'expectText', text: 'Fremhev annonsen' },
+        ],
+      },
+
+      // ─────────────────────── Varsler og admin ────────────────────────
+      {
+        id: 'notifications',
+        title: 'Varslings-innboks',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/notifications' },
+          { action: 'expectText', text: 'la ut en ny annonse', label: 'seeded varsel' },
+        ],
+      },
+      {
+        id: 'admin-email-gallery',
+        title: 'Admin — e-postmal-galleri',
+        persona: 'nora',
+        steps: [
+          { action: 'goto', url: '/admin' },
+          { action: 'expectText', text: 'E-postmaler' },
+          { action: 'expectText', text: 'Velkomst' },
         ],
       },
     ];
@@ -202,18 +368,58 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (!r.ok) throw new Error(`login as ${email}: ${r.status}`);
     }
 
+    // Seed result cache. Populated after a successful seed-screens call.
+    // Each resolver below either uses the cache or hits the API on demand.
+    let seedCache: {
+      elineId?: string;
+      livId?: string;
+      liveListingId?: string;
+      draftEmptyId?: string;
+      draftReadyId?: string;
+    } = {};
+
+    async function ensureSeed() {
+      if (!seedCache.elineId || !seedCache.liveListingId) {
+        // Run seed if we don't already have data. Cheap if already seeded
+        // because cleanup+seed is fast.
+        const r = await exec('seed-screens', { params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] } });
+        seedCache = { ...seedCache, ...r.data };
+      }
+    }
+
     async function resolveSeedUrls(steps: FlowStep[]): Promise<FlowStep[]> {
-      // Replace placeholders like 'goto /seed:eline-profile' with the real
-      // URL using current seed data.
+      // Replace 'goto /seed:foo' placeholders with concrete URLs from
+      // the seed-screens result. Seeds on demand if cache is empty.
       const out: FlowStep[] = [];
       for (const s of steps) {
         if (s.action === 'goto' && s.url.startsWith('/seed:')) {
           const tag = s.url.slice(6);
           if (tag === 'eline-profile') {
-            const lookup = await exec('lookup-user', { params: { email: 'eline@test.strikketorget.no' } });
-            out.push({ ...s, url: `/market/seller/${lookup.data.id}` });
+            await ensureSeed();
+            out.push({ ...s, url: `/market/seller/${seedCache.elineId}` });
             continue;
           }
+          if (tag === 'live-listing') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/listing/${seedCache.liveListingId}` });
+            continue;
+          }
+          if (tag === 'live-listing-stats') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/stats/${seedCache.liveListingId}` });
+            continue;
+          }
+          if (tag === 'live-listing-promoter') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/listing/${seedCache.liveListingId}#promoter` });
+            continue;
+          }
+          if (tag === 'draft-empty-foto') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/listing/${seedCache.draftEmptyId}/foto` });
+            continue;
+          }
+          throw new Error(`Unknown seed tag: ${tag}`);
         }
         out.push(s);
       }
@@ -238,8 +444,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       const iframe = $<HTMLIFrameElement>('#ui-frame');
       const steps = await resolveSeedUrls(flow.steps);
+      const delayMs = parseInt($<HTMLSelectElement>('#speed-select').value, 10) || 350;
       const result = await runFlow(steps, {
         iframe,
+        delayMs,
         onStep: (i, _step, res) => {
           if (res === 'running') markStep(i, 'running');
           else if (res.ok) markStep(i, 'ok');
@@ -258,7 +466,8 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         setStatus('Frør …');
         try {
           await exec('cleanup');
-          await exec('seed-screens', { params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] } });
+          const r = await exec('seed-screens', { params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] } });
+          seedCache = r.data;
           setStatus('Seed OK.');
         } catch (e) {
           setStatus(`Seed feilet: ${e instanceof Error ? e.message : String(e)}`);
@@ -268,6 +477,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         setStatus('Sletter …');
         try {
           await exec('cleanup');
+          seedCache = {};
           setStatus('Slettet.');
         } catch (e) {
           setStatus(`Cleanup feilet: ${e instanceof Error ? e.message : String(e)}`);
