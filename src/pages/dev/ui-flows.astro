@@ -45,16 +45,21 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       <div class="max-w-[1600px] mx-auto px-6 py-6 grid gap-6" style="grid-template-columns: 380px 1fr;">
         <!-- Steps panel -->
-        <div class="space-y-3">
-          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55">Steg</h2>
-          <ul id="steps-list" class="space-y-1.5"></ul>
-          <p id="status-line" class="text-xs text-charcoal/55 font-mono mt-3">Klar.</p>
+        <div class="space-y-3 flex flex-col" style="height: calc(100vh - 168px);">
+          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 shrink-0">Steg</h2>
+          <ul id="steps-list" class="space-y-1.5 overflow-y-auto flex-1 pr-2 -mr-2"></ul>
+          <p id="status-line" class="text-xs text-charcoal/55 font-mono mt-3 shrink-0">Klar.</p>
         </div>
 
         <!-- Iframe panel -->
         <div>
           <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Live</h2>
-          <div class="bg-white border border-sage-500/10 rounded-2xl overflow-hidden" style="height: calc(100vh - 200px);">
+          <div class="bg-white border border-sage-500/10 rounded-2xl overflow-hidden relative" style="height: calc(100vh - 200px);">
+            <!-- Action banner — shows current step on top of the iframe. -->
+            <div id="action-banner" class="hidden absolute left-3 right-3 top-3 z-10 px-4 py-2 rounded-full bg-charcoal/90 text-linen text-sm font-medium shadow-lg backdrop-blur-sm pointer-events-none transition-opacity">
+              <span data-action-icon class="mr-1">▶</span>
+              <span data-action-text>...</span>
+            </div>
             <iframe id="ui-frame" class="w-full h-full block" src="about:blank"></iframe>
           </div>
         </div>
@@ -381,7 +386,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     }
 
     function markStep(i: number, state: 'pending' | 'running' | 'ok' | 'fail', msg?: string) {
-      const row = document.querySelector(`[data-step-row="${i}"]`);
+      const row = document.querySelector(`[data-step-row="${i}"]`) as HTMLElement | null;
       if (!row) return;
       const dot = row.querySelector('[data-step-dot]') as HTMLElement;
       dot.className = 'w-3 h-3 rounded-full mt-0.5 shrink-0 ' + ({
@@ -390,6 +395,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ok: 'bg-sage-500',
         fail: 'bg-red-500',
       })[state];
+      row.classList.toggle('bg-amber-50', state === 'running');
+      row.classList.toggle('rounded', state === 'running');
+      // Keep the active step visible in the scroll panel.
+      if (state === 'running') row.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (msg) {
         let detail = row.querySelector('[data-step-error]') as HTMLElement | null;
         if (!detail) {
@@ -400,6 +409,27 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         }
         detail.textContent = msg;
       }
+    }
+
+    const BANNER_ICON: Record<string, string> = {
+      goto: '🧭', click: '👆', fill: '⌨️', select: '🔽', check: '☑️',
+      expectText: '🔎', expectUrl: '🔎', wait: '⏳',
+      loginAs: '👤', apiCall: '🛰️',
+    };
+
+    function showBanner(text: string, action: string) {
+      const banner = document.querySelector('#action-banner') as HTMLElement | null;
+      if (!banner) return;
+      (banner.querySelector('[data-action-icon]') as HTMLElement).textContent = BANNER_ICON[action] ?? '▶';
+      (banner.querySelector('[data-action-text]') as HTMLElement).textContent = text;
+      banner.classList.remove('hidden');
+      banner.style.opacity = '1';
+    }
+    function hideBanner() {
+      const banner = document.querySelector('#action-banner') as HTMLElement | null;
+      if (!banner) return;
+      banner.style.opacity = '0';
+      setTimeout(() => banner.classList.add('hidden'), 200);
     }
 
     async function loginAs(email: string) {
@@ -551,12 +581,18 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           }
           return r?.data;
         },
-        onStep: (i, _step, res) => {
-          if (res === 'running') markStep(i, 'running');
-          else if (res.ok) markStep(i, 'ok');
-          else markStep(i, 'fail', res.error);
+        onStep: (i, step, res) => {
+          if (res === 'running') {
+            markStep(i, 'running');
+            showBanner(describe(step), step.action);
+          } else if (res.ok) {
+            markStep(i, 'ok');
+          } else {
+            markStep(i, 'fail', res.error);
+          }
         },
       });
+      hideBanner();
       setStatus(`Ferdig: ${result.passed} OK, ${result.failed} feil.`);
     }
 

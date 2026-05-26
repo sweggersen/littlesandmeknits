@@ -23,7 +23,7 @@ export type FlowStep =
 export type StepResult = { ok: true } | { ok: false; error: string };
 
 const HIGHLIGHT_STYLE =
-  'outline: 3px solid #C75B39 !important; outline-offset: 2px !important; transition: outline 120ms';
+  'outline: 3px solid #C75B39 !important; outline-offset: 3px !important; box-shadow: 0 0 0 6px rgba(199, 91, 57, 0.25) !important; transition: outline 120ms, box-shadow 120ms';
 const DEFAULT_DELAY_MS = 350;
 
 function describe(step: FlowStep): string {
@@ -107,6 +107,12 @@ async function highlight(el: Element, durationMs = 250): Promise<void> {
   await sleep(durationMs);
   if (previous) (el as HTMLElement).setAttribute('style', previous);
   else (el as HTMLElement).removeAttribute('style');
+}
+
+// Re-exported for callers that want the per-step highlight duration to
+// match the playback speed (longer when slowed down, near-zero on Maks).
+export function highlightDurationFor(delayMs: number): number {
+  return Math.max(180, Math.min(700, Math.round(delayMs * 0.7)));
 }
 
 export type RunnerOptions = {
@@ -198,7 +204,7 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     if (!el) throw new Error(`Selector "${selector}" matched nothing`);
   }
 
-  await highlight(el);
+  await highlight(el, highlightDurationFor(opts.delayMs ?? DEFAULT_DELAY_MS));
 
   if (step.action === 'fill') {
     const input = el as HTMLInputElement | HTMLTextAreaElement;
