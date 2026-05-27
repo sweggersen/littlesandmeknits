@@ -12,9 +12,15 @@ Tech: Astro 6 SSR, Tailwind CSS, Supabase (auth + DB + storage), Stripe, Cloudfl
 ## Build & dev
 
 ```
-npm run dev       # dev server at localhost:4321
-npm run build     # production build — must pass with zero errors before committing
+npm run dev         # dev server at localhost:4321
+npm run dev:fresh   # same, but wipes node_modules/.vite first (clears stale Vite cache)
+npm run build       # production build, must pass with zero errors before committing
 ```
+
+**Recurring Vite cache issue**: when the dev server starts throwing
+"fetch failed" / "Invalid hook call" / "module not found" errors mid-session,
+the optimized-deps cache is stale. Kill the dev server and run
+`npm run dev:fresh` to clear it. Doesn't affect prod builds.
 
 ## Architecture rules
 
