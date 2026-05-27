@@ -12,17 +12,24 @@ const { size = 'inline', tint = size === 'header' ? 'sage' : 'inherit' } = Astro
 
 const iconSize = size === 'header' ? 14 : 12;
 const colorClass = tint === 'sage' ? 'text-sage-700' : '';
+// Header variant uses inline-flex (it's a standalone chip in a heading
+// row, no surrounding prose to align to). The inline variant uses plain
+// inline + vertical-align so the italic text shares the surrounding text
+// baseline — inline-flex creates its own vertical context that pushes
+// the text up off the line.
 const wrapperClass = size === 'header'
   ? `inline-flex items-center gap-1.5 ${colorClass} whitespace-nowrap`
-  : `inline-flex items-center gap-0 ${colorClass} whitespace-nowrap align-middle`;
+  : `${colorClass} whitespace-nowrap`;
+// Inline italic 'g' visually crowds the following word; pr-1 (4px) on
+// the text gives air after the chip without affecting the gap before it.
 const textClass = size === 'header'
   ? 'text-[10px] font-bold uppercase tracking-widest'
-  : 'italic font-medium';
+  : 'italic font-medium pr-1';
+const inlineSvgStyle = size === 'inline' ? 'vertical-align: -2px;' : '';
 ---
 <span class={wrapperClass}>
-  <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="shrink-0">
+  <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="shrink-0 inline-block" style={inlineSvgStyle}>
     <path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/>
     <path d="m9 12 2 2 4-4"/>
-  </svg>
-  <span class={textClass}>Trygg betaling</span>
+  </svg>{size === 'header' ? <span class={textClass}>Trygg betaling</span> : <span class={textClass}>Trygg betaling</span>}
 </span>

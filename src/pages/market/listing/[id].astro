@@ -922,7 +922,7 @@ const autoReleaseDays = listing.auto_release_at
               {!isOwner && !isBuyer && listing.status === 'active' && (
                 <details class="bg-white rounded-3xl border border-sage-500/10 mt-3 group">
                   <summary class="cursor-pointer p-4 text-sm font-medium text-charcoal/70 hover:text-charcoal flex items-center justify-between">
-                    <span>✉️ Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
+                    <span>Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
                     <span class="text-charcoal/30 group-open:rotate-180 transition-transform">⌄</span>
                   </summary>
                   <form method="post" action="/api/marketplace/conversations/create" class="px-4 pb-4 space-y-3">
