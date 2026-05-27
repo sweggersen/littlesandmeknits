@@ -751,11 +751,13 @@ const autoReleaseDays = listing.auto_release_at
                 return (
                   <section class="space-y-3">
                     <div class="grid grid-cols-2 gap-2">
-                      <button type="button" data-open-buy class="bg-charcoal text-linen px-5 py-3.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
-                        Kjøp trygt
+                      <button type="button" data-open-buy class="bg-charcoal text-linen px-5 py-2.5 rounded-2xl font-medium hover:bg-terracotta-500 transition-colors flex flex-col items-center leading-tight">
+                        <span class="text-base">Kjøp</span>
+                        <span class="text-[11px] font-normal text-linen/70">med Trygg betaling</span>
                       </button>
-                      <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-3.5 rounded-full text-sm font-medium hover:border-charcoal/40 transition-colors">
-                        Gi et bud
+                      <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-2.5 rounded-2xl font-medium hover:border-charcoal/40 transition-colors flex flex-col items-center leading-tight">
+                        <span class="text-base">Gi et bud</span>
+                        <span class="text-[11px] font-normal text-charcoal/45">foreslå annen pris</span>
                       </button>
                     </div>
                     <p class="text-[11px] text-charcoal/45 text-center">
