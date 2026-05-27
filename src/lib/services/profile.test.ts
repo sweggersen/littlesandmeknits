@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { editProfile } from './profile';
+import { editProfile, setBirthday } from './profile';
 
 type Captured = { table: string; update: Record<string, unknown>; eq: [string, unknown] };
 
@@ -70,5 +70,43 @@ describe('editProfile', () => {
     const profile = updates.find((u) => u.table === 'profiles');
     expect((profile?.update.first_name as string).length).toBe(40);
     expect((profile?.update.last_name as string).length).toBe(40);
+  });
+});
+
+describe('setBirthday', () => {
+  it('persists a valid date as YYYY-MM-DD', async () => {
+    const { ctx, updates } = makeCtx();
+    const r = await setBirthday(ctx, { day: 21, month: 8, year: 1989 });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.birthday).toBe('1989-08-21');
+    const profile = updates.find((u) => u.table === 'profiles');
+    expect(profile?.update.birthday).toBe('1989-08-21');
+  });
+
+  it('rejects nonsensical dates (Feb 30)', async () => {
+    const { ctx } = makeCtx();
+    const r = await setBirthday(ctx, { day: 30, month: 2, year: 1990 });
+    expect(r.ok).toBe(false);
+  });
+
+  it('rejects future years', async () => {
+    const { ctx } = makeCtx();
+    const future = new Date().getFullYear() + 1;
+    const r = await setBirthday(ctx, { day: 1, month: 1, year: future });
+    expect(r.ok).toBe(false);
+  });
+
+  it('rejects 1899 and earlier (impossible birth years)', async () => {
+    const { ctx } = makeCtx();
+    const r = await setBirthday(ctx, { day: 1, month: 1, year: 1899 });
+    expect(r.ok).toBe(false);
+  });
+
+  it('rejects out-of-range day/month', async () => {
+    const { ctx } = makeCtx();
+    expect((await setBirthday(ctx, { day: 0, month: 6, year: 1990 })).ok).toBe(false);
+    expect((await setBirthday(ctx, { day: 32, month: 6, year: 1990 })).ok).toBe(false);
+    expect((await setBirthday(ctx, { day: 1, month: 0, year: 1990 })).ok).toBe(false);
+    expect((await setBirthday(ctx, { day: 1, month: 13, year: 1990 })).ok).toBe(false);
   });
 });

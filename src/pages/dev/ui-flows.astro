@@ -198,6 +198,20 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ],
       },
       {
+        id: 'onboarding-birthday',
+        title: 'Onboarding — sett bursdag',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/onboarding/birthday?next=/profile/edit' },
+          { action: 'expectText', text: 'Når har du bursdag' },
+          { action: 'select', selector: 'select[name="day"]', value: '21' },
+          { action: 'select', selector: 'select[name="month"]', value: '8' },
+          { action: 'select', selector: 'select[name="year"]', value: '1989' },
+          { action: 'click', text: 'Lagre' },
+          { action: 'expectUrl', match: /\/profile\/edit/ },
+        ],
+      },
+      {
         id: 'profile-name',
         title: 'Innstillinger — fyll inn fornavn / etternavn',
         persona: 'eline',

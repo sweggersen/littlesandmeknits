@@ -47,13 +47,16 @@ export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
     }
   } catch { /* non-fatal */ }
 
-  // First-login welcome email. Idempotent via profiles.welcomed_at.
+  // First-login welcome email + birthday-prompt redirect. Both are
+  // gated on welcomed_at being null (i.e., this is the user's first
+  // successful login).
+  let promptBirthday = false;
   if (userId && userEmail) {
     try {
       const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
       const { data: profile } = await admin
         .from('profiles')
-        .select('display_name, welcomed_at')
+        .select('display_name, welcomed_at, birthday')
         .eq('id', userId)
         .maybeSingle();
 
@@ -72,11 +75,16 @@ export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
               .eq('id', userId);
           }
         }
+        // First-login users without a birthday → show the onboarding step.
+        if (!profile.birthday) promptBirthday = true;
       }
     } catch (e) {
       console.error('welcome email failed', e);
     }
   }
 
+  if (promptBirthday) {
+    return redirect(`/onboarding/birthday?next=${encodeURIComponent(next)}`);
+  }
   return redirect(next);
 };

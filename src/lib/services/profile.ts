@@ -12,6 +12,39 @@ function cleanHandle(raw: string | undefined | null): string | null {
   return trimmed;
 }
 
+/** Persist a self-reported birthday on the profile. Validates the parts
+ *  and caps the year so we don't accept impossible dates. */
+export async function setBirthday(
+  ctx: ServiceContext,
+  input: { day?: string | number; month?: string | number; year?: string | number },
+): Promise<ServiceResult<{ birthday: string | null }>> {
+  const day = Number(input.day);
+  const month = Number(input.month);
+  const year = Number(input.year);
+  const thisYear = new Date().getFullYear();
+  if (!Number.isInteger(day) || day < 1 || day > 31) return fail('bad_input', 'Ugyldig dag');
+  if (!Number.isInteger(month) || month < 1 || month > 12) return fail('bad_input', 'Ugyldig måned');
+  if (!Number.isInteger(year) || year < 1900 || year > thisYear) return fail('bad_input', 'Ugyldig år');
+
+  // Double-check the day fits the month/year (handles Feb 30 etc.).
+  const composed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    composed.getUTCFullYear() !== year
+    || composed.getUTCMonth() !== month - 1
+    || composed.getUTCDate() !== day
+  ) {
+    return fail('bad_input', 'Ugyldig dato');
+  }
+
+  const birthday = `${year.toString().padStart(4, '0')}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+  const { error } = await ctx.supabase
+    .from('profiles')
+    .update({ birthday })
+    .eq('id', ctx.user.id);
+  if (error) return fail('server_error', 'Kunne ikke lagre bursdag');
+  return ok({ birthday });
+}
+
 export async function editProfile(
   ctx: ServiceContext,
   input: {

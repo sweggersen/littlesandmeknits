@@ -1,0 +1,80 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/onboarding/birthday');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('birthday, first_name, display_name')
+  .eq('id', user.id)
+  .maybeSingle();
+
+// If they already have a birthday saved, don't show the step again.
+const rawNext = Astro.url.searchParams.get('next');
+const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/studio';
+if (profile?.birthday) return Astro.redirect(next);
+
+const greetName = profile?.first_name || profile?.display_name || null;
+const thisYear = new Date().getFullYear();
+const years = Array.from({ length: 100 }, (_, i) => thisYear - 18 - i);
+const months = [
+  { v: 1, label: 'januar' }, { v: 2, label: 'februar' }, { v: 3, label: 'mars' },
+  { v: 4, label: 'april' }, { v: 5, label: 'mai' }, { v: 6, label: 'juni' },
+  { v: 7, label: 'juli' }, { v: 8, label: 'august' }, { v: 9, label: 'september' },
+  { v: 10, label: 'oktober' }, { v: 11, label: 'november' }, { v: 12, label: 'desember' },
+];
+const days = Array.from({ length: 31 }, (_, i) => i + 1);
+---
+
+<Layout title="Når har du bursdag? — Littles and Me" lang="nb">
+  <section class="max-w-md mx-auto px-6 py-16 sm:py-24">
+    <div class="mb-10">
+      <h1 class="font-serif text-3xl sm:text-4xl mb-3">
+        {greetName ? `Hei ${greetName}! ` : ''}Når har du bursdag?
+      </h1>
+      <p class="text-charcoal/55 text-sm">
+        Vi bruker det til å foreslå annonser vi tror du vil like. Det vises ikke på profilen din.
+      </p>
+    </div>
+
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-sage-500/10">
+      <form method="post" action="/api/profile/birthday" class="space-y-5">
+        <input type="hidden" name="next" value={next} />
+        <div class="grid grid-cols-3 gap-3">
+          <label class="block">
+            <span class="block text-xs font-medium uppercase tracking-wider text-charcoal/50 mb-2">Dag</span>
+            <select name="day" required class="w-full bg-linen rounded-xl px-3 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 transition-colors">
+              <option value="" disabled selected>—</option>
+              {days.map((d) => (<option value={d}>{d}</option>))}
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-medium uppercase tracking-wider text-charcoal/50 mb-2">Måned</span>
+            <select name="month" required class="w-full bg-linen rounded-xl px-3 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 transition-colors">
+              <option value="" disabled selected>—</option>
+              {months.map((m) => (<option value={m.v}>{m.label}</option>))}
+            </select>
+          </label>
+          <label class="block">
+            <span class="block text-xs font-medium uppercase tracking-wider text-charcoal/50 mb-2">År</span>
+            <select name="year" required class="w-full bg-linen rounded-xl px-3 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 transition-colors">
+              <option value="" disabled selected>—</option>
+              {years.map((y) => (<option value={y}>{y}</option>))}
+            </select>
+          </label>
+        </div>
+
+        <button type="submit" class="w-full bg-charcoal text-linen py-3 rounded-2xl font-medium hover:bg-terracotta-500 transition-colors">
+          Lagre
+        </button>
+        <a href={next} class="block text-center text-sm text-charcoal/55 hover:text-charcoal transition-colors py-2">
+          Hopp over — jeg fyller dette ut senere
+        </a>
+      </form>
+    </div>
+  </section>
+</Layout>

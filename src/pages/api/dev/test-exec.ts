@@ -1493,10 +1493,13 @@ async function handle(
         await db.from('stores').delete().in('id', ids);
       }
 
-      // Reset roles and trust for test users
+      // Reset roles, trust, and onboarding fields for test users so each
+      // test starts from a clean state.
       await db.from('profiles').update({
         role: null, trust_score: 0, trust_tier: 'new',
         total_completed_transactions: 0, total_rejections: 0,
+        birthday: null, welcomed_at: null,
+        first_name: null, last_name: null, marketing_consent_at: null,
       }).in('id', testUserIds);
 
       // Re-apply the canonical persona roles. Kari is the dedicated
