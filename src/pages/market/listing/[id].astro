@@ -462,7 +462,7 @@ const autoReleaseDays = listing.auto_release_at
               ) : listing.status === 'active' ? (
                 <section id="promoter" class="bg-white rounded-3xl p-6 border border-sage-500/10 mt-4 scroll-mt-20">
                   <h2 class="font-serif text-xl mb-2">Fremhev annonsen</h2>
-                  <p class="text-sm text-charcoal/65 mb-4">Gi annonsen din mer synlighet — promoterte annonser vises øverst i søk og på forsiden.</p>
+                  <p class="text-sm text-charcoal/65 mb-4">Gi annonsen din mer synlighet. Promoterte annonser vises øverst i søk og på forsiden.</p>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
                     <div class="space-y-1.5 flex flex-col">
                       <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`} class="flex-1">
@@ -475,7 +475,7 @@ const autoReleaseDays = listing.auto_release_at
                       </form>
                       <form method="post" action={`/api/marketplace/listings/${listing.id}/promote-simulate`} data-dev-only class="hidden">
                         <input type="hidden" name="tier" value="boost" />
-                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev — uten betaling)</button>
+                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev, uten betaling)</button>
                       </form>
                     </div>
                     <div class="space-y-1.5 flex flex-col">
@@ -489,7 +489,7 @@ const autoReleaseDays = listing.auto_release_at
                       </form>
                       <form method="post" action={`/api/marketplace/listings/${listing.id}/promote-simulate`} data-dev-only class="hidden">
                         <input type="hidden" name="tier" value="highlight" />
-                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev — uten betaling)</button>
+                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev, uten betaling)</button>
                       </form>
                     </div>
                   </div>
@@ -507,7 +507,7 @@ const autoReleaseDays = listing.auto_release_at
                   <h2 class="font-serif text-lg mb-2">Solgt utenfor Strikketorget?</h2>
                   <p class="text-sm text-charcoal/65 mb-4">
                     Denne annonsen bruker ikke <TryggBetaling />, så Strikketorget ser ingen kjøp.
-                    Hvis du har solgt varen privat (Vipps, kontant, etc.) — marker den selv så den
+                    Hvis du har solgt varen privat (Vipps, kontant, etc.), marker den selv så den
                     forsvinner fra søk.
                   </p>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/mark-sold`}
@@ -810,7 +810,7 @@ const autoReleaseDays = listing.auto_release_at
 
                         <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
                           <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                            Bekreft kjøp — {bd.totalNok} kr
+                            Bekreft kjøp · {bd.totalNok} kr
                           </button>
                         </form>
                         <p class="text-[11px] text-charcoal/45 text-center">
@@ -832,7 +832,7 @@ const autoReleaseDays = listing.auto_release_at
 
                         <p class="text-sm text-charcoal/65">
                           Annonseprisen er <strong>{listing.price_nok} kr</strong>. Send et bud
-                          med din pris — selger får meldingen i innboksen og kan svare deg direkte.
+                          med din pris, så får selger meldingen i innboksen og kan svare deg direkte.
                           Når dere er enige, fullfører dere kjøpet med <TryggBetaling />.
                         </p>
 
@@ -912,7 +912,7 @@ const autoReleaseDays = listing.auto_release_at
                     {listing.escrow_enabled
                       ? 'Selger har ikke fullført Stripe-onboarding ennå.'
                       : <>Selger har ikke aktivert <TryggBetaling />.</>}
-                    {' '}Du kan fortsatt sende melding og avtale møte/Vipps — men Strikketorget gir
+                    {' '}Du kan fortsatt sende melding og avtale møte eller Vipps, men Strikketorget gir
                     ingen kjøperbeskyttelse på dette salget.
                   </p>
                 </section>

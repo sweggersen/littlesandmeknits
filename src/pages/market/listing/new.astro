@@ -26,7 +26,7 @@ const STEPS = [
     <div class="max-w-2xl mx-auto">
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
       <p class="text-sm text-charcoal/55 mb-6">
-        Detaljer, pris og bilder — tre korte steg. Lagres som utkast underveis.
+        Detaljer, pris og bilder. Tre korte steg, lagres som utkast underveis.
       </p>
 
       <!-- Step progress -->
@@ -72,7 +72,7 @@ const STEPS = [
             <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type *</label>
             <select id="kind" name="kind" required class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
               <option value="pre_loved">Brukt</option>
-              <option value="ready_made">Nytt — aldri brukt</option>
+              <option value="ready_made">Nytt, aldri brukt</option>
             </select>
           </div>
 
@@ -163,7 +163,7 @@ const STEPS = [
             <input id="price_nok" name="price_nok" type="number" min="0" step="1" required placeholder="350"
               class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
             <p class="text-[11px] text-charcoal/45 mt-1.5" data-tb-hint>
-              Med trygg betaling betaler kjøper en liten avgift (9–29 kr avhengig av pris) — du som selger betaler ingenting.
+              Med trygg betaling betaler kjøper en liten avgift (9–29 kr avhengig av pris). Du som selger betaler ingenting.
             </p>
           </div>
 
@@ -190,7 +190,7 @@ const STEPS = [
               <span class="block text-sm font-medium">🛡️ Aktiver trygg betaling (anbefalt)</span>
               <span class="block text-xs text-charcoal/55 mt-1">
                 Kjøper betaler trygt via Strikketorget. Pengene holdes til kjøper bekrefter mottak,
-                ellers automatisk frigjøring 14 dager etter sending. Du som selger betaler ingenting — kjøperen dekker en liten avgift.
+                ellers automatisk frigjøring 14 dager etter sending. Du som selger betaler ingenting, kjøperen dekker en liten avgift.
               </span>
             </span>
           </label>
@@ -294,7 +294,7 @@ const STEPS = [
           pattern_external_title: 'Mariusgenser – Sandnes Garn',
           knitted_by: 'Mormor (privat)',
           location: 'Oslo',
-          description: 'Strikket i Sandnes Smart Superwash. Brukt et par ganger på hytta — som ny.\n\nVasket forsiktig på ullprogram, lufttørket. Røykfritt hjem.',
+          description: 'Strikket i Sandnes Smart Superwash. Brukt et par ganger på hytta, som ny.\n\nVasket forsiktig på ullprogram, lufttørket. Røykfritt hjem.',
           price_nok: '350',
         };
         for (const [name, value] of Object.entries(example)) {

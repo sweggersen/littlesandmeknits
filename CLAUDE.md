@@ -118,6 +118,13 @@ API routes use a service layer pattern in `src/lib/services/`. Each service func
 
 The UI is in Norwegian (Bokmål). Use `nb-NO` locale for dates and numbers. The i18n system in `src/lib/i18n.ts` supports `nb` and `en` but most marketplace/studio pages are Norwegian-only.
 
+### Punctuation
+
+- **No em-dash (`—`)** in Norwegian copy. Use commas, periods, or parentheses instead. Reads like English-translated copy otherwise.
+- **En-dash (`–`)** is fine for numeric ranges (`9–29 kr`, `3–5 år`).
+- **Centre dot (`·`)** is OK as a separator in titles and button labels (`Hjelp · Strikketorget`, `Bekreft kjøp · 294 kr`).
+- Code comments and dev-only strings (debug logs, test labels) can keep em-dashes — the rule is about user-facing copy.
+
 ## Test coverage is required for every new feature
 
 **Standing rule**: when you add a feature, you also ship the tests that cover it. The codebase has three test layers — use whichever fits:
