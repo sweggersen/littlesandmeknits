@@ -26,26 +26,49 @@ export default function LoginForm({ redirectTo, strings }: Props) {
   const [pwSubmode, setPwSubmode] = useState<PwSubmode>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Signup-only fields — collected on the password-signup path.
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [ageOk, setAgeOk] = useState(false);
   const [termsOk, setTermsOk] = useState(false);
+  // Marketing default-on per product decision; user can untick before
+  // submit, or unsubscribe later from Innstillinger.
+  const [marketingOk, setMarketingOk] = useState(true);
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error' | 'reset_sent'>(
     'idle'
   );
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
-  // Signup (new account) requires consent. Existing-account sign-in does not.
-  const consentRequired = mode === 'magic' || pwSubmode === 'signup';
-  const consentReady = !consentRequired || (ageOk && termsOk);
+  // Magic link is used for both new + returning users (Supabase auto-creates
+  // on first link). Password-signup is the only path we force first/last
+  // name on — keeps magic-link a one-tap experience for returners.
+  const isPasswordSignup = mode === 'password' && pwSubmode === 'signup';
+  // Magic-link still needs the age/terms gate before we send the email,
+  // since it might create an account.
+  const requiresConsent = mode === 'magic' || isPasswordSignup;
+  const consentReady = !requiresConsent
+    || (ageOk && termsOk && (!isPasswordSignup || (firstName.trim() && lastName.trim())));
 
-  function consentMetadata() {
+  function signupMetadata() {
     const now = new Date().toISOString();
-    return { age_confirmed_at: now, tos_accepted_at: now };
+    const first = firstName.trim();
+    const last = lastName.trim();
+    return {
+      age_confirmed_at: now,
+      tos_accepted_at: now,
+      // Only set name fields when the user actually filled them in
+      // (password-signup path). Undefined keys are dropped by Supabase.
+      first_name: first || undefined,
+      last_name: last || undefined,
+      display_name: first || last ? `${first} ${last}`.trim() : undefined,
+      marketing_consent_at: marketingOk ? now : null,
+    };
   }
 
   async function handleMagicLink(e: FormEvent) {
     e.preventDefault();
-    if (!consentReady) return setError('Du må bekrefte aldersgrensen og godta vilkårene.');
+    if (!consentReady) return setError('Du må bekrefte aldersgrensen, godta vilkårene og fylle inn navn for å opprette konto.');
     setStatus('sending'); setError(null); setInfo(null);
     try {
       const supabase = createBrowserSupabase();
@@ -53,7 +76,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`,
-          data: consentMetadata(),
+          data: signupMetadata(),
         },
       });
       if (authError) throw authError;
@@ -66,7 +89,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
 
   async function handlePassword(e: FormEvent) {
     e.preventDefault();
-    if (!consentReady) return setError('Du må bekrefte aldersgrensen og godta vilkårene.');
+    if (!consentReady) return setError('Du må bekrefte aldersgrensen, godta vilkårene og fylle inn navn for å opprette konto.');
     setStatus('sending'); setError(null); setInfo(null);
     try {
       const supabase = createBrowserSupabase();
@@ -76,7 +99,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(redirectTo)}`,
-            data: consentMetadata(),
+            data: signupMetadata(),
           },
         });
         if (authError) throw authError;
@@ -110,7 +133,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
   }
 
   async function handleGoogle() {
-    if (!consentReady) return setError('Du må bekrefte aldersgrensen og godta vilkårene.');
+    if (!consentReady) return setError('Du må bekrefte aldersgrensen, godta vilkårene og fylle inn navn for å opprette konto.');
     setError(null);
     try {
       const supabase = createBrowserSupabase();
@@ -180,13 +203,29 @@ export default function LoginForm({ redirectTo, strings }: Props) {
           </label>
         )}
 
-        {consentRequired && (
-          <div className="space-y-2 text-xs text-charcoal/70 pt-1">
+        {isPasswordSignup && (
+          <div className="grid grid-cols-2 gap-2">
+            <label className="block">
+              <span className="block text-xs font-medium uppercase tracking-wider text-charcoal/50 mb-2">Fornavn</span>
+              <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)}
+                autoComplete="given-name" disabled={status === 'sending'}
+                className="w-full bg-white rounded-2xl px-4 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50" />
+            </label>
+            <label className="block">
+              <span className="block text-xs font-medium uppercase tracking-wider text-charcoal/50 mb-2">Etternavn</span>
+              <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)}
+                autoComplete="family-name" disabled={status === 'sending'}
+                className="w-full bg-white rounded-2xl px-4 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50" />
+            </label>
+          </div>
+        )}
+
+        {requiresConsent && (
+          <div className="space-y-2.5 text-xs text-charcoal/70 pt-1">
             <label className="flex items-start gap-2 cursor-pointer">
               <input type="checkbox" checked={ageOk} onChange={(e) => setAgeOk(e.target.checked)} className="mt-0.5 shrink-0" />
               <span>
-                Jeg bekrefter at jeg er minst <strong>13 år</strong> (for Strikkestua),
-                eller minst <strong>15 år</strong> hvis jeg skal kjøpe eller selge på Strikketorget.
+                Jeg bekrefter at jeg er minst <strong>18 år gammel</strong>.
               </span>
             </label>
             <label className="flex items-start gap-2 cursor-pointer">
@@ -195,6 +234,13 @@ export default function LoginForm({ redirectTo, strings }: Props) {
                 Jeg godtar <a href="/terms" className="text-terracotta-500 hover:underline">brukervilkårene</a>
                 {' og '}
                 <a href="/privacy" className="text-terracotta-500 hover:underline">personvernerklæringen</a>.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input type="checkbox" checked={marketingOk} onChange={(e) => setMarketingOk(e.target.checked)} className="mt-0.5 shrink-0" />
+              <span>
+                Send meg nyhetsbrev og oppdateringer fra Strikketorget av og til.
+                Du kan melde deg av når som helst.
               </span>
             </label>
           </div>
