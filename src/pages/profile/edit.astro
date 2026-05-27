@@ -10,7 +10,7 @@ if (!user) return Astro.redirect('/login?next=/profile/edit');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: profile } = await supabase
   .from('profiles')
-  .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, stripe_onboarded, stripe_account_id')
+  .select('display_name, first_name, last_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, stripe_onboarded, stripe_account_id')
   .eq('id', user.id)
   .maybeSingle();
 
@@ -64,11 +64,27 @@ const saved = Astro.url.searchParams.get('saved') === '1';
           </div>
         </div>
 
-        <!-- Display name -->
+        <!-- First + Last name -->
+        <div class="grid grid-cols-2 gap-3">
+          <label class="block">
+            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fornavn</span>
+            <input name="first_name" type="text" maxlength="40" value={profile?.first_name ?? ''} autocomplete="given-name"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          </label>
+          <label class="block">
+            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Etternavn</span>
+            <input name="last_name" type="text" maxlength="40" value={profile?.last_name ?? ''} autocomplete="family-name"
+              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          </label>
+        </div>
+
+        <!-- Display name (public) -->
         <label class="block">
-          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Visningsnavn</span>
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Visningsnavn (offentlig)</span>
           <input name="display_name" type="text" maxlength="60" value={displayName}
+            placeholder="La stå tomt for å bruke fornavn + etternavn"
             class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          <span class="block text-xs text-charcoal/45 mt-1.5">Dette vises på annonsene dine og selgerprofilen.</span>
         </label>
 
         <!-- Bio -->

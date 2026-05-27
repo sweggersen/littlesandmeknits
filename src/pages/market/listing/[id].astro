@@ -538,14 +538,22 @@ const autoReleaseDays = listing.auto_release_at
                       )}
                     </div>
                   )}
-                  <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskode.</p>
+                  <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskoden.</p>
+                  {/* TODO(bring): replace the free-text input below with a
+                      "Generer fraktetikett" button that calls Bring/Posten's
+                      API, mints a label with the seeded buyer address, and
+                      auto-fills tracking_code from the response. */}
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/ship`} class="space-y-3">
-                    <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)"
+                    <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode fra Posten/Bring (valgfritt)"
                       class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
                     <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
                       Merk som sendt
                     </button>
                   </form>
+                  <p class="text-[11px] text-charcoal/45">
+                    Kommer snart: vi henter sporingskoden automatisk når du
+                    bestiller fraktetikett via Strikketorget.
+                  </p>
                 </section>
               )}
 

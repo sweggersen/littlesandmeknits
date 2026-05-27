@@ -50,8 +50,9 @@ test.describe('Strikketorget — listing wizard', () => {
     await page.locator('#condition').selectOption('lite_brukt');
     await page.getByRole('button', { name: /^Neste/ }).click();
 
-    // Step 2: price & shipping
-    await page.locator('#price_nok').fill('250'); // step="10" — must be a multiple of 10
+    // Step 2: price & shipping — non-round prices (249, 199 etc.) must
+    // pass after step="10" was relaxed to step="1".
+    await page.locator('#price_nok').fill('249');
 
     // Wait until the submit button becomes visible (step 2 active).
     const submitBtn = page.getByRole('button', { name: /Lagre & last opp bilder/ });
@@ -71,6 +72,15 @@ test.describe('Strikketorget — listing wizard', () => {
     await expect(page.getByText('Wizard-test annonse')).toBeVisible();
     // Publish CTA is hidden until at least one photo is uploaded.
     await expect(page.getByText(/Last opp minst ett bilde/)).toBeVisible();
+  });
+
+  test('wizard accepts arbitrary integer prices (not just multiples of 10)', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/market/listing/new');
+    // Step 2's price input must accept 199 — used to silently fail under
+    // the old step="10" attribute.
+    const priceInput = page.locator('#price_nok');
+    await expect(priceInput).toHaveAttribute('step', '1');
   });
 
   test('"Fyll inn et eksempel" pre-fills step 1', async ({ page }) => {

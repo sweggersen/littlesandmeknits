@@ -15,13 +15,23 @@ function cleanHandle(raw: string | undefined | null): string | null {
 export async function editProfile(
   ctx: ServiceContext,
   input: {
-    displayName?: string; bio?: string; location?: string;
+    displayName?: string;
+    firstName?: string; lastName?: string;
+    bio?: string; location?: string;
     instagramHandle?: string; language?: string;
     sellerTags: string[]; profileVisible: boolean;
     avatar?: File | null;
   },
 ): Promise<ServiceResult<{ redirect: string; language: string | null }>> {
-  const displayName = input.displayName?.trim().slice(0, 60) || null;
+  const firstName = input.firstName?.trim().slice(0, 40) || null;
+  const lastName = input.lastName?.trim().slice(0, 40) || null;
+  // displayName left empty → auto-compose from first+last so the public
+  // name doesn't accidentally disappear when a user clears it.
+  let displayName = input.displayName?.trim().slice(0, 60) || null;
+  if (!displayName) {
+    const composed = [firstName, lastName].filter(Boolean).join(' ').trim();
+    if (composed) displayName = composed;
+  }
   const bio = input.bio?.trim().slice(0, 500) || null;
   const location = input.location?.trim().slice(0, 100) || null;
   const instagram = cleanHandle(input.instagramHandle);
@@ -38,7 +48,8 @@ export async function editProfile(
   }
 
   const profileUpdate: Record<string, any> = {
-    display_name: displayName, bio, location,
+    display_name: displayName, first_name: firstName, last_name: lastName,
+    bio, location,
     instagram_handle: instagram, seller_tags: sellerTags,
     profile_visible: input.profileVisible,
   };

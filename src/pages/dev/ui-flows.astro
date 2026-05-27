@@ -198,6 +198,19 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ],
       },
       {
+        id: 'profile-name',
+        title: 'Innstillinger — fyll inn fornavn / etternavn',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/profile/edit' },
+          { action: 'fill', selector: 'input[name="first_name"]', value: 'Eline' },
+          { action: 'fill', selector: 'input[name="last_name"]', value: 'Berge' },
+          { action: 'fill', selector: 'input[name="display_name"]', value: '' },
+          { action: 'click', text: 'Lagre' },
+          { action: 'expectText', text: 'Profilen er oppdatert' },
+        ],
+      },
+      {
         id: 'wizard-photo-step',
         title: 'Wizard — Bilder-steget (utkast uten bilder)',
         persona: 'eline',

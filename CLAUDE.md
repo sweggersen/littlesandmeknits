@@ -117,3 +117,35 @@ API routes use a service layer pattern in `src/lib/services/`. Each service func
 ## Language
 
 The UI is in Norwegian (Bokmål). Use `nb-NO` locale for dates and numbers. The i18n system in `src/lib/i18n.ts` supports `nb` and `en` but most marketplace/studio pages are Norwegian-only.
+
+## Test coverage is required for every new feature
+
+**Standing rule**: when you add a feature, you also ship the tests that cover it. The codebase has three test layers — use whichever fits:
+
+| Layer | Where | When to use |
+|-------|-------|-------------|
+| **Vitest unit** | `src/**/*.test.ts` (next to the source file) | Pure functions, service helpers without I/O, formatters, derivations. Fast, no DB. |
+| **Playwright e2e** | `e2e/*.spec.ts` | UI flows that touch real pages. Auth-gated screens. Anything where the assertion is "does the user see X". |
+| **UI Flows page scenario** | `src/pages/dev/ui-flows.astro` (FLOWS array) | Visual regression / demo coverage. Especially valuable for cross-persona flows and shortcut-heavy demos where you'd hand-walk someone through. |
+
+Rules of thumb:
+
+- A new page route → at least one Playwright e2e that loads it as the expected persona and asserts a heading or key text.
+- A new server action / API endpoint → a unit test for the pure parts AND/OR an e2e that triggers it through the UI.
+- A new UI surface (button, modal, form section) → a UI Flows scenario so it's clickable in `/dev/ui-flows` for visual review.
+- A new field on `profiles` / `listings` / etc — either e2e setting the value through the UI, or a service-layer unit test, or both.
+- A bug fix — add the test that would have caught it. If you can't write one, leave a `// TODO: cover with test` note explaining why.
+
+Helpers you'll often need:
+- `test-exec` actions in `src/pages/api/dev/test-exec.ts` for seeding, lookups, and bypassing flows (Stripe Checkout, file pickers). Add new actions here when needed.
+- `set-profile-visible`, `lookup-user`, `count-notifications`, `count-follows`, `seed-screens`, `seed-buyflow-listing` are pre-built and used by existing specs.
+- `/dev/screens` is the mock-click harness for manual visual review. Adding a screen there is free coverage and helps non-dev viewers see the platform.
+
+Running tests:
+```
+npm test                                                # vitest unit
+npx playwright test --project=chromium --reporter=list  # full e2e
+npx playwright test follow-feed.spec.ts                 # single spec
+```
+
+The build (`npm run build`) is not a substitute for tests — TypeScript and Astro check shapes, not behaviour.
