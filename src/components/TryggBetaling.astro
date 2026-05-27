@@ -1,0 +1,28 @@
+---
+// Brand token for "Trygg betaling": inline shield + italic label.
+// Use inline within sentences ("kjøpet fullføres med <TryggBetaling />.")
+// or as a small standalone chip in a card header (size="header").
+interface Props {
+  size?: 'inline' | 'header';
+  /** Tint for the icon + text. Defaults to sage-700 for header,
+   *  inherits color for inline. */
+  tint?: 'sage' | 'inherit';
+}
+const { size = 'inline', tint = size === 'header' ? 'sage' : 'inherit' } = Astro.props;
+
+const iconSize = size === 'header' ? 14 : 12;
+const colorClass = tint === 'sage' ? 'text-sage-700' : '';
+const wrapperClass = size === 'header'
+  ? `inline-flex items-center gap-1.5 ${colorClass}`
+  : `inline-flex items-center gap-1 ${colorClass} align-baseline`;
+const textClass = size === 'header'
+  ? 'text-[10px] font-bold uppercase tracking-widest'
+  : 'italic font-medium';
+---
+<span class={wrapperClass}>
+  <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="-mt-px shrink-0">
+    <path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/>
+    <path d="m9 12 2 2 4-4"/>
+  </svg>
+  <span class={textClass}>Trygg betaling</span>
+</span>

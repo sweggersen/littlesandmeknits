@@ -4,6 +4,7 @@ import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
 import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import StarRating from '../../../components/StarRating.astro';
+import TryggBetaling from '../../../components/TryggBetaling.astro';
 import { purchaseBreakdown } from '../../../lib/shipping';
 import Alert from '../../../components/Alert.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
@@ -436,7 +437,7 @@ const autoReleaseDays = listing.auto_release_at
                 <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center justify-between gap-3 flex-wrap">
                   <div class="flex items-center gap-2">
                     <span>🛡️</span>
-                    <span>Trygg betaling er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
+                    <span><TryggBetaling /> er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
                   </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`} class="shrink-0">
                     <input type="hidden" name="enabled" value="false" />
@@ -505,7 +506,7 @@ const autoReleaseDays = listing.auto_release_at
                 <section class="bg-white rounded-3xl p-5 border border-sage-500/10 mt-4">
                   <h2 class="font-serif text-lg mb-2">Solgt utenfor Strikketorget?</h2>
                   <p class="text-sm text-charcoal/65 mb-4">
-                    Denne annonsen bruker ikke Trygg betaling, så Strikketorget ser ingen kjøp.
+                    Denne annonsen bruker ikke <TryggBetaling />, så Strikketorget ser ingen kjøp.
                     Hvis du har solgt varen privat (Vipps, kontant, etc.) — marker den selv så den
                     forsvinner fra søk.
                   </p>
@@ -516,7 +517,7 @@ const autoReleaseDays = listing.auto_release_at
                     </button>
                   </form>
                   <p class="text-[11px] text-charcoal/45 mt-3">
-                    Tips: Aktiver <a href={`/market/listing/${listing.id}?tb_info=1`} class="text-terracotta-500 hover:underline">Trygg betaling</a> så håndteres alt automatisk neste gang.
+                    Tips: Aktiver <a href={`/market/listing/${listing.id}?tb_info=1`} class="text-terracotta-500 hover:underline"><TryggBetaling tint="inherit" /></a> så håndteres alt automatisk neste gang.
                   </p>
                 </section>
               )}
@@ -753,7 +754,7 @@ const autoReleaseDays = listing.auto_release_at
                     <div class="grid grid-cols-2 gap-2">
                       <button type="button" data-open-buy class="bg-charcoal text-linen px-5 py-2.5 rounded-2xl font-medium hover:bg-terracotta-500 transition-colors flex flex-col items-center leading-tight">
                         <span class="text-base">Kjøp</span>
-                        <span class="text-[11px] font-normal text-linen/70">med Trygg betaling</span>
+                        <span class="text-[11px] font-normal text-linen/70">med <TryggBetaling /></span>
                       </button>
                       <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-2.5 rounded-2xl font-medium hover:border-charcoal/40 transition-colors flex flex-col items-center leading-tight">
                         <span class="text-base">Gi et bud</span>
@@ -769,7 +770,7 @@ const autoReleaseDays = listing.auto_release_at
                       <div class="p-6 space-y-5">
                         <div class="flex items-start justify-between gap-3">
                           <div>
-                            <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Trygg betaling</p>
+                            <p><TryggBetaling size="header" /></p>
                             <h3 class="font-serif text-2xl mt-1">Bekreft kjøp</h3>
                           </div>
                           <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
@@ -832,7 +833,7 @@ const autoReleaseDays = listing.auto_release_at
                         <p class="text-sm text-charcoal/65">
                           Annonseprisen er <strong>{listing.price_nok} kr</strong>. Send et bud
                           med din pris — selger får meldingen i innboksen og kan svare deg direkte.
-                          Når dere er enige, fullfører dere kjøpet med Trygg betaling.
+                          Når dere er enige, fullfører dere kjøpet med <TryggBetaling />.
                         </p>
 
                         <form method="post" action="/api/marketplace/conversations/create" class="space-y-3">
@@ -906,11 +907,11 @@ const autoReleaseDays = listing.auto_release_at
               {/* ── No escrow / no Stripe — keep simple message + meet-up ── */}
               {!isOwner && !isBuyer && listing.status === 'active' && !(listing.escrow_enabled && sellerOnboarded) && (
                 <section class="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 text-sm">
-                  <p class="font-medium text-amber-900 mb-1">⚠️ Trygg betaling er ikke tilgjengelig</p>
+                  <p class="font-medium text-amber-900 mb-1">⚠️ <TryggBetaling /> er ikke tilgjengelig</p>
                   <p class="text-charcoal/65">
                     {listing.escrow_enabled
                       ? 'Selger har ikke fullført Stripe-onboarding ennå.'
-                      : 'Selger har ikke aktivert Trygg betaling.'}
+                      : <>Selger har ikke aktivert <TryggBetaling />.</>}
                     {' '}Du kan fortsatt sende melding og avtale møte/Vipps — men Strikketorget gir
                     ingen kjøperbeskyttelse på dette salget.
                   </p>
