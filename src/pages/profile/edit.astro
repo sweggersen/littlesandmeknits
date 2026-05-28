@@ -10,14 +10,18 @@ if (!user) return Astro.redirect('/login?next=/profile/edit');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: profile } = await supabase
   .from('profiles')
-  .select('display_name, first_name, last_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, stripe_onboarded, stripe_account_id')
+  .select('display_name, first_name, last_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, stripe_onboarded, stripe_account_id, updated_at')
   .eq('id', user.id)
   .maybeSingle();
 
 const meta = (user.user_metadata ?? {}) as { language?: 'nb' | 'en' };
 const language = meta.language ?? 'nb';
 
-const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
+// Cache-buster — the avatar path stays the same on every upload, so
+// without this the browser/CDN serves the stale image after a re-upload.
+const avatarVersion = profile?.updated_at ? new Date(profile.updated_at).getTime() : '';
+const avatarBase = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
+const avatarUrl = avatarBase ? `${avatarBase}?v=${avatarVersion}` : null;
 const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? '';
 
 const ALL_TAGS = [
@@ -31,9 +35,22 @@ const saved = Astro.url.searchParams.get('saved') === '1';
 
 <Layout title="Rediger profil — Littles and Me Knits" lang="nb">
   <div class="bg-linen min-h-[60vh]">
-    <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+    <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative">
       <a href="/profile" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 block">← Tilbake til profil</a>
-      <h1 class="font-serif text-3xl mb-2">Rediger profil</h1>
+      <div class="flex items-start justify-between gap-4 mb-2">
+        <h1 class="font-serif text-3xl">Rediger profil</h1>
+        {/* Save button — appears next to the heading when the user stages
+            an avatar (or has unsaved changes) so they don't have to scroll
+            down to submit. Sits inside the content column. */}
+        <button
+          type="submit"
+          form="profile-edit-form"
+          data-sticky-save
+          class="hidden shrink-0 btn-primary rounded-full py-2 px-4 text-sm font-semibold shadow-sm"
+        >
+          Lagre profil
+        </button>
+      </div>
       <p class="text-sm text-charcoal/55 mb-8">
         Dine innstillinger for Strikketorget og Strikkestua.
       </p>
@@ -43,17 +60,6 @@ const saved = Astro.url.searchParams.get('saved') === '1';
           Profilen er oppdatert.
         </div>
       )}
-
-      <!-- Sticky save button — appears in the top-right when the user
-           stages an avatar so they don't have to scroll down to submit. -->
-      <button
-        type="submit"
-        form="profile-edit-form"
-        data-sticky-save
-        class="hidden fixed top-20 right-4 sm:right-8 z-40 btn-primary rounded-full py-2.5 px-5 text-sm font-semibold shadow-lg"
-      >
-        Lagre profil
-      </button>
 
       <form id="profile-edit-form" method="post" action="/api/profile/edit" enctype="multipart/form-data" data-astro-reload class="space-y-6">
 
