@@ -1,4 +1,6 @@
 ---
+import { listingPath } from '../lib/listing-url';
+
 interface Props {
   id: string;
   title: string;
@@ -21,7 +23,7 @@ const {
   title,
   price,
   imgUrl,
-  href = `/market/listing/${id}`,
+  href = listingPath({ id, title }),
   meta,
   isFav = false,
   showFav = false,

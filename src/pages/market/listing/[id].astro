@@ -13,8 +13,13 @@ import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { env } from 'cloudflare:workers';
 import { KIND_LABEL, LISTING_STATUS, CONDITION_LABEL } from '../../../lib/labels';
+import { extractListingId, listingPath } from '../../../lib/listing-url';
 
-const id = Astro.params.id;
+// Accept either a bare UUID (legacy URL) or `<slug>-<uuid>` (pretty URL).
+// extractListingId hunts for the UUID at the END of the param so a slug
+// can't shadow a real id.
+const rawParam = Astro.params.id;
+const id = extractListingId(rawParam);
 if (!id) return Astro.redirect('/market');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
@@ -57,6 +62,15 @@ if (!listing && isStaff) {
 }
 
 if (!listing) return Astro.redirect('/market');
+
+// Canonical URL is `<slug>-<uuid>`. If the request came in on the legacy
+// bare-UUID form (or a stale slug after a rename), 301 to the canonical
+// pretty path. Preserves query string so `?published=1` etc. survive.
+const canonicalParam = listingPath(listing).split('/').pop()!;
+if (rawParam !== canonicalParam) {
+  const target = `/market/listing/${canonicalParam}${Astro.url.search}`;
+  return Astro.redirect(target, 301);
+}
 
 const isOwner = user?.id === listing.seller_id;
 const isBuyer = user?.id === listing.buyer_id;
@@ -147,7 +161,7 @@ const autoReleaseDays = listing.auto_release_at
 // long-tail Norwegian queries ("strikket genser str 92 brukt", etc.)
 // and qualify for Google's product-rich-result treatment.
 const SITE = 'https://littlesandmeknits.com';
-const canonicalUrl = `${SITE}/market/listing/${listing.id}`;
+const canonicalUrl = `${SITE}${listingPath(listing)}`;
 const heroImageUrl = listing.hero_photo_path
   ? new URL(projectPhotoUrl(listing.hero_photo_path) ?? '', SITE).toString()
   : undefined;
@@ -983,7 +997,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
           {isStoreListing && storeRow ? (
             <a href={`/market/store/${storeRow.slug}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
               {storeRow.logo_path ? (
-                <img src={projectPhotoUrl(storeRow.logo_path)} alt="" class="w-10 h-10 rounded-xl object-cover shrink-0" />
+                <img src={projectPhotoUrl(storeRow.logo_path)} alt={`${storeRow.name} logo`} class="w-10 h-10 rounded-xl object-cover shrink-0" />
               ) : (
                 <div class="w-10 h-10 rounded-xl bg-sage-100 flex items-center justify-center font-serif text-lg text-sage-700 shrink-0">
                   {storeRow.name[0]?.toUpperCase()}

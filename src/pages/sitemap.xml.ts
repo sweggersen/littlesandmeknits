@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createAdminSupabase } from '../lib/supabase';
+import { listingPath } from '../lib/listing-url';
 import { env } from 'cloudflare:workers';
 
 const SITE = 'https://littlesandmeknits.com';
@@ -40,7 +41,7 @@ export const GET: APIRoute = async () => {
   // /sitemap-listings-N.xml later.
   const { data: listings } = await admin
     .from('listings')
-    .select('id, updated_at')
+    .select('id, title, updated_at')
     .eq('status', 'active')
     .order('updated_at', { ascending: false })
     .limit(20000);
@@ -56,8 +57,18 @@ export const GET: APIRoute = async () => {
   for (const path of STATIC_ROUTES) {
     entries.push(urlEntry(path, undefined, 'daily', path === '/market' ? '1.0' : '0.7'));
   }
+
+  // Category landing pages — high SEO value for queries like 'brukt
+  // strikket genser', 'nytt babyteppe', etc. 9 categories × 2 kinds.
+  const KINDS = ['used', 'new'];
+  const CATEGORIES = ['genser', 'cardigan', 'lue', 'votter', 'sokker', 'teppe', 'kjole', 'bukser', 'annet'];
+  for (const k of KINDS) {
+    for (const c of CATEGORIES) {
+      entries.push(urlEntry(`/market/${k}/${c}`, undefined, 'daily', '0.8'));
+    }
+  }
   for (const l of listings ?? []) {
-    entries.push(urlEntry(`/market/listing/${l.id}`, l.updated_at ?? undefined, 'weekly', '0.6'));
+    entries.push(urlEntry(listingPath(l), l.updated_at ?? undefined, 'weekly', '0.6'));
   }
   for (const s of stores ?? []) {
     if (!s.slug) continue;
