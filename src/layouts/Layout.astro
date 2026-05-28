@@ -6,9 +6,21 @@ import StrikketorgetNav from '../components/StrikketorgetNav.astro';
 import Footer from '../components/Footer.astro';
 import StrikketorgetFooter from '../components/StrikketorgetFooter.astro';
 import CookieBanner from '../components/CookieBanner.astro';
+import InterestForm from '../components/InterestForm.astro';
 import { getLangFromUrl, type Lang } from '../lib/i18n';
 
 const isStrikketorget = Astro.locals.isStrikketorget ?? false;
+
+// Pre-launch lock: on strikketorget.no, render every page but blur the
+// content and overlay the interest form so the public can SEE what's
+// coming without being able to interact yet. Bypass when the visitor
+// has the login_invite cookie (set by /login?invite=<LOGIN_INVITE_KEY>).
+const hasInvite = Astro.cookies.get('login_invite')?.value === '1';
+const showLockOverlay =
+  isStrikketorget
+  && !hasInvite
+  && !Astro.url.pathname.startsWith('/login')
+  && !Astro.url.pathname.startsWith('/auth/');
 
 interface Props {
   title: string;
@@ -180,11 +192,22 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
       else navVariant = 'home';
       return <StrikketorgetNav variant={navVariant} lang={lang} />;
     })()}
-    <main class="flex-1">
+    <main class="flex-1" inert={showLockOverlay ? '' : undefined}>
       <slot />
     </main>
     {!isEmbed && (isMarket ? <StrikketorgetFooter /> : <Footer lang={lang} />)}
     {!isEmbed && <CookieBanner />}
+
+    {showLockOverlay && (
+      <div
+        class="fixed inset-0 z-[100] bg-linen/40 backdrop-blur-md flex items-start sm:items-center justify-center overflow-y-auto py-10 px-4"
+        aria-modal="true"
+        role="dialog"
+        data-prelaunch-lock
+      >
+        <InterestForm />
+      </div>
+    )}
 
     <a
       data-pwa-preview-exit
