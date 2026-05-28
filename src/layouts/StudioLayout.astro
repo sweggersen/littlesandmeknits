@@ -22,7 +22,8 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/studio';
 ---
 
 <Layout title={title} lang={lang}>
-  <StudioNav lang={lang} currentPath={currentPath} />
+  {/* StudioNav is now folded into the main Navbar's top row (rendered by
+      Layout). Removing the second bar tightens the vertical space. */}
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
       <slot />

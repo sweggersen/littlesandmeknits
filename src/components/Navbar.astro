@@ -17,11 +17,20 @@ const section = currentPath.startsWith('/market')
     ? 'strikkestua'
     : 'home';
 
-const regularItems = [
+// Public nav items on home, Strikkestua-internal items on /studio.
+const publicItems = [
   { href: localizedPath(lang, '/patterns'), label: t('nav.shop') },
   { href: localizedPath(lang, '/projects'), label: t('nav.projects') },
   { href: localizedPath(lang, '/about'), label: t('nav.about') },
 ];
+const studioItems = [
+  { href: '/studio', label: t('studio.nav.overview'), match: /^\/studio\/?$/ },
+  { href: '/studio/projects', label: t('studio.nav.projects'), match: /^\/studio\/projects/ },
+  { href: '/studio/yarn', label: t('studio.nav.stash'), match: /^\/studio\/(garn|pinner|yarn|needles)/ },
+  { href: '/studio/tools', label: t('studio.nav.tools'), match: /^\/studio\/tools/ },
+  { href: '/studio/learn', label: t('studio.nav.learn'), match: /^\/studio\/learn/ },
+];
+const regularItems = section === 'strikkestua' ? studioItems : publicItems;
 
 const sectionItems = [
   { href: '/market', label: t('nav.marketplace'), authOnly: false },
@@ -68,7 +77,28 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
       </a>
       <div class="hidden lg:flex items-center gap-1">
         {regularItems.map((item) => {
-          const isActive = currentPath.startsWith(item.href) && item.href !== localizedPath(lang, '/');
+          const itemMatch = 'match' in item ? item.match : null;
+          const isActive = itemMatch
+            ? itemMatch.test(currentPath)
+            : currentPath.startsWith(item.href) && item.href !== localizedPath(lang, '/');
+          // On Strikkestua, render the same pill style as Strikketorget so
+          // the two sections feel symmetric. Public pages keep the plain
+          // text-link style.
+          if (section === 'strikkestua') {
+            return (
+              <a
+                href={item.href}
+                class:list={[
+                  'text-sm font-medium px-3 py-1.5 rounded-full transition-colors',
+                  isActive
+                    ? 'bg-terracotta-500/10 text-terracotta-500'
+                    : 'text-charcoal/70 hover:text-charcoal hover:bg-sage-100/60',
+                ]}
+              >
+                {item.label}
+              </a>
+            );
+          }
           return (
             <a
               href={item.href}
