@@ -163,7 +163,13 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
     </script>
   </head>
   <body class="min-h-screen bg-linen text-charcoal flex flex-col" data-embed={isEmbed ? '1' : undefined}>
-    {!isEmbed && (isMarket ? <StrikketorgetNav /> : <Navbar lang={lang} />)}
+    {!isEmbed && (
+      isStudioPath
+        ? <StrikketorgetNav variant="strikkestua" />
+        : isMarket
+          ? <StrikketorgetNav variant="strikketorget" />
+          : <Navbar lang={lang} />
+    )}
     <main class="flex-1">
       <slot />
     </main>

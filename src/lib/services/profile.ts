@@ -73,11 +73,25 @@ export async function editProfile(
 
   let avatarPath: string | undefined;
   if (input.avatar instanceof File && input.avatar.size > 0) {
-    const ext = input.avatar.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    if (input.avatar.size > MAX_PHOTO_BYTES) {
+      return fail('bad_input', 'Profilbildet er for stort (maks 10 MB)');
+    }
+    if (!ALLOWED_IMAGE_TYPES.has(input.avatar.type)) {
+      return fail('bad_input', 'Filtypen støttes ikke. Bruk JPG, PNG eller WebP.');
+    }
+    // Use the admin client so storage RLS can't silently drop the upload.
+    // Path is namespaced by user id, so cross-user writes aren't possible
+    // even with the bypass.
+    const ext = extFromMime(input.avatar.type);
     const path = `avatars/${ctx.user.id}.${ext}`;
-    const { error: uploadError } = await ctx.supabase.storage
-      .from('projects').upload(path, input.avatar, { upsert: true, contentType: input.avatar.type });
-    if (!uploadError) avatarPath = path;
+    const { error: uploadError } = await ctx.admin.storage
+      .from('projects')
+      .upload(path, input.avatar, { upsert: true, contentType: input.avatar.type });
+    if (uploadError) {
+      console.error('Avatar upload failed', uploadError);
+      return fail('server_error', `Kunne ikke laste opp profilbildet: ${uploadError.message}`);
+    }
+    avatarPath = path;
   }
 
   const profileUpdate: Record<string, any> = {

@@ -1,31 +1,55 @@
 ---
-const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/market';
+// SectionNav (kept under the StrikketorgetNav filename for now to avoid
+// churn). Used by both Strikketorget and Strikkestua via the `variant`
+// prop — same chrome (bell, dev menu, avatar dropdown, hamburger), only
+// the brand and item set change.
+interface Props {
+  variant?: 'strikketorget' | 'strikkestua';
+}
+const { variant = 'strikketorget' } = Astro.props;
+const isStudio = variant === 'strikkestua';
 
-// Show a mobile back button on detail/sub pages — anywhere that isn't a
-// section root. The button defers to history.back() when there's same-
-// origin history, otherwise falls back to a sensible parent.
-const ROOT_PATHS = new Set(['/market', '/inbox']);
+const currentPath = Astro.url.pathname.replace(/\/$/, '') || (isStudio ? '/studio' : '/market');
+
+const sectionRoot = isStudio ? '/studio' : '/market';
+const ROOT_PATHS = isStudio
+  ? new Set(['/studio'])
+  : new Set(['/market', '/inbox']);
 const showBack = !ROOT_PATHS.has(currentPath);
-// Parent fallback: strip the last path segment ("/market/listing/abc" → "/market/listing").
-// If the result is empty, default to /market.
 const parentPath = (() => {
   const parts = currentPath.split('/').filter(Boolean);
-  if (parts.length <= 1) return '/market';
+  if (parts.length <= 1) return sectionRoot;
   parts.pop();
   return '/' + parts.join('/');
 })();
 
-const navLinks = [
-  { href: '/market/used', label: 'Brukt' },
-  { href: '/market/new', label: 'Nytt' },
-  { href: '/market/commissions', label: 'Oppdrag' },
-  { href: '/market/stores', label: 'Butikker' },
-];
+const navLinks = isStudio
+  ? [
+      { href: '/studio', label: 'Oversikt', exact: true },
+      { href: '/studio/projects', label: 'Prosjekter' },
+      { href: '/studio/yarn', label: 'Garn' },
+      { href: '/studio/tools', label: 'Verktøy' },
+      { href: '/studio/learn', label: 'Lær' },
+    ]
+  : [
+      { href: '/market/used', label: 'Brukt' },
+      { href: '/market/new', label: 'Nytt' },
+      { href: '/market/commissions', label: 'Oppdrag' },
+      { href: '/market/stores', label: 'Butikker' },
+    ];
 
-const externalLinks = [
-  { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
-  { href: 'https://littlesandmeknits.com/studio', label: 'Til Strikkestua' },
-];
+const externalLinks = isStudio
+  ? [
+      { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
+    ]
+  : [
+      { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
+      { href: '/studio', label: 'Til Strikkestua' },
+    ];
+
+// Strikkestua-only: a "Back to Strikketorget" pill on the right.
+const seenMarket = Astro.cookies.get('seen_market')?.value === '1';
+const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorget';
 ---
 
 <nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:persist>
@@ -43,20 +67,34 @@ const externalLinks = [
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </a>
-      <a href="/market" class="group shrink-0 flex items-center gap-2.5">
-        <img src="/strikketorget-icon.svg" alt="" width="32" height="32" class="shrink-0 group-hover:opacity-90 transition-opacity" />
-        <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
-          Strikketorget
+      <a href={sectionRoot} class="group shrink-0 flex items-center gap-2.5">
+        {!isStudio && (
+          <img src="/strikketorget-icon.svg" alt="" width="32" height="32" class="shrink-0 group-hover:opacity-90 transition-opacity" />
+        )}
+        <span class="flex flex-col leading-tight">
+          <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
+            {isStudio ? 'Strikkestua' : 'Strikketorget'}
+          </span>
+          {isStudio && (
+            <span class="font-serif text-[11px] text-charcoal/35 group-hover:text-terracotta-500/50 transition-colors">
+              by Littles and Me Knits
+            </span>
+          )}
         </span>
       </a>
 
       <div class="hidden sm:flex items-center gap-1">
       {navLinks.map((l) => {
-        const isActive = currentPath.startsWith(l.href);
+        // 'exact' items only match an exact equality (used by /studio
+        // Oversikt, which would otherwise match all /studio/* sub-pages).
+        const isActive = ('exact' in l && (l as any).exact)
+          ? currentPath === l.href
+          : currentPath.startsWith(l.href);
         return (
           <a
             href={l.href}
             data-nav-link={l.href}
+            data-nav-link-exact={('exact' in l && (l as any).exact) ? '1' : undefined}
             class:list={[
               'text-sm font-medium px-3 py-1.5 rounded-full transition-colors',
               isActive
@@ -70,6 +108,20 @@ const externalLinks = [
       })}
       </div>
     </div>
+
+    {isStudio && (
+      <a
+        href="/market"
+        class="hidden lg:inline-flex items-center gap-1.5 ml-auto mr-2 text-sm font-medium px-4 py-1.5 rounded-full border border-sage-500/30 text-charcoal/80 hover:border-terracotta-500/40 hover:text-terracotta-500 transition-colors"
+      >
+        {seenMarket && (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        )}
+        <span>{marketBackLabel}</span>
+      </a>
+    )}
 
     <div class="flex items-center gap-2">
       <!-- Dev/admin menu (localhost or staff only) -->
@@ -326,7 +378,8 @@ const externalLinks = [
     // Active tab pills
     document.querySelectorAll<HTMLAnchorElement>('[data-nav-link]').forEach((el) => {
       const href = el.dataset.navLink!;
-      const active = path.startsWith(href);
+      const exact = el.dataset.navLinkExact === '1';
+      const active = exact ? path === href : path.startsWith(href);
       el.classList.toggle('bg-terracotta-500/10', active);
       el.classList.toggle('text-terracotta-500', active);
       el.classList.toggle('text-charcoal/70', !active);
