@@ -135,6 +135,13 @@ const externalLinks = [
         </button>
 
         <div data-profile-menu class="hidden absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl border border-sage-500/15 shadow-lg py-2 z-50">
+          <div class="flex items-center gap-3 px-4 py-3 border-b border-sage-500/10 mb-1">
+            <span data-profile-header-avatar class="w-9 h-9 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-sm font-serif text-sage-700">?</span>
+            <span class="flex flex-col min-w-0">
+              <span data-profile-header-name class="font-serif text-sm text-charcoal truncate">Profil</span>
+              <span data-profile-header-sub class="text-[11px] text-charcoal/45 truncate">Innlogget</span>
+            </span>
+          </div>
           <a href="/profile" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Min profil</a>
           <a href="/market/my-listings" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine annonser</a>
           <a href="/market/my-purchases" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine kjøp</a>
@@ -270,9 +277,19 @@ const externalLinks = [
 
   function applyProfileInfo(u) {
     var initial = (u.display_name || '?')[0].toUpperCase();
-    document.querySelectorAll('[data-profile-avatar], [data-profile-avatar-mobile]').forEach(function(el) {
+    document.querySelectorAll('[data-profile-avatar], [data-profile-avatar-mobile], [data-profile-header-avatar]').forEach(function(el) {
       if (u.display_name) el.textContent = initial;
     });
+    if (u.display_name) {
+      document.querySelectorAll('[data-profile-header-name]').forEach(function(el) {
+        el.textContent = u.display_name;
+      });
+    }
+    if (u.email) {
+      document.querySelectorAll('[data-profile-header-sub]').forEach(function(el) {
+        el.textContent = u.email;
+      });
+    }
 
     var inboxN = u.inbox_unread || ((u.notifications || 0) + (u.unread || 0));
     var badgeText = inboxN > 99 ? '99+' : String(inboxN);
