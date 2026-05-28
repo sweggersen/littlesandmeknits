@@ -99,9 +99,26 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     return ctx.redirect('/om' + ctx.url.search, 308);
   }
 
-  // Move the marketplace off of littlesandmeknits.com onto its own domain.
-  // /market and /market/* on the main site 301 to strikketorget.no.
-  if (LITTLES_HOSTS.includes(host) && (path === '/market' || path.startsWith('/market/'))) {
+  // All authenticated routes live on strikketorget.no exclusively. This
+  // avoids the cross-origin re-login problem (cookies set on one host
+  // don't carry to the other). Public marketing pages stay on LMK.
+  const AUTH_ONLY_PREFIXES = [
+    '/market',
+    '/studio',
+    '/onboarding',
+    '/inbox',
+    '/profile',
+    '/innstillinger',
+    '/admin',
+    '/auth/',
+    '/login',
+    '/signup',
+    '/reset-password',
+  ];
+  if (
+    LITTLES_HOSTS.includes(host)
+    && AUTH_ONLY_PREFIXES.some((p) => path === p.replace(/\/$/, '') || path === p || path.startsWith(p))
+  ) {
     return new Response(null, {
       status: 301,
       headers: { Location: `https://strikketorget.no${path}${ctx.url.search}` },
