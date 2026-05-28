@@ -99,13 +99,18 @@ if (user) {
 // back to global popularity (favorite_count) + recency.
 const promotedIds = promoted.map(p => p.id);
 
+// Favorited listings stay in the recommendations — favoriting is a
+// signal of interest, not a "remove from feed" gesture. The card just
+// shows them with the heart filled.
+const NIL = '00000000-0000-0000-0000-000000000000';
+
 if (preferredCategories.length) {
   const { data } = await supabase
     .from('listings')
     .select(LISTING_COLS)
     .eq('status', 'active')
     .in('category', preferredCategories)
-    .not('id', 'in', `(${[...promotedIds, ...favIds, '00000000-0000-0000-0000-000000000000'].map(v => `"${v}"`).join(',')})`)
+    .not('id', 'in', `(${[...promotedIds, NIL].map(v => `"${v}"`).join(',')})`)
     .order('favorite_count', { ascending: false })
     .order('published_at', { ascending: false })
     .limit(SLOTS * 2);
@@ -114,7 +119,7 @@ if (preferredCategories.length) {
 
 if (pool.length < SLOTS) {
   // Top up with popular-then-recent listings.
-  const exclude = [...promotedIds, ...favIds, ...pool.map(p => p.id), '00000000-0000-0000-0000-000000000000'];
+  const exclude = [...promotedIds, ...pool.map(p => p.id), NIL];
   const { data } = await supabase
     .from('listings')
     .select(LISTING_COLS)
