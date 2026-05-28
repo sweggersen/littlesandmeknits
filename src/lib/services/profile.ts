@@ -184,6 +184,7 @@ export interface MeData {
   email: string | undefined;
   display_name: string | null;
   avatar_path: string | null;
+  member_since: string | null;
   unread: number;
   notifications: number;
   inbox_unread: number;
@@ -193,9 +194,22 @@ export interface MeData {
   has_requests: boolean;
 }
 
+// Formats a profile creation date as "Medlem siden <måned> <år>" in
+// Norwegian, e.g. "Medlem siden mai 2026". Returns null if no date.
+function formatMemberSince(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return null;
+  const months = [
+    'januar', 'februar', 'mars', 'april', 'mai', 'juni',
+    'juli', 'august', 'september', 'oktober', 'november', 'desember',
+  ];
+  return `Medlem siden ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
 export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>> {
   const [{ data: profile }, { count: unreadCount }, { count: notifCount }, modUnreadRes] = await Promise.all([
-    ctx.supabase.from('profiles').select('display_name, avatar_path, role').eq('id', ctx.user.id).maybeSingle(),
+    ctx.supabase.from('profiles').select('display_name, avatar_path, role, created_at').eq('id', ctx.user.id).maybeSingle(),
     ctx.supabase.from('marketplace_messages').select('id', { count: 'exact', head: true }).is('read_at', null).neq('sender_id', ctx.user.id),
     ctx.supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
     // Unread moderator messages addressed to this user.
@@ -265,6 +279,7 @@ export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>>
     email: ctx.user.email,
     display_name: profile?.display_name ?? null,
     avatar_path: profile?.avatar_path ?? null,
+    member_since: formatMemberSince((profile as any)?.created_at),
     unread: unreadCount ?? 0,
     notifications: notifCount ?? 0,
     inbox_unread: (unreadCount ?? 0) + (notifCount ?? 0) + modUnread,

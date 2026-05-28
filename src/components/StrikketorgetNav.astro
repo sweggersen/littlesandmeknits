@@ -191,7 +191,7 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
             <span data-profile-header-avatar class="w-9 h-9 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-sm font-serif text-sage-700">?</span>
             <span class="flex flex-col min-w-0">
               <span data-profile-header-name class="font-serif text-sm text-charcoal truncate">Profil</span>
-              <span data-profile-header-sub class="text-[11px] text-charcoal/45 truncate">Innlogget</span>
+              <span data-profile-header-sub class="text-[11px] text-charcoal/45 truncate"></span>
             </span>
           </div>
           <a href="/profile" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Min profil</a>
@@ -337,9 +337,13 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
         el.textContent = u.display_name;
       });
     }
-    if (u.email) {
+    if (u.member_since) {
       document.querySelectorAll('[data-profile-header-sub]').forEach(function(el) {
-        el.textContent = u.email;
+        el.textContent = u.member_since;
+      });
+    } else {
+      document.querySelectorAll('[data-profile-header-sub]').forEach(function(el) {
+        el.textContent = '';
       });
     }
 
