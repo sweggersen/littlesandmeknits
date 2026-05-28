@@ -80,15 +80,30 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
   ctx.locals.inMarketSession = inMarketSession;
 
-  // Sticky marker: did the user visit Strikketorget recently? Used by the
-  // Strikkestua nav to swap "Strikketorget" -> "Tilbake til Strikketorget".
-  // Refreshes on every market visit; expires after 7 days of inactivity.
-  if (path === '/market' || path.startsWith('/market/')) {
-    ctx.cookies.set('seen_market', '1', {
-      path: '/',
-      sameSite: 'lax',
-      httpOnly: false,
-      maxAge: 60 * 60 * 24 * 7,
+  // Track the section the user came from so the nav can show
+  // "Tilbake til Strikketorget" only when they actually just came from
+  // there (not just because they visited it last week). Cookie holds the
+  // section of the *previous* request; we read it before overwriting with
+  // the current section.
+  const prevSection = ctx.cookies.get('prev_section')?.value as
+    | 'market' | 'studio' | 'lmk' | undefined;
+  ctx.locals.prevSection = prevSection ?? null;
+
+  const curSection: 'market' | 'studio' | 'lmk' | null = (() => {
+    if (path === '/market' || path.startsWith('/market/')) return 'market';
+    if (path === '/studio' || path.startsWith('/studio/')) return 'studio';
+    // Public LMK content. Exclude auth surfaces and shared screens that
+    // don't carry section identity.
+    if (
+      path === '/' || path.startsWith('/oppskrifter') || path.startsWith('/prosjekter')
+      || path.startsWith('/p/') || path === '/om' || path.startsWith('/om/')
+      || path === '/about' || path.startsWith('/about/')
+    ) return 'lmk';
+    return null;
+  })();
+  if (curSection) {
+    ctx.cookies.set('prev_section', curSection, {
+      path: '/', sameSite: 'lax', httpOnly: false,
     });
   }
 

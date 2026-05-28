@@ -4,10 +4,12 @@
 // prop — same chrome (bell, dev menu, avatar dropdown, hamburger), only
 // the brand and item set change.
 interface Props {
-  variant?: 'strikketorget' | 'strikkestua';
+  variant?: 'strikketorget' | 'strikkestua' | 'home';
+  lang?: 'nb' | 'en';
 }
-const { variant = 'strikketorget' } = Astro.props;
+const { variant = 'strikketorget', lang = 'nb' } = Astro.props;
 const isStudio = variant === 'strikkestua';
+const isHome = variant === 'home';
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || (isStudio ? '/studio' : '/market');
 
@@ -31,6 +33,12 @@ const navLinks = isStudio
       { href: '/studio/tools', label: 'Verktøy' },
       { href: '/studio/learn', label: 'Lær' },
     ]
+  : isHome
+  ? [
+      { href: '/oppskrifter', label: lang === 'en' ? 'Patterns' : 'Oppskrifter' },
+      { href: '/prosjekter', label: lang === 'en' ? 'Projects' : 'Prosjekter' },
+      { href: '/om', label: lang === 'en' ? 'About' : 'Om oss' },
+    ]
   : [
       { href: '/market/used', label: 'Brukt' },
       { href: '/market/new', label: 'Nytt' },
@@ -42,14 +50,21 @@ const externalLinks = isStudio
   ? [
       { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
     ]
+  : isHome
+  ? [
+      { href: '/market', label: 'Til Strikketorget' },
+      { href: '/studio', label: 'Til Strikkestua' },
+    ]
   : [
       { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
       { href: '/studio', label: 'Til Strikkestua' },
     ];
 
-// Strikkestua-only: a "Back to Strikketorget" pill on the right.
-const seenMarket = Astro.cookies.get('seen_market')?.value === '1';
-const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorget';
+// "Back to Strikketorget" pill only when the user *just* came from
+// Strikketorget — not if they merely visited it some time ago. Driven
+// by the prev_section cookie that the middleware updates on every page.
+const cameFromMarket = Astro.locals.prevSection === 'market';
+const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikketorget';
 ---
 
 <nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
@@ -67,13 +82,13 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
           <polyline points="15 18 9 12 15 6"/>
         </svg>
       </a>
-      <a href={sectionRoot} class="group shrink-0 flex items-center gap-2.5">
-        {!isStudio && (
+      <a href={isHome ? '/' : sectionRoot} class="group shrink-0 flex items-center gap-2.5">
+        {variant === 'strikketorget' && (
           <img src="/strikketorget-icon.svg" alt="" width="32" height="32" class="shrink-0 group-hover:opacity-90 transition-opacity" />
         )}
         <span class="flex flex-col leading-tight">
           <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">
-            {isStudio ? 'Strikkestua' : 'Strikketorget'}
+            {isStudio ? 'Strikkestua' : isHome ? 'Littles and Me Knits' : 'Strikketorget'}
           </span>
           {isStudio && (
             <span class="font-serif text-[11px] text-charcoal/35 group-hover:text-terracotta-500/50 transition-colors">
@@ -114,13 +129,30 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
         href="/market"
         class="hidden lg:inline-flex items-center gap-1.5 ml-auto mr-2 text-sm font-medium px-4 py-1.5 rounded-full border border-sage-500/30 text-charcoal/80 hover:border-terracotta-500/40 hover:text-terracotta-500 transition-colors"
       >
-        {seenMarket && (
+        {cameFromMarket && (
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polyline points="15 18 9 12 15 6"/>
           </svg>
         )}
         <span>{marketBackLabel}</span>
       </a>
+    )}
+    {isHome && (
+      <ul class="hidden sm:flex items-center gap-1.5 ml-auto mr-2">
+        {[
+          { href: '/market', label: 'Strikketorget' },
+          { href: '/studio', label: 'Strikkestua' },
+        ].map((item) => (
+          <li>
+            <a
+              href={item.href}
+              class="text-sm font-medium px-3 py-1.5 rounded-full border border-sage-500/20 text-charcoal/70 hover:border-terracotta-500/30 hover:text-terracotta-500 transition-colors"
+            >
+              {item.label}
+            </a>
+          </li>
+        ))}
+      </ul>
     )}
 
     <div class="flex items-center gap-2">

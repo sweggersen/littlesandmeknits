@@ -154,7 +154,7 @@ const subtitleParts: string[] = [];
 if (unreadCount > 0) subtitleParts.push(`${unreadCount} ulest${unreadCount === 1 ? '' : 'e'} melding${unreadCount === 1 ? '' : 'er'}`);
 if (awaitingPayment > 0) subtitleParts.push(`${awaitingPayment} venter på betaling`);
 if (acceptedOffers > 0) subtitleParts.push(`${acceptedOffers} akseptert${acceptedOffers === 1 ? '' : 'e'} tilbud`);
-if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ventende tilbud`);
+if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ${pendingOffers === 1 ? 'nytt' : 'nye'} tilbud`);
 if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
 // Leave the subtitle empty when there's nothing actionable to surface;
 // the previous fallback ('Alt i orden') reads as machine-translated.

@@ -27,6 +27,7 @@ declare namespace App {
   interface Locals extends Runtime {
     isStrikketorget?: boolean;
     inMarketSession?: boolean;
+    prevSection?: 'market' | 'studio' | 'lmk' | null;
   }
 }
 
