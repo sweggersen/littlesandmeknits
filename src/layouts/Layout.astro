@@ -163,13 +163,23 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
     </script>
   </head>
   <body class="min-h-screen bg-linen text-charcoal flex flex-col" data-embed={isEmbed ? '1' : undefined}>
-    {!isEmbed && (
-      isStudioPath
-        ? <StrikketorgetNav variant="strikkestua" lang={lang} />
-        : isMarket
-          ? <StrikketorgetNav variant="strikketorget" lang={lang} />
-          : <StrikketorgetNav variant="home" lang={lang} />
-    )}
+    {!isEmbed && (() => {
+      // Variant picks the nav's brand + items + accent. Shared auth
+      // surfaces (/login, /profile, /inbox, etc) don't carry a section
+      // identity of their own, so we infer the right brand from:
+      //  1. Host: strikketorget.no -> Strikketorget by default
+      //  2. prev_section cookie: where the user just was
+      //  3. Path: explicit /market or /studio always wins
+      const prev = Astro.locals.prevSection ?? null;
+      let navVariant: 'strikketorget' | 'strikkestua' | 'home';
+      if (isStudioPath) navVariant = 'strikkestua';
+      else if (isMarket) navVariant = 'strikketorget';
+      else if (isStrikketorget) navVariant = 'strikketorget';
+      else if (prev === 'studio') navVariant = 'strikkestua';
+      else if (prev === 'market') navVariant = 'strikketorget';
+      else navVariant = 'home';
+      return <StrikketorgetNav variant={navVariant} lang={lang} />;
+    })()}
     <main class="flex-1">
       <slot />
     </main>
