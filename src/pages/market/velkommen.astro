@@ -1,0 +1,115 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import MarketplaceShell from '../../components/MarketplaceShell.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/market/velkommen');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('first_name, display_name, strikketorget_welcomed_at')
+  .eq('id', user.id)
+  .maybeSingle();
+
+// Already welcomed — don't show it again.
+if (profile?.strikketorget_welcomed_at) return Astro.redirect('/market');
+
+const greetName = profile?.first_name || profile?.display_name?.split(' ')[0] || null;
+
+const interestOptions: { value: string; label: string }[] = [
+  { value: 'children', label: 'Til barn' },
+  { value: 'adult', label: 'Til voksne' },
+  { value: 'genser', label: 'Genser' },
+  { value: 'cardigan', label: 'Cardigan' },
+  { value: 'lue', label: 'Lue' },
+  { value: 'votter', label: 'Votter' },
+  { value: 'sokker', label: 'Sokker' },
+  { value: 'teppe', label: 'Teppe' },
+  { value: 'kjole', label: 'Kjole' },
+  { value: 'bukser', label: 'Bukser' },
+];
+---
+
+<Layout title="Velkommen til Strikketorget" lang="nb" noindex>
+  <MarketplaceShell current={null}>
+    <section class="max-w-2xl mx-auto px-2 py-12 sm:py-16">
+      <header class="text-center mb-10">
+        <p class="label-eyebrow mb-3">Velkommen</p>
+        <h1 class="font-serif text-4xl sm:text-5xl mb-3">
+          {greetName ? `Hei, ${greetName}` : 'Hei!'}
+        </h1>
+        <p class="text-charcoal/65 text-lg">
+          Strikketorget er stedet for håndstrikkede plagg. Her er noen ting du kan utforske.
+        </p>
+      </header>
+
+      <div class="grid sm:grid-cols-2 gap-4 mb-10">
+        <a href="/market/store/new" class="block bg-white rounded-3xl p-6 border border-sage-500/15 hover:border-terracotta-500/50 transition-colors group">
+          <div class="text-3xl mb-3">🏪</div>
+          <h2 class="font-serif text-xl mb-2">Har du en bedrift?</h2>
+          <p class="text-charcoal/60 text-sm mb-3">
+            Opprett din egen butikk på Strikketorget og selg plaggene dine.
+          </p>
+          <span class="text-sm font-medium text-terracotta-500 group-hover:text-terracotta-700">
+            Opprett butikk →
+          </span>
+        </a>
+
+        <a href="/market/commissions" class="block bg-white rounded-3xl p-6 border border-sage-500/15 hover:border-terracotta-500/50 transition-colors group">
+          <div class="text-3xl mb-3">🧶</div>
+          <h2 class="font-serif text-xl mb-2">Strikker du for andre?</h2>
+          <p class="text-charcoal/60 text-sm mb-3">
+            Se oppdrag fra folk som ønsker seg et plagg strikket på bestilling.
+          </p>
+          <span class="text-sm font-medium text-terracotta-500 group-hover:text-terracotta-700">
+            Se Oppdrag →
+          </span>
+        </a>
+      </div>
+
+      <form
+        method="POST"
+        action="/api/onboarding/strikketorget"
+        class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/15"
+      >
+        <h2 class="font-serif text-xl mb-2">Hva er du interessert i?</h2>
+        <p class="text-charcoal/60 text-sm mb-5">
+          Vi bruker dette til å vise deg mer relevante annonser. Du kan endre det senere.
+        </p>
+
+        <div class="flex flex-wrap gap-2 mb-6">
+          {interestOptions.map((opt) => (
+            <label class="cursor-pointer">
+              <input type="checkbox" name="interests" value={opt.value} class="peer sr-only" />
+              <span class="inline-block px-4 py-2 rounded-full text-sm border border-sage-500/30 bg-linen/50 text-charcoal/80 peer-checked:bg-terracotta-500 peer-checked:text-linen peer-checked:border-terracotta-500 transition-colors">
+                {opt.label}
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <button
+            type="submit"
+            name="action"
+            value="skip"
+            class="text-sm text-charcoal/50 hover:text-charcoal underline underline-offset-2 order-2 sm:order-1"
+          >
+            Hopp over for nå
+          </button>
+          <button
+            type="submit"
+            name="action"
+            value="save"
+            class="btn-primary rounded-full py-3 px-6 text-sm font-semibold order-1 sm:order-2"
+          >
+            Lagre og gå til Strikketorget
+          </button>
+        </div>
+      </form>
+    </section>
+  </MarketplaceShell>
+</Layout>

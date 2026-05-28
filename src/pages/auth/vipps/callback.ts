@@ -62,20 +62,25 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
   });
   if (!result.ok) return fail(result.reason ?? 'session', result.detail);
 
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/studio';
+  // Default landing depends on host:
+  //   strikketorget.no  -> /market (first-time users detour through welcome)
+  //   littlesandmeknits -> /studio (no onboarding gate; goes straight in)
+  const isStrikketorget = new URL(request.url).hostname.includes('strikketorget');
+  const defaultNext = isStrikketorget ? '/market' : '/studio';
+  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : defaultNext;
 
-  // First-time users haven't completed onboarding (no birthday saved yet).
-  // Detour them through the wizard, then bounce back to where they were going.
-  const supabase = createServerSupabase({ request, cookies });
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('birthday')
-      .eq('id', user.id)
-      .maybeSingle();
-    if (!profile?.birthday) {
-      return redirect(`${origin}/onboarding/birthday?next=${encodeURIComponent(safeNext)}`);
+  if (isStrikketorget) {
+    const supabase = createServerSupabase({ request, cookies });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('strikketorget_welcomed_at')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (!profile?.strikketorget_welcomed_at) {
+        return redirect(`${origin}/market/velkommen`);
+      }
     }
   }
 
