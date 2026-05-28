@@ -99,6 +99,10 @@ export async function editProfile(
     bio, location,
     instagram_handle: instagram, seller_tags: sellerTags,
     profile_visible: input.profileVisible,
+    // profiles has no updated_at trigger, so set it explicitly. The
+    // cache-buster on the avatar URL keys off this — without bumping it
+    // here, re-uploads to the same storage path don't bust the cache.
+    updated_at: new Date().toISOString(),
   };
   if (avatarPath) profileUpdate.avatar_path = avatarPath;
 
