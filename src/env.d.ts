@@ -20,6 +20,7 @@ interface Env {
   VIPPS_CLIENT_SECRET: string;
   VIPPS_SUBSCRIPTION_KEY: string;
   VIPPS_MSN: string;
+  LOGIN_INVITE_KEY: string;
 }
 
 declare namespace App {

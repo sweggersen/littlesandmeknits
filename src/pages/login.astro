@@ -1,7 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import LoginContent from '../components/LoginContent.astro';
+import InterestForm from '../components/InterestForm.astro';
+import Alert from '../components/Alert.astro';
 import { getCurrentUser } from '../lib/auth';
+import { env } from 'cloudflare:workers';
 
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 if (user) {
@@ -9,8 +12,39 @@ if (user) {
 }
 
 const next = Astro.url.searchParams.get('next') ?? '/studio';
+const registered = Astro.url.searchParams.get('registered') === '1';
+
+// Public signup is gated. /login?invite=<LOGIN_INVITE_KEY> grants access
+// and drops a cookie so the user keeps it on subsequent visits.
+const INVITE_COOKIE = 'login_invite';
+const invitedNow = Astro.url.searchParams.get('invite');
+const inviteKey = env.LOGIN_INVITE_KEY ?? '';
+if (inviteKey && invitedNow && invitedNow === inviteKey) {
+  Astro.cookies.set(INVITE_COOKIE, '1', {
+    path: '/',
+    httpOnly: true,
+    secure: Astro.url.protocol === 'https:',
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}
+const hasInvite = Astro.cookies.get(INVITE_COOKIE)?.value === '1'
+  || (inviteKey && invitedNow === inviteKey);
 ---
 
-<Layout title="Logg inn — Littles and Me" lang="nb">
-  <LoginContent lang="nb" redirectTo={next} />
+<Layout title={hasInvite ? 'Logg inn — Littles and Me' : 'Strikketorget — meld interesse'} lang="nb" noindex>
+  {hasInvite ? (
+    <LoginContent lang="nb" redirectTo={next} />
+  ) : (
+    <>
+      {registered && (
+        <div class="max-w-md mx-auto px-6 pt-12">
+          <Alert variant="success">
+            Takk! Vi sier fra så snart du kan registrere deg.
+          </Alert>
+        </div>
+      )}
+      <InterestForm />
+    </>
+  )}
 </Layout>

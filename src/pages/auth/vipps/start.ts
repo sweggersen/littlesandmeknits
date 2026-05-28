@@ -8,6 +8,12 @@ const VERIFIER_COOKIE = 'vipps_oidc_verifier';
 const NEXT_COOKIE = 'vipps_oidc_next';
 
 export const GET: APIRoute = async ({ url, cookies, request }) => {
+  // Public signup is gated — must have the invite cookie set by visiting
+  // /login?invite=<key>. Without it, bounce to the interest form.
+  if (cookies.get('login_invite')?.value !== '1') {
+    return new Response(null, { status: 302, headers: { Location: '/login' } });
+  }
+
   const cfg = vippsConfig(env);
   if (!cfg.clientId || !cfg.clientSecret || !cfg.subscriptionKey || !cfg.msn) {
     return new Response('Vipps Login is not configured', { status: 500 });
