@@ -18,7 +18,7 @@ if (adminOnly && auth.role !== 'admin') return Astro.redirect('/admin');
 const isAdmin = auth.role === 'admin';
 ---
 
-<Layout title={title} lang="nb">
+<Layout title={title} lang="nb" noindex>
   <div class="min-h-[calc(100vh-64px)] bg-linen">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div class="flex gap-8">

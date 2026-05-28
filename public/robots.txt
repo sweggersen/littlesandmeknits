@@ -1,0 +1,21 @@
+User-agent: *
+Allow: /
+
+# Don't waste crawl budget on admin/dev surfaces or API endpoints.
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dev/
+Disallow: /inbox
+Disallow: /profile
+Disallow: /innstillinger
+Disallow: /reset-password
+Disallow: /onboarding
+
+# Auth-only paths add no SEO value.
+Disallow: /market/my-listings
+Disallow: /market/my-purchases
+Disallow: /market/favorites
+Disallow: /market/following
+Disallow: /market/stats
+
+Sitemap: https://littlesandmeknits.com/sitemap.xml

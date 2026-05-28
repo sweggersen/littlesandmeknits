@@ -169,9 +169,23 @@ if (userPrefs?.followed_sellers && userPrefs.followed_sellers.length > 0) {
 
 const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
 
+const orgJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'OnlineStore',
+  name: 'Strikketorget',
+  url: 'https://littlesandmeknits.com/market',
+  logo: 'https://littlesandmeknits.com/strikketorget-icon.svg',
+  description: 'Norges marked for håndstrikkede plagg, brukt og nytt. Trygg betaling, fellesskap av strikkere.',
+  parentOrganization: {
+    '@type': 'Organization',
+    name: 'Weggersen Design',
+    url: 'https://littlesandmeknits.com',
+  },
+};
 ---
 
-<Layout title="Strikketorget — Littles and Me Knits" lang="nb">
+<Layout title="Strikketorget" description="Norges marked for håndstrikkede plagg. Kjøp og selg brukt eller nytt, bestill plagg fra strikkere, betal trygt med Trygg betaling." lang="nb">
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} is:inline />
   <MarketplaceShell current="home">
       <!-- Hero (desktop): two-column with larger icon + stacked title/tagline/search.
            Mobile keeps the search-first compact layout below. -->

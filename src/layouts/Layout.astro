@@ -14,10 +14,31 @@ interface Props {
   title: string;
   description?: string;
   lang?: Lang;
+  /** Absolute or root-relative image URL for OG / Twitter previews. */
+  ogImage?: string;
+  /** Mark admin/dev surfaces noindex so they don't end up in search. */
+  noindex?: boolean;
 }
 
-const { title, description, lang: langProp } = Astro.props;
+const { title, description, lang: langProp, ogImage, noindex } = Astro.props;
 const lang = langProp ?? getLangFromUrl(Astro.url);
+
+// Compose a search-friendly title: append the brand if the page didn't
+// already include it. Mirrors what Google shows in result snippets.
+const titleSeparator = ' · ';
+const hasBrand = /Strikketorget|Littles and Me/i.test(title);
+const fullTitle = hasBrand ? title : `${title}${titleSeparator}Strikketorget`;
+
+// Default description nudges Norwegian queries about handknit children's
+// clothing (the platform's core).
+const metaDescription = description
+  ?? 'Strikketorget er Norges marked for håndstrikkede plagg, brukt og nytt. Kjøp og selg trygt med Trygg betaling, eller bestill et plagg fra en strikker.';
+
+const SITE = 'https://littlesandmeknits.com';
+const canonical = new URL(Astro.url.pathname, SITE).toString();
+const ogImageUrl = ogImage
+  ? new URL(ogImage, SITE).toString()
+  : `${SITE}/strikketorget-icon.svg`;
 
 const inMarketSession = Astro.locals.inMarketSession ?? false;
 const isMarket = isStrikketorget
@@ -34,7 +55,7 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
 <html lang={lang === 'nb' ? 'nb-NO' : 'en'}>
   <head>
     <meta charset="UTF-8" />
-    <meta name="description" content={description ?? ''} />
+    <meta name="description" content={metaDescription} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href={faviconHref} />
     <link rel="apple-touch-icon" href={faviconHref} />
@@ -44,7 +65,25 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Littles" />
     <meta name="generator" content={Astro.generator} />
-    <title>{title}</title>
+    <title>{fullTitle}</title>
+
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex,nofollow" />}
+
+    {/* Open Graph — for Facebook, Slack, Discord, iMessage previews */}
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Strikketorget" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:locale" content={lang === 'nb' ? 'nb_NO' : 'en_US'} />
+
+    {/* Twitter Card */}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={metaDescription} />
+    <meta name="twitter:image" content={ogImageUrl} />
     <ClientRouter />
     <style is:inline>
       ::view-transition-group(*) { animation-duration: 150ms; }

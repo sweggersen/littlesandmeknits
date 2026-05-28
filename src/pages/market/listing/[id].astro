@@ -142,9 +142,42 @@ if (isOwner && listing.status === 'frozen') {
 const autoReleaseDays = listing.auto_release_at
   ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
   : null;
+
+// SEO: page-level meta + Product JSON-LD so listings can rank for
+// long-tail Norwegian queries ("strikket genser str 92 brukt", etc.)
+// and qualify for Google's product-rich-result treatment.
+const SITE = 'https://littlesandmeknits.com';
+const canonicalUrl = `${SITE}/market/listing/${listing.id}`;
+const heroImageUrl = listing.hero_photo_path
+  ? new URL(projectPhotoUrl(listing.hero_photo_path) ?? '', SITE).toString()
+  : undefined;
+const productJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: listing.title,
+  description: (listing.description ?? '').slice(0, 500) || `${listing.title} på Strikketorget`,
+  image: photoUrls.map((u) => new URL(u, SITE).toString()),
+  category: listing.category,
+  brand: { '@type': 'Brand', name: 'Strikketorget' },
+  offers: {
+    '@type': 'Offer',
+    url: canonicalUrl,
+    priceCurrency: 'NOK',
+    price: listing.price_nok,
+    availability:
+      listing.status === 'active' ? 'https://schema.org/InStock'
+      : listing.status === 'sold' ? 'https://schema.org/SoldOut'
+      : 'https://schema.org/OutOfStock',
+    itemCondition:
+      listing.kind === 'pre_loved' ? 'https://schema.org/UsedCondition' : 'https://schema.org/NewCondition',
+  },
+};
+const seoDescription = (listing.description ?? '').slice(0, 160).trim()
+  || `${listing.title}. ${listing.price_nok} kr. Håndstrikket plagg på Strikketorget.`;
 ---
 
-<Layout title={`${listing.title} — Strikketorget`} lang="nb">
+<Layout title={listing.title} description={seoDescription} ogImage={heroImageUrl} lang="nb">
+  <script type="application/ld+json" set:html={JSON.stringify(productJsonLd)} is:inline />
   <MarketplaceShell current="listing">
       {justPublished && isOwner && (
         <Alert type="success" class="mb-6">Annonsen er publisert og synlig for alle.</Alert>
