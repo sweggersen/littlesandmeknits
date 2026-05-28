@@ -41,10 +41,19 @@ const ogImageUrl = ogImage
   : `${SITE}/strikketorget-icon.svg`;
 
 const inMarketSession = Astro.locals.inMarketSession ?? false;
-const isMarket = isStrikketorget
-  || Astro.url.pathname.startsWith('/market')
-  || Astro.url.pathname.startsWith('/inbox')
-  || inMarketSession;
+// Branding follows the *section* the user is in, not the domain. After
+// consolidating all auth routes onto strikketorget.no, host alone can't
+// distinguish Strikkestua (/studio) from Strikketorget (/market).
+const path = Astro.url.pathname;
+const isStudioPath = path.startsWith('/studio');
+const isMarket = !isStudioPath && (
+  path.startsWith('/market')
+  || path.startsWith('/inbox')
+  || inMarketSession
+  // On strikketorget.no, the bare domain and other unscoped routes default
+  // to marketplace branding. /studio above takes priority.
+  || (isStrikketorget && path === '/')
+);
 const faviconHref = isMarket ? '/strikketorget-favicon.svg' : '/favicon.svg';
 // ?embed=1 renders the page without nav/footer/tab-bar — used by moderator
 // iframes (reports/disputes detail) that want a clean content preview.
