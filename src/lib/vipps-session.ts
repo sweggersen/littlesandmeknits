@@ -23,26 +23,31 @@ export async function signInWithVippsUserinfo(opts: {
 
   const admin = createAdminSupabase(serviceRoleKey);
 
-  // 1. By vipps_sub
+  // 1. By vipps_sub. profiles has no email column; fetch the auth user's
+  // email separately if we get a hit so we can mint the magic-link OTP.
   const { data: byVipps } = await admin
     .from('profiles')
-    .select('id, email, vipps_sub')
+    .select('id, vipps_sub')
     .eq('vipps_sub', userinfo.sub)
     .maybeSingle();
 
   let userId = byVipps?.id ?? null;
-  let userEmail = byVipps?.email ?? null;
+  let userEmail: string | null = null;
+  if (userId) {
+    const { data: authUser } = await admin.auth.admin.getUserById(userId);
+    userEmail = authUser?.user?.email ?? null;
+  }
 
-  // 2. By email — link Vipps to the existing account
+  // 2. By auth email — link Vipps to the existing account.
+  // profiles doesn't carry email; the canonical email lives on auth.users.
+  // listUsers is paginated; we scan up to 1000 which is fine for current scale.
   if (!userId && userinfo.email) {
-    const { data: byEmail } = await admin
-      .from('profiles')
-      .select('id, email')
-      .eq('email', userinfo.email.toLowerCase())
-      .maybeSingle();
-    if (byEmail?.id) {
-      userId = byEmail.id;
-      userEmail = byEmail.email;
+    const target = userinfo.email.toLowerCase();
+    const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const existing = list?.users.find((u) => u.email?.toLowerCase() === target);
+    if (existing) {
+      userId = existing.id;
+      userEmail = existing.email ?? target;
       await admin
         .from('profiles')
         .update({ vipps_sub: userinfo.sub, vipps_phone_e164: userinfo.phone_number ?? null })
