@@ -18,6 +18,25 @@ const t = useTranslations(lang);
   </div>
 
   <div class="bg-white rounded-3xl p-8 shadow-sm border border-sage-500/10">
+    <a
+      href={`/auth/vipps/start?next=${encodeURIComponent(redirectTo)}`}
+      class="w-full flex items-center justify-center gap-2.5 rounded-full py-3 px-5 text-sm font-semibold text-white transition-colors mb-4"
+      style="background-color: #FF5B24;"
+      onmouseover="this.style.backgroundColor='#E04E1C'"
+      onmouseout="this.style.backgroundColor='#FF5B24'"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5l-4-4 1.41-1.41L11 13.67l4.59-4.58L17 10.5l-6 6z"/>
+      </svg>
+      Logg inn med Vipps
+    </a>
+
+    <div class="flex items-center gap-3 my-5 text-[10px] font-bold uppercase tracking-widest text-charcoal/40">
+      <div class="flex-1 h-px bg-charcoal/10"></div>
+      <span>eller med e-post</span>
+      <div class="flex-1 h-px bg-charcoal/10"></div>
+    </div>
+
     <LoginForm
       client:only="react"
       redirectTo={redirectTo}

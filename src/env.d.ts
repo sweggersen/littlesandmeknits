@@ -15,6 +15,11 @@ interface Env {
   BRING_API_UID: string;
   BRING_API_KEY: string;
   BRING_CUSTOMER_NUMBER: string;
+  VIPPS_ENV: 'test' | 'prod';
+  VIPPS_CLIENT_ID: string;
+  VIPPS_CLIENT_SECRET: string;
+  VIPPS_SUBSCRIPTION_KEY: string;
+  VIPPS_MSN: string;
 }
 
 declare namespace App {
