@@ -56,17 +56,23 @@ export async function signInWithVippsUserinfo(opts: {
     }
   }
 
-  // 3. Create new user
+  // 3. Create new user.
+  // We *always* use a synthetic email keyed on the Vipps sub, even when
+  // Vipps gives us a real email. This avoids email-format edge cases that
+  // can make Supabase's signup email check error out ("Database error
+  // checking email"), and guarantees idempotency: re-running this flow
+  // with the same Vipps account hits the same auth.users row.
+  // The real Vipps email is preserved in user_metadata for display.
   if (!userId) {
-    const synthEmail = userinfo.email
-      ? userinfo.email.toLowerCase()
-      : `vipps-${userinfo.sub}@vipps.users.littlesandmeknits.com`;
+    const safeSub = userinfo.sub.replace(/[^a-z0-9-]/gi, '').toLowerCase();
+    const synthEmail = `vipps-${safeSub}@vipps.users.littlesandmeknits.com`;
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email: synthEmail,
       email_confirm: true,
       user_metadata: {
         provider: 'vipps',
         vipps_sub: userinfo.sub,
+        vipps_email: userinfo.email,
         first_name: userinfo.given_name,
         last_name: userinfo.family_name,
         full_name: userinfo.name,
@@ -92,7 +98,6 @@ export async function signInWithVippsUserinfo(opts: {
         first_name: userinfo.given_name ?? null,
         last_name: userinfo.family_name ?? null,
         display_name: userinfo.name ?? null,
-        email: synthEmail,
       })
       .eq('id', userId);
   }
