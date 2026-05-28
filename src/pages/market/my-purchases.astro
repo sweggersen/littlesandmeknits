@@ -129,7 +129,7 @@ const hasAny = (purchases?.length ?? 0) + (commissions?.length ?? 0) > 0;
 
           {(activeCommissions.length + deliveredCommissions.length + disputedCommissions.length) > 0 && (
             <section class="mb-8">
-              <h2 class="font-serif text-xl mb-3">Oppdrag (Strikk for meg)</h2>
+              <h2 class="font-serif text-xl mb-3">Oppdrag</h2>
               <ul class="space-y-2">
                 {[...activeCommissions, ...deliveredCommissions, ...disputedCommissions].map((c) => {
                   const offer = c.awarded_offer_id ? offerById.get(c.awarded_offer_id) : null;

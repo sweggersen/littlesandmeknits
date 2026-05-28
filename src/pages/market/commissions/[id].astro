@@ -139,7 +139,7 @@ if (isBuyer && req.status === 'frozen') {
 }
 ---
 
-<Layout title={`${req.title} — Strikk for meg`} lang="nb">
+<Layout title={`${req.title} · Oppdrag`} lang="nb">
   <MarketplaceShell current="oppdrag">
 
       {isStaff && !isBuyer && (req.status === 'pending_review' || req.status === 'rejected') && (
