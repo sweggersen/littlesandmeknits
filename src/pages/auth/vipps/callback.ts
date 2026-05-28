@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { vippsConfig, exchangeCode, fetchUserinfo } from '../../../lib/vipps';
 import { signInWithVippsUserinfo } from '../../../lib/vipps-session';
-import { createServerSupabase } from '../../../lib/supabase';
+import { createAdminSupabase } from '../../../lib/supabase';
 
 const STATE_COOKIE = 'vipps_oidc_state';
 const VERIFIER_COOKIE = 'vipps_oidc_verifier';
@@ -69,18 +69,19 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
   const defaultNext = isStrikketorget ? '/market' : '/studio';
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : defaultNext;
 
-  if (isStrikketorget) {
-    const supabase = createServerSupabase({ request, cookies });
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('strikketorget_welcomed_at')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (!profile?.strikketorget_welcomed_at) {
-        return redirect(`${origin}/market/velkommen`);
-      }
+  // We can't use the cookie-bound supabase client here because the session
+  // cookies were set on the *response* of signInWithVippsUserinfo and aren't
+  // visible on this request yet. Use the admin client (RLS-bypassing) with
+  // the userId returned from the signin helper.
+  if (isStrikketorget && result.userId) {
+    const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('strikketorget_welcomed_at')
+      .eq('id', result.userId)
+      .maybeSingle();
+    if (!profile?.strikketorget_welcomed_at) {
+      return redirect(`${origin}/market/velkommen`);
     }
   }
 

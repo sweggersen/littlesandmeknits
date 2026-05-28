@@ -11,6 +11,7 @@ export interface SignInResult {
   ok: boolean;
   reason?: string;
   detail?: string;
+  userId?: string;
 }
 
 export async function signInWithVippsUserinfo(opts: {
@@ -129,5 +130,5 @@ export async function signInWithVippsUserinfo(opts: {
     return { ok: false, reason: 'verify' };
   }
 
-  return { ok: true };
+  return { ok: true, userId };
 }
