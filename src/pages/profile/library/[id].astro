@@ -57,7 +57,7 @@ const isPdf = !!pat.file_path && pat.file_path.toLowerCase().endsWith('.pdf');
           {fileUrl && (
             <div class="mt-4 space-y-2">
               <a href={fileUrl} target="_blank" rel="noopener"
-                class="block w-full text-center bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                class="block w-full text-center bg-primary text-primary-fg px-4 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                 Åpne {isPdf ? 'PDF' : 'bildet'} ↗
               </a>
               <a href={fileUrl} download class="block w-full text-center text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors py-2">
@@ -100,7 +100,7 @@ const isPdf = !!pat.file_path && pat.file_path.toLowerCase().endsWith('.pdf');
               <textarea name="notes" rows="3" maxlength="1000" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{pat.notes ?? ''}</textarea>
             </div>
             <div class="flex justify-end pt-2">
-              <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">Lagre endringer</button>
+              <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">Lagre endringer</button>
             </div>
           </form>
 

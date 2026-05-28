@@ -1,0 +1,806 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { env } from 'cloudflare:workers';
+
+if (import.meta.env.PROD) return Astro.redirect('/market');
+
+const host = Astro.url.hostname;
+if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
+  return Astro.redirect('/market');
+}
+
+const encoder = new TextEncoder();
+const keyData = encoder.encode(env.SUPABASE_SERVICE_ROLE_KEY ?? '');
+const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+const today = new Date().toISOString().slice(0, 10);
+const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(`admin-tower-${today}`));
+const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43);
+---
+
+<Layout title="UI Flows" lang="nb">
+  <div class="min-h-[calc(100vh-64px)] bg-charcoal/[0.03]" data-admin-token={adminToken}>
+    <div class="hidden lg:block">
+      <div class="bg-white border-b border-sage-500/10 sticky top-[64px] z-20">
+        <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <div>
+            <p class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5">Dev Tool</p>
+            <h1 class="font-mono text-base font-bold leading-tight">UI Flows</h1>
+            <p class="text-[11px] text-charcoal/55 mt-0.5">Synthetic-click playback. Real page in iframe, programmatic events. <a href="/dev/test-tower" class="text-terracotta-500 hover:underline">API-only tower →</a></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="flow-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
+            <select id="viewport-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Visningsstørrelse">
+              <option value="desktop" selected>💻 Desktop</option>
+              <option value="mobile">📱 Mobil (390×844)</option>
+            </select>
+            <select id="speed-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Avspillingshastighet">
+              <option value="2800">0.5×</option>
+              <option value="1400" selected>1×</option>
+              <option value="700">2×</option>
+              <option value="350">4×</option>
+              <option value="90">8×</option>
+              <option value="20">Maks</option>
+            </select>
+            <button id="btn-seed" class="px-3 py-1.5 text-xs font-medium text-charcoal/60 hover:text-charcoal border border-sage-500/15 rounded-lg hover:bg-sage-100/50 transition-colors">🌱 Frø</button>
+            <button id="btn-cleanup" class="px-3 py-1.5 text-xs font-medium text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-lg hover:bg-red-50 transition-colors">Slett</button>
+            <button id="btn-run" class="px-3 py-1.5 text-xs font-medium text-linen bg-charcoal hover:bg-terracotta-500 rounded-lg transition-colors">Kjør ▶▶</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="max-w-[1600px] mx-auto px-6 py-6 grid gap-6" style="grid-template-columns: 380px 1fr;">
+        <!-- Steps panel -->
+        <div class="space-y-3 flex flex-col" style="height: calc(100vh - 168px);">
+          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 shrink-0">Steg</h2>
+          <ul id="steps-list" class="space-y-1.5 overflow-y-auto flex-1 pr-2 -mr-2"></ul>
+          <p id="status-line" class="text-xs text-charcoal/55 font-mono mt-3 shrink-0">Klar.</p>
+        </div>
+
+        <!-- Iframe panel -->
+        <div>
+          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Live</h2>
+          <div id="viewport-stage" class="bg-charcoal/[0.03] border border-sage-500/10 rounded-2xl overflow-hidden relative flex items-center justify-center" style="height: calc(100vh - 200px);" data-viewport="desktop">
+            <!-- Action banner — shows current step on top of the iframe. -->
+            <div id="action-banner" class="hidden absolute left-3 right-3 top-3 z-10 px-4 py-2 rounded-full bg-charcoal/90 text-linen text-sm font-medium shadow-lg backdrop-blur-sm pointer-events-none transition-opacity">
+              <span data-action-icon class="mr-1">▶</span>
+              <span data-action-text>...</span>
+            </div>
+            <!-- Shortcut overlay — shows over the iframe during cheat
+                 steps (Stripe, file upload, etc.) to explain what's
+                 happening in real life. -->
+            <div id="action-overlay" class="hidden absolute inset-0 z-20 bg-charcoal/55 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity">
+              <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
+                <div data-overlay-icon class="text-5xl mb-3">⚡</div>
+                <h3 data-overlay-title class="font-serif text-2xl mb-2">Snarvei</h3>
+                <p data-overlay-body class="text-sm text-charcoal/70 leading-relaxed whitespace-pre-line">…</p>
+                <p data-overlay-note class="text-xs text-charcoal/45 mt-4 italic">Hoppet over i denne demoen.</p>
+              </div>
+            </div>
+            <!-- Iframe — sized differently per viewport mode (see CSS). -->
+            <iframe id="ui-frame" src="about:blank"></iframe>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lg:hidden flex items-center justify-center min-h-[60vh] p-8">
+      <p class="text-charcoal/55 text-center">UI Flows krever en bred skjerm (1024px+).</p>
+    </div>
+  </div>
+
+  <style>
+    /* Viewport-aware iframe sizing.
+       Desktop: fills the stage. Mobile: phone-sized, centered, with a bezel. */
+    #viewport-stage[data-viewport="desktop"] #ui-frame {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: white;
+    }
+    #viewport-stage[data-viewport="mobile"] #ui-frame {
+      display: block;
+      width: 390px;
+      height: 844px;
+      max-height: calc(100vh - 240px);
+      background: white;
+      border: 10px solid #1f2937;
+      border-radius: 36px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+    }
+  </style>
+
+  <script>
+    import { runFlow, describe, type FlowStep } from '../../lib/ui-runner';
+
+    type Flow = {
+      id: string;
+      title: string;
+      persona: 'liv' | 'eline' | 'nora' | 'kari' | null;
+      steps: FlowStep[];
+    };
+
+    const FLOWS: Flow[] = [
+      // ────────────────────────── Onboarding ──────────────────────────
+      {
+        id: 'login-magic',
+        title: 'Login — magisk lenke',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/login' },
+          { action: 'expectText', text: 'Logg inn' },
+          { action: 'fill', selector: 'input[type=email]', value: 'demo@example.com' },
+          { action: 'check', selector: 'input[type=checkbox]', checked: true, label: 'godta alder' },
+          // The second checkbox (terms) — we click the label so the bubble works.
+          { action: 'click', text: 'brukervilkårene', label: 'fokuser vilkår' },
+          { action: 'expectText', text: 'Få magisk lenke' },
+        ],
+      },
+      {
+        id: 'login-password-tab',
+        title: 'Login — bytt til passord-modus',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/login' },
+          { action: 'click', text: 'Passord' },
+          { action: 'expectText', text: 'Glemt passord?' },
+          { action: 'click', text: 'Ny her? Opprett konto' },
+          { action: 'expectText', text: 'Opprett konto' },
+        ],
+      },
+      {
+        id: 'help-tour',
+        title: 'Hjelpesenter — gå gjennom alle sidene',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/hjelp' },
+          { action: 'expectText', text: 'Vanlige spørsmål' },
+          { action: 'click', text: 'Hvordan selge' },
+          { action: 'expectUrl', match: /\/hjelp\/selge$/ },
+          { action: 'expectText', text: '1. Lag annonsen' },
+          { action: 'click', text: 'Tilbake til hjelp' },
+          { action: 'click', text: 'Hvordan kjøpe' },
+          { action: 'expectUrl', match: /\/hjelp\/kjope$/ },
+          { action: 'expectText', text: '1. Finn det du leter etter' },
+          { action: 'click', text: 'Tilbake til hjelp' },
+          { action: 'click', text: 'Trygg betaling forklart' },
+          { action: 'expectUrl', match: /\/hjelp\/trygg-betaling$/ },
+          { action: 'expectText', text: 'Hvorfor bruke det?' },
+        ],
+      },
+
+      // ──────────────────────────── Wizard ─────────────────────────────
+      {
+        id: 'wizard',
+        title: 'Wizard — full happy path (Eline → /foto)',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/market/listing/new' },
+          { action: 'select', selector: '#kind', value: 'pre_loved' },
+          { action: 'fill', selector: '#title', value: 'UI-flow demo: barnegenser str. 2 år' },
+          { action: 'select', selector: '#category', value: 'genser' },
+          { action: 'fill', selector: '#size_label', value: '2 år' },
+          { action: 'select', selector: '#condition', value: 'lite_brukt' },
+          { action: 'click', text: 'Neste' },
+          { action: 'fill', selector: '#price_nok', value: '250' },
+          { action: 'click', text: 'Lagre & last opp bilder' },
+          { action: 'expectUrl', match: /\/foto$/, label: 'lander på /foto' },
+          { action: 'expectText', text: 'Last opp bilder' },
+        ],
+      },
+      {
+        id: 'wizard-example',
+        title: 'Wizard — "Fyll inn et eksempel"',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/market/listing/new' },
+          { action: 'click', text: 'Fyll inn et eksempel' },
+          { action: 'expectText', text: 'Mariusgenser str. 92, naturhvit', label: 'tittel pre-fyllt' },
+        ],
+      },
+      {
+        id: 'onboarding-birthday',
+        title: 'Onboarding — sett bursdag',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/onboarding/birthday?next=/profile/edit' },
+          { action: 'expectText', text: 'Når har du bursdag' },
+          { action: 'select', selector: 'select[name="day"]', value: '21' },
+          { action: 'select', selector: 'select[name="month"]', value: '8' },
+          { action: 'select', selector: 'select[name="year"]', value: '1989' },
+          { action: 'click', text: 'Lagre' },
+          { action: 'expectUrl', match: /\/profile\/edit/ },
+        ],
+      },
+      {
+        id: 'profile-name',
+        title: 'Innstillinger — fyll inn fornavn / etternavn',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/profile/edit' },
+          { action: 'fill', selector: 'input[name="first_name"]', value: 'Eline' },
+          { action: 'fill', selector: 'input[name="last_name"]', value: 'Berge' },
+          { action: 'fill', selector: 'input[name="display_name"]', value: '' },
+          { action: 'click', text: 'Lagre' },
+          { action: 'expectText', text: 'Profilen er oppdatert' },
+        ],
+      },
+      {
+        id: 'wizard-photo-step',
+        title: 'Wizard — Bilder-steget (utkast uten bilder)',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/seed:draft-empty-foto', label: 'goto /foto for utkastet' },
+          { action: 'expectText', text: 'Last opp bilder' },
+          { action: 'expectText', text: 'Last opp minst ett bilde' },
+        ],
+      },
+
+      // ────────────────────────── Marketplace ──────────────────────────
+      {
+        id: 'home-anon',
+        title: 'Marked — anonym (populære)',
+        persona: null,
+        steps: [
+          { action: 'goto', url: '/market' },
+          { action: 'expectText', text: 'Populære annonser' },
+        ],
+      },
+      {
+        id: 'home-personalised',
+        title: 'Marked — innlogget (anbefalinger + følg-rad)',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/market' },
+          { action: 'expectText', text: 'Nye fra sellere du følger' },
+          { action: 'expectText', text: 'Anbefalinger for deg' },
+        ],
+      },
+      {
+        id: 'listing-detail-buyer',
+        title: 'Annonseside — kjøper-visning',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing', label: 'goto Elines aktive annonse' },
+          { action: 'expectText', text: 'Strikket genser str 2 år (publisert)' },
+          { action: 'expectText', text: 'Kjøp trygt' },
+        ],
+      },
+      {
+        id: 'listing-detail-follow',
+        title: 'Annonseside — følg selger fra detaljen',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing' },
+          { action: 'click', text: '✓ Følger', label: 'allerede følger (toggle av)' },
+          { action: 'expectText', text: '+ Følg' },
+          { action: 'click', text: '+ Følg' },
+          { action: 'expectText', text: '✓ Følger' },
+        ],
+      },
+
+      // ───────────────────────── Selger og følg ────────────────────────
+      {
+        id: 'follow',
+        title: 'Selgerprofil — følg-toggle',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/seed:eline-profile', label: 'goto Eline' },
+          { action: 'click', text: '✓ Følger', label: 'unfollow (allerede følger)' },
+          { action: 'expectText', text: '+ Følg' },
+          { action: 'click', text: '+ Følg' },
+          { action: 'expectText', text: '✓ Følger' },
+        ],
+      },
+      {
+        id: 'following-feed',
+        title: 'Markedet — egen følger-feed',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/market/following' },
+          { action: 'expectText', text: 'Sellere du følger' },
+          { action: 'expectText', text: 'Strikket genser str 2 år (publisert)' },
+        ],
+      },
+
+      // ───────────────────────── Selger-dashboard ──────────────────────
+      {
+        id: 'my-listings-seller',
+        title: 'Mine annonser — Eline ser stats + promoter-knapper',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/market/my-listings' },
+          { action: 'expectText', text: 'Aktive annonser' },
+          { action: 'expectText', text: 'Statistikk' },
+          { action: 'expectText', text: 'Promoter' },
+        ],
+      },
+      {
+        id: 'stats-page',
+        title: 'Statistikk-side',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing-stats', label: 'goto /market/stats/[id]' },
+          { action: 'expectText', text: 'Synlighet og klikk' },
+        ],
+      },
+      {
+        id: 'promoter-anchor',
+        title: 'Annonse — Fremhev-seksjon (#promoter)',
+        persona: 'eline',
+        steps: [
+          { action: 'goto', url: '/seed:live-listing-promoter', label: 'goto listing#promoter' },
+          { action: 'expectText', text: 'Fremhev annonsen' },
+        ],
+      },
+
+      // ────────────────────── Full E2E (kjøpsflyt) ─────────────────────
+      {
+        id: 'full-e2e',
+        title: 'Full E2E — selger lager → kjøper kjøper → bekrefter mottak',
+        persona: null,
+        steps: [
+          // Bootstrap: fresh state, Eline as trusted Stripe-onboarded seller,
+          // brand-new active listing with 2 photos.
+          {
+            action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata',
+            overlay: {
+              icon: '🧹',
+              title: 'Rydder testdata',
+              body: 'I produksjon kjører ingen slik «rensing» — databasen vokser, og hver bruker sletter selv kontoen sin via Mine data og personvern (GDPR Art. 17).',
+              note: 'Bare i demoen.',
+            },
+          },
+          {
+            action: 'apiCall', exec: 'seed-buyflow-listing',
+            params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] },
+            label: 'Frø Eline + ny aktiv annonse',
+            overlay: {
+              icon: '🪡',
+              title: 'I virkeligheten: Selger lager annonsen',
+              body: 'Eline går gjennom 3-stegs-wizarden (Detaljer → Pris & frakt → Bilder), laster opp 2 bilder, og sender til moderering. Eline er «trusted seller» her, så annonsen går rett til aktiv uten manuell godkjenning.',
+              note: 'Forkortet i demoen — vi setter opp annonsen direkte.',
+            },
+          },
+
+          // Buyer view
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Liv åpner annonsen' },
+          { action: 'expectText', text: 'E2E demo: Strikket genser str. 2 år' },
+          { action: 'expectText', text: 'Kjøp trygt', label: 'Kjøps-CTA synlig (med Trygg betaling)' },
+
+          // Purchase (bypasses Stripe via test-exec)
+          {
+            action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no',
+            params: { listing_id: '$listingId' }, label: 'Liv kjøper',
+            overlay: {
+              icon: '💳',
+              title: 'Stripe Checkout',
+              body: 'Liv blir sendt til Stripes betalingsside, fyller inn leveringsadresse, og betaler 445 kr (350 vare + 76 frakt + 19 trygg betaling) med kort, Apple Pay eller Google Pay.\n\nStripe trekker beløpet og holder det i forvaring til kjøper bekrefter mottak.',
+              note: 'Stripe kan ikke vises i iframe — vi simulerer kjøpet direkte.',
+            },
+          },
+
+          // Seller sees the reserved state
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Eline ser annonsen' },
+          { action: 'expectText', text: 'Noen har kjøpt varen din!' },
+
+          // Seller marks shipped
+          {
+            action: 'apiCall', exec: 'ship-listing', actor: 'eline@test.strikketorget.no',
+            params: { listing_id: '$listingId', tracking_code: 'CD123456789NO' },
+            label: 'Eline merker som sendt',
+            overlay: {
+              icon: '📦',
+              title: 'I virkeligheten: Eline pakker og sender',
+              body: 'Eline tar med pakken til nærmeste Posten-utleveringssted, limer på fraktetiketten, og limer inn sporingsnummeret CD123456789NO i annonsesiden.',
+              note: 'Kjøper får varsel + sporingslenke automatisk.',
+            },
+          },
+
+          // Buyer sees shipped + can confirm
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Liv ser «sendt»' },
+          { action: 'expectText', text: 'Bekreft' },
+
+          // Buyer confirms delivery
+          {
+            action: 'apiCall', exec: 'confirm-listing-delivery', actor: 'liv@test.strikketorget.no',
+            params: { listing_id: '$listingId' }, label: 'Liv bekrefter mottak',
+            overlay: {
+              icon: '✅',
+              title: 'I virkeligheten: Liv bekrefter mottak',
+              body: 'Liv åpner pakken, sjekker at genseren er som forventet, og trykker «Bekreft mottatt» på annonsesiden. Stripe frigjør 426 kr (445 minus trygg-betaling-avgiften) til Eline samme dag.\n\nHvis hun ikke svarer, frigjøres pengene automatisk 14 dager etter sending.',
+              note: 'Snarvei i demoen.',
+            },
+          },
+
+          // Seller sees sold final state
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/market/my-listings', label: 'Eline sjekker Mine annonser' },
+          { action: 'expectText', text: 'Solgt' },
+        ],
+      },
+
+      // ─────────────────────── Varsler og admin ────────────────────────
+      {
+        id: 'notifications',
+        title: 'Varslings-innboks',
+        persona: 'liv',
+        steps: [
+          { action: 'goto', url: '/notifications' },
+          { action: 'expectText', text: 'la ut en ny annonse', label: 'seeded varsel' },
+        ],
+      },
+      {
+        id: 'admin-email-gallery',
+        title: 'Admin — e-postmal-galleri',
+        persona: 'nora',
+        steps: [
+          { action: 'goto', url: '/admin' },
+          { action: 'expectText', text: 'E-postmaler' },
+          { action: 'expectText', text: 'Velkomst' },
+        ],
+      },
+    ];
+
+    const PERSONA_EMAIL: Record<string, string> = {
+      liv: 'liv@test.strikketorget.no',
+      eline: 'eline@test.strikketorget.no',
+      nora: 'nora@test.strikketorget.no',
+      kari: 'kari@test.strikketorget.no',
+    };
+
+    function $<T extends HTMLElement>(sel: string): T {
+      const el = document.querySelector(sel) as T | null;
+      if (!el) throw new Error(`Missing element ${sel}`);
+      return el;
+    }
+
+    function setStatus(text: string) {
+      $('#status-line').textContent = text;
+    }
+
+    async function exec(action: string, body: Record<string, unknown> = {}) {
+      const token = (document.querySelector('[data-admin-token]') as HTMLElement | null)?.dataset.adminToken ?? '';
+      const r = await fetch('/api/dev/test-exec', {
+        method: 'POST',
+        headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(`${action}: ${j.error ?? r.status}`);
+      return j;
+    }
+
+    function renderFlowList() {
+      const sel = $<HTMLSelectElement>('#flow-select');
+      sel.innerHTML = FLOWS.map((f) => `<option value="${f.id}">${f.title}</option>`).join('');
+    }
+
+    function currentFlow(): Flow {
+      const id = $<HTMLSelectElement>('#flow-select').value;
+      return FLOWS.find((f) => f.id === id) ?? FLOWS[0];
+    }
+
+    function renderSteps(flow: Flow) {
+      const ul = $('#steps-list');
+      ul.innerHTML = flow.steps
+        .map((s, i) => `
+          <li class="flex items-start gap-2 text-xs font-mono py-1 px-1 -mx-1 rounded cursor-pointer hover:bg-sage-100/40 transition-colors" data-step-row="${i}" title="Kjør til og med dette steget">
+            <span class="w-4 text-charcoal/40 tabular-nums">${(i + 1).toString().padStart(2, '0')}</span>
+            <span class="w-3 h-3 rounded-full bg-charcoal/15 mt-0.5 shrink-0" data-step-dot></span>
+            <span class="text-charcoal/80 break-all">${describe(s)}</span>
+          </li>
+        `)
+        .join('');
+      // Click-to-jump: replay from the start through the clicked step.
+      ul.querySelectorAll<HTMLElement>('[data-step-row]').forEach((row) => {
+        row.addEventListener('click', () => {
+          const i = parseInt(row.dataset.stepRow!, 10);
+          runCurrent(i);
+        });
+      });
+    }
+
+    function markStep(i: number, state: 'pending' | 'running' | 'ok' | 'fail', msg?: string) {
+      const row = document.querySelector(`[data-step-row="${i}"]`) as HTMLElement | null;
+      if (!row) return;
+      const dot = row.querySelector('[data-step-dot]') as HTMLElement;
+      dot.className = 'w-3 h-3 rounded-full mt-0.5 shrink-0 ' + ({
+        pending: 'bg-charcoal/15',
+        running: 'bg-amber-400 animate-pulse',
+        ok: 'bg-sage-500',
+        fail: 'bg-red-500',
+      })[state];
+      row.classList.toggle('bg-amber-50', state === 'running');
+      row.classList.toggle('rounded', state === 'running');
+      // Keep the active step visible in the scroll panel.
+      if (state === 'running') row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (msg) {
+        let detail = row.querySelector('[data-step-error]') as HTMLElement | null;
+        if (!detail) {
+          detail = document.createElement('span');
+          detail.setAttribute('data-step-error', '');
+          detail.className = 'block text-[11px] text-red-600 mt-0.5';
+          row.appendChild(detail);
+        }
+        detail.textContent = msg;
+      }
+    }
+
+    const BANNER_ICON: Record<string, string> = {
+      goto: '🧭', click: '👆', fill: '⌨️', select: '🔽', check: '☑️',
+      expectText: '🔎', expectUrl: '🔎', wait: '⏳',
+      loginAs: '👤', apiCall: '🛰️',
+    };
+
+    function showBanner(text: string, action: string) {
+      const banner = document.querySelector('#action-banner') as HTMLElement | null;
+      if (!banner) return;
+      (banner.querySelector('[data-action-icon]') as HTMLElement).textContent = BANNER_ICON[action] ?? '▶';
+      (banner.querySelector('[data-action-text]') as HTMLElement).textContent = text;
+      banner.classList.remove('hidden');
+      banner.style.opacity = '1';
+    }
+    function hideBanner() {
+      const banner = document.querySelector('#action-banner') as HTMLElement | null;
+      if (!banner) return;
+      banner.style.opacity = '0';
+      setTimeout(() => banner.classList.add('hidden'), 200);
+    }
+
+    // Promise that resolves no sooner than `minMs`, plus we hide the
+    // overlay element. Used so even at Maks speed the cheat overlay
+    // stays on screen long enough to read.
+    let overlayShownAt = 0;
+    function showOverlay(overlay: { icon?: string; title: string; body?: string; note?: string }) {
+      const root = document.querySelector('#action-overlay') as HTMLElement | null;
+      if (!root) return;
+      (root.querySelector('[data-overlay-icon]') as HTMLElement).textContent = overlay.icon ?? '⚡';
+      (root.querySelector('[data-overlay-title]') as HTMLElement).textContent = overlay.title;
+      const body = root.querySelector('[data-overlay-body]') as HTMLElement;
+      body.textContent = overlay.body ?? '';
+      body.style.display = overlay.body ? '' : 'none';
+      const note = root.querySelector('[data-overlay-note]') as HTMLElement;
+      note.textContent = overlay.note ?? 'Hoppet over i denne demoen.';
+      root.classList.remove('hidden');
+      root.style.opacity = '1';
+      overlayShownAt = Date.now();
+    }
+    async function hideOverlay(minMs = 1500) {
+      const root = document.querySelector('#action-overlay') as HTMLElement | null;
+      if (!root || root.classList.contains('hidden')) return;
+      const elapsed = Date.now() - overlayShownAt;
+      if (elapsed < minMs) {
+        await new Promise((r) => setTimeout(r, minMs - elapsed));
+      }
+      root.style.opacity = '0';
+      await new Promise((r) => setTimeout(r, 200));
+      root.classList.add('hidden');
+    }
+
+    async function loginAs(email: string) {
+      const r = await fetch('/api/dev/test-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (!r.ok) throw new Error(`login as ${email}: ${r.status}`);
+    }
+
+    // Seed result cache. Populated after a successful seed-screens call.
+    // Each resolver below either uses the cache or hits the API on demand.
+    let seedCache: {
+      elineId?: string;
+      livId?: string;
+      liveListingId?: string;
+      draftEmptyId?: string;
+      draftReadyId?: string;
+    } = {};
+
+    async function ensureSeed() {
+      if (!seedCache.elineId || !seedCache.liveListingId) {
+        // Run seed if we don't already have data. Cheap if already seeded
+        // because cleanup+seed is fast.
+        const r = await exec('seed-screens', { params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] } });
+        seedCache = { ...seedCache, ...r.data };
+      }
+    }
+
+    async function resolveSeedUrls(steps: FlowStep[]): Promise<FlowStep[]> {
+      // Replace 'goto /seed:foo' placeholders with concrete URLs from
+      // the seed-screens result. Seeds on demand if cache is empty.
+      const out: FlowStep[] = [];
+      for (const s of steps) {
+        if (s.action === 'goto' && s.url.startsWith('/seed:')) {
+          const tag = s.url.slice(6);
+          if (tag === 'eline-profile') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/seller/${seedCache.elineId}` });
+            continue;
+          }
+          if (tag === 'live-listing') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/listing/${seedCache.liveListingId}` });
+            continue;
+          }
+          if (tag === 'live-listing-stats') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/stats/${seedCache.liveListingId}` });
+            continue;
+          }
+          if (tag === 'live-listing-promoter') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/listing/${seedCache.liveListingId}#promoter` });
+            continue;
+          }
+          if (tag === 'draft-empty-foto') {
+            await ensureSeed();
+            out.push({ ...s, url: `/market/listing/${seedCache.draftEmptyId}/foto` });
+            continue;
+          }
+          // Dynamic binding: $-prefixed tag resolves at run time from
+          // seedCache/bindings rather than at flow-prep time. Leave the
+          // placeholder in — the runner's URL interpolation handles it.
+          if (tag.startsWith('$')) {
+            out.push(s);
+            continue;
+          }
+          throw new Error(`Unknown seed tag: ${tag}`);
+        }
+        out.push(s);
+      }
+      return out;
+    }
+
+    let isRunning = false;
+    async function runCurrent(untilIdx?: number) {
+      if (isRunning) return;
+      isRunning = true;
+      try {
+        await runCurrentInner(untilIdx);
+      } finally {
+        isRunning = false;
+      }
+    }
+
+    async function runCurrentInner(untilIdx?: number) {
+      const flow = currentFlow();
+      renderSteps(flow);
+      const stopText = typeof untilIdx === 'number' ? ` (til steg ${untilIdx + 1})` : '';
+      setStatus(`Kjører${stopText} …`);
+
+      try {
+        if (flow.persona) {
+          await loginAs(PERSONA_EMAIL[flow.persona]);
+        } else {
+          await fetch('/api/auth/signout', { method: 'POST' });
+        }
+      } catch (e) {
+        setStatus(`Login feilet: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
+
+      // Bindings captured from apiCall return values. Steps can reference
+      // them by interpolating "$key" into goto URLs or apiCall params.
+      const bindings: Record<string, unknown> = {};
+
+      function interpolate(value: unknown): unknown {
+        if (typeof value === 'string' && value.startsWith('$')) {
+          const key = value.slice(1);
+          if (key in bindings) return bindings[key];
+          if (key in seedCache) return (seedCache as Record<string, unknown>)[key];
+          return value;
+        }
+        if (Array.isArray(value)) return value.map(interpolate);
+        if (value && typeof value === 'object') {
+          const out: Record<string, unknown> = {};
+          for (const [k, v] of Object.entries(value)) out[k] = interpolate(v);
+          return out;
+        }
+        return value;
+      }
+
+      const iframe = $<HTMLIFrameElement>('#ui-frame');
+      // First resolve any /seed:tag goto URLs, then resolve dynamic $bindings
+      // at run time inside the runner via the per-step path.
+      const allSteps = await resolveSeedUrls(flow.steps);
+      const steps = typeof untilIdx === 'number'
+        ? allSteps.slice(0, untilIdx + 1)
+        : allSteps;
+      const delayMs = parseInt($<HTMLSelectElement>('#speed-select').value, 10) || 1400;
+      const result = await runFlow(steps, {
+        iframe,
+        delayMs,
+        onResolveUrl: (url) => {
+          // /seed:$key → resolve from bindings or seedCache at run time.
+          if (url.startsWith('/seed:$')) {
+            const key = url.slice('/seed:$'.length);
+            const val = (bindings as any)[key] ?? (seedCache as any)[key];
+            if (typeof val !== 'string') throw new Error(`No binding for $${key}`);
+            // Convention: a $listingId binding maps to /market/listing/<id>.
+            // For other forms, embed the literal value in the URL.
+            if (key === 'listingId') return `/market/listing/${val}`;
+            return String(val);
+          }
+          return url;
+        },
+        onLoginAs: async (persona) => {
+          if (persona && PERSONA_EMAIL[persona]) {
+            await loginAs(PERSONA_EMAIL[persona]);
+          } else {
+            await fetch('/api/auth/signout', { method: 'POST' });
+          }
+        },
+        onApiCall: async (execName, body) => {
+          const resolvedParams = interpolate(body?.params ?? {}) as Record<string, unknown>;
+          const r = await exec(execName, { actor: body?.actor, params: resolvedParams });
+          // Merge any returned id-bearing fields so later steps can ref them.
+          if (r?.data && typeof r.data === 'object') {
+            Object.assign(bindings, r.data);
+            // Also feed into seedCache for goto /seed:foo resolution.
+            Object.assign(seedCache, r.data);
+          }
+          return r?.data;
+        },
+        onStep: async (i, step, res) => {
+          if (res === 'running') {
+            markStep(i, 'running');
+            showBanner(describe(step), step.action);
+            if ((step as any).overlay) showOverlay((step as any).overlay);
+          } else {
+            // For steps that showed an overlay, hold it on screen at
+            // least 1.5s so the reader has time to absorb the text.
+            if ((step as any).overlay) await hideOverlay();
+            if (res.ok) markStep(i, 'ok');
+            else markStep(i, 'fail', res.error);
+          }
+        },
+      });
+      hideBanner();
+      await hideOverlay(0);
+      setStatus(`Ferdig: ${result.passed} OK, ${result.failed} feil.`);
+    }
+
+    function init() {
+      renderFlowList();
+      renderSteps(currentFlow());
+      $('#flow-select').addEventListener('change', () => renderSteps(currentFlow()));
+      $('#btn-run').addEventListener('click', runCurrent);
+
+      // Viewport toggle — sets data-viewport on the stage; CSS does the rest.
+      const stage = document.querySelector('#viewport-stage') as HTMLElement | null;
+      const vpSelect = $<HTMLSelectElement>('#viewport-select');
+      function applyViewport() {
+        if (stage) stage.setAttribute('data-viewport', vpSelect.value);
+      }
+      vpSelect.addEventListener('change', applyViewport);
+      applyViewport();
+      $('#btn-seed').addEventListener('click', async () => {
+        setStatus('Frør …');
+        try {
+          await exec('cleanup');
+          const r = await exec('seed-screens', { params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] } });
+          seedCache = r.data;
+          setStatus('Seed OK.');
+        } catch (e) {
+          setStatus(`Seed feilet: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+      $('#btn-cleanup').addEventListener('click', async () => {
+        setStatus('Sletter …');
+        try {
+          await exec('cleanup');
+          seedCache = {};
+          setStatus('Slettet.');
+        } catch (e) {
+          setStatus(`Cleanup feilet: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      });
+    }
+
+    init();
+    document.addEventListener('astro:page-load', init);
+  </script>
+</Layout>

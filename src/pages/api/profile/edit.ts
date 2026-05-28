@@ -10,6 +10,8 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const form = await request.formData();
   const result = await editProfile(ctx, {
     displayName: form.get('display_name')?.toString(),
+    firstName: form.get('first_name')?.toString(),
+    lastName: form.get('last_name')?.toString(),
     bio: form.get('bio')?.toString(),
     location: form.get('location')?.toString(),
     instagramHandle: form.get('instagram_handle')?.toString(),

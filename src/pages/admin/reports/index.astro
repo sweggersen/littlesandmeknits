@@ -91,11 +91,11 @@ const flash = Astro.url.searchParams.get('resolve') === '1'
   <div class="flex gap-1 mb-6">
     <a href="/admin/reports?tab=open" class:list={[
       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-      tab === 'open' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+      tab === 'open' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50',
     ]}>Åpne</a>
     <a href="/admin/reports?tab=closed" class:list={[
       'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-      tab === 'closed' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+      tab === 'closed' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50',
     ]}>Behandlet</a>
   </div>
 

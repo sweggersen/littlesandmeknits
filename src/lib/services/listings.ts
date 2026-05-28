@@ -104,7 +104,7 @@ export async function createListing(
     return fail('server_error', 'Could not create listing');
   }
 
-  return ok({ redirect: `/market/listing/${data.id}` });
+  return ok({ redirect: `/market/listing/${data.id}/foto` });
 }
 
 const LISTING_FEE_NOK = 29;
@@ -164,9 +164,55 @@ export async function publishListing(
         title: l?.title,
       }, ctx.env);
     }
+  } else {
+    // Trusted seller publishes straight to active — notify followers now.
+    try {
+      const [{ data: l }, { data: profile }] = await Promise.all([
+        ctx.admin.from('listings').select('title').eq('id', input.listingId).maybeSingle(),
+        ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).maybeSingle(),
+      ]);
+      const { notifyFollowersOfNewListing } = await import('../notify');
+      await notifyFollowersOfNewListing(ctx.admin, {
+        sellerId: ctx.user.id,
+        listingId: input.listingId,
+        listingTitle: l?.title ?? 'Ny annonse',
+        sellerName: profile?.display_name,
+      }, ctx.env);
+    } catch (err) {
+      console.error('Follower fan-out (publish) failed', err);
+    }
   }
 
   return ok({ redirect: `/market/listing/${input.listingId}?published=1` });
+}
+
+/** Manually mark a non-escrow listing as sold. Used when the seller
+ *  arranged payment outside the platform (Vipps, cash, etc.). For escrow
+ *  listings the status transitions are driven by the buy/ship/confirm
+ *  flow instead. */
+export async function markListingSold(
+  ctx: ServiceContext,
+  input: { listingId: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (!input.listingId) return fail('bad_input', 'Missing id');
+
+  const { data: listing } = await ctx.admin
+    .from('listings')
+    .select('id, seller_id, status, escrow_enabled')
+    .eq('id', input.listingId)
+    .maybeSingle();
+  if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
+  if (listing.status !== 'active') return fail('bad_input', 'Bare aktive annonser kan markeres som solgt');
+  if (listing.escrow_enabled) return fail('bad_input', 'Bruk Trygg betaling-flyten for denne annonsen');
+
+  const now = new Date().toISOString();
+  const { error } = await ctx.admin
+    .from('listings')
+    .update({ status: 'sold', sold_at: now, delivered_at: now })
+    .eq('id', input.listingId);
+  if (error) return fail('server_error', 'Kunne ikke markere som solgt');
+
+  return ok({ redirect: `/market/listing/${input.listingId}?sold=1` });
 }
 
 /** Toggle Trygg betaling on/off for a listing.

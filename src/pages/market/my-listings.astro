@@ -69,7 +69,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
         </div>
         <a
           href="/market/listing/new"
-          class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+          class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
         >
           + Ny annonse
         </a>
@@ -207,32 +207,56 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
       <section class="mb-8">
         <h2 class="font-serif text-xl mb-3">Aktive annonser</h2>
         {live.length === 0 ? (
-          <EmptyState message="Ingen aktive annonser ennå." ctaText="Legg ut din første annonse" ctaHref="/market/listing/new" compact />
+          (() => {
+            const hasHistory = sold.length > 0 || drafts.length > 0 || inReview.length > 0;
+            const message = hasHistory
+              ? 'Du har ingen aktive annonser akkurat nå.'
+              : 'Ingen aktive annonser ennå.';
+            const cta = hasHistory ? 'Legg ut en ny annonse' : 'Legg ut din første annonse';
+            return (
+              <div>
+                <EmptyState message={message} ctaText={cta} ctaHref="/market/listing/new" compact />
+                {!hasHistory && (
+                  <p class="text-xs text-charcoal/55 text-center mt-3">
+                    Førstegang? Les <a href="/hjelp/selge" class="text-terracotta-500 hover:underline">hvordan du selger</a>.
+                  </p>
+                )}
+              </div>
+            );
+          })()
         ) : (
           <ul class="space-y-2">
-            {live.map((l) => (
-              <li>
-                <a
-                  href={`/market/listing/${l.id}`}
-                  class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
-                >
-                  <div class="flex items-center justify-between gap-4">
-                    <div>
-                      <div class="flex items-center gap-2 mb-1">
-                        <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900">
-                          {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
-                        </p>
-                        {l.promoted_until && new Date(l.promoted_until) > new Date() && (
-                          <StatusBadge label="Fremhevet" variant="terracotta" />
-                        )}
+            {live.map((l) => {
+              const isPromoted = l.promoted_until && new Date(l.promoted_until) > new Date();
+              return (
+                <li>
+                  <div class="bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                    <a href={`/market/listing/${l.id}`} class="block p-4">
+                      <div class="flex items-center justify-between gap-4">
+                        <div>
+                          <div class="flex items-center gap-2 mb-1">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900">
+                              {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
+                            </p>
+                            {isPromoted && <StatusBadge label="Fremhevet" variant="terracotta" />}
+                          </div>
+                          <p class="font-medium">{l.title}</p>
+                        </div>
+                        <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
                       </div>
-                      <p class="font-medium">{l.title}</p>
+                    </a>
+                    <div class="border-t border-sage-500/10 flex divide-x divide-sage-500/10 text-xs">
+                      <a href={`/market/stats/${l.id}`} class="flex-1 px-3 py-2 text-charcoal/60 hover:text-terracotta-500 hover:bg-sage-50/40 transition-colors text-center">
+                        📊 Statistikk
+                      </a>
+                      <a href={`/market/listing/${l.id}#promoter`} class="flex-1 px-3 py-2 text-charcoal/60 hover:text-terracotta-500 hover:bg-sage-50/40 transition-colors text-center">
+                        {isPromoted ? '⚡ Aktiv promotering' : '⚡ Promoter'}
+                      </a>
                     </div>
-                    <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
                   </div>
-                </a>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

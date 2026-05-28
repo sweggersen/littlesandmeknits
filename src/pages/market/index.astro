@@ -10,12 +10,13 @@ import { createServerSupabase } from '../../lib/supabase';
 import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
+import { rankPromoted, type UserPreferences } from '../../lib/promotion-ranker';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
 
 const SLOTS = 8;
-const LISTING_COLS = 'id, title, kind, price_nok, size_label, hero_photo_path, published_at, promoted_until, promotion_tier, category, favorite_count, store_id';
+const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_min, size_age_months_max, hero_photo_path, published_at, promoted_until, promoted_at, promotion_tier, category, favorite_count, seller_id, store_id';
 
 // 1) Active paid-promotion slots — we always surface a couple of these.
 //    Listings whose promoted_until is still in the future, regardless of
@@ -27,8 +28,40 @@ const promotedRes = await supabase
   .eq('status', 'active')
   .gt('promoted_until', nowIso)
   .order('promoted_until', { ascending: false })
-  .limit(3);
-const promoted = promotedRes.data ?? [];
+  .limit(20);
+const promotedAll = promotedRes.data ?? [];
+
+// Pull pacing data (daily_budget, daily_impressions_served) for the
+// promoted listings so the ranker can de-prioritise exhausted budgets.
+if (promotedAll.length) {
+  const { data: pacingRows } = await supabase
+    .from('listing_promotions')
+    .select('listing_id, daily_budget, daily_impressions_served')
+    .in('listing_id', promotedAll.map((p) => p.id))
+    .eq('status', 'active');
+  const pacingById = new Map((pacingRows ?? []).map((r: any) => [r.listing_id, r]));
+  for (const p of promotedAll) {
+    const pacing = pacingById.get(p.id);
+    if (pacing) {
+      p.daily_budget = pacing.daily_budget;
+      p.daily_impressions_served = pacing.daily_impressions_served;
+    }
+  }
+}
+
+// Personalised ranking of the promoted pool. Reads from the user_preferences
+// materialized view (refreshed by /api/cron/run). Anonymous viewers fall
+// through with prefs=null → ranker uses the conditionBaseline only.
+let userPrefs: UserPreferences = null;
+if (user) {
+  const { data: prefRow } = await supabase
+    .from('user_preferences')
+    .select('favorited_categories, clicked_categories, clicked_sizes, followed_sellers, price_band, age_band')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (prefRow) userPrefs = prefRow as UserPreferences;
+}
+const promoted = rankPromoted(promotedAll, userPrefs).slice(0, 3);
 
 // 2) For-you / popular pool.
 let pool: any[] = [];
@@ -66,13 +99,18 @@ if (user) {
 // back to global popularity (favorite_count) + recency.
 const promotedIds = promoted.map(p => p.id);
 
+// Favorited listings stay in the recommendations — favoriting is a
+// signal of interest, not a "remove from feed" gesture. The card just
+// shows them with the heart filled.
+const NIL = '00000000-0000-0000-0000-000000000000';
+
 if (preferredCategories.length) {
   const { data } = await supabase
     .from('listings')
     .select(LISTING_COLS)
     .eq('status', 'active')
     .in('category', preferredCategories)
-    .not('id', 'in', `(${[...promotedIds, ...favIds, '00000000-0000-0000-0000-000000000000'].map(v => `"${v}"`).join(',')})`)
+    .not('id', 'in', `(${[...promotedIds, NIL].map(v => `"${v}"`).join(',')})`)
     .order('favorite_count', { ascending: false })
     .order('published_at', { ascending: false })
     .limit(SLOTS * 2);
@@ -81,7 +119,7 @@ if (preferredCategories.length) {
 
 if (pool.length < SLOTS) {
   // Top up with popular-then-recent listings.
-  const exclude = [...promotedIds, ...favIds, ...pool.map(p => p.id), '00000000-0000-0000-0000-000000000000'];
+  const exclude = [...promotedIds, ...pool.map(p => p.id), NIL];
   const { data } = await supabase
     .from('listings')
     .select(LISTING_COLS)
@@ -93,11 +131,11 @@ if (pool.length < SLOTS) {
   pool = [...pool, ...(data ?? [])];
 }
 
-// Interleave: every 4th slot is a promoted item (so paid placements get
-// visibility without monopolising the feed).
+// Interleave: every 4th slot is a promoted item so paid placements get
+// visibility without monopolising the feed.
 const featured: any[] = [];
-let promotedQueue = [...promoted];
-let poolQueue = [...pool];
+const promotedQueue = [...promoted];
+const poolQueue = [...pool];
 for (let i = 0; i < SLOTS; i++) {
   if (i > 0 && i % 4 === 0 && promotedQueue.length) {
     featured.push(promotedQueue.shift()!);
@@ -115,6 +153,19 @@ const { data: latestRequests } = await supabase
   .eq('status', 'open')
   .order('created_at', { ascending: false })
   .limit(4);
+
+// 4) "Nye fra sellere du følger" — only when the viewer follows ≥1 seller.
+let followedListings: any[] = [];
+if (userPrefs?.followed_sellers && userPrefs.followed_sellers.length > 0) {
+  const { data } = await supabase
+    .from('listings')
+    .select(LISTING_COLS)
+    .eq('status', 'active')
+    .in('seller_id', userPrefs.followed_sellers)
+    .order('published_at', { ascending: false })
+    .limit(8);
+  followedListings = data ?? [];
+}
 
 const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
 
@@ -198,11 +249,32 @@ const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
             <path d="M24 40c4 6 12 10 16 10s12-4 16-10"/>
             <circle cx="40" cy="56" r="6" fill="currentColor" opacity="0.3"/>
           </svg>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5 sm:mb-2">Bestill</p>
-          <h2 class="font-serif text-base sm:text-xl mb-0 sm:mb-1 leading-tight">Strikk for meg</h2>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5 sm:mb-2">Strikk for meg</p>
+          <h2 class="font-serif text-base sm:text-xl mb-0 sm:mb-1 leading-tight">Oppdrag</h2>
           <p class="hidden sm:block text-sm text-charcoal/55">Bestill et plagg fra en strikker i fellesskapet.</p>
         </a>
       </div>
+
+      {followedListings.length > 0 && (
+        <>
+          <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">Nye fra sellere du følger</h2>
+          <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10">
+            {followedListings.map((l) => (
+              <ListingCard
+                id={l.id}
+                title={l.title}
+                price={l.price_nok}
+                imgUrl={projectPhotoUrl(l.hero_photo_path)}
+                meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
+                showFav={!!user}
+                isFav={favIds.includes(l.id)}
+                promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
+                promotionTier={l.promotion_tier ?? null}
+              />
+            ))}
+          </ul>
+        </>
+      )}
 
       <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">{featuredTitle}</h2>
       {featured.length === 0 ? (
@@ -219,6 +291,7 @@ const featuredTitle = user ? 'Anbefalinger for deg' : 'Populære annonser';
               showFav={!!user}
               isFav={favIds.includes(l.id)}
               promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
+              promotionTier={l.promotion_tier ?? null}
             />
           ))}
         </ul>

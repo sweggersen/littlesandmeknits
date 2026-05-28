@@ -1,0 +1,228 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const host = Astro.url.hostname;
+if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
+  return Astro.redirect('/login');
+}
+
+type Screen = {
+  title: string;
+  desc?: string;
+  href: string;
+  as?: 'liv' | 'eline' | 'nora' | 'kari' | null;
+};
+
+const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
+  {
+    title: 'Live demo',
+    intro: 'Synthetic-click playback i et iframe-panel — se flyten utfolde seg i sanntid.',
+    screens: [
+      { title: 'UI Flows-runner', desc: 'Wizard + følg + hjelp i ett vindu', href: '/dev/ui-flows', as: null },
+    ],
+  },
+  {
+    title: 'Onboarding',
+    intro: 'Hele første-gangs-flyten fra signup til publisert annonse.',
+    screens: [
+      { title: 'Login (magic link)', href: '/login', as: null },
+      { title: 'Login (password mode)', desc: 'Klikk Passord-tab', href: '/login', as: null },
+      { title: 'Reset password', desc: 'Auth-gated', href: '/reset-password', as: 'liv' },
+    ],
+  },
+  {
+    title: 'Wizard',
+    intro: 'Eline har et tomt utkast og et utkast med bilder — pass på å seede.',
+    screens: [
+      { title: 'Ny annonse — steg 1+2', href: '/market/listing/new', as: 'eline' },
+      { title: 'Wizard step 3 — utkast uten bilder', desc: 'Bruk seed-data: draftEmptyId', href: '/market/my-listings', as: 'eline' },
+      { title: 'Wizard step 3 — utkast med bilder', desc: 'Bruk seed-data: draftReadyId', href: '/market/my-listings', as: 'eline' },
+    ],
+  },
+  {
+    title: 'Markedet',
+    intro: 'Logged-in viewer ser personalisering. Logget ut ser populære annonser.',
+    screens: [
+      { title: 'Strikketorget (logget inn)', desc: 'Skal vise «Nye fra sellere du følger» øverst hvis Liv følger Eline', href: '/market', as: 'liv' },
+      { title: 'Strikketorget (anonym)', href: '/market', as: null },
+      { title: 'Annonseside — aktiv', desc: 'Bruk seed-data: liveListingId', href: '/market/my-listings', as: 'liv' },
+      { title: 'My-listings (selger)', href: '/market/my-listings', as: 'eline' },
+      { title: 'Mine kjøp', href: '/market/my-purchases', as: 'liv' },
+      { title: 'Statistikk', desc: 'Krever aktiv listing', href: '/market/my-listings', as: 'eline' },
+    ],
+  },
+  {
+    title: 'Selger og følg',
+    intro: 'Hele follow-pakken.',
+    screens: [
+      { title: 'Selgerprofil (med følg-knapp)', desc: 'Klikk Eline fra annonse eller my-listings', href: '/market', as: 'liv' },
+      { title: 'Selgerprofil (egen)', desc: 'Ingen følg-knapp', href: '/market', as: 'eline' },
+      { title: 'Sellere du følger (egen feed)', desc: 'Aktive annonser fra fulgte sellere', href: '/market/following', as: 'liv' },
+    ],
+  },
+  {
+    title: 'Hjelp',
+    screens: [
+      { title: 'Hjelp-index', href: '/hjelp', as: null },
+      { title: 'Hvordan selge', href: '/hjelp/selge', as: null },
+      { title: 'Hvordan kjøpe', href: '/hjelp/kjope', as: null },
+      { title: 'Trygg betaling forklart', href: '/hjelp/trygg-betaling', as: null },
+    ],
+  },
+  {
+    title: 'Admin og varsler',
+    screens: [
+      { title: 'Admin oversikt (e-postmaler)', href: '/admin', as: 'nora' },
+      { title: 'Varsler', desc: 'Liv har 1 seed-varsel', href: '/notifications', as: 'liv' },
+      { title: 'Innboks', href: '/inbox', as: 'liv' },
+    ],
+  },
+];
+---
+
+<Layout title="Dev — Skjermkatalog" lang="nb">
+  <div class="bg-linen min-h-screen">
+    <div class="max-w-4xl mx-auto px-6 py-10">
+      <h1 class="font-serif text-3xl mb-2">Skjermkatalog</h1>
+      <p class="text-sm text-charcoal/55 mb-6">
+        Mock-click-katalog for visuell QA. Frø data først, så klikk gjennom.
+        Logget inn-status vises i panelet under hver seksjon.
+      </p>
+
+      <!-- Seed control -->
+      <div class="bg-white rounded-2xl p-4 border border-sage-500/10 mb-8 flex flex-wrap items-center gap-3" data-seed-bar>
+        <button type="button" data-action="seed" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
+          🌱 Frø skjermdata (Eline + Liv + listings + follow)
+        </button>
+        <button type="button" data-action="cleanup" class="text-xs text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-full px-3 py-1.5 hover:bg-red-50 transition-colors">
+          Slett testdata
+        </button>
+        <span class="text-xs text-charcoal/45" data-seed-status>Klar.</span>
+      </div>
+
+      <!-- Active session indicator -->
+      <div class="bg-oatmeal/40 rounded-2xl p-3 mb-8 text-xs flex items-center gap-2" data-session-bar>
+        <span class="text-charcoal/55">Logget inn som:</span>
+        <span class="font-mono" data-session-email>—</span>
+      </div>
+
+      {SECTIONS.map(s => (
+        <section class="mb-10">
+          <h2 class="font-serif text-xl mb-1">{s.title}</h2>
+          {s.intro && <p class="text-xs text-charcoal/55 mb-3">{s.intro}</p>}
+          <ul class="space-y-2">
+            {s.screens.map(sc => (
+              <li class="bg-white rounded-2xl border border-sage-500/10 p-3 flex items-center justify-between gap-3" data-screen>
+                <div class="min-w-0">
+                  <p class="text-sm font-medium">{sc.title}</p>
+                  {sc.desc && <p class="text-xs text-charcoal/55 mt-0.5">{sc.desc}</p>}
+                  <p class="text-[11px] text-charcoal/40 font-mono mt-0.5">{sc.href}</p>
+                </div>
+                <button type="button" data-as={sc.as ?? ''} data-href={sc.href}
+                  class="shrink-0 bg-primary text-primary-fg px-3 py-1.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
+                  {sc.as ? `Som ${sc.as} →` : 'Åpne →'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  </div>
+
+  <script>
+    async function refreshSession() {
+      const span = document.querySelector('[data-session-email]') as HTMLElement | null;
+      if (!span) return;
+      try {
+        const r = await fetch('/api/me');
+        const j = await r.json();
+        span.textContent = j.user?.email ?? '(logget ut)';
+      } catch {
+        span.textContent = '(feil)';
+      }
+    }
+
+    async function adminToken(): Promise<string> {
+      const r = await fetch('/api/dev/test-token');
+      return (await r.json()).token;
+    }
+
+    async function exec(action: string, body: Record<string, unknown> = {}) {
+      const token = await adminToken();
+      const r = await fetch('/api/dev/test-exec', {
+        method: 'POST',
+        headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...body }),
+      });
+      if (!r.ok) throw new Error(`${action}: ${r.status}`);
+      const j = await r.json();
+      if (!j.ok) throw new Error(`${action}: ${j.error}`);
+      return j;
+    }
+
+    function setStatus(text: string) {
+      const el = document.querySelector('[data-seed-status]') as HTMLElement | null;
+      if (el) el.textContent = text;
+    }
+
+    function init() {
+      document.querySelectorAll<HTMLButtonElement>('[data-action="seed"]').forEach((btn) => {
+        if ((btn as any)._b) return;
+        (btn as any)._b = true;
+        btn.addEventListener('click', async () => {
+          setStatus('Frør …');
+          try {
+            await exec('cleanup');
+            const r = await exec('seed-screens', {
+              params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] },
+            });
+            setStatus(`OK: ${JSON.stringify(r.data)}`);
+          } catch (e) {
+            setStatus(`Feil: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        });
+      });
+      document.querySelectorAll<HTMLButtonElement>('[data-action="cleanup"]').forEach((btn) => {
+        if ((btn as any)._b) return;
+        (btn as any)._b = true;
+        btn.addEventListener('click', async () => {
+          setStatus('Slettet …');
+          try {
+            await exec('cleanup');
+            setStatus('Testdata slettet.');
+          } catch (e) {
+            setStatus(`Feil: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        });
+      });
+
+      document.querySelectorAll<HTMLButtonElement>('[data-href]').forEach((btn) => {
+        if ((btn as any)._b) return;
+        (btn as any)._b = true;
+        btn.addEventListener('click', async () => {
+          const as = btn.dataset.as;
+          const href = btn.dataset.href!;
+          if (as) {
+            const personaEmails: Record<string, string> = {
+              liv: 'liv@test.strikketorget.no',
+              eline: 'eline@test.strikketorget.no',
+              nora: 'nora@test.strikketorget.no',
+              kari: 'kari@test.strikketorget.no',
+            };
+            const email = personaEmails[as];
+            if (email) {
+              await fetch('/api/dev/test-login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+            }
+          }
+          window.location.href = href;
+        });
+      });
+
+      refreshSession();
+    }
+
+    init();
+    document.addEventListener('astro:page-load', init);
+  </script>
+</Layout>

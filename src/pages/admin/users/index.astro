@@ -43,7 +43,7 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderat
       <option value="moderator" selected={roleFilter === 'moderator'}>Moderator</option>
       <option value="ambassador" selected={roleFilter === 'ambassador'}>Ambassadør</option>
     </select>
-    <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-lg text-xs font-medium">Søk</button>
+    <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-lg text-xs font-medium">Søk</button>
   </form>
 
   {allUsers.length === 0 ? (

@@ -27,7 +27,13 @@ const { data: seller } = await supabase
 
 if (!seller || !seller.profile_visible) return Astro.redirect('/market');
 
-const [{ data: listings }, { data: reviews }, { data: txnReviews }] = await Promise.all([
+const [
+  { data: listings },
+  { data: reviews },
+  { data: txnReviews },
+  { data: followRow },
+  { count: followerCount },
+] = await Promise.all([
   supabase
     .from('listings')
     .select('id, title, kind, price_nok, size_label, hero_photo_path, published_at')
@@ -48,7 +54,13 @@ const [{ data: listings }, { data: reviews }, { data: txnReviews }] = await Prom
     .eq('visible', true)
     .order('created_at', { ascending: false })
     .limit(20),
+  user && user.id !== sellerId
+    ? supabase.from('seller_follows').select('seller_id').eq('follower_id', user.id).eq('seller_id', sellerId).maybeSingle()
+    : Promise.resolve({ data: null }),
+  supabase.from('seller_follows').select('seller_id', { count: 'exact', head: true }).eq('seller_id', sellerId),
 ]);
+
+const isFollowing = !!followRow;
 
 const transactionReviews = txnReviews ?? [];
 const isAmbassador = (seller as any)?.role === 'ambassador';
@@ -97,6 +109,9 @@ const earnedAchievements = ACHIEVEMENTS.filter(a => earnedSet.has(a.key) && a.ca
                 {avgRating} ({reviewList.length})
               </span>
             )}
+            {(followerCount ?? 0) > 0 && (
+              <span>{followerCount} {followerCount === 1 ? 'følger' : 'følgere'}</span>
+            )}
           </div>
           {seller.seller_tags.length > 0 && (
             <div class="flex flex-wrap gap-1.5 mt-3">
@@ -115,13 +130,30 @@ const earnedAchievements = ACHIEVEMENTS.filter(a => earnedSet.has(a.key) && a.ca
               @{seller.instagram_handle}
             </p>
           )}
-          {user && user.id !== sellerId && seller.seller_tags.includes('open_for_requests') && (
-            <a
-              href={`/market/commissions/new?strikker=${sellerId}`}
-              class="inline-block mt-4 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
-            >
-              Send privat forespørsel →
-            </a>
+          {user && user.id !== sellerId && (
+            <div class="flex flex-wrap items-center gap-2 mt-4">
+              <form method="post" action={`/api/seller/${sellerId}/follow`}>
+                <input type="hidden" name="action" value="toggle" />
+                <input type="hidden" name="next" value={`/market/seller/${sellerId}`} />
+                <button type="submit"
+                  class:list={[
+                    'text-sm font-medium px-5 py-2.5 rounded-full transition-colors',
+                    isFollowing
+                      ? 'bg-sage-100 text-sage-900 hover:bg-sage-200'
+                      : 'bg-primary text-primary-fg hover:bg-primary-hover',
+                  ]}>
+                  {isFollowing ? '✓ Følger' : '+ Følg'}
+                </button>
+              </form>
+              {seller.seller_tags.includes('open_for_requests') && (
+                <a
+                  href={`/market/commissions/new?strikker=${sellerId}`}
+                  class="bg-white border border-sage-500/20 text-charcoal px-5 py-2.5 rounded-full text-sm font-medium hover:border-charcoal/40 transition-colors"
+                >
+                  Send privat forespørsel →
+                </a>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -134,7 +166,7 @@ const earnedAchievements = ACHIEVEMENTS.filter(a => earnedSet.has(a.key) && a.ca
               <span class="group relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-sage-500/15" title={a.description}>
                 <span>{a.emoji}</span>
                 <span>{a.label}</span>
-                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-charcoal text-linen text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
+                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-primary text-primary-fg text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
                   {a.description}
                 </span>
               </span>

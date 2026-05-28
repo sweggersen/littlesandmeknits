@@ -1,0 +1,85 @@
+---
+export const prerender = true;
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Trygg betaling forklart · Hjelp" lang="nb">
+  <div class="max-w-3xl mx-auto px-6 py-14">
+    <a href="/hjelp" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-block">← Tilbake til hjelp</a>
+    <h1 class="font-serif text-4xl sm:text-5xl mb-3">Trygg betaling forklart</h1>
+    <p class="text-charcoal/55 text-base mb-10">
+      Pengene holdes i sikker forvaring til varen er mottatt. Slik fungerer det.
+    </p>
+
+    <div class="prose prose-sm text-charcoal/80 space-y-6">
+
+      <h2 class="font-serif text-2xl mt-0">Hva er trygg betaling?</h2>
+      <p>
+        Når kjøper betaler, holdes pengene hos vår betalingspartner Stripe, ikke hos
+        selger eller hos oss. Pengene frigjøres til selger først når:
+      </p>
+      <ul class="list-disc pl-5 space-y-2">
+        <li>Kjøper trykker <strong>Bekreft mottatt</strong>, eller</li>
+        <li>14 dager har gått etter at varen ble sendt og kjøper ikke har sagt fra om problemer.</li>
+      </ul>
+      <p>
+        Hvis det oppstår tvist, holdes pengene i forvaring til saken er løst.
+      </p>
+
+      <h2 class="font-serif text-2xl">Hvorfor bruke det?</h2>
+      <p><strong>For kjøper:</strong> du risikerer ikke å sende penger og aldri få varen, eller å motta noe helt annet enn det som ble lovet.</p>
+      <p><strong>For selger:</strong> du vet at pengene faktisk finnes. Stripe har trukket dem fra kjøperens kort, så du slipper å vente på Vipps eller undersøke om kjøper er seriøs.</p>
+
+      <h2 class="font-serif text-2xl">Hva koster det?</h2>
+      <p>
+        <strong>For selger: ingenting.</strong> Du får hele beløpet, både for varen og frakten.
+      </p>
+      <p>
+        Kjøper betaler en liten avgift som dekker plattformen og garantien:
+      </p>
+      <ul class="list-disc pl-5 space-y-2">
+        <li><strong>9 kr</strong> for varer opptil 200 kr</li>
+        <li><strong>19 kr</strong> for varer 201–500 kr</li>
+        <li><strong>29 kr</strong> for varer over 500 kr</li>
+      </ul>
+      <p>Avgiften vises tydelig på kjøpssiden før kjøperen fullfører.</p>
+
+      <h2 class="font-serif text-2xl">Tidslinje for et trygt kjøp</h2>
+      <ol class="list-decimal pl-5 space-y-3">
+        <li><strong>Kjøp.</strong> Kjøper betaler. Pengene trekkes fra kortet og holdes hos Stripe.</li>
+        <li><strong>Pakk og send.</strong> Selger har vanligvis 1–3 virkedager på å sende. Selger markerer som «sendt» i annonsen, helst med sporingsnummer.</li>
+        <li><strong>Levering.</strong> Posten leverer pakken. Brev og Norgespakke har sporing.</li>
+        <li><strong>Bekreft mottak.</strong> Kjøper bekrefter at varen er som forventet → pengene frigjøres til selger samme dag.</li>
+        <li><strong>Automatisk frigjøring.</strong> Hvis kjøper ikke svarer innen 14 dager etter sending, frigjøres pengene automatisk.</li>
+      </ol>
+
+      <h2 class="font-serif text-2xl">Hvis noe ikke stemmer</h2>
+      <p>Får du noe annet enn det som ble lovet, eller varen kommer aldri fram?</p>
+      <ol class="list-decimal pl-5 space-y-2">
+        <li>Snakk først med selger i meldingstråden. De fleste sakene løses raskt.</li>
+        <li>Hvis ikke: trykk <strong>Rapporter problem</strong> på annonsesiden. Pengene fryses inntil saken er avgjort.</li>
+        <li>Vår moderator gjennomgår saken og hjelper dere fram til en løsning.</li>
+      </ol>
+      <p>Du har 14 dager etter sending på å rapportere problemer.</p>
+
+      <h2 class="font-serif text-2xl">Hva med Vipps?</h2>
+      <p>
+        Vi støtter ikke Vipps som betalingsmetode i dag, men <a href="/hjelp" class="text-terracotta-500 hover:underline">vurderer det fortløpende</a>.
+        Foreløpig kan kjøp gjennomføres med kort (Visa, Mastercard), Apple Pay og Google Pay via Stripe.
+      </p>
+
+      <h2 class="font-serif text-2xl">Datasikkerhet</h2>
+      <p>
+        Kortinformasjon håndteres aldri av Strikketorget. Alt går direkte til Stripe,
+        som er PCI DSS Level 1-sertifisert. Vi ser kun siste fire siffer og bekreftelsen.
+      </p>
+
+      <hr class="border-sage-500/15 my-10" />
+      <p class="text-sm text-charcoal/55">
+        Se også: <a href="/hjelp/selge" class="text-terracotta-500 hover:underline">Hvordan selge</a> ·
+        <a href="/hjelp/kjope" class="text-terracotta-500 hover:underline">Hvordan kjøpe</a> ·
+        <a href="/hjelp" class="text-terracotta-500 hover:underline">Tilbake til hjelp</a>
+      </p>
+    </div>
+  </div>
+</Layout>

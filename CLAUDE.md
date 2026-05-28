@@ -12,9 +12,15 @@ Tech: Astro 6 SSR, Tailwind CSS, Supabase (auth + DB + storage), Stripe, Cloudfl
 ## Build & dev
 
 ```
-npm run dev       # dev server at localhost:4321
-npm run build     # production build — must pass with zero errors before committing
+npm run dev         # dev server at localhost:4321
+npm run dev:fresh   # same, but wipes node_modules/.vite first (clears stale Vite cache)
+npm run build       # production build, must pass with zero errors before committing
 ```
+
+**Recurring Vite cache issue**: when the dev server starts throwing
+"fetch failed" / "Invalid hook call" / "module not found" errors mid-session,
+the optimized-deps cache is stale. Kill the dev server and run
+`npm run dev:fresh` to clear it. Doesn't affect prod builds.
 
 ## Architecture rules
 
@@ -74,9 +80,11 @@ Use `projectPhotoUrl()` from `src/lib/storage.ts` for all Supabase storage image
 
 ## Styling conventions
 
-- **Design tokens:** `bg-linen` (page bg), `text-charcoal` (text), `terracotta-500` (accent/CTA), `sage-500` (secondary), `oatmeal` (neutral)
-- **Label pattern:** `text-[10px] font-bold uppercase tracking-widest text-charcoal/45` — use `StatusBadge` component instead of writing this inline
-- **CTA buttons:** `bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors`
+- **Palette tokens:** `bg-linen` (page bg), `text-charcoal` (text), `terracotta-500` (brand accent), `sage-500` (secondary), `oatmeal` (neutral).
+- **Semantic tokens (preferred for new code):** `bg-primary`, `text-primary-fg`, `hover:bg-primary-hover`. Defined in `src/styles/global.css` `@theme` so a single edit re-skins every primary action site-wide.
+- **Label pattern:** `text-[10px] font-bold uppercase tracking-widest text-charcoal/45` — use `StatusBadge` component instead of writing this inline.
+- **CTA buttons:** Use the `btn-primary` utility class (defined in `@layer components`), combined with sizing classes. Example: `class="btn-primary px-5 py-2.5 rounded-full text-sm font-medium"`. Equivalent to `bg-primary text-primary-fg hover:bg-primary-hover transition-colors` if you want it inline.
+- **`bg-charcoal text-linen` is page chrome** (footers, dark nav strips). For interactive primary actions, always use the primary tokens instead.
 - **Cards:** `bg-white rounded-2xl border border-sage-500/10` (or `rounded-3xl` for larger containers)
 - **Font:** Serif for headings (`font-serif`), sans for body
 - **Content width:** `max-w-5xl` for all marketplace pages (enforced by MarketplaceShell). Do not create pages with different widths.
@@ -117,3 +125,42 @@ API routes use a service layer pattern in `src/lib/services/`. Each service func
 ## Language
 
 The UI is in Norwegian (Bokmål). Use `nb-NO` locale for dates and numbers. The i18n system in `src/lib/i18n.ts` supports `nb` and `en` but most marketplace/studio pages are Norwegian-only.
+
+### Punctuation
+
+- **No em-dash (`—`)** in Norwegian copy. Use commas, periods, or parentheses instead. Reads like English-translated copy otherwise.
+- **En-dash (`–`)** is fine for numeric ranges (`9–29 kr`, `3–5 år`).
+- **Centre dot (`·`)** is OK as a separator in titles and button labels (`Hjelp · Strikketorget`, `Bekreft kjøp · 294 kr`).
+- Code comments and dev-only strings (debug logs, test labels) can keep em-dashes — the rule is about user-facing copy.
+
+## Test coverage is required for every new feature
+
+**Standing rule**: when you add a feature, you also ship the tests that cover it. The codebase has three test layers — use whichever fits:
+
+| Layer | Where | When to use |
+|-------|-------|-------------|
+| **Vitest unit** | `src/**/*.test.ts` (next to the source file) | Pure functions, service helpers without I/O, formatters, derivations. Fast, no DB. |
+| **Playwright e2e** | `e2e/*.spec.ts` | UI flows that touch real pages. Auth-gated screens. Anything where the assertion is "does the user see X". |
+| **UI Flows page scenario** | `src/pages/dev/ui-flows.astro` (FLOWS array) | Visual regression / demo coverage. Especially valuable for cross-persona flows and shortcut-heavy demos where you'd hand-walk someone through. |
+
+Rules of thumb:
+
+- A new page route → at least one Playwright e2e that loads it as the expected persona and asserts a heading or key text.
+- A new server action / API endpoint → a unit test for the pure parts AND/OR an e2e that triggers it through the UI.
+- A new UI surface (button, modal, form section) → a UI Flows scenario so it's clickable in `/dev/ui-flows` for visual review.
+- A new field on `profiles` / `listings` / etc — either e2e setting the value through the UI, or a service-layer unit test, or both.
+- A bug fix — add the test that would have caught it. If you can't write one, leave a `// TODO: cover with test` note explaining why.
+
+Helpers you'll often need:
+- `test-exec` actions in `src/pages/api/dev/test-exec.ts` for seeding, lookups, and bypassing flows (Stripe Checkout, file pickers). Add new actions here when needed.
+- `set-profile-visible`, `lookup-user`, `count-notifications`, `count-follows`, `seed-screens`, `seed-buyflow-listing` are pre-built and used by existing specs.
+- `/dev/screens` is the mock-click harness for manual visual review. Adding a screen there is free coverage and helps non-dev viewers see the platform.
+
+Running tests:
+```
+npm test                                                # vitest unit
+npx playwright test --project=chromium --reporter=list  # full e2e
+npx playwright test follow-feed.spec.ts                 # single spec
+```
+
+The build (`npm run build`) is not a substitute for tests — TypeScript and Astro check shapes, not behaviour.

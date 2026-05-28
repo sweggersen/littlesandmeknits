@@ -37,7 +37,7 @@ const enriched = await Promise.all(
 <StudioLayout title="Kjøp — Littles and Me" lang="nb">
   <div class="flex items-center justify-between mb-8 gap-4">
     <h1 class="font-serif text-3xl sm:text-4xl">{t('studio.nav.purchases')}</h1>
-    <a href="/patterns" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+    <a href="/patterns" class="shrink-0 bg-primary text-primary-fg px-4 py-2 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
       Kjøp oppskrifter
     </a>
   </div>
@@ -47,7 +47,7 @@ const enriched = await Promise.all(
       <p class="text-charcoal/55 mb-6">{t('studio.empty.purchases')}</p>
       <a
         href="/patterns"
-        class="inline-block bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        class="inline-block bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
       >
         {t('studio.cta.browsePatterns')}
       </a>
@@ -73,7 +73,7 @@ const enriched = await Promise.all(
               href={`/api/download/${p.id}`}
               target="_blank"
               rel="noopener"
-              class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap"
+              class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
             >
               Last ned PDF
             </a>

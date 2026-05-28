@@ -99,7 +99,7 @@ for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_
     {tabs.map(t => (
       <a href={`/admin/moderation?tab=${t.id}`} class:list={[
         'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-        tab === t.id ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50',
+        tab === t.id ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50',
       ]}>{t.label}</a>
     ))}
   </div>

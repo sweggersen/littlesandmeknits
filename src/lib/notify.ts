@@ -29,7 +29,8 @@ export type NotificationType =
   | 'dispute_opened'
   | 'dispute_resolved'
   | 'achievement_unlocked'
-  | 'moderation_message';
+  | 'moderation_message'
+  | 'seller_new_listing';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -58,6 +59,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   dispute_resolved: 'email_item_approved',
   achievement_unlocked: 'email_item_approved',
   moderation_message: 'email_item_approved',
+  seller_new_listing: 'email_item_approved',
 };
 
 interface NotifyEnv {
@@ -154,6 +156,45 @@ export async function createNotification(
   } catch {
     // Push is best-effort
   }
+}
+
+/** Notify all followers of a seller that a new listing has gone live.
+ *  Best-effort: skips the seller themselves, swallows per-follower errors.
+ *  Called from publishListing (auto-approved trusted sellers) and from
+ *  applyApproval (after moderation). */
+export async function notifyFollowersOfNewListing(
+  admin: SupabaseClient,
+  opts: { sellerId: string; listingId: string; listingTitle: string; sellerName?: string | null },
+  env?: NotifyEnv,
+): Promise<number> {
+  const { data: follows } = await admin
+    .from('seller_follows')
+    .select('follower_id')
+    .eq('seller_id', opts.sellerId);
+  if (!follows?.length) return 0;
+
+  const who = opts.sellerName?.trim() || 'En selger du følger';
+  const title = `${who} la ut en ny annonse`;
+  const body = `«${opts.listingTitle}» er nå tilgjengelig.`;
+  const url = `/market/listing/${opts.listingId}`;
+
+  let sent = 0;
+  for (const f of follows) {
+    if (f.follower_id === opts.sellerId) continue;
+    try {
+      await createNotification(admin, {
+        userId: f.follower_id,
+        type: 'seller_new_listing',
+        title, body, url,
+        actorId: opts.sellerId,
+        referenceId: opts.listingId,
+      }, env);
+      sent++;
+    } catch (err) {
+      console.error('seller_new_listing notify failed for', f.follower_id, err);
+    }
+  }
+  return sent;
 }
 
 /** Notify all eligible moderators about a new item in the queue.

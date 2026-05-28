@@ -99,13 +99,16 @@ export const POST: APIRoute = async ({ request }) => {
         return new Response('Missing metadata', { status: 400 });
       }
 
+      const startsAtIso = new Date().toISOString();
       const endsAt = new Date(Date.now() + 7 * 86400_000).toISOString();
 
       await supabase
         .from('listing_promotions')
         .update({
           status: 'active',
+          starts_at: startsAtIso,
           ends_at: endsAt,
+          daily_window_start: startsAtIso,
           stripe_payment_intent_id: typeof session.payment_intent === 'string'
             ? session.payment_intent
             : session.payment_intent?.id ?? null,
@@ -114,7 +117,7 @@ export const POST: APIRoute = async ({ request }) => {
 
       await supabase
         .from('listings')
-        .update({ promoted_until: endsAt, promotion_tier: tier })
+        .update({ promoted_until: endsAt, promotion_tier: tier, promoted_at: startsAtIso })
         .eq('id', promoListingId);
 
       return new Response('ok', { status: 200 });

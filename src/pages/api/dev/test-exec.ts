@@ -606,10 +606,22 @@ async function handle(
     }
 
     case 'publish-listing': {
-      const { error } = await db.from('listings')
+      const { data: l, error } = await db.from('listings')
         .update({ status: 'active', published_at: new Date().toISOString(), listing_fee_nok: 29 })
-        .eq('id', p.listing_id);
+        .eq('id', p.listing_id)
+        .select('id, seller_id, title')
+        .maybeSingle();
       if (error) throw error;
+      if (l?.seller_id) {
+        const { data: profile } = await db.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
+        const { notifyFollowersOfNewListing } = await import('../../../lib/notify');
+        await notifyFollowersOfNewListing(db, {
+          sellerId: l.seller_id,
+          listingId: l.id,
+          listingTitle: l.title ?? 'Ny annonse',
+          sellerName: profile?.display_name,
+        });
+      }
       return { data: { status: 'active' } };
     }
 
@@ -695,6 +707,152 @@ async function handle(
       const role = p.role || null;
       await db.from('profiles').update({ role }).eq('id', actorId);
       return { data: { role, user_id: actorId } };
+    }
+
+    case 'set-profile-visible': {
+      if (!actorId) throw new Error('Actor required');
+      await db.from('profiles').update({ profile_visible: p.visible !== false }).eq('id', actorId);
+      return { data: { user_id: actorId, visible: p.visible !== false } };
+    }
+
+    case 'lookup-user': {
+      const email = p.email as string | undefined;
+      if (!email) throw new Error('email required');
+      const id = emailToId.get(email);
+      if (!id) throw new Error(`No test user with email ${email}`);
+      return { data: { id, email } };
+    }
+
+    case 'count-notifications': {
+      if (!actorId) throw new Error('Actor required');
+      let query = db.from('notifications').select('id', { count: 'exact', head: true }).eq('user_id', actorId);
+      if (p.type) query = query.eq('type', p.type);
+      const { count } = await query;
+      return { data: { count: count ?? 0 } };
+    }
+
+    // Single-shot prep for the full-buyflow demo: Eline trusted+onboarded,
+    // brand new listing with two photos, status=active. Used by the
+    // /dev/ui-flows "Full E2E" scenario.
+    case 'seed-buyflow-listing': {
+      const elineId = emailToId.get('eline@test.strikketorget.no');
+      const livId = emailToId.get('liv@test.strikketorget.no');
+      if (!elineId || !livId) throw new Error('seed-buyflow-listing needs user_emails: [eline, liv]');
+      await db.from('profiles').update({
+        profile_visible: true,
+        trust_score: 100, trust_tier: 'trusted',
+        stripe_onboarded: true,
+      }).eq('id', elineId);
+      await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
+
+      const cat = 'genser';
+      const { data: l, error } = await db.from('listings').insert({
+        seller_id: elineId,
+        kind: 'pre_loved',
+        title: 'E2E demo: Strikket genser str. 2 år',
+        category: cat,
+        size_label: '2 år',
+        price_nok: 350,
+        condition: 'lite_brukt',
+        description: 'Demo-annonse for full kjøp-flyt.',
+        status: 'active',
+        published_at: new Date().toISOString(),
+        listing_fee_nok: 29,
+        shipping_option: 'small_parcel',
+        shipping_price_nok: 76,
+        escrow_enabled: true,
+      }).select('id').single();
+      if (error) throw error;
+
+      const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+      for (let i = 0; i < 2; i++) {
+        const png = await makeTestPng(colors[i % colors.length]);
+        const path = `${elineId}/listings/${l.id}/photo-${crypto.randomUUID()}.png`;
+        await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+        await db.from('listing_photos').insert({ listing_id: l.id, path, position: i });
+      }
+      const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', l.id).order('position').limit(1).maybeSingle();
+      if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', l.id);
+
+      return { data: { elineId, livId, listingId: l.id } };
+    }
+
+    case 'count-follows': {
+      const sellerId = p.seller_id as string | undefined;
+      if (!sellerId) throw new Error('seller_id required');
+      const { count } = await db.from('seller_follows').select('follower_id', { count: 'exact', head: true }).eq('seller_id', sellerId);
+      return { data: { count: count ?? 0 } };
+    }
+
+    // Build a representative scenario for /dev/screens manual review:
+    // - Eline: trusted seller, profile visible, one published listing,
+    //   one draft without photos (→ wizard step 3 page is meaningful),
+    //   one draft with photos but not published.
+    // - Liv: follows Eline → home shows the follow row + has notifications.
+    case 'seed-screens': {
+      // Caller must pass user_emails: [ELINE, LIV] so the outer handler
+      // creates them via ensureTestUser before we land here.
+      const elineId = emailToId.get('eline@test.strikketorget.no');
+      const livId = emailToId.get('liv@test.strikketorget.no');
+      if (!elineId || !livId) throw new Error('seed-screens needs user_emails: [eline, liv]');
+      await db.from('profiles').update({
+        profile_visible: true, trust_score: 100, trust_tier: 'trusted', stripe_onboarded: true,
+      }).eq('id', elineId);
+      await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
+
+      async function listing(opts: { title: string; status: string; photoCount: number; category?: string }) {
+        const cat = opts.category ?? 'genser';
+        const { data, error } = await db.from('listings').insert({
+          seller_id: elineId,
+          kind: 'pre_loved',
+          title: opts.title,
+          category: cat,
+          size_label: '2 år',
+          price_nok: 349,
+          condition: 'lite_brukt',
+          description: 'Demo-annonse for /dev/screens.',
+          status: opts.status,
+          published_at: opts.status === 'active' ? new Date().toISOString() : null,
+          listing_fee_nok: opts.status === 'active' ? 29 : null,
+        }).select('id').single();
+        if (error) throw error;
+        if (opts.photoCount > 0) {
+          const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+          for (let i = 0; i < Math.min(opts.photoCount, 6); i++) {
+            const png = await makeTestPng(colors[i % colors.length]);
+            const path = `${elineId}/listings/${data.id}/photo-${crypto.randomUUID()}.png`;
+            await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+            await db.from('listing_photos').insert({ listing_id: data.id, path, position: i });
+          }
+          const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', data.id).order('position').limit(1).maybeSingle();
+          if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', data.id);
+        }
+        return data.id;
+      }
+
+      const liveId = await listing({ title: 'Strikket genser str 2 år (publisert)', status: 'active', photoCount: 2 });
+      const draftEmptyId = await listing({ title: 'Mariusgenser str 4 år (utkast, ingen bilder)', status: 'draft', photoCount: 0 });
+      const draftReadyId = await listing({ title: 'Babylue rosa (utkast, har bilder)', status: 'draft', photoCount: 3, category: 'lue' });
+
+      // Liv follows Eline.
+      await db.from('seller_follows').upsert(
+        { follower_id: livId, seller_id: elineId },
+        { onConflict: 'follower_id,seller_id' }
+      );
+
+      // One unread notification for Liv (so /notifications has content).
+      await db.from('notifications').insert({
+        user_id: livId, type: 'seller_new_listing',
+        title: 'Eline la ut en ny annonse', body: '«Strikket genser str 2 år (publisert)» er nå tilgjengelig.',
+        url: `/market/listing/${liveId}`,
+        actor_id: elineId, reference_id: liveId,
+      });
+
+      // The home "Nye fra sellere du følger" row reads from the matview;
+      // refresh so the seed is visible immediately.
+      await db.rpc('refresh_user_preferences');
+
+      return { data: { elineId, livId, liveListingId: liveId, draftEmptyId, draftReadyId } };
     }
 
     case 'set-trust': {
@@ -1311,6 +1469,8 @@ async function handle(
       await db.from('reports').delete().in('reporter_id', testUserIds);
       await db.from('seller_reviews').delete().in('reviewer_id', testUserIds);
       await db.from('transaction_reviews').delete().in('reviewer_id', testUserIds);
+      await db.from('seller_follows').delete().in('follower_id', testUserIds);
+      await db.from('seller_follows').delete().in('seller_id', testUserIds);
 
       // Queue items submitted by or decided by test users
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);
@@ -1333,10 +1493,13 @@ async function handle(
         await db.from('stores').delete().in('id', ids);
       }
 
-      // Reset roles and trust for test users
+      // Reset roles, trust, and onboarding fields for test users so each
+      // test starts from a clean state.
       await db.from('profiles').update({
         role: null, trust_score: 0, trust_tier: 'new',
         total_completed_transactions: 0, total_rejections: 0,
+        birthday: null, welcomed_at: null,
+        first_name: null, last_name: null, marketing_consent_at: null,
       }).in('id', testUserIds);
 
       // Re-apply the canonical persona roles. Kari is the dedicated

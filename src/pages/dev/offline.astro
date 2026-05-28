@@ -1,0 +1,46 @@
+---
+// Localhost-only preview of the SW's offline HTML. Fetches /sw.js
+// client-side (Workers SSR can't read the local filesystem), extracts
+// the OFFLINE_HTML template literal, and rewrites the document with
+// it — so what you see is byte-identical to what an offline navigation
+// renders.
+const host = Astro.url.hostname;
+if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
+  return Astro.redirect('/market');
+}
+---
+<!doctype html>
+<html lang="nb-NO">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Offline preview</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #FAF6F0;
+      color: #2C2A26; min-height: 100vh; display: flex; align-items: center;
+      justify-content: center; padding: 24px; }
+    .loader { text-align: center; color: rgba(44,42,38,.55); font-size: 14px; }
+  </style>
+</head>
+<body>
+  <p class="loader">Henter offline-siden …</p>
+  <script>
+    (async () => {
+      try {
+        const res = await fetch('/sw.js', { cache: 'no-store' });
+        const sw = await res.text();
+        const m = sw.match(/const OFFLINE_HTML = `([\s\S]*?)`;/);
+        if (!m) throw new Error('OFFLINE_HTML not found in /sw.js');
+        // Replace the entire document. document.open() + write swaps the
+        // doctype and all <head>/<body> contents, and lets the embedded
+        // <script> in the offline HTML execute as if loaded normally.
+        document.open();
+        document.write(m[1]);
+        document.close();
+      } catch (err) {
+        document.body.innerHTML = '<p>' + (err instanceof Error ? err.message : String(err)) + '</p>';
+      }
+    })();
+  </script>
+</body>
+</html>

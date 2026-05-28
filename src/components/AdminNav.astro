@@ -26,7 +26,7 @@ const adminLinks = [
   {modLinks.map(link => (
     <a href={link.href} class:list={[
       'block px-3 py-2 text-sm rounded-lg transition-colors',
-      current === link.id ? 'bg-charcoal text-linen font-medium' : 'text-charcoal/70 hover:bg-sage-100/50',
+      current === link.id ? 'bg-primary text-primary-fg font-medium' : 'text-charcoal/70 hover:bg-sage-100/50',
     ]}>{link.label}</a>
   ))}
 
@@ -37,7 +37,7 @@ const adminLinks = [
       {adminLinks.map(link => (
         <a href={link.href} class:list={[
           'block px-3 py-2 text-sm rounded-lg transition-colors',
-          current === link.id ? 'bg-charcoal text-linen font-medium' : 'text-charcoal/70 hover:bg-sage-100/50',
+          current === link.id ? 'bg-primary text-primary-fg font-medium' : 'text-charcoal/70 hover:bg-sage-100/50',
         ]}>{link.label}</a>
       ))}
     </>

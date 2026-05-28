@@ -1,0 +1,82 @@
+---
+export const prerender = true;
+import Layout from '../../layouts/Layout.astro';
+
+const topics = [
+  {
+    href: '/hjelp/selge',
+    title: 'Hvordan selge',
+    body: 'Lag den første annonsen, gode bilder, riktig pris og hvordan sende varen.',
+    icon: '🧶',
+  },
+  {
+    href: '/hjelp/kjope',
+    title: 'Hvordan kjøpe',
+    body: 'Slik finner du riktig plagg, betaler trygt og mottar varen.',
+    icon: '🛒',
+  },
+  {
+    href: '/hjelp/trygg-betaling',
+    title: 'Trygg betaling forklart',
+    body: 'Pengene holdes i sikker forvaring til varen er mottatt. Slik fungerer det.',
+    icon: '🛡️',
+  },
+];
+
+const faqs = [
+  {
+    q: 'Hvor gammel må jeg være?',
+    a: 'Du må være minst 13 år for Strikkestua, og 15 år for å kjøpe eller selge på Strikketorget. Aldersgrensen for kjøp og salg følger vergemålsloven § 12.',
+  },
+  {
+    q: 'Hvor mye koster det å legge ut en annonse?',
+    a: 'Det er gratis å legge ut og publisere annonser. Vi tar ingen prosent av salget. Kjøperen betaler en liten avgift (9–29 kr avhengig av pris) når trygg betaling er aktivert, og du som selger får hele beløpet.',
+  },
+  {
+    q: 'Hvor lang tid tar det før annonsen blir synlig?',
+    a: 'Annonser gjennomgår kort moderering, vanligvis innen et døgn. Du får varsel når den er publisert.',
+  },
+  {
+    q: 'Hva hvis kjøperen ikke svarer etter at jeg har sendt varen?',
+    a: 'Med trygg betaling frigjøres pengene automatisk 14 dager etter sending. Du trenger ikke jage kjøperen.',
+  },
+  {
+    q: 'Kan jeg selge på vegne av en butikk eller organisasjon?',
+    a: 'Ja. Opprett en butikk via Strikkestua og knytt den til organisasjonen din via Tier-2-verifisering. Da kan du publisere som butikk.',
+  },
+];
+---
+
+<Layout title="Hjelp · Strikketorget" lang="nb">
+  <div class="max-w-3xl mx-auto px-6 py-14">
+    <h1 class="font-serif text-4xl sm:text-5xl mb-3">Hjelp</h1>
+    <p class="text-charcoal/55 text-base mb-10">
+      Korte guider og svar på vanlige spørsmål. Finner du ikke det du leter etter?
+      Send en e-post til <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">hei@littlesandmeknits.com</a>.
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14">
+      {topics.map((t) => (
+        <a href={t.href} class="block bg-white rounded-3xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+          <p class="text-2xl mb-3">{t.icon}</p>
+          <h2 class="font-serif text-lg mb-2">{t.title}</h2>
+          <p class="text-sm text-charcoal/65 leading-relaxed">{t.body}</p>
+        </a>
+      ))}
+    </div>
+
+    <h2 class="font-serif text-2xl mb-5">Vanlige spørsmål</h2>
+    <div class="space-y-3">
+      {faqs.map((f) => (
+        <details class="bg-white rounded-2xl border border-sage-500/10 p-4">
+          <summary class="cursor-pointer text-sm font-medium">{f.q}</summary>
+          <p class="text-sm text-charcoal/70 mt-3 leading-relaxed">{f.a}</p>
+        </details>
+      ))}
+    </div>
+
+    <p class="text-sm text-charcoal/55 mt-12">
+      Trenger du mer hjelp? <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">Kontakt oss</a>.
+    </p>
+  </div>
+</Layout>

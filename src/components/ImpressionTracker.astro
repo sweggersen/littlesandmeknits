@@ -7,28 +7,69 @@ const { source } = Astro.props;
 
 <script is:inline define:vars={{ source }}>
 (function() {
+  // is:inline scripts re-run on every Astro navigation. Guard the
+  // document-level click listener so we don't accumulate duplicates.
+  if (window.__lmkClickHandlerAttached) {
+    // still set current source so beacons reflect the active page
+    window.__lmkClickSource = source;
+  } else {
+    window.__lmkClickHandlerAttached = true;
+    window.__lmkClickSource = source;
+    document.addEventListener('click', function(ev) {
+      var card = ev.target.closest && ev.target.closest('[data-listing-item-id]');
+      if (!card) return;
+      var id = card.getAttribute('data-listing-item-id');
+      if (!id) return;
+      var payload = JSON.stringify({ listing_id: id, source: window.__lmkClickSource });
+      try {
+        if (navigator.sendBeacon) {
+          var blob = new Blob([payload], { type: 'application/json' });
+          navigator.sendBeacon('/api/track/click', blob);
+        } else {
+          fetch('/api/track/click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: payload,
+            keepalive: true,
+          }).catch(function() {});
+        }
+      } catch (_) {}
+    }, { capture: true });
+  }
+
   var tracked = new Set();
+
+  function indexOfCard(el) {
+    // 1-based position among all listing cards currently in the DOM,
+    // in document order. Stable across re-renders within the same page.
+    var cards = document.querySelectorAll('[data-listing-item-id]');
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i] === el) return i + 1;
+    }
+    return null;
+  }
+
   var observer = new IntersectionObserver(function(entries) {
-    var batch = [];
+    var rows = [];
     entries.forEach(function(entry) {
       if (!entry.isIntersecting) return;
       var el = entry.target;
       var id = el.getAttribute('data-listing-item-id');
       if (!id || tracked.has(id)) return;
       tracked.add(id);
-      batch.push(id);
+      rows.push({
+        listing_id: id,
+        position: indexOfCard(el),
+        promoted: el.getAttribute('data-promoted') === 'true',
+        tier: el.getAttribute('data-promotion-tier') || null,
+      });
       observer.unobserve(el);
     });
-    if (batch.length === 0) return;
-    var promoted = [];
-    batch.forEach(function(id) {
-      var el = document.querySelector('[data-listing-item-id="' + id + '"]');
-      if (el && el.getAttribute('data-promoted') === 'true') promoted.push(id);
-    });
+    if (rows.length === 0) return;
     fetch('/api/track/impression', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listing_ids: batch, source: source, promoted: promoted }),
+      body: JSON.stringify({ source: source, rows: rows }),
       keepalive: true,
     }).catch(function() {});
   }, { threshold: 0.5 });

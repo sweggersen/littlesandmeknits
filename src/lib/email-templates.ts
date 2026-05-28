@@ -84,6 +84,59 @@ const templates: Partial<Record<NotificationType, (p: { title: string; body?: st
   }),
 };
 
+export function renderWelcomeEmail(opts: { name?: string | null; siteUrl: string }): { subject: string; html: string } {
+  const greeting = opts.name ? `Hei ${opts.name}!` : 'Velkommen!';
+  const html = wrap(`
+<h2 style="font-size:22px;margin:0 0 12px">${greeting}</h2>
+<p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 16px">
+  Så hyggelig at du fant veien til Strikketorget, et lite varmt sted for håndstrikkede plagg og oppdrag mellom strikkeglade folk i Norge.
+</p>
+<p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 16px">
+  Her er to ting å vite før du begynner:
+</p>
+<ul style="font-size:15px;color:#555;line-height:1.7;margin:0 0 20px;padding-left:20px">
+  <li><strong>Legg ut din første annonse</strong>. Det tar et par minutter, og du kan velge mellom brukt eller nytt.</li>
+  <li><strong>Trygg betaling</strong> holder pengene i sikker forvaring til varen er mottatt. Kjøper betaler en liten avgift, selger får alt utbetalt automatisk.</li>
+</ul>
+${btn(opts.siteUrl + '/market/listing/new', 'Legg ut første annonse')}
+<p style="margin:16px 0 0;font-size:14px;color:#888">
+  Eller <a href="${opts.siteUrl}/market" style="color:#c2604a;text-decoration:none">se hva andre legger ut</a> først.
+</p>
+<p style="margin:32px 0 0;font-size:13px;color:#888;line-height:1.5">
+  Har du spørsmål? Bare svar på denne e-posten. Vi leser hver eneste melding.
+</p>
+`);
+  return { subject: 'Velkommen til Strikketorget', html: html.replaceAll('{{siteUrl}}', opts.siteUrl) };
+}
+
+export function renderDraftNudgeEmail(opts: {
+  name?: string | null;
+  listingTitle: string;
+  listingId: string;
+  siteUrl: string;
+}): { subject: string; html: string } {
+  const greet = opts.name ? `Hei ${opts.name}!` : 'Hei!';
+  const html = wrap(`
+<h2 style="font-size:22px;margin:0 0 12px">${greet}</h2>
+<p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 16px">
+  Du startet på en annonse, <strong>«${opts.listingTitle}»</strong>, men la den ikke ut.
+  Det eneste som mangler er bilder. Det tar et par minutter.
+</p>
+<p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 20px">
+  Tips: annonser med 3+ bilder får betydelig flere visninger.
+</p>
+${btn(opts.siteUrl + '/market/listing/' + opts.listingId + '/foto', 'Last opp bilder nå')}
+<p style="margin:16px 0 0;font-size:14px;color:#888">
+  Eller <a href="${opts.siteUrl}/market/my-listings" style="color:#c2604a;text-decoration:none">se alle utkastene dine</a>.
+</p>
+<p style="margin:32px 0 0;font-size:13px;color:#888;line-height:1.5">
+  Vil du heller slette utkastet? Det kan du gjøre fra annonsesiden, eller bare ignorere denne e-posten:
+  utkast lagres ubegrenset.
+</p>
+`);
+  return { subject: 'Du er nesten ferdig, bare bildene mangler', html: html.replaceAll('{{siteUrl}}', opts.siteUrl) };
+}
+
 export function renderEmail(
   type: NotificationType,
   opts: { title: string; body?: string; url?: string; siteUrl: string },

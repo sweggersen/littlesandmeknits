@@ -4,6 +4,7 @@ import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import ReportButton from '../../../components/ReportButton.astro';
 import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import StarRating from '../../../components/StarRating.astro';
+import TryggBetaling from '../../../components/TryggBetaling.astro';
 import { purchaseBreakdown } from '../../../lib/shipping';
 import Alert from '../../../components/Alert.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
@@ -72,14 +73,18 @@ const sellerAvgRating = sellerReviewCount
   ? (sellerRatingRows!.reduce((s, r) => s + (r.rating ?? 0), 0) / sellerReviewCount)
   : 0;
 
-const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }] = await Promise.all([
+const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }, { data: followRow }] = await Promise.all([
   supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
   supabase.from('seller_reviews').select('id, reviewer_id, rating, comment, created_at').eq('listing_id', id),
   listing.store_id
     ? supabase.from('stores').select('id, slug, name, logo_path, location_city, verified, stripe_onboarded').eq('id', listing.store_id).maybeSingle()
     : Promise.resolve({ data: null }),
+  user && user.id !== listing.seller_id
+    ? supabase.from('seller_follows').select('seller_id').eq('follower_id', user.id).eq('seller_id', listing.seller_id).maybeSingle()
+    : Promise.resolve({ data: null }),
 ]);
+const isFollowing = !!followRow;
 const isStoreListing = !!storeRow;
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
@@ -237,7 +242,7 @@ const autoReleaseDays = listing.auto_release_at
                 <div class="flex items-center gap-2">
                   <input name="photos" type="file" accept="image/*" multiple required
                     class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
-                  <button type="submit" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                  <button type="submit" class="shrink-0 bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                     Last opp
                   </button>
                 </div>
@@ -317,7 +322,7 @@ const autoReleaseDays = listing.auto_release_at
               </button>
             )}
           </div>
-          <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} NOK</p>
+          <p class="font-mono tabular-nums text-3xl mb-6">{listing.price_nok} kr</p>
 
           <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
             <div>
@@ -393,7 +398,7 @@ const autoReleaseDays = listing.auto_release_at
                       class:list={['px-6 py-3 rounded-full text-sm font-medium transition-colors',
                         photos.length === 0
                           ? 'bg-charcoal/30 text-linen cursor-not-allowed'
-                          : 'bg-charcoal text-linen hover:bg-terracotta-500']}>
+                          : 'bg-primary text-primary-fg hover:bg-primary-hover']}>
                       Publiser
                     </button>
                   </form>
@@ -422,7 +427,7 @@ const autoReleaseDays = listing.auto_release_at
                   </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`}>
                     <input type="hidden" name="enabled" value="true" />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Aktiver trygg betaling (gratis)
                     </button>
                   </form>
@@ -432,7 +437,7 @@ const autoReleaseDays = listing.auto_release_at
                 <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center justify-between gap-3 flex-wrap">
                   <div class="flex items-center gap-2">
                     <span>🛡️</span>
-                    <span>Trygg betaling er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
+                    <span><TryggBetaling /> er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
                   </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`} class="shrink-0">
                     <input type="hidden" name="enabled" value="false" />
@@ -444,7 +449,7 @@ const autoReleaseDays = listing.auto_release_at
                 <Alert type="success" class="mt-4">Annonsen din er nå fremhevet!</Alert>
               )}
               {listing.status === 'active' && listing.promoted_until && new Date(listing.promoted_until) > new Date() ? (
-                <section class="bg-white rounded-3xl p-6 border border-terracotta-500/20 mt-4">
+                <section id="promoter" class="bg-white rounded-3xl p-6 border border-terracotta-500/20 mt-4 scroll-mt-20">
                   <div class="flex items-center gap-2 mb-2">
                     <StatusBadge label="Fremhevet" variant="terracotta" />
                     <span class="text-xs text-charcoal/45">
@@ -455,9 +460,9 @@ const autoReleaseDays = listing.auto_release_at
                   <a href={`/market/stats/${listing.id}`} class="text-xs text-terracotta-500 hover:underline">Se statistikk →</a>
                 </section>
               ) : listing.status === 'active' ? (
-                <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mt-4">
+                <section id="promoter" class="bg-white rounded-3xl p-6 border border-sage-500/10 mt-4 scroll-mt-20">
                   <h2 class="font-serif text-xl mb-2">Fremhev annonsen</h2>
-                  <p class="text-sm text-charcoal/65 mb-4">Gi annonsen din mer synlighet — promoterte annonser vises øverst i søk og på forsiden.</p>
+                  <p class="text-sm text-charcoal/65 mb-4">Gi annonsen din mer synlighet. Promoterte annonser vises øverst i søk og på forsiden.</p>
                   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-stretch">
                     <div class="space-y-1.5 flex flex-col">
                       <form method="post" action={`/api/marketplace/listings/${listing.id}/promote`} class="flex-1">
@@ -470,7 +475,7 @@ const autoReleaseDays = listing.auto_release_at
                       </form>
                       <form method="post" action={`/api/marketplace/listings/${listing.id}/promote-simulate`} data-dev-only class="hidden">
                         <input type="hidden" name="tier" value="boost" />
-                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev — uten betaling)</button>
+                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev, uten betaling)</button>
                       </form>
                     </div>
                     <div class="space-y-1.5 flex flex-col">
@@ -484,7 +489,7 @@ const autoReleaseDays = listing.auto_release_at
                       </form>
                       <form method="post" action={`/api/marketplace/listings/${listing.id}/promote-simulate`} data-dev-only class="hidden">
                         <input type="hidden" name="tier" value="highlight" />
-                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev — uten betaling)</button>
+                        <button type="submit" class="w-full text-[10px] text-amber-700 hover:text-amber-900 py-1 border border-dashed border-amber-300/40 rounded-full">⚡ Simuler (dev, uten betaling)</button>
                       </form>
                     </div>
                   </div>
@@ -495,6 +500,27 @@ const autoReleaseDays = listing.auto_release_at
                   </script>
                 </section>
               ) : null}
+
+              {/* ── Manual "Marker som solgt" for non-escrow listings ── */}
+              {isOwner && listing.status === 'active' && !listing.escrow_enabled && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 mt-4">
+                  <h2 class="font-serif text-lg mb-2">Solgt utenfor Strikketorget?</h2>
+                  <p class="text-sm text-charcoal/65 mb-4">
+                    Denne annonsen bruker ikke <TryggBetaling />, så Strikketorget ser ingen kjøp.
+                    Hvis du har solgt varen privat (Vipps, kontant, etc.), marker den selv så den
+                    forsvinner fra søk.
+                  </p>
+                  <form method="post" action={`/api/marketplace/listings/${listing.id}/mark-sold`}
+                    onsubmit="return confirm('Marker som solgt? Annonsen forsvinner fra søk og kan ikke gjenåpnes.');">
+                    <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+                      Marker som solgt
+                    </button>
+                  </form>
+                  <p class="text-[11px] text-charcoal/45 mt-3">
+                    Tips: Aktiver <a href={`/market/listing/${listing.id}?tb_info=1`} class="text-terracotta-500 hover:underline"><TryggBetaling tint="inherit" /></a> så håndteres alt automatisk neste gang.
+                  </p>
+                </section>
+              )}
 
               {/* ── Seller view for reserved/shipped/disputed listings ── */}
               {listing.status === 'reserved' && (
@@ -513,14 +539,22 @@ const autoReleaseDays = listing.auto_release_at
                       )}
                     </div>
                   )}
-                  <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskode.</p>
+                  <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskoden.</p>
+                  {/* TODO(bring): replace the free-text input below with a
+                      "Generer fraktetikett" button that calls Bring/Posten's
+                      API, mints a label with the seeded buyer address, and
+                      auto-fills tracking_code from the response. */}
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/ship`} class="space-y-3">
-                    <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)"
+                    <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode fra Posten/Bring (valgfritt)"
                       class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Merk som sendt
                     </button>
                   </form>
+                  <p class="text-[11px] text-charcoal/45">
+                    Kommer snart: vi henter sporingskoden automatisk når du
+                    bestiller fraktetikett via Strikketorget.
+                  </p>
                 </section>
               )}
 
@@ -576,7 +610,7 @@ const autoReleaseDays = listing.auto_release_at
                       <span class="text-charcoal/55">Beskrivelse (valgfritt)</span>
                       <textarea name="description" rows="3" maxlength="1000" placeholder="Hva er problemet?" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
                     </label>
-                    <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Send forespørsel</button>
+                    <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send forespørsel</button>
                     <p class="text-[10px] text-charcoal/45">Selger får varsel og kan godta eller avvise. Hvis avvist, sendes saken til moderator.</p>
                   </form>
                 </details>
@@ -636,7 +670,7 @@ const autoReleaseDays = listing.auto_release_at
                   )}
                   <div class="flex gap-3">
                     <form method="post" action={`/api/marketplace/listings/${listing.id}/confirm-delivery`} class="flex-1">
-                      <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                      <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                         Bekreft mottatt
                       </button>
                     </form>
@@ -690,7 +724,7 @@ const autoReleaseDays = listing.auto_release_at
                     </fieldset>
                     <textarea name="comment" rows="2" maxlength="500" placeholder="Valgfri kommentar..."
                       class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Send vurdering
                     </button>
                   </form>
@@ -712,72 +746,197 @@ const autoReleaseDays = listing.auto_release_at
               )}
 
 
-              {/* ── Buy button (active, escrow enabled, seller onboarded) ── */}
+              {/* ── Buyer CTAs (active listings, viewer is not owner/buyer) ── */}
               {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && sellerOnboarded && (() => {
                 const bd = purchaseBreakdown(listing.price_nok, (listing as any).shipping_option ?? 'free', true);
                 return (
-                  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
-                    <div class="flex items-center gap-1.5 mb-1">
-                      <span class="text-sage-700">🛡️</span>
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Trygg betaling aktivert</span>
-                    </div>
-
-                    <dl class="text-sm space-y-1.5 bg-linen rounded-xl p-4">
-                      <div class="flex items-baseline justify-between">
-                        <dt class="text-charcoal/65">Vare</dt>
-                        <dd class="font-mono tabular-nums">{bd.itemNok} kr</dd>
-                      </div>
-                      <div class="flex items-baseline justify-between">
-                        <dt class="text-charcoal/65">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
-                        <dd class="font-mono tabular-nums">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
-                      </div>
-                      <div class="flex items-baseline justify-between">
-                        <dt class="text-charcoal/65">Trygg betaling</dt>
-                        <dd class="font-mono tabular-nums">{bd.tbFeeNok} kr</dd>
-                      </div>
-                      <div class="flex items-baseline justify-between pt-1.5 border-t border-sage-500/10">
-                        <dt class="font-medium">Du betaler totalt</dt>
-                        <dd class="font-mono tabular-nums font-bold">{bd.totalNok} kr</dd>
-                      </div>
-                    </dl>
-
-                    <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
-                      <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                        Kjøp trygt — {bd.totalNok} kr
+                  <section class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                      <button type="button" data-open-buy class="bg-terracotta-500 text-linen px-5 py-2.5 rounded-2xl font-medium hover:bg-terracotta-700 transition-colors flex flex-col items-center leading-tight">
+                        <span class="text-base">Kjøp</span>
+                        <span class="text-[11px] font-normal text-linen/80">med <TryggBetaling /></span>
                       </button>
-                    </form>
+                      <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-2.5 rounded-2xl font-medium hover:border-charcoal/40 transition-colors flex flex-col items-center leading-tight">
+                        <span class="text-base">Gi et bud</span>
+                        <span class="text-[11px] font-normal text-charcoal/45">foreslå en annen pris</span>
+                      </button>
+                    </div>
                     <p class="text-[11px] text-charcoal/45 text-center">
-                      Pengene holdes trygt til du bekrefter mottak — ellers automatisk frigjøring 14 dager etter sending.
+                      Beskyttet av <TryggBetaling /> til du bekrefter mottak.
                     </p>
+
+                    {/* ── Kjøp-modal ──────────────────────────────────────── */}
+                    <dialog id="buy-modal" class="rounded-3xl p-0 max-w-md w-[92vw] bg-white backdrop:bg-charcoal/55">
+                      <div class="p-6 space-y-5">
+                        <div class="flex items-start justify-between gap-3">
+                          <div>
+                            <p><TryggBetaling size="header" /></p>
+                            <h3 class="font-serif text-2xl mt-1">Bekreft kjøp</h3>
+                          </div>
+                          <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
+                        </div>
+
+                        <div class="bg-linen/60 rounded-2xl p-4 flex items-center gap-3">
+                          {(() => {
+                            const heroUrl = photoUrls[0];
+                            return heroUrl
+                              ? <img src={heroUrl} alt="" class="w-14 h-14 rounded-lg object-cover shrink-0" />
+                              : <div class="w-14 h-14 rounded-lg bg-oatmeal/50 shrink-0" />;
+                          })()}
+                          <div class="min-w-0">
+                            <p class="text-sm font-medium line-clamp-2">{listing.title}</p>
+                            <p class="text-xs text-charcoal/55 mt-0.5">str. {listing.size_label}</p>
+                          </div>
+                        </div>
+
+                        <dl class="text-sm space-y-1.5">
+                          <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-charcoal/65 min-w-0">Vare</dt>
+                            <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.itemNok} kr</dd>
+                          </div>
+                          <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-charcoal/65 min-w-0">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
+                            <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
+                          </div>
+                          <div class="flex items-baseline justify-between gap-3">
+                            <dt class="text-charcoal/65 min-w-0">Trygg betaling</dt>
+                            <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.tbFeeNok} kr</dd>
+                          </div>
+                          <div class="flex items-baseline justify-between gap-3 pt-2 border-t border-sage-500/10">
+                            <dt class="font-medium min-w-0">Du betaler totalt</dt>
+                            <dd class="font-mono tabular-nums font-bold whitespace-nowrap shrink-0">{bd.totalNok} kr</dd>
+                          </div>
+                        </dl>
+
+                        <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
+                          <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
+                            Bekreft kjøp · {bd.totalNok} kr
+                          </button>
+                        </form>
+                        <p class="text-[11px] text-charcoal/45 text-center">
+                          Du blir sendt til Stripe for leveringsadresse og betaling.
+                        </p>
+                      </div>
+                    </dialog>
+
+                    {/* ── Foreslå-pris-modal ──────────────────────────────── */}
+                    <dialog id="bid-modal" class="rounded-3xl p-0 max-w-md w-[92vw] bg-white backdrop:bg-charcoal/55">
+                      <div class="p-6 space-y-5">
+                        <div class="flex items-start justify-between gap-3">
+                          <div>
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Bud</p>
+                            <h3 class="font-serif text-2xl mt-1">Gi et bud</h3>
+                          </div>
+                          <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
+                        </div>
+
+                        <p class="text-sm text-charcoal/65">
+                          Annonseprisen er <strong>{listing.price_nok} kr</strong>. Send et bud
+                          med din pris, så får selger meldingen i innboksen og kan svare deg direkte.
+                          Når dere er enige, fullfører dere kjøpet med <TryggBetaling />.
+                        </p>
+
+                        <form method="post" action="/api/marketplace/conversations/create" class="space-y-3">
+                          <input type="hidden" name="listing_id" value={listing.id} />
+                          <label class="block">
+                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Ditt bud</span>
+                            <div class="relative">
+                              <input id="bid-amount" type="number" min="1" max={listing.price_nok} required
+                                placeholder={String(Math.round(listing.price_nok * 0.8))}
+                                class="w-full bg-linen rounded-xl pl-4 pr-12 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+                              <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-charcoal/45 pointer-events-none">kr</span>
+                            </div>
+                          </label>
+                          <label class="block">
+                            <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Melding til selger (valgfritt)</span>
+                            <textarea id="bid-message" name="message" rows="2" maxlength="500"
+                              placeholder="Hei! Kunne du tenke deg å selge den til denne prisen?"
+                              class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+                          </label>
+                          <p class="text-[11px] text-charcoal/45">
+                            Selger må godta budet før kjøpet kan gjennomføres.
+                          </p>
+                          <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
+                            Send bud
+                          </button>
+                        </form>
+                      </div>
+                    </dialog>
+
+                    <script define:vars={{ listingPrice: listing.price_nok }}>
+                      function init() {
+                        const buyOpen = document.querySelector('[data-open-buy]');
+                        const bidOpen = document.querySelector('[data-open-bid]');
+                        const buyModal = document.querySelector('#buy-modal');
+                        const bidModal = document.querySelector('#bid-modal');
+                        const bidForm = bidModal?.querySelector('form');
+                        const bidAmount = document.querySelector('#bid-amount');
+                        const bidMessage = document.querySelector('#bid-message');
+                        if (!buyOpen || !bidOpen || !buyModal || !bidModal) return;
+
+                        buyOpen.addEventListener('click', () => buyModal.showModal && buyModal.showModal());
+                        bidOpen.addEventListener('click', () => bidModal.showModal && bidModal.showModal());
+                        document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+                          btn.addEventListener('click', (e) => {
+                            const dlg = e.target.closest('dialog');
+                            if (dlg) dlg.close();
+                          });
+                        });
+
+                        // Submit-time: encode the bid as a structured message so the
+                        // seller can recognise it. Server stays a plain conversation
+                        // create — no schema changes needed.
+                        bidForm?.addEventListener('submit', (e) => {
+                          const amount = parseInt(bidAmount?.value || '0', 10);
+                          if (!amount || amount < 1) {
+                            e.preventDefault();
+                            return;
+                          }
+                          const note = (bidMessage?.value || '').trim();
+                          const prefix = `💸 Bud: ${amount} kr (annonsepris: ${listingPrice} kr).`;
+                          bidMessage.value = note ? `${prefix}\n\n${note}` : prefix;
+                        });
+                      }
+                      init();
+                      document.addEventListener('astro:page-load', init);
+                    </script>
                   </section>
                 );
               })()}
 
-              {/* ── No escrow: buyer must contact seller directly ── */}
-              {!isOwner && !isBuyer && listing.status === 'active' && !listing.escrow_enabled && (
+              {/* ── No escrow / no Stripe — keep simple message + meet-up ── */}
+              {!isOwner && !isBuyer && listing.status === 'active' && !(listing.escrow_enabled && sellerOnboarded) && (
                 <section class="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 text-sm">
-                  <p class="font-medium text-amber-900 mb-1">⚠️ Trygg betaling er ikke aktivert</p>
+                  <p class="font-medium text-amber-900 mb-1">⚠️ <TryggBetaling /> er ikke tilgjengelig</p>
                   <p class="text-charcoal/65">
-                    Selger har ikke aktivert trygg betaling på denne annonsen. Du må
-                    avtale betaling direkte (Vipps, bankoverføring, kontant ved henting).
-                    <strong>Strikketorget gir ikke kjøperbeskyttelse på dette salget.</strong>
+                    {listing.escrow_enabled
+                      ? 'Selger har ikke fullført Stripe-onboarding ennå.'
+                      : <>Selger har ikke aktivert <TryggBetaling />.</>}
+                    {' '}Du kan fortsatt sende melding og avtale møte eller Vipps, men Strikketorget gir
+                    ingen kjøperbeskyttelse på dette salget.
                   </p>
                 </section>
               )}
 
-              {/* ── Messaging (always available for active listings) ── */}
+              {/* ── Send melding (tertiary, secondary surface) ─────────── */}
               {!isOwner && !isBuyer && listing.status === 'active' && (
-                <form method="post" action="/api/marketplace/conversations/create" class="bg-white rounded-3xl p-5 border border-sage-500/10">
-                  <input type="hidden" name="listing_id" value={listing.id} />
-                  <label for="message" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-                    Send melding til {isStoreListing ? 'butikken' : 'selger'}
-                  </label>
-                  <textarea id="message" name="message" required rows="3" maxlength="1000" placeholder="Hei! Er denne fortsatt tilgjengelig?"
-                    class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none mb-3"></textarea>
-                  <button type="submit" class="w-full bg-charcoal text-linen px-6 py-4 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
-                    Send melding
-                  </button>
-                </form>
+                <details class="bg-white rounded-3xl border border-sage-500/10 mt-3 group">
+                  <summary class="cursor-pointer p-4 text-sm font-medium text-charcoal/70 hover:text-charcoal flex items-center justify-between">
+                    <span>Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/30 group-open:rotate-180 transition-transform shrink-0">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </summary>
+                  <form method="post" action="/api/marketplace/conversations/create" class="px-4 pb-4 space-y-3">
+                    <input type="hidden" name="listing_id" value={listing.id} />
+                    <textarea name="message" required rows="3" maxlength="1000"
+                      placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                      class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+                    <button type="submit" class="w-full bg-charcoal/85 text-linen px-6 py-2.5 rounded-full text-sm font-medium hover:bg-charcoal transition-colors">
+                      Send melding
+                    </button>
+                  </form>
+                </details>
               )}
             </div>
           )}
@@ -808,24 +967,41 @@ const autoReleaseDays = listing.auto_release_at
               </div>
             </a>
           ) : (
-            <a href={`/market/seller/${listing.seller_id}`} class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3 group">
-              <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
-              <div class="min-w-0">
-                <p class="font-medium group-hover:text-terracotta-500 transition-colors">
-                  {sellerProfile?.display_name ?? 'Anonym'}
-                </p>
-                {sellerReviewCount > 0 ? (
-                  <div class="flex items-center gap-1.5 mt-0.5">
-                    <StarRating rating={Math.round(sellerAvgRating)} />
-                    <span class="text-xs text-charcoal/55">{sellerAvgRating.toFixed(1)} · {sellerReviewCount} {sellerReviewCount === 1 ? 'omtale' : 'omtaler'}</span>
-                  </div>
-                ) : (
-                  <p class="text-xs text-charcoal/45">
-                    {sellerProfile?.location ?? listing.location ?? 'Selger'}
+            <div class="mt-6 pt-6 border-t border-sage-500/10 flex items-center gap-3">
+              <a href={`/market/seller/${listing.seller_id}`} class="flex items-center gap-3 min-w-0 flex-1 group">
+                <ProfileAvatar url={sellerProfile?.avatar_path ? projectPhotoUrl(sellerProfile.avatar_path) : null} name={sellerProfile?.display_name ?? '?'} size="md" />
+                <div class="min-w-0">
+                  <p class="font-medium group-hover:text-terracotta-500 transition-colors">
+                    {sellerProfile?.display_name ?? 'Anonym'}
                   </p>
-                )}
-              </div>
-            </a>
+                  {sellerReviewCount > 0 ? (
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                      <StarRating rating={Math.round(sellerAvgRating)} />
+                      <span class="text-xs text-charcoal/55">{sellerAvgRating.toFixed(1)} · {sellerReviewCount} {sellerReviewCount === 1 ? 'omtale' : 'omtaler'}</span>
+                    </div>
+                  ) : (
+                    <p class="text-xs text-charcoal/45">
+                      {sellerProfile?.location ?? listing.location ?? 'Selger'}
+                    </p>
+                  )}
+                </div>
+              </a>
+              {user && !isOwner && (
+                <form method="post" action={`/api/seller/${listing.seller_id}/follow`} class="shrink-0">
+                  <input type="hidden" name="action" value="toggle" />
+                  <input type="hidden" name="next" value={`/market/listing/${id}`} />
+                  <button type="submit"
+                    class:list={[
+                      'text-xs font-medium px-3 py-1.5 rounded-full transition-colors',
+                      isFollowing
+                        ? 'bg-sage-100 text-sage-900 hover:bg-sage-200'
+                        : 'bg-primary text-primary-fg hover:bg-primary-hover',
+                    ]}>
+                    {isFollowing ? '✓ Følger' : '+ Følg'}
+                  </button>
+                </form>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -855,6 +1031,14 @@ const autoReleaseDays = listing.auto_release_at
   <style>
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    /* showModal() centering is inconsistent across browsers — pin it explicitly. */
+    dialog[open] {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+    }
   </style>
 
   <script define:vars={{ photoData: photos.map((p) => ({ url: projectPhotoUrl(p.path), caption: p.caption, id: p.id })), listingId: listing.id }}>
@@ -1094,7 +1278,7 @@ const autoReleaseDays = listing.auto_release_at
         function render() {
           const on = btn.dataset.favorited === 'true';
           icon?.setAttribute('fill', on ? 'currentColor' : 'none');
-          btn.style.color = on ? '#c2604a' : '';
+          btn.style.color = on ? 'var(--color-primary)' : '';
           btn.setAttribute('aria-label', on ? 'Fjern favoritt' : 'Legg til favoritt');
         }
         render();

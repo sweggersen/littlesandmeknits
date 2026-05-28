@@ -15,6 +15,11 @@ const TIER_LABEL: Record<string, string> = {
   highlight: 'Fremhevet',
 };
 
+const TIER_DAILY_BUDGET: Record<string, number> = {
+  boost: 50,
+  highlight: 150,
+};
+
 export async function promoteListing(
   ctx: ServiceContext,
   input: { listingId: string; tier: string },
@@ -72,6 +77,7 @@ export async function promoteListing(
     price_nok: price,
     stripe_session_id: session.id,
     status: 'pending',
+    daily_budget: TIER_DAILY_BUDGET[tier],
   });
 
   return ok({ redirect: session.url });
@@ -121,11 +127,14 @@ export async function simulatePromotion(
     price_nok: TIER_PRICE[tier],
     stripe_session_id: `dev-sim-${Date.now()}`,
     status: 'active',
+    daily_budget: TIER_DAILY_BUDGET[tier],
+    daily_window_start: now.toISOString(),
   });
 
   await ctx.admin.from('listings').update({
     promoted_until: endsAt.toISOString(),
     promotion_tier: tier,
+    promoted_at: now.toISOString(),
   }).eq('id', input.listingId);
 
   return ok({ redirect: `/market/listing/${input.listingId}?promoted=1` });
@@ -146,6 +155,12 @@ export async function getActivePromotion(
   return data;
 }
 
+export type PromotionAudience = {
+  top_categories: Array<{ category: string; count: number }>;
+  top_sizes: Array<{ size_label: string; count: number }>;
+  viewer_count: number;
+};
+
 export async function getPromotionStats(
   ctx: ServiceContext,
   input: { listingId: string },
@@ -153,6 +168,7 @@ export async function getPromotionStats(
   organic: { impressions: number; clicks: number };
   promoted: { impressions: number; clicks: number };
   totalDays: number;
+  audience: PromotionAudience;
 }>> {
   const { data: listing } = await ctx.supabase
     .from('listings')
@@ -176,9 +192,15 @@ export async function getPromotionStats(
     return sum + Math.max(0, Math.ceil((end - start) / 86400_000));
   }, 0);
 
+  const { data: audienceRaw } = await ctx.admin
+    .rpc('promotion_audience_breakdown', { p_listing_id: input.listingId });
+  const audience: PromotionAudience = (audienceRaw as PromotionAudience | null)
+    ?? { top_categories: [], top_sizes: [], viewer_count: 0 };
+
   return ok({
     organic: { impressions: organicImpressions ?? 0, clicks: organicClicks ?? 0 },
     promoted: { impressions: promoImpressions ?? 0, clicks: promoClicks ?? 0 },
     totalDays,
+    audience,
   });
 }
