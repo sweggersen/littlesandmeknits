@@ -412,7 +412,7 @@ function scoreColor(s: number) {
                 {itemData.contact_email && (
                   <a
                     href={`mailto:${itemData.contact_email}?subject=${encodeURIComponent('Verifisering av butikkregistrering på Strikketorget')}&body=${encodeURIComponent(`Hei,\n\nVi har mottatt en søknad om å opprette butikk på Strikketorget med organisasjonsnummer ${itemData.orgnr} (${itemData.legal_name}).\n\nFor å bekrefte at registreringen er gjort av en autorisert representant for virksomheten, kan du svare på denne e-posten og bekrefte:\n\n• Ditt navn og stilling i ${itemData.legal_name}\n• At du ønsker å være representert på Strikketorget\n\nDenne e-posten er sendt til den oppgitte kontakt-adressen.\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`}
-                    class="text-xs bg-charcoal text-linen px-3 py-1.5 rounded-full font-medium hover:bg-terracotta-500 transition-colors">
+                    class="text-xs bg-primary text-primary-fg px-3 py-1.5 rounded-full font-medium hover:bg-primary-hover transition-colors">
                     Send til kontakt-e-post
                   </a>
                 )}

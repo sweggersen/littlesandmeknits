@@ -144,7 +144,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
           <span class="text-sm">Vis profilen min offentlig på Strikketorget</span>
         </label>
 
-        <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+        <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
           Lagre profil
         </button>
       </form>
@@ -164,7 +164,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
             <div>
               <p class="text-sm text-charcoal/55 mb-3">Koble til Stripe for å motta betaling for oppdrag.</p>
               <form method="post" action="/api/stripe/connect/onboard" data-astro-reload>
-                <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                   Koble til Stripe
                 </button>
               </form>

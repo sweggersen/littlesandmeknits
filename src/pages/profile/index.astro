@@ -247,7 +247,7 @@ function isPdf(path: string | null): boolean {
                 <span>{a.emoji}</span>
                 <span>{a.label}</span>
                 <span class="ml-0.5 text-[8px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 px-1.5 py-0.5 rounded-full">NY</span>
-                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-charcoal text-linen text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-primary text-primary-fg text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
                   {a.description}
                 </div>
               </div>
@@ -289,7 +289,7 @@ function isPdf(path: string | null): boolean {
           {allRequests.length === 0 && allOffers.length === 0 ? (
             <div class="text-center py-2">
               <p class="text-sm text-charcoal/45 mb-3">Ingen aktive oppdrag.</p>
-              <a href="/market/commissions" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+              <a href="/market/commissions" class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                 Se forespørsler →
               </a>
             </div>
@@ -356,7 +356,7 @@ function isPdf(path: string | null): boolean {
           {allPurchases.length === 0 ? (
             <div class="text-center py-2">
               <p class="text-sm text-charcoal/45 mb-3">Ingen kjøpte oppskrifter.</p>
-              <a href="/patterns" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+              <a href="/patterns" class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                 Se oppskrifter →
               </a>
             </div>
@@ -371,7 +371,7 @@ function isPdf(path: string | null): boolean {
                     </p>
                   </div>
                   <a href={`/api/download/${p.id}`} target="_blank" rel="noopener"
-                    class="shrink-0 bg-charcoal text-linen px-3 py-1.5 rounded-full text-[11px] font-medium hover:bg-terracotta-500 transition-colors">
+                    class="shrink-0 bg-primary text-primary-fg px-3 py-1.5 rounded-full text-[11px] font-medium hover:bg-primary-hover transition-colors">
                     Last ned
                   </a>
                 </div>
@@ -394,7 +394,7 @@ function isPdf(path: string | null): boolean {
           {myStores.length === 0 ? (
             <div class="text-center py-2">
               <p class="text-sm text-charcoal/45 mb-3">Driver du en virksomhet?</p>
-              <a href="/profile/stores/new" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+              <a href="/profile/stores/new" class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                 Opprett butikk →
               </a>
             </div>
@@ -439,7 +439,7 @@ function isPdf(path: string | null): boolean {
           {allBibliotek.length === 0 ? (
             <div class="text-center py-2">
               <p class="text-sm text-charcoal/45 mb-3">Ingen oppskrifter i biblioteket.</p>
-              <a href="/profile/library/new" class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+              <a href="/profile/library/new" class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                 Last opp oppskrift →
               </a>
             </div>

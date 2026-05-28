@@ -63,7 +63,7 @@ const STATUS_LABEL: Record<string, string> = {
       </div>
       <a
         href={`/market/listing/new?store=${store.id}`}
-        class="bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors"
+        class="bg-primary text-primary-fg px-4 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
       >
         + Ny annonse
       </a>
@@ -82,7 +82,7 @@ const STATUS_LABEL: Record<string, string> = {
         </div>
         <form method="post" action={`/api/stores/${store.slug}/convert`}
           onsubmit="return confirm('Flytte alle dine private annonser inn i butikken? Dette kan ikke reverseres automatisk.')">
-          <button type="submit" class="bg-charcoal text-linen px-4 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors whitespace-nowrap">
+          <button type="submit" class="bg-primary text-primary-fg px-4 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
             Flytt {personalListingsCount}
           </button>
         </form>

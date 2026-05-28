@@ -33,7 +33,7 @@ const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
     <h1 class="font-serif text-2xl">Utbetalinger</h1>
     {!hasCurrentPeriod && (
       <form method="post" action="/api/admin/payouts/create" data-astro-reload>
-        <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-lg text-xs font-medium hover:bg-terracotta-500 transition-colors">
+        <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-lg text-xs font-medium hover:bg-primary-hover transition-colors">
           Generer for denne måneden
         </button>
       </form>

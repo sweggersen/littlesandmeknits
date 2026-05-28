@@ -242,7 +242,7 @@ const autoReleaseDays = listing.auto_release_at
                 <div class="flex items-center gap-2">
                   <input name="photos" type="file" accept="image/*" multiple required
                     class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
-                  <button type="submit" class="shrink-0 bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                  <button type="submit" class="shrink-0 bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                     Last opp
                   </button>
                 </div>
@@ -398,7 +398,7 @@ const autoReleaseDays = listing.auto_release_at
                       class:list={['px-6 py-3 rounded-full text-sm font-medium transition-colors',
                         photos.length === 0
                           ? 'bg-charcoal/30 text-linen cursor-not-allowed'
-                          : 'bg-charcoal text-linen hover:bg-terracotta-500']}>
+                          : 'bg-primary text-primary-fg hover:bg-primary-hover']}>
                       Publiser
                     </button>
                   </form>
@@ -427,7 +427,7 @@ const autoReleaseDays = listing.auto_release_at
                   </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`}>
                     <input type="hidden" name="enabled" value="true" />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Aktiver trygg betaling (gratis)
                     </button>
                   </form>
@@ -512,7 +512,7 @@ const autoReleaseDays = listing.auto_release_at
                   </p>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/mark-sold`}
                     onsubmit="return confirm('Marker som solgt? Annonsen forsvinner fra søk og kan ikke gjenåpnes.');">
-                    <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Marker som solgt
                     </button>
                   </form>
@@ -547,7 +547,7 @@ const autoReleaseDays = listing.auto_release_at
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/ship`} class="space-y-3">
                     <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode fra Posten/Bring (valgfritt)"
                       class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Merk som sendt
                     </button>
                   </form>
@@ -610,7 +610,7 @@ const autoReleaseDays = listing.auto_release_at
                       <span class="text-charcoal/55">Beskrivelse (valgfritt)</span>
                       <textarea name="description" rows="3" maxlength="1000" placeholder="Hva er problemet?" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
                     </label>
-                    <button type="submit" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Send forespørsel</button>
+                    <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send forespørsel</button>
                     <p class="text-[10px] text-charcoal/45">Selger får varsel og kan godta eller avvise. Hvis avvist, sendes saken til moderator.</p>
                   </form>
                 </details>
@@ -670,7 +670,7 @@ const autoReleaseDays = listing.auto_release_at
                   )}
                   <div class="flex gap-3">
                     <form method="post" action={`/api/marketplace/listings/${listing.id}/confirm-delivery`} class="flex-1">
-                      <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                      <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                         Bekreft mottatt
                       </button>
                     </form>
@@ -724,7 +724,7 @@ const autoReleaseDays = listing.auto_release_at
                     </fieldset>
                     <textarea name="comment" rows="2" maxlength="500" placeholder="Valgfri kommentar..."
                       class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
-                    <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
                       Send vurdering
                     </button>
                   </form>
@@ -809,7 +809,7 @@ const autoReleaseDays = listing.auto_release_at
                         </dl>
 
                         <form method="post" action={`/api/marketplace/listings/${listing.id}/buy`}>
-                          <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                          <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
                             Bekreft kjøp · {bd.totalNok} kr
                           </button>
                         </form>
@@ -856,7 +856,7 @@ const autoReleaseDays = listing.auto_release_at
                           <p class="text-[11px] text-charcoal/45">
                             Selger må godta budet før kjøpet kan gjennomføres.
                           </p>
-                          <button type="submit" class="w-full bg-charcoal text-linen px-6 py-3.5 rounded-full text-base font-medium hover:bg-terracotta-500 transition-colors">
+                          <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
                             Send bud
                           </button>
                         </form>
@@ -995,7 +995,7 @@ const autoReleaseDays = listing.auto_release_at
                       'text-xs font-medium px-3 py-1.5 rounded-full transition-colors',
                       isFollowing
                         ? 'bg-sage-100 text-sage-900 hover:bg-sage-200'
-                        : 'bg-charcoal text-linen hover:bg-terracotta-500',
+                        : 'bg-primary text-primary-fg hover:bg-primary-hover',
                     ]}>
                     {isFollowing ? '✓ Følger' : '+ Følg'}
                   </button>

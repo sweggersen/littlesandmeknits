@@ -80,9 +80,11 @@ Use `projectPhotoUrl()` from `src/lib/storage.ts` for all Supabase storage image
 
 ## Styling conventions
 
-- **Design tokens:** `bg-linen` (page bg), `text-charcoal` (text), `terracotta-500` (accent/CTA), `sage-500` (secondary), `oatmeal` (neutral)
-- **Label pattern:** `text-[10px] font-bold uppercase tracking-widest text-charcoal/45` — use `StatusBadge` component instead of writing this inline
-- **CTA buttons:** `bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors`
+- **Palette tokens:** `bg-linen` (page bg), `text-charcoal` (text), `terracotta-500` (brand accent), `sage-500` (secondary), `oatmeal` (neutral).
+- **Semantic tokens (preferred for new code):** `bg-primary`, `text-primary-fg`, `hover:bg-primary-hover`. Defined in `src/styles/global.css` `@theme` so a single edit re-skins every primary action site-wide.
+- **Label pattern:** `text-[10px] font-bold uppercase tracking-widest text-charcoal/45` — use `StatusBadge` component instead of writing this inline.
+- **CTA buttons:** Use the `btn-primary` utility class (defined in `@layer components`), combined with sizing classes. Example: `class="btn-primary px-5 py-2.5 rounded-full text-sm font-medium"`. Equivalent to `bg-primary text-primary-fg hover:bg-primary-hover transition-colors` if you want it inline.
+- **`bg-charcoal text-linen` is page chrome** (footers, dark nav strips). For interactive primary actions, always use the primary tokens instead.
 - **Cards:** `bg-white rounded-2xl border border-sage-500/10` (or `rounded-3xl` for larger containers)
 - **Font:** Serif for headings (`font-serif`), sans for body
 - **Content width:** `max-w-5xl` for all marketplace pages (enforced by MarketplaceShell). Do not create pages with different widths.

@@ -22,10 +22,36 @@
   --color-oatmeal: #E8DFD0;
   --color-charcoal: #2C2A26;
 
+  /* Semantic tokens — change these to re-skin primary actions site-wide.
+     bg-primary / text-primary-fg / hover:bg-primary-hover work as Tailwind
+     utilities, and the .btn-primary @layer-components class below packs
+     all three plus a transition into one. */
+  --color-primary: #C76D4E;       /* same as terracotta-500 */
+  --color-primary-hover: #9A4F37; /* same as terracotta-700 */
+  --color-primary-fg: #FAF6F0;    /* same as linen */
+
   --font-serif: "Fraunces Variable", ui-serif, Georgia, serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer components {
+  /* Primary action button — drop on any <button>/<a> and combine with
+     sizing utilities (px-*, py-*, rounded-*). Pulls from the semantic
+     tokens above, so a theme change updates every primary CTA at once. */
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: var(--color-primary-fg);
+    transition: background-color 150ms ease;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--color-primary-hover);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 @layer base {

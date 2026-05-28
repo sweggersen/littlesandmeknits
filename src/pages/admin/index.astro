@@ -67,7 +67,7 @@ const TEMPLATES = [
   </div>
 
   {(pendingCount ?? 0) > 0 && (
-    <a href="/admin/moderation" class="inline-block bg-charcoal text-linen px-5 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+    <a href="/admin/moderation" class="inline-block bg-primary text-primary-fg px-5 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
       Start moderering &rarr;
     </a>
   )}
@@ -98,7 +98,7 @@ const TEMPLATES = [
             <p class="text-sm font-medium">{t.label}</p>
             <p class="text-xs text-charcoal/55 mt-0.5">{t.desc}</p>
           </div>
-          <button type="submit" class="shrink-0 bg-charcoal text-linen px-3 py-1.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+          <button type="submit" class="shrink-0 bg-primary text-primary-fg px-3 py-1.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
             Send →
           </button>
         </form>

@@ -200,9 +200,9 @@ function timeAgo(dateStr: string): string {
     </div>
 
     <div class="flex gap-1 mb-4">
-      <a href="/inbox" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'all' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50']}>Alle</a>
-      <a href="/inbox?filter=messages" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'messages' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50']}>Meldinger</a>
-      <a href="/inbox?filter=notifications" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'notifications' ? 'bg-charcoal text-linen' : 'text-charcoal/60 hover:bg-sage-100/50']}>Varsler</a>
+      <a href="/inbox" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'all' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Alle</a>
+      <a href="/inbox?filter=messages" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'messages' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Meldinger</a>
+      <a href="/inbox?filter=notifications" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'notifications' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Varsler</a>
     </div>
 
     {filtered.length === 0 ? (

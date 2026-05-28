@@ -55,7 +55,7 @@ export default function ResetPasswordForm() {
         />
       </label>
       <button type="submit" disabled={status === 'saving'}
-        className="w-full bg-charcoal text-linen py-3 rounded-2xl font-medium hover:bg-terracotta-500 transition-colors disabled:opacity-50">
+        className="w-full bg-primary text-primary-fg py-3 rounded-2xl font-medium hover:bg-primary-hover transition-colors disabled:opacity-50">
         {status === 'saving' ? 'Lagrer …' : 'Lagre nytt passord'}
       </button>
       {error && <p className="text-sm text-terracotta-700 text-center">{error}</p>}

@@ -91,7 +91,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
 
       <!-- Seed control -->
       <div class="bg-white rounded-2xl p-4 border border-sage-500/10 mb-8 flex flex-wrap items-center gap-3" data-seed-bar>
-        <button type="button" data-action="seed" class="bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+        <button type="button" data-action="seed" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
           🌱 Frø skjermdata (Eline + Liv + listings + follow)
         </button>
         <button type="button" data-action="cleanup" class="text-xs text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-full px-3 py-1.5 hover:bg-red-50 transition-colors">
@@ -119,7 +119,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
                   <p class="text-[11px] text-charcoal/40 font-mono mt-0.5">{sc.href}</p>
                 </div>
                 <button type="button" data-as={sc.as ?? ''} data-href={sc.href}
-                  class="shrink-0 bg-charcoal text-linen px-3 py-1.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">
+                  class="shrink-0 bg-primary text-primary-fg px-3 py-1.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
                   {sc.as ? `Som ${sc.as} →` : 'Åpne →'}
                 </button>
               </li>

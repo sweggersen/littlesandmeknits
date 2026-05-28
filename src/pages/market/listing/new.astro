@@ -35,7 +35,7 @@ const STEPS = [
           <>
             <li class:list={[
               'flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors',
-              i === 0 ? 'bg-charcoal text-linen' : 'text-charcoal/45',
+              i === 0 ? 'bg-primary text-primary-fg' : 'text-charcoal/45',
             ]} data-step-pill={s.id}>
               <span class="font-mono font-bold">{s.id}</span>
               <span class="hidden sm:inline">{s.label}</span>
@@ -210,10 +210,10 @@ const STEPS = [
             Avbryt
           </a>
           <div class="flex-1"></div>
-          <button type="button" data-wizard-next class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+          <button type="button" data-wizard-next class="bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
             Neste →
           </button>
-          <button type="submit" data-wizard-submit class="bg-charcoal text-linen px-6 py-3 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors hidden">
+          <button type="submit" data-wizard-submit class="bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors hidden">
             Lagre & last opp bilder →
           </button>
         </div>

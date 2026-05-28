@@ -249,7 +249,7 @@ export default function LoginForm({ redirectTo, strings }: Props) {
         <button
           type="submit"
           disabled={status === 'sending' || !email || (mode === 'password' && !password) || !consentReady}
-          className="w-full bg-charcoal text-linen py-3 rounded-2xl font-medium hover:bg-terracotta-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-primary text-primary-fg py-3 rounded-2xl font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {status === 'sending' ? strings.loading : (
             mode === 'magic' ? strings.magicLinkCta :

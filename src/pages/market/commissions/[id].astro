@@ -253,7 +253,7 @@ if (isBuyer && req.status === 'frozen') {
                   data-autogrow
                   class="flex-1 min-w-0 bg-white rounded-2xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-[height,padding] duration-150 resize-none leading-snug"
                 ></textarea>
-                <button type="submit" class="bg-charcoal text-linen px-3 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors shrink-0">Send</button>
+                <button type="submit" class="bg-primary text-primary-fg px-3 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors shrink-0">Send</button>
               </form>
             )
           )}
@@ -293,7 +293,7 @@ if (isBuyer && req.status === 'frozen') {
                             {o.message && <p class="text-sm text-charcoal/70 whitespace-pre-line mb-3">{o.message}</p>}
                             <form method="post" action="/api/marketplace/commissions/accept" data-astro-reload>
                               <input type="hidden" name="offer_id" value={o.id} />
-                              <button type="submit" class="bg-charcoal text-linen px-5 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Aksepter tilbud</button>
+                              <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Aksepter tilbud</button>
                             </form>
                           </div>
                         </div>
@@ -319,7 +319,7 @@ if (isBuyer && req.status === 'frozen') {
                   </label>
                 </div>
                 <textarea name="message" required rows="2" maxlength="500" placeholder="Kort melding til bestiller…" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
-                <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Send tilbud</button>
+                <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send tilbud</button>
               </form>
             </div>
           ) : myOffer ? (
@@ -335,7 +335,7 @@ if (isBuyer && req.status === 'frozen') {
           ) : !user ? (
             <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
               <p class="text-sm text-charcoal/55 mb-2">Logg inn for å gi tilbud</p>
-              <a href={`/login?next=/market/commissions/${id}`} class="inline-block bg-charcoal text-linen px-4 py-2 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Logg inn</a>
+              <a href={`/login?next=/market/commissions/${id}`} class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Logg inn</a>
             </div>
           ) : null}
 
@@ -438,7 +438,7 @@ if (isBuyer && req.status === 'frozen') {
                   <p class="font-mono tabular-nums text-lg mb-3">{acceptedOffer!.price_nok} NOK</p>
                   <form method="post" action="/api/marketplace/commissions/pay" data-astro-reload>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Betal nå</button>
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Betal nå</button>
                   </form>
                   <p class="text-[10px] text-charcoal/30 text-center mt-2">Stripe-betaling kommer snart.</p>
                 </div>
@@ -474,7 +474,7 @@ if (isBuyer && req.status === 'frozen') {
                   <form method="post" action="/api/marketplace/commissions/ship-yarn" data-astro-reload class="space-y-2">
                     <input type="hidden" name="request_id" value={req.id} />
                     <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Merk som sendt</button>
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Merk som sendt</button>
                   </form>
                 </div>
               ) : isActive('awaiting_yarn') && req.yarn_shipped_at ? (
@@ -504,7 +504,7 @@ if (isBuyer && req.status === 'frozen') {
                   {req.yarn_bring_shipment_number && <div data-tracking-events class="text-xs text-charcoal/55 mb-3"></div>}
                   <form method="post" action="/api/marketplace/commissions/receive-yarn" data-astro-reload>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Bekreft mottatt</button>
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Bekreft mottatt</button>
                   </form>
                 </div>
               ) : isPast('awaiting_yarn') ? (
@@ -573,7 +573,7 @@ if (isBuyer && req.status === 'frozen') {
                           <option value="">Velg prosjekt…</option>
                           {knitterProjects.map(p => <option value={p.id}>{p.title}</option>)}
                         </select>
-                        <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2 rounded-full text-[10px] font-medium hover:bg-terracotta-500 transition-colors">Knytt til</button>
+                        <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2 rounded-full text-[10px] font-medium hover:bg-primary-hover transition-colors">Knytt til</button>
                       </form>
                     </div>
                   )}
@@ -583,7 +583,7 @@ if (isBuyer && req.status === 'frozen') {
                     <form method="post" action="/api/marketplace/commissions/mark-completed" data-astro-reload class="space-y-2">
                       <input type="hidden" name="request_id" value={req.id} />
                       <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
-                      <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Merk som ferdig</button>
+                      <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Merk som ferdig</button>
                     </form>
                   </div>
                 </div>
@@ -614,7 +614,7 @@ if (isBuyer && req.status === 'frozen') {
                   )}
                   <form method="post" action="/api/marketplace/commissions/confirm-delivery" data-astro-reload>
                     <input type="hidden" name="request_id" value={req.id} />
-                    <button type="submit" class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors">Bekreft mottatt</button>
+                    <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Bekreft mottatt</button>
                   </form>
                   <form method="post" action="/api/marketplace/commissions/dispute" data-astro-reload class="mt-2">
                     <input type="hidden" name="request_id" value={req.id} />

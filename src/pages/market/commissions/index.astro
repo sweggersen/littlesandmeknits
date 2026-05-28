@@ -53,7 +53,7 @@ function expiryDays(expiresAt: string | null): number | null {
           <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Bestill</p>
           <h1 class="font-serif text-4xl sm:text-5xl">Strikk for meg</h1>
         </div>
-        <a href="/market/commissions/new" class="shrink-0 bg-charcoal text-linen px-5 py-2.5 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+        <a href="/market/commissions/new" class="shrink-0 bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
           + Ny forespørsel
         </a>
       </div>
@@ -82,7 +82,7 @@ function expiryDays(expiresAt: string | null): number | null {
           <label for="budsjett_max" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Budsjett til</label>
           <input id="budsjett_max" name="budsjett_max" type="number" min="0" value={url.searchParams.get('budsjett_max') ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15" placeholder="NOK" />
         </div>
-        <button type="submit" class="bg-charcoal text-linen px-5 py-2 rounded-full text-sm font-medium hover:bg-terracotta-500 transition-colors">
+        <button type="submit" class="bg-primary text-primary-fg px-5 py-2 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
           Filtrer
         </button>
       </form>

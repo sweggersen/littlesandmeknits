@@ -38,7 +38,7 @@ const { commissionRequestId, existingReview = false } = Astro.props;
 
       <textarea name="comment" rows="2" maxlength="500" placeholder="Skriv en kommentar (valgfritt)…" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
 
-      <button type="submit" disabled class="w-full bg-charcoal text-linen px-4 py-2.5 rounded-full text-xs font-medium hover:bg-terracotta-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Send vurdering</button>
+      <button type="submit" disabled class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed">Send vurdering</button>
       <p class="text-[10px] text-charcoal/40 hidden" data-review-status></p>
     </form>
   </div>

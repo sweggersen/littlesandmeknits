@@ -18,12 +18,12 @@ const { search, hasFilters = false, filterCount = 0 } = Astro.props;
   </div>
   <button type="button" data-toggle-filter
     class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
-      hasFilters ? 'bg-charcoal text-linen border-charcoal' : 'bg-white text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
+      hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-white text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
     Filter{hasFilters ? ` (${filterCount})` : ''}
   </button>
   <div class="flex items-center gap-1">
-    <button type="button" data-view="grid" aria-label="Rutenett" class="p-2 rounded-lg bg-charcoal text-linen transition-colors">
+    <button type="button" data-view="grid" aria-label="Rutenett" class="p-2 rounded-lg bg-primary text-primary-fg transition-colors">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><rect x="0" y="0" width="7" height="7" rx="1"/><rect x="9" y="0" width="7" height="7" rx="1"/><rect x="0" y="9" width="7" height="7" rx="1"/><rect x="9" y="9" width="7" height="7" rx="1"/></svg>
     </button>
     <button type="button" data-view="list" aria-label="Liste" class="p-2 rounded-lg text-charcoal/40 hover:text-charcoal transition-colors">
@@ -64,7 +64,7 @@ const { search, hasFilters = false, filterCount = 0 } = Astro.props;
 
       document.querySelectorAll<HTMLElement>('[data-view]').forEach(b => {
         const active = b.dataset.view === mode;
-        b.className = `p-2 rounded-lg transition-colors ${active ? 'bg-charcoal text-linen' : 'text-charcoal/40 hover:text-charcoal'}`;
+        b.className = `p-2 rounded-lg transition-colors ${active ? 'bg-primary text-primary-fg' : 'text-charcoal/40 hover:text-charcoal'}`;
       });
 
       grid.className = mode === 'grid' ? GRID_CLASSES : LIST_CLASSES;
