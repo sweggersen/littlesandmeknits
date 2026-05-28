@@ -66,6 +66,11 @@ export async function signInWithVippsUserinfo(opts: {
   if (!userId) {
     const safeSub = userinfo.sub.replace(/[^a-z0-9-]/gi, '').toLowerCase();
     const synthEmail = `vipps-${safeSub}@vipps.users.littlesandmeknits.com`;
+    const composedName = [userinfo.given_name, userinfo.family_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    const displayName = (userinfo.name || composedName || '').trim() || null;
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email: synthEmail,
       email_confirm: true,
@@ -73,9 +78,10 @@ export async function signInWithVippsUserinfo(opts: {
         provider: 'vipps',
         vipps_sub: userinfo.sub,
         vipps_email: userinfo.email,
+        display_name: displayName,
         first_name: userinfo.given_name,
         last_name: userinfo.family_name,
-        full_name: userinfo.name,
+        full_name: displayName,
         phone: userinfo.phone_number,
       },
     });
@@ -90,16 +96,16 @@ export async function signInWithVippsUserinfo(opts: {
     userId = created.user.id;
     userEmail = synthEmail;
 
-    await admin
-      .from('profiles')
-      .update({
-        vipps_sub: userinfo.sub,
-        vipps_phone_e164: userinfo.phone_number ?? null,
-        first_name: userinfo.given_name ?? null,
-        last_name: userinfo.family_name ?? null,
-        display_name: userinfo.name ?? null,
-      })
-      .eq('id', userId);
+    const profileUpdate: Record<string, unknown> = {
+      vipps_sub: userinfo.sub,
+      vipps_phone_e164: userinfo.phone_number ?? null,
+      first_name: userinfo.given_name ?? null,
+      last_name: userinfo.family_name ?? null,
+    };
+    // Only override display_name if Vipps actually gave us a name — don't
+    // wipe whatever the handle_new_user trigger just set if Vipps was silent.
+    if (displayName) profileUpdate.display_name = displayName;
+    await admin.from('profiles').update(profileUpdate).eq('id', userId);
   }
 
   if (!userId || !userEmail) return { ok: false, reason: 'no-user' };

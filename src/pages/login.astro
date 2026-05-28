@@ -11,7 +11,11 @@ if (user) {
   return Astro.redirect('/studio');
 }
 
-const next = Astro.url.searchParams.get('next') ?? '/studio';
+// Default landing depends on which front door they came in: Strikketorget
+// users go back to the marketplace, everyone else lands in their Studio.
+const isStrikketorget = Astro.url.hostname.includes('strikketorget');
+const defaultNext = isStrikketorget ? '/market' : '/studio';
+const next = Astro.url.searchParams.get('next') ?? defaultNext;
 const registered = Astro.url.searchParams.get('registered') === '1';
 
 // Public signup is gated. /login?invite=<LOGIN_INVITE_KEY> grants access

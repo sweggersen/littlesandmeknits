@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { vippsConfig, exchangeCode, fetchUserinfo } from '../../../lib/vipps';
 import { signInWithVippsUserinfo } from '../../../lib/vipps-session';
+import { createServerSupabase } from '../../../lib/supabase';
 
 const STATE_COOKIE = 'vipps_oidc_state';
 const VERIFIER_COOKIE = 'vipps_oidc_verifier';
@@ -62,5 +63,21 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
   if (!result.ok) return fail(result.reason ?? 'session', result.detail);
 
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/studio';
+
+  // First-time users haven't completed onboarding (no birthday saved yet).
+  // Detour them through the wizard, then bounce back to where they were going.
+  const supabase = createServerSupabase({ request, cookies });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('birthday')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (!profile?.birthday) {
+      return redirect(`${origin}/onboarding/birthday?next=${encodeURIComponent(safeNext)}`);
+    }
+  }
+
   return redirect(`${origin}${safeNext}`);
 };
