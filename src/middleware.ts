@@ -80,6 +80,18 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   }
   ctx.locals.inMarketSession = inMarketSession;
 
+  // Sticky marker: did the user visit Strikketorget recently? Used by the
+  // Strikkestua nav to swap "Strikketorget" -> "Tilbake til Strikketorget".
+  // Refreshes on every market visit; expires after 7 days of inactivity.
+  if (path === '/market' || path.startsWith('/market/')) {
+    ctx.cookies.set('seen_market', '1', {
+      path: '/',
+      sameSite: 'lax',
+      httpOnly: false,
+      maxAge: 60 * 60 * 24 * 7,
+    });
+  }
+
   // 301 legacy Norwegian paths to the new English routes.
   const rewritten = rewriteLegacyPath(path);
   if (rewritten) {

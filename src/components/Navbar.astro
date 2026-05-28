@@ -39,6 +39,13 @@ const brandHref = section === 'strikketorget'
   : section === 'strikkestua'
     ? '/studio'
     : localizedPath(lang, '/');
+
+// On Strikkestua, surface a single Strikketorget link on the right side
+// of the nav instead of the section pills on the left. Says "Tilbake til
+// Strikketorget" if the user visited the marketplace recently, otherwise
+// just "Strikketorget".
+const seenMarket = Astro.cookies.get('seen_market')?.value === '1';
+const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorget';
 ---
 
 <nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
@@ -75,30 +82,47 @@ const brandHref = section === 'strikketorget'
           );
         })}
       </div>
-      <span class="hidden lg:block w-px h-4 bg-sage-500/20" />
-      <ul class="hidden sm:flex items-center gap-1.5">
-        {sectionItems.map((item) => {
-          const isActive = currentPath.startsWith(item.href);
-          return (
-            <li class:list={[item.authOnly && 'hidden']} data-auth-link={item.authOnly ? 'studio' : undefined}>
-              <a
-                href={item.href}
-                class:list={[
-                  'text-sm font-medium px-3 py-1.5 rounded-full border transition-colors',
-                  isActive
-                    ? 'bg-terracotta-500/10 border-terracotta-500/30 text-terracotta-500'
-                    : 'border-sage-500/20 text-charcoal/70 hover:border-terracotta-500/30 hover:text-terracotta-500',
-                ]}
-              >
-                {item.label}
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+      {section !== 'strikkestua' && (
+        <>
+          <span class="hidden lg:block w-px h-4 bg-sage-500/20" />
+          <ul class="hidden sm:flex items-center gap-1.5">
+            {sectionItems.map((item) => {
+              const isActive = currentPath.startsWith(item.href);
+              return (
+                <li class:list={[item.authOnly && 'hidden']} data-auth-link={item.authOnly ? 'studio' : undefined}>
+                  <a
+                    href={item.href}
+                    class:list={[
+                      'text-sm font-medium px-3 py-1.5 rounded-full border transition-colors',
+                      isActive
+                        ? 'bg-terracotta-500/10 border-terracotta-500/30 text-terracotta-500'
+                        : 'border-sage-500/20 text-charcoal/70 hover:border-terracotta-500/30 hover:text-terracotta-500',
+                    ]}
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </div>
 
     <div class="flex items-center gap-4">
+      {section === 'strikkestua' && (
+        <a
+          href="/market"
+          class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium px-4 py-1.5 rounded-full border border-sage-500/30 text-charcoal/80 hover:border-terracotta-500/40 hover:text-terracotta-500 transition-colors"
+        >
+          {seenMarket && (
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          )}
+          <span>{marketBackLabel}</span>
+        </a>
+      )}
       <span data-public-only>
         <LangSwitcher lang={lang} />
       </span>
