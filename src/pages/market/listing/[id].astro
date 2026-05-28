@@ -1278,7 +1278,7 @@ const autoReleaseDays = listing.auto_release_at
         function render() {
           const on = btn.dataset.favorited === 'true';
           icon?.setAttribute('fill', on ? 'currentColor' : 'none');
-          btn.style.color = on ? '#c2604a' : '';
+          btn.style.color = on ? 'var(--color-primary)' : '';
           btn.setAttribute('aria-label', on ? 'Fjern favoritt' : 'Legg til favoritt');
         }
         render();

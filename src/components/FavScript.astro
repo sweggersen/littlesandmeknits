@@ -15,7 +15,16 @@
         const { favorited } = await res.json();
         const svg = btn.querySelector('svg');
         if (svg) svg.setAttribute('fill', favorited ? 'currentColor' : 'none');
-        el.style.color = favorited ? '#c2604a' : '';
+        // Toggle the unfavorited utility class AND the inline color so
+        // the visual state matches regardless of cascade quirks. Uses the
+        // brand --color-primary token so a re-skin updates the heart too.
+        if (favorited) {
+          el.classList.remove('text-charcoal/30');
+          el.style.color = 'var(--color-primary)';
+        } else {
+          el.classList.add('text-charcoal/30');
+          el.style.color = '';
+        }
       });
     });
   }
