@@ -59,8 +59,32 @@ const saved = Astro.url.searchParams.get('saved') === '1';
                 </span>
               </div>
             )}
-            <input name="avatar" type="file" accept="image/*"
+            <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-avatar-input
               class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
+          </div>
+        </div>
+
+        {/* Square-crop modal, opens when the user picks an avatar file */}
+        <div data-crop-modal class="hidden fixed inset-0 z-[60] bg-charcoal/60 backdrop-blur-sm flex items-center justify-center p-4" aria-modal="true" role="dialog">
+          <div class="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl">
+            <h3 class="font-serif text-lg mb-4 text-center">Tilpass profilbildet</h3>
+            <div
+              data-crop-container
+              class="relative mx-auto bg-charcoal/5 rounded-2xl overflow-hidden touch-none select-none cursor-grab"
+              style="width: 288px; height: 288px;"
+            >
+              <img data-crop-image alt="" class="absolute top-0 left-0 max-w-none origin-top-left pointer-events-none" />
+              {/* Round overlay mask */}
+              <div class="absolute inset-0 pointer-events-none" style="box-shadow: 0 0 0 144px rgba(60, 60, 60, 0.55) inset; border-radius: 9999px;"></div>
+            </div>
+            <label class="block mt-5">
+              <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Zoom</span>
+              <input data-crop-zoom type="range" min="1" max="3" step="0.01" value="1" class="w-full accent-terracotta-500" />
+            </label>
+            <div class="flex gap-3 mt-5">
+              <button type="button" data-crop-cancel class="flex-1 rounded-full py-2.5 px-4 text-sm font-medium border border-sage-500/30 text-charcoal/80 hover:bg-sage-100/40">Avbryt</button>
+              <button type="button" data-crop-confirm class="flex-1 btn-primary rounded-full py-2.5 px-4 text-sm font-semibold">Bruk bilde</button>
+            </div>
           </div>
         </div>
 
@@ -186,3 +210,125 @@ const saved = Astro.url.searchParams.get('saved') === '1';
     </div>
   </div>
 </Layout>
+
+<script>
+  function initAvatarCropper() {
+    const fileInput = document.querySelector<HTMLInputElement>('[data-avatar-input]');
+    const modal = document.querySelector<HTMLElement>('[data-crop-modal]');
+    if (!fileInput || !modal) return;
+    if ((fileInput as any)._cropBound) return;
+    (fileInput as any)._cropBound = true;
+
+    const container = modal.querySelector<HTMLElement>('[data-crop-container]')!;
+    const img = modal.querySelector<HTMLImageElement>('[data-crop-image]')!;
+    const zoom = modal.querySelector<HTMLInputElement>('[data-crop-zoom]')!;
+    const cancel = modal.querySelector<HTMLButtonElement>('[data-crop-cancel]')!;
+    const confirm = modal.querySelector<HTMLButtonElement>('[data-crop-confirm]')!;
+
+    const CROP = 288; // visible square in CSS px
+    const OUT = 512;  // output image px (uploaded to storage)
+    let baseScale = 1;
+    let scale = 1;
+    let tx = 0;
+    let ty = 0;
+    let dragging = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    function clamp(v: number, min: number, max: number) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function applyBounds() {
+      const totalScale = baseScale * scale;
+      const w = img.naturalWidth * totalScale;
+      const h = img.naturalHeight * totalScale;
+      // Keep image covering the crop square at all times.
+      tx = clamp(tx, CROP - w, 0);
+      ty = clamp(ty, CROP - h, 0);
+    }
+
+    function render() {
+      applyBounds();
+      img.style.transform = `translate(${tx}px, ${ty}px) scale(${baseScale * scale})`;
+    }
+
+    function openModal(file: File) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        img.onload = () => {
+          // Fit shortest side to crop square; user can zoom in further.
+          baseScale = CROP / Math.min(img.naturalWidth, img.naturalHeight);
+          scale = 1;
+          zoom.value = '1';
+          // Center
+          tx = (CROP - img.naturalWidth * baseScale) / 2;
+          ty = (CROP - img.naturalHeight * baseScale) / 2;
+          render();
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        };
+        img.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function closeModal() {
+      modal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    fileInput.addEventListener('change', () => {
+      const f = fileInput.files?.[0];
+      if (!f) return;
+      openModal(f);
+    });
+
+    zoom.addEventListener('input', () => { scale = parseFloat(zoom.value); render(); });
+
+    // Drag (mouse + touch)
+    function startDrag(x: number, y: number) { dragging = true; lastX = x; lastY = y; container.style.cursor = 'grabbing'; }
+    function moveDrag(x: number, y: number) {
+      if (!dragging) return;
+      tx += (x - lastX); ty += (y - lastY); lastX = x; lastY = y; render();
+    }
+    function endDrag() { dragging = false; container.style.cursor = 'grab'; }
+
+    container.addEventListener('mousedown', (e) => startDrag(e.clientX, e.clientY));
+    window.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+    window.addEventListener('mouseup', endDrag);
+    container.addEventListener('touchstart', (e) => { const t = e.touches[0]; startDrag(t.clientX, t.clientY); }, { passive: true });
+    window.addEventListener('touchmove', (e) => { const t = e.touches[0]; moveDrag(t.clientX, t.clientY); }, { passive: true });
+    window.addEventListener('touchend', endDrag);
+
+    cancel.addEventListener('click', () => {
+      fileInput.value = '';
+      closeModal();
+    });
+
+    confirm.addEventListener('click', async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = OUT;
+      canvas.height = OUT;
+      const ctx = canvas.getContext('2d')!;
+      const totalScale = baseScale * scale;
+      // Source rect inside the original image that maps to the crop square.
+      const srcX = -tx / totalScale;
+      const srcY = -ty / totalScale;
+      const srcSize = CROP / totalScale;
+      ctx.drawImage(img, srcX, srcY, srcSize, srcSize, 0, 0, OUT, OUT);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+      if (!blob) { closeModal(); return; }
+      const cropped = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+      // Swap the file input contents with the cropped file via DataTransfer.
+      const dt = new DataTransfer();
+      dt.items.add(cropped);
+      fileInput.files = dt.files;
+      closeModal();
+    });
+
+    modal.addEventListener('click', (e) => { if (e.target === modal) { fileInput.value = ''; closeModal(); } });
+  }
+
+  document.addEventListener('astro:page-load', initAvatarCropper);
+</script>
