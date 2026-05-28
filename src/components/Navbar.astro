@@ -404,9 +404,17 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
   function initNavbar() {
     const trigger = document.querySelector<HTMLButtonElement>('[data-mobile-menu-trigger]');
     const menu = document.querySelector<HTMLElement>('[data-mobile-menu]');
-    trigger?.addEventListener('click', () => {
-      menu?.classList.toggle('hidden');
-    });
+    // Reset menu on every navigation in case it was open.
+    menu?.classList.add('hidden');
+    // Bind click handler ONCE per DOM node. initNavbar runs on every
+    // page-load and was previously double-binding, so each click toggled
+    // hidden twice and the menu never opened.
+    if (trigger && !(trigger as any)._navBound) {
+      (trigger as any)._navBound = true;
+      trigger.addEventListener('click', () => {
+        menu?.classList.toggle('hidden');
+      });
+    }
 
     // Re-init dev menu after SPA navigation
     if ((window as any).initDevMenu) (window as any).initDevMenu();
@@ -432,6 +440,5 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
       .catch(() => {});
   }
 
-  initNavbar();
   document.addEventListener('astro:page-load', initNavbar);
 </script>
