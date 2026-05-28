@@ -330,7 +330,19 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
   function applyProfileInfo(u) {
     var initial = (u.display_name || '?')[0].toUpperCase();
     document.querySelectorAll('[data-profile-avatar], [data-profile-avatar-mobile], [data-profile-header-avatar]').forEach(function(el) {
-      if (u.display_name) el.textContent = initial;
+      if (u.avatar_url) {
+        // Render the actual avatar image as a background, fall back to
+        // the initial if the image fails to load. Cache-busted server-side
+        // via ?v=<updated_at> so fresh uploads show immediately.
+        el.style.backgroundImage = "url('" + u.avatar_url + "')";
+        el.style.backgroundSize = 'cover';
+        el.style.backgroundPosition = 'center';
+        el.style.color = 'transparent';
+      } else if (u.display_name) {
+        el.style.backgroundImage = '';
+        el.style.color = '';
+        el.textContent = initial;
+      }
     });
     if (u.display_name) {
       document.querySelectorAll('[data-profile-header-name]').forEach(function(el) {

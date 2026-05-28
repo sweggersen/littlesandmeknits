@@ -44,16 +44,28 @@ const saved = Astro.url.searchParams.get('saved') === '1';
         </div>
       )}
 
-      <form method="post" action="/api/profile/edit" enctype="multipart/form-data" data-astro-reload class="space-y-6">
+      <!-- Sticky save button — appears in the top-right when the user
+           stages an avatar so they don't have to scroll down to submit. -->
+      <button
+        type="submit"
+        form="profile-edit-form"
+        data-sticky-save
+        class="hidden fixed top-20 right-4 sm:right-8 z-40 btn-primary rounded-full py-2.5 px-5 text-sm font-semibold shadow-lg"
+      >
+        Lagre profil
+      </button>
+
+      <form id="profile-edit-form" method="post" action="/api/profile/edit" enctype="multipart/form-data" data-astro-reload class="space-y-6">
 
         <!-- Avatar -->
         <div>
           <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Profilbilde</label>
           <div class="flex items-center gap-4">
             {avatarUrl ? (
-              <img src={avatarUrl} alt="" class="w-16 h-16 rounded-full object-cover shrink-0" />
+              <img src={avatarUrl} alt="" data-avatar-preview class="w-16 h-16 rounded-full object-cover shrink-0" />
             ) : (
-              <div class="w-16 h-16 rounded-full bg-sage-100 flex items-center justify-center shrink-0">
+              <div class="w-16 h-16 rounded-full bg-sage-100 flex items-center justify-center shrink-0 overflow-hidden">
+                <img data-avatar-preview alt="" class="w-16 h-16 rounded-full object-cover" style="display:none;" onload="this.style.display=''" />
                 <span class="font-serif text-xl text-sage-700">
                   {(displayName || '?')[0].toUpperCase()}
                 </span>
@@ -312,7 +324,6 @@ const saved = Astro.url.searchParams.get('saved') === '1';
       canvas.height = OUT;
       const ctx = canvas.getContext('2d')!;
       const totalScale = baseScale * scale;
-      // Source rect inside the original image that maps to the crop square.
       const srcX = -tx / totalScale;
       const srcY = -ty / totalScale;
       const srcSize = CROP / totalScale;
@@ -320,10 +331,16 @@ const saved = Astro.url.searchParams.get('saved') === '1';
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
       if (!blob) { closeModal(); return; }
       const cropped = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-      // Swap the file input contents with the cropped file via DataTransfer.
       const dt = new DataTransfer();
       dt.items.add(cropped);
       fileInput.files = dt.files;
+      // Reveal the floating Lagre-profil button so the user can submit
+      // without scrolling. Also flip the inline preview eagerly.
+      document.querySelector<HTMLButtonElement>('[data-sticky-save]')?.classList.remove('hidden');
+      const previewUrl = URL.createObjectURL(cropped);
+      document.querySelectorAll<HTMLImageElement>('[data-avatar-preview]').forEach((el) => {
+        el.src = previewUrl;
+      });
       closeModal();
     });
 

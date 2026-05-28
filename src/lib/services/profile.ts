@@ -1,6 +1,6 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
-import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
+import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime, projectPhotoUrl } from '../storage';
 
 const VALID_LANGS = new Set(['nb', 'en']);
 const VALID_TAGS = new Set(['knitter', 'sells_pre_loved', 'sells_ready_made', 'open_for_requests', 'dyer']);
@@ -184,6 +184,7 @@ export interface MeData {
   email: string | undefined;
   display_name: string | null;
   avatar_path: string | null;
+  avatar_url: string | null;
   member_since: string | null;
   unread: number;
   notifications: number;
@@ -209,7 +210,7 @@ function formatMemberSince(iso: string | null | undefined): string | null {
 
 export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>> {
   const [{ data: profile }, { count: unreadCount }, { count: notifCount }, modUnreadRes] = await Promise.all([
-    ctx.supabase.from('profiles').select('display_name, avatar_path, role, created_at').eq('id', ctx.user.id).maybeSingle(),
+    ctx.supabase.from('profiles').select('display_name, avatar_path, role, created_at, updated_at').eq('id', ctx.user.id).maybeSingle(),
     ctx.supabase.from('marketplace_messages').select('id', { count: 'exact', head: true }).is('read_at', null).neq('sender_id', ctx.user.id),
     ctx.supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
     // Unread moderator messages addressed to this user.
@@ -279,6 +280,18 @@ export async function getMe(ctx: ServiceContext): Promise<ServiceResult<MeData>>
     email: ctx.user.email,
     display_name: profile?.display_name ?? null,
     avatar_path: profile?.avatar_path ?? null,
+    avatar_url: (() => {
+      const path = profile?.avatar_path;
+      if (!path) return null;
+      const base = projectPhotoUrl(path);
+      if (!base) return null;
+      // Cache-buster derived from profiles.updated_at so re-uploads to
+      // the same path (avatars/<uid>.jpg) bypass the browser cache.
+      const v = (profile as any)?.updated_at
+        ? new Date((profile as any).updated_at).getTime()
+        : '';
+      return `${base}?v=${v}`;
+    })(),
     member_since: formatMemberSince((profile as any)?.created_at),
     unread: unreadCount ?? 0,
     notifications: notifCount ?? 0,
