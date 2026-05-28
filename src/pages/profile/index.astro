@@ -156,7 +156,8 @@ if (awaitingPayment > 0) subtitleParts.push(`${awaitingPayment} venter på betal
 if (acceptedOffers > 0) subtitleParts.push(`${acceptedOffers} akseptert${acceptedOffers === 1 ? '' : 'e'} tilbud`);
 if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ventende tilbud`);
 if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
-if (subtitleParts.length === 0) subtitleParts.push('Alt i orden');
+// Leave the subtitle empty when there's nothing actionable to surface;
+// the previous fallback ('Alt i orden') reads as machine-translated.
 
 
 function isPdf(path: string | null): boolean {
@@ -173,7 +174,9 @@ function isPdf(path: string | null): boolean {
         <ProfileAvatar url={avatarUrl} name={displayName} size="xl" />
         <div class="min-w-0">
           <h1 class="font-serif text-3xl truncate">{displayName}</h1>
-          <p class="text-sm text-charcoal/55 mt-0.5">{subtitleParts.join(' · ')}</p>
+          {subtitleParts.length > 0 && (
+            <p class="text-sm text-charcoal/55 mt-0.5">{subtitleParts.join(' · ')}</p>
+          )}
         </div>
         <a href="/profile/edit" class="shrink-0 ml-auto text-sm font-medium text-charcoal/45 hover:text-terracotta-500 transition-colors">
           Rediger profil
