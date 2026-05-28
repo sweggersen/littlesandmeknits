@@ -51,15 +51,23 @@ const externalLinks = [
       </a>
 
       <div class="hidden sm:flex items-center gap-1">
-      {navLinks.map((l) => (
-        <a
-          href={l.href}
-          data-nav-link={l.href}
-          class="text-sm font-medium px-3 py-1.5 rounded-full transition-colors text-charcoal/70 hover:text-charcoal"
-        >
-          {l.label}
-        </a>
-      ))}
+      {navLinks.map((l) => {
+        const isActive = currentPath.startsWith(l.href);
+        return (
+          <a
+            href={l.href}
+            data-nav-link={l.href}
+            class:list={[
+              'text-sm font-medium px-3 py-1.5 rounded-full transition-colors',
+              isActive
+                ? 'bg-terracotta-500/10 text-terracotta-500'
+                : 'text-charcoal/70 hover:text-charcoal hover:bg-sage-100/60',
+            ]}
+          >
+            {l.label}
+          </a>
+        );
+      })}
       </div>
     </div>
 
@@ -306,6 +314,7 @@ const externalLinks = [
       el.classList.toggle('text-terracotta-500', active);
       el.classList.toggle('text-charcoal/70', !active);
       el.classList.toggle('hover:text-charcoal', !active);
+      el.classList.toggle('hover:bg-sage-100/60', !active);
     });
     document.querySelectorAll<HTMLAnchorElement>('[data-mobile-nav-link]').forEach((el) => {
       const href = el.dataset.mobileNavLink!;

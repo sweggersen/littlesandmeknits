@@ -52,6 +52,33 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+
+  /* Eyebrow — the small uppercase label used above titles, in card
+     metadata, status pills, and section headings. Repeated 20+ times
+     inline before this was extracted. Default tint is muted charcoal;
+     override with a text-* utility when you need terracotta/sage. */
+  .label-eyebrow {
+    font-size: 10px;
+    line-height: 1;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: rgb(from var(--color-charcoal) r g b / 0.45);
+  }
+
+  /* Form-field label — the small uppercase label sitting above an
+     input. Common to LoginForm, ResetPasswordForm, profile/edit, the
+     listing wizard, and the onboarding birthday page. */
+  .label-form {
+    display: block;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgb(from var(--color-charcoal) r g b / 0.5);
+    margin-bottom: 8px;
+  }
 }
 
 @layer base {
