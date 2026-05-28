@@ -10,6 +10,7 @@ import { createServerSupabase, createAdminSupabase } from './supabase';
 export interface SignInResult {
   ok: boolean;
   reason?: string;
+  detail?: string;
 }
 
 export async function signInWithVippsUserinfo(opts: {
@@ -74,7 +75,11 @@ export async function signInWithVippsUserinfo(opts: {
     });
     if (createErr || !created.user) {
       console.error('Vipps create user failed', createErr);
-      return { ok: false, reason: 'create' };
+      return {
+        ok: false,
+        reason: 'create',
+        detail: createErr?.message ?? 'unknown',
+      };
     }
     userId = created.user.id;
     userEmail = synthEmail;

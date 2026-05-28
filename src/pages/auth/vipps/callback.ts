@@ -19,8 +19,9 @@ function redirect(location: string): Response {
   return new Response(null, { status: 302, headers: { Location: location } });
 }
 
-function fail(reason: string): Response {
+function fail(reason: string, detail?: string): Response {
   const params = new URLSearchParams({ error: 'vipps', reason });
+  if (detail) params.set('detail', detail.slice(0, 200));
   return redirect(`/login?${params.toString()}`);
 }
 
@@ -58,7 +59,7 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
     cookies,
     serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   });
-  if (!result.ok) return fail(result.reason ?? 'session');
+  if (!result.ok) return fail(result.reason ?? 'session', result.detail);
 
   const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/studio';
   return redirect(`${origin}${safeNext}`);
