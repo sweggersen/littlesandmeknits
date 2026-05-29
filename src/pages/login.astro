@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import LoginContent from '../components/LoginContent.astro';
 import InterestForm from '../components/InterestForm.astro';
 import Alert from '../components/Alert.astro';
 import { getCurrentUser } from '../lib/auth';
@@ -40,21 +39,22 @@ const isLocalhost = host === 'localhost' || host === '127.0.0.1';
 const hasInvite = isLocalhost
   || Astro.cookies.get(INVITE_COOKIE)?.value === '1'
   || (inviteKey && invitedNow === inviteKey);
+
+// If the visitor is invited, /login has nothing useful to show — there's
+// only one auth provider and it's behind /auth/vipps/start. Send them
+// straight through.
+if (hasInvite) {
+  return Astro.redirect(`/auth/vipps/start?next=${encodeURIComponent(next)}`);
+}
 ---
 
-<Layout title={hasInvite ? 'Logg inn — Littles and Me' : 'Strikketorget — meld interesse'} lang="nb" noindex>
-  {hasInvite ? (
-    <LoginContent lang="nb" redirectTo={next} />
-  ) : (
-    <>
-      {registered && (
-        <div class="max-w-md mx-auto px-6 pt-12">
-          <Alert variant="success">
-            Takk! Vi sier fra så snart du kan registrere deg.
-          </Alert>
-        </div>
-      )}
-      <InterestForm />
-    </>
+<Layout title="Strikketorget — meld interesse" lang="nb" noindex>
+  {registered && (
+    <div class="max-w-md mx-auto px-6 pt-12">
+      <Alert variant="success">
+        Takk! Vi sier fra så snart du kan registrere deg.
+      </Alert>
+    </div>
   )}
+  <InterestForm />
 </Layout>

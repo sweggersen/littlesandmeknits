@@ -246,10 +246,21 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
       </div>
 
       <a
-        href="/login"
-        class="hidden sm:inline-flex text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors"
+        href="/auth/vipps/start"
+        class="hidden sm:inline-flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-4 text-sm font-semibold text-white transition-colors"
+        style="background-color: #FF5B24;"
+        onmouseover="this.style.backgroundColor='#E04E1C'"
+        onmouseout="this.style.backgroundColor='#FF5B24'"
         data-auth-link="login"
       >
+        <img
+          src="https://play-lh.googleusercontent.com/0PbbTOfd4p_kT2iumjByeiQoj4AkK5aHFFeAe61BeW9saYtpY0z4S0CPBjJUN188fpg=w480-h960-rw"
+          alt=""
+          width="22"
+          height="22"
+          class="rounded-full"
+          aria-hidden="true"
+        />
         Logg inn
       </a>
 
@@ -309,7 +320,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
         ))}
       </li>
       <li data-auth-link="login">
-        <a href="/login" class="block py-2 text-base font-medium text-charcoal/80">Logg inn</a>
+        <a href="/auth/vipps/start" class="block py-2 text-base font-medium text-charcoal/80">Logg inn med Vipps</a>
       </li>
       <li class="hidden" data-st-auth>
         <form method="post" action="/api/auth/signout">
