@@ -216,13 +216,23 @@ export const POST: APIRoute = async ({ request }) => {
 
   if (event.type === 'account.updated') {
     const account = event.data.object as Stripe.Account;
-    if (account.charges_enabled && account.payouts_enabled) {
-      const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-      await supabase
-        .from('profiles')
-        .update({ stripe_onboarded: true })
-        .eq('stripe_account_id', account.id);
+    const { statusFromAccount } = await import('../../../lib/services/stripe-connect');
+    const status = statusFromAccount(account);
+    const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+    const update: Record<string, unknown> = {
+      stripe_connect_status: status,
+      stripe_connect_requirements: account.requirements ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    // Keep the legacy boolean in sync for code paths still reading it.
+    if (status === 'verified') {
+      update.stripe_onboarded = true;
+      update.seller_verified_at = new Date().toISOString();
     }
+    await supabase
+      .from('profiles')
+      .update(update)
+      .eq('stripe_account_id', account.id);
   }
 
   return new Response('ok', { status: 200 });

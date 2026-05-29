@@ -1,0 +1,182 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Alert from '../../components/Alert.astro';
+import { getCurrentUser } from '../../lib/auth';
+import { createServerSupabase } from '../../lib/supabase';
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect('/login?next=/profile/become-seller');
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('first_name, last_name, display_name, seller_legal_name, seller_birthdate, seller_kontonummer, seller_address, seller_postal_code, seller_city, stripe_connect_status')
+  .eq('id', user.id)
+  .maybeSingle();
+
+// If already verified, send them on. If pending/restricted, show status.
+if (profile?.stripe_connect_status === 'verified') {
+  return Astro.redirect('/profile?seller=verified');
+}
+
+const error = Astro.url.searchParams.get('error');
+const errorMessages: Record<string, string> = {
+  bad_kontonummer: 'Kontonummeret ser ikke ut til å være gyldig. Sjekk at det er 11 siffer.',
+  bad_name: 'Skriv inn fullt navn (fornavn og etternavn).',
+  bad_birthdate: 'Sjekk at fødselsdatoen er riktig.',
+  missing_terms: 'Du må godta selger-vilkårene for å fortsette.',
+  stripe_error: 'Noe gikk galt mot Stripe. Prøv igjen om litt.',
+  server_error: 'Noe gikk galt. Prøv igjen om litt.',
+};
+
+// Pre-fill from existing profile data when available
+const defaultName = profile?.seller_legal_name
+  || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
+  || profile?.display_name
+  || '';
+---
+
+<Layout title="Bli selger — Strikketorget" lang="nb" noindex>
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <a href="/profile" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 block">← Tilbake til profil</a>
+      <h1 class="font-serif text-3xl mb-2">Få betalt for salgene dine</h1>
+      <p class="text-sm text-charcoal/55 mb-8">
+        Vi setter pengene rett i kontoen din 1–5 virkedager etter at kjøper har mottatt plagget.
+      </p>
+
+      {error && errorMessages[error] && (
+        <div class="mb-6">
+          <Alert variant="error">{errorMessages[error]}</Alert>
+        </div>
+      )}
+
+      {profile?.stripe_connect_status === 'pending' && (
+        <div class="mb-6">
+          <Alert variant="info">
+            Vi venter på godkjenning fra banken. Dette tar vanligvis noen minutter; du kan trygt lukke siden og komme tilbake.
+          </Alert>
+        </div>
+      )}
+
+      {profile?.stripe_connect_status === 'restricted' && (
+        <div class="mb-6">
+          <Alert variant="warning">
+            Vi trenger mer informasjon for å verifisere deg som selger. Sjekk feltene under og oppdater om nødvendig.
+          </Alert>
+        </div>
+      )}
+
+      <form
+        method="post"
+        action="/api/profile/become-seller"
+        class="space-y-6 bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10"
+      >
+        <div>
+          <label for="legal_name" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fullt navn</label>
+          <input
+            id="legal_name"
+            name="legal_name"
+            type="text"
+            required
+            maxlength="100"
+            autocomplete="name"
+            value={defaultName}
+            placeholder="Som det står i Folkeregisteret"
+            class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
+          />
+        </div>
+
+        <div>
+          <label for="birthdate" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fødselsdato</label>
+          <input
+            id="birthdate"
+            name="birthdate"
+            type="date"
+            required
+            max={`${new Date().getFullYear() - 18}-12-31`}
+            value={profile?.seller_birthdate ?? ''}
+            class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
+          />
+        </div>
+
+        <div>
+          <label for="kontonummer" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kontonummer</label>
+          <input
+            id="kontonummer"
+            name="kontonummer"
+            type="text"
+            required
+            inputmode="numeric"
+            pattern="[\d\s.\-]{11,15}"
+            placeholder="1234 56 78901"
+            value={profile?.seller_kontonummer ?? ''}
+            class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
+          />
+          <span class="block text-xs text-charcoal/45 mt-1.5">11 siffer. Vi sjekker at det er gyldig før vi lagrer.</span>
+        </div>
+
+        <div>
+          <label for="address" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Adresse</label>
+          <input
+            id="address"
+            name="address"
+            type="text"
+            required
+            maxlength="120"
+            autocomplete="street-address"
+            value={profile?.seller_address ?? ''}
+            class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
+          />
+        </div>
+
+        <div class="grid grid-cols-[1fr_2fr] gap-3">
+          <div>
+            <label for="postal_code" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Postnr</label>
+            <input
+              id="postal_code"
+              name="postal_code"
+              type="text"
+              required
+              maxlength="4"
+              pattern="\d{4}"
+              inputmode="numeric"
+              autocomplete="postal-code"
+              value={profile?.seller_postal_code ?? ''}
+              class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
+            />
+          </div>
+          <div>
+            <label for="city" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Sted</label>
+            <input
+              id="city"
+              name="city"
+              type="text"
+              required
+              maxlength="60"
+              autocomplete="address-level2"
+              value={profile?.seller_city ?? ''}
+              class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
+            />
+          </div>
+        </div>
+
+        <label class="flex items-start gap-2.5 text-sm text-charcoal/80">
+          <input type="checkbox" name="terms" value="1" required class="mt-0.5" />
+          <span>
+            Jeg godtar <a href="/terms#selger" class="text-terracotta-500 underline">selger-vilkårene</a>
+            og bekrefter at opplysningene over er riktige.
+          </span>
+        </label>
+
+        <button type="submit" class="btn-primary w-full rounded-full py-3 px-5 text-sm font-semibold">
+          Bli selger
+        </button>
+
+        <p class="text-xs text-charcoal/45 text-center">
+          Maks salgspris er 5 000 kr per plagg. Strikketorget tar 10 % av salgssummen.
+        </p>
+      </form>
+    </div>
+  </div>
+</Layout>
