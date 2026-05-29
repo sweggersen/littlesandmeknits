@@ -318,9 +318,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             },
           },
 
-          // Oppdraget viser nå "akseptert" status
+          // Oppdraget viser nå akseptert tilstand: 'VALGT' chip + Betal-CTA
           { action: 'goto', url: '/market/commissions/$requestId' },
-          { action: 'expectText', text: 'Akseptert' },
+          { action: 'expectText', text: 'VALGT' },
+          { action: 'expectText', text: 'Betal for oppdraget' },
         ],
       },
 
