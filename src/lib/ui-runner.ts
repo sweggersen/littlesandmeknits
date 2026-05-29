@@ -354,17 +354,25 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     //    reliable than racing on `load` (never fires for SPA nav) or
     //    `astro:page-load` (timing-sensitive listener attach).
     //  - No URL change after 200ms → treat as in-page click and return.
+    // Form submits do a real round-trip (POST -> 302 -> GET) and the
+    // visible URL change can lag several hundred ms. Wait up to 2s for
+    // a URL change before deciding it was an in-page click.
+    const submitButton = (button.tagName === 'BUTTON'
+      && ((button as HTMLButtonElement).type === 'submit' || (button as HTMLButtonElement).type === ''))
+      && (button as HTMLButtonElement).form;
+    const navWaitMs = submitButton ? 2000 : 200;
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const tick = () => {
         const now = iframe.contentWindow?.location?.href ?? '';
         if (now !== beforeUrl) {
           // Navigation started. Give Astro's view transition + new
-          // page scripts a moment to settle.
-          setTimeout(resolve, 400);
+          // page scripts a moment to settle, longer for form submits
+          // since the new page also needs to render.
+          setTimeout(resolve, submitButton ? 800 : 400);
           return;
         }
-        if (Date.now() - start > 200) return resolve();
+        if (Date.now() - start > navWaitMs) return resolve();
         requestAnimationFrame(tick);
       };
       tick();
