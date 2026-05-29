@@ -336,14 +336,15 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     const button = el as HTMLElement;
     // Capture pre-click URL to detect navigation.
     const beforeUrl = iframe.contentWindow?.location?.href ?? '';
-    // For <button type="submit"> inside a form, use form.requestSubmit(button)
-    // so the form actually submits (synthetic .click() is unreliable here).
+    // For <button type="submit"> inside a form: bypass requestSubmit
+    // (which Astro's ClientRouter intercepts via the submit event) and
+    // use form.submit() so the form actually navigates the iframe.
     const asButton = button as HTMLButtonElement;
     if (
       (asButton.tagName === 'BUTTON' && (asButton.type === 'submit' || asButton.type === ''))
       && asButton.form
     ) {
-      asButton.form.requestSubmit(asButton);
+      asButton.form.submit();
     } else {
       button.click();
     }
