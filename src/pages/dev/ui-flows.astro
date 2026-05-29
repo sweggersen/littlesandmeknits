@@ -280,7 +280,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           { action: 'fill', selector: 'textarea[name="description"]', value: 'Mariusgenser i naturhvitt og rødt.' },
 
           // Send inn skjemaet — POST omdirigerer til /market/commissions/<id>
-          { action: 'click', text: 'Send oppdrag', label: 'Liv sender skjemaet' },
+          { action: 'click', text: 'Publiser forespørsel', label: 'Liv sender skjemaet' },
           { action: 'bindUrl', key: 'requestId', pattern: '/market/commissions/([0-9a-f-]{36})', label: 'lagre oppdrag-id' },
           { action: 'expectText', text: 'Mariusgenser str. 3 år' },
 
