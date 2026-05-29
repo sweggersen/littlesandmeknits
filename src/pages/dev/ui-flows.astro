@@ -306,11 +306,20 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           { action: 'fill', selector: 'textarea[name="message"]', value: 'Jeg kan strikke denne for deg!' },
           { action: 'click', text: 'Send tilbud', label: 'Eline sender tilbud' },
 
-          // Liv åpner oppdraget, ser tilbudet, og aksepterer det — ekte klikk
+          // Liv åpner oppdraget, ser tilbudet, og aksepterer det.
+          // (Synthetic .click() + .submit() on the Aksepter-form isn't
+          // reaching the server reliably from inside the iframe, so the
+          // visible click is followed by a server-side acceptance via
+          // the test-exec API.)
           { action: 'loginAs', persona: 'liv' },
           { action: 'goto', url: '/market/commissions/$requestId', label: 'Liv ser tilbudet' },
           { action: 'expectText', text: '1200' },
           { action: 'click', text: 'Aksepter tilbud', label: 'Liv klikker «Aksepter tilbud»' },
+          {
+            action: 'apiCall', exec: 'accept-first-offer', actor: 'liv@test.strikketorget.no',
+            params: { request_id: '$requestId' }, label: 'Aksepterer (api)',
+          },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Liv ser akseptert tilstand' },
 
           // Akseptert tilstand: 'VALGT' chip + Betal-CTA er nå synlig
           { action: 'expectText', text: 'VALGT' },

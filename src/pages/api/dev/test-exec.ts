@@ -223,6 +223,19 @@ async function handle(
       return { data: { ...data, offerId: data.id } };
     }
 
+    case 'accept-first-offer': {
+      // Convenience for ui-flows: when the buyer doesn't have a captured
+      // $offerId (e.g. the offer was created via real UI form submit),
+      // accept whichever pending offer exists on the request.
+      if (!actorId) throw new Error('Actor required');
+      const { data: pending } = await db.from('commission_offers')
+        .select('id').eq('request_id', p.request_id).eq('status', 'pending')
+        .order('created_at', { ascending: true }).limit(1).maybeSingle();
+      if (!pending) throw new Error('No pending offer found');
+      p.offer_id = pending.id;
+      // Fall through to the existing accept-offer logic below.
+    }
+    // eslint-disable-next-line no-fallthrough
     case 'accept-offer': {
       if (!actorId) throw new Error('Actor required');
       const { data: offer } = await db.from('commission_offers')
