@@ -336,7 +336,17 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     const button = el as HTMLElement;
     // Capture pre-click URL to detect navigation.
     const beforeUrl = iframe.contentWindow?.location?.href ?? '';
-    button.click();
+    // For <button type="submit"> inside a form, use form.requestSubmit(button)
+    // so the form actually submits (synthetic .click() is unreliable here).
+    const asButton = button as HTMLButtonElement;
+    if (
+      (asButton.tagName === 'BUTTON' && (asButton.type === 'submit' || asButton.type === ''))
+      && asButton.form
+    ) {
+      asButton.form.requestSubmit(asButton);
+    } else {
+      button.click();
+    }
 
     // Wait briefly for the click's side-effects. We try (in order):
     //  - URL change detected within 200ms → wait for the next paint cycle
