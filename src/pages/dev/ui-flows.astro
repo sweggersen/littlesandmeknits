@@ -264,6 +264,19 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         steps: [
           { action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata' },
 
+          // Make Liv a trusted buyer + Eline a trusted seller so requests
+          // and offers go straight to active state without moderation.
+          {
+            action: 'apiCall', exec: 'set-trust', actor: 'liv@test.strikketorget.no',
+            params: { trust_score: 100, trust_tier: 'trusted' },
+            label: 'Liv = trusted',
+          },
+          {
+            action: 'apiCall', exec: 'set-trust', actor: 'eline@test.strikketorget.no',
+            params: { trust_score: 100, trust_tier: 'trusted' },
+            label: 'Eline = trusted',
+          },
+
           // Liv lager oppdrag via skjemaet
           { action: 'loginAs', persona: 'liv' },
           { action: 'goto', url: '/market/commissions', label: 'Liv ser Oppdrag-listen' },
