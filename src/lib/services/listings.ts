@@ -403,6 +403,9 @@ export async function purchaseListing(
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: lineItems,
+    // Vipps is the Norwegian default; card + Apple Pay cover everyone else.
+    // 'vipps' became available as a Stripe Checkout payment method in NO.
+    payment_method_types: ['vipps', 'card'],
     shipping_address_collection: { allowed_countries: ['NO'] },
     payment_intent_data: {
       capture_method: 'manual',
@@ -444,11 +447,29 @@ export async function shipListing(
   if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
   if (listing.status !== 'reserved') return fail('conflict', 'Listing not in reserved state');
 
-  // When the seller marks shipped, recompute the auto-release deadline:
-  // 14 days from the shipping date. This replaces the conservative 21-day
-  // post-purchase fallback that was set at reserved time.
+  // Capture the PaymentIntent now (the seller has shipped). Stripe Connect
+  // Custom holds the funds in the seller's pending balance for 7 days
+  // before auto-paying out to their kontonummer — disputes within that
+  // window are netted against the next payout. The auto_release_at field
+  // is still set to 14 days so we can mark the listing 'sold' for status
+  // purposes if the buyer doesn't confirm delivery.
   const shippedAt = new Date();
   const autoReleaseAt = new Date(shippedAt.getTime() + 14 * 86400_000);
+
+  const { data: listingForCapture } = await ctx.admin
+    .from('listings')
+    .select('stripe_payment_intent_id')
+    .eq('id', input.listingId)
+    .maybeSingle();
+  if (listingForCapture?.stripe_payment_intent_id) {
+    try {
+      const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
+      await stripe.paymentIntents.capture(listingForCapture.stripe_payment_intent_id);
+    } catch (e) {
+      console.error('Stripe capture-on-ship failed', e);
+      // Fall through — the auto_release_at cron will retry on day 14.
+    }
+  }
 
   await ctx.admin
     .from('listings')

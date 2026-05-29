@@ -191,25 +191,26 @@ const saved = Astro.url.searchParams.get('saved') === '1';
         </button>
       </form>
 
-      <!-- Stripe Connect for sellers -->
+      <!-- Seller payouts (Stripe Connect Custom under the hood) -->
       {currentTags.length > 0 && (
         <div class="mt-8 bg-white rounded-3xl p-6 border border-sage-500/10">
           <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-3">Utbetalinger</h2>
           {profile?.stripe_onboarded ? (
             <div>
-              <p class="text-sm text-sage-600 mb-3">Stripe-konto er koblet til. Du kan motta utbetalinger.</p>
-              <a href="/api/stripe/connect/dashboard" class="text-sm text-charcoal/55 hover:text-charcoal underline">
-                Åpne Stripe-dashbord
+              <p class="text-sm text-sage-600 mb-3">Du er verifisert som selger. Vi setter pengene rett i kontoen din etter hvert salg.</p>
+              <a href="/profile/become-seller" class="text-sm text-charcoal/55 hover:text-charcoal underline">
+                Oppdater utbetalingsinformasjon
               </a>
             </div>
           ) : (
             <div>
-              <p class="text-sm text-charcoal/55 mb-3">Koble til Stripe for å motta betaling for oppdrag.</p>
-              <form method="post" action="/api/stripe/connect/onboard" data-astro-reload>
-                <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
-                  Koble til Stripe
-                </button>
-              </form>
+              <p class="text-sm text-charcoal/55 mb-3">Registrer kontoen din for å motta betaling når du selger.</p>
+              <a
+                href="/profile/become-seller"
+                class="inline-block bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
+              >
+                Bli selger
+              </a>
             </div>
           )}
         </div>
