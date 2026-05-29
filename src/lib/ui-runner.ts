@@ -255,12 +255,21 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
   }
   if (step.action === 'bindUrl') {
     if (!opts.onBindUrl) throw new Error('bindUrl used but no onBindUrl handler provided');
-    const win = iframe.contentWindow;
-    if (!win) throw new Error('iframe window unavailable');
-    const url = win.location.href;
+    // Poll for up to 10s so we tolerate slow form-submit redirects.
     const re = new RegExp(step.pattern);
-    const match = url.match(re);
-    if (!match) throw new Error(`bindUrl: pattern /${step.pattern}/ did not match ${url}`);
+    const start = Date.now();
+    let url = '';
+    let match: RegExpMatchArray | null = null;
+    while (Date.now() - start < 10_000) {
+      const win = iframe.contentWindow;
+      if (win) {
+        url = win.location.href;
+        match = url.match(re);
+        if (match && iframe.contentDocument?.readyState === 'complete') break;
+      }
+      await sleep(80);
+    }
+    if (!match) throw new Error(`bindUrl: pattern /${step.pattern}/ did not match ${url} within 10s`);
     const captured = match[1] ?? match[0];
     opts.onBindUrl(step.key, captured);
     return;
@@ -272,11 +281,17 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     return;
   }
   if (step.action === 'expectText') {
-    const doc = getDoc(iframe);
-    const bodyText = doc.body.innerText ?? '';
+    // Poll for up to 5s — handles slow nav/redirect cases where the new
+    // page is still painting when this step runs.
+    const start = Date.now();
+    let doc: Document = getDoc(iframe);
+    let bodyText = doc.body.innerText ?? '';
+    while (!bodyText.includes(step.text) && Date.now() - start < 5_000) {
+      await sleep(120);
+      doc = getDoc(iframe);
+      bodyText = doc.body.innerText ?? '';
+    }
     if (!bodyText.includes(step.text)) throw new Error(`Text "${step.text}" not found on page`);
-    // Scroll the asserted text into view + highlight it so the eye
-    // catches the thing that was verified.
     const el = findContainingElement(doc, step.text);
     if (el) await highlight(el, dur);
     return;
