@@ -254,7 +254,9 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ],
       },
 
-      // ─────────── E2E: Oppdrag — opprett, tilbud, aksept, kjøp ───────────
+      // ─────────── E2E: Oppdrag — opprett, tilbud, aksept ──────────────
+      // Real UI clicks throughout (form fills + real submits). Only the
+      // payment step is faked since Stripe Checkout opens outside the iframe.
       {
         id: 'e2e-oppdrag',
         title: 'E2E — Liv lager oppdrag, Eline byr, Liv aksepterer',
@@ -262,64 +264,42 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         steps: [
           { action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata' },
 
-          // Liv lager oppdrag
+          // Liv lager oppdrag via skjemaet
           { action: 'loginAs', persona: 'liv' },
-          {
-            action: 'apiCall', exec: 'create-request', actor: 'liv@test.strikketorget.no',
-            params: {
-              title: 'E2E: Mariusgenser str. 3 år',
-              category: 'genser',
-              size_label: '3 år',
-              budget_nok_min: 800,
-              budget_nok_max: 1500,
-              description: 'Trenger en koselig Mariusgenser, helst i naturhvitt og rødt.',
-            },
-            label: 'Liv oppretter oppdrag',
-            overlay: {
-              icon: '✍️',
-              title: 'I virkeligheten: Liv lager oppdraget',
-              body: 'Liv går til Oppdrag → Nytt oppdrag, beskriver hva hun vil ha strikket (kategori, størrelse, garn, budsjett) og sender inn. Andre strikkere får varsel.',
-              note: 'Forkortet — vi sender skjemaet direkte via API.',
-            },
-          },
+          { action: 'goto', url: '/market/commissions', label: 'Liv ser Oppdrag-listen' },
+          { action: 'expectText', text: 'Oppdrag' },
+          { action: 'click', text: '+ Nytt oppdrag', label: 'Klikk «Nytt oppdrag»' },
+          { action: 'expectText', text: 'Nytt oppdrag' },
 
-          // Oppdraget vises på listen
-          { action: 'goto', url: '/market/commissions', label: 'Oppdrag-listen' },
+          // Fyll ut skjemaet — synlig for seeren
+          { action: 'fill', selector: 'input[name="title"]', value: 'E2E: Mariusgenser str. 3 år' },
+          { action: 'select', selector: 'select[name="category"]', value: 'genser' },
+          { action: 'fill', selector: 'input[name="size_label"]', value: '3 år' },
+          { action: 'fill', selector: 'input[name="budget_nok_min"]', value: '800' },
+          { action: 'fill', selector: 'input[name="budget_nok_max"]', value: '1500' },
+          { action: 'fill', selector: 'textarea[name="description"]', value: 'Mariusgenser i naturhvitt og rødt.' },
+
+          // Send inn skjemaet — POST omdirigerer til /market/commissions/<id>
+          { action: 'click', text: 'Send oppdrag', label: 'Liv sender skjemaet' },
+          { action: 'bindUrl', key: 'requestId', pattern: '/market/commissions/([0-9a-f-]{36})', label: 'lagre oppdrag-id' },
           { action: 'expectText', text: 'Mariusgenser str. 3 år' },
 
-          // Eline byr på det
+          // Eline byr — fyller ut og sender tilbudet direkte på oppdrag-siden
           { action: 'loginAs', persona: 'eline' },
-          { action: 'goto', url: '/market/commissions/$requestId', label: 'Eline ser oppdraget' },
-          { action: 'expectText', text: 'Mariusgenser str. 3 år' },
-          {
-            action: 'apiCall', exec: 'make-offer', actor: 'eline@test.strikketorget.no',
-            params: { request_id: '$requestId', price_nok: 1200, turnaround_weeks: 4, message: 'Jeg kan strikke denne for deg!' },
-            label: 'Eline sender tilbud',
-            overlay: {
-              icon: '🧶',
-              title: 'I virkeligheten: Eline sender tilbud',
-              body: 'Eline ser oppdraget, klikker «Gi tilbud», fyller inn pris og leveringstid, og legger ved en hilsen.',
-            },
-          },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Eline åpner oppdraget' },
+          { action: 'expectText', text: 'Send tilbud' },
+          { action: 'fill', selector: 'input[name="price_nok"]', value: '1200' },
+          { action: 'fill', selector: 'input[name="turnaround_weeks"]', value: '4' },
+          { action: 'fill', selector: 'textarea[name="message"]', value: 'Jeg kan strikke denne for deg!' },
+          { action: 'click', text: 'Send tilbud', label: 'Eline sender tilbud' },
 
-          // Liv ser tilbudet og aksepterer
+          // Liv åpner oppdraget, ser tilbudet, og aksepterer det — ekte klikk
           { action: 'loginAs', persona: 'liv' },
           { action: 'goto', url: '/market/commissions/$requestId', label: 'Liv ser tilbudet' },
           { action: 'expectText', text: '1200' },
-          {
-            action: 'apiCall', exec: 'accept-offer', actor: 'liv@test.strikketorget.no',
-            params: { offer_id: '$offerId' },
-            label: 'Liv aksepterer tilbudet',
-            overlay: {
-              icon: '✅',
-              title: 'I virkeligheten: Liv aksepterer',
-              body: 'Liv velger Elines tilbud og blir sendt til Stripe for å reservere beløpet. Vi simulerer betalingen direkte.',
-              note: 'Andre tilbud blir automatisk avslått.',
-            },
-          },
+          { action: 'click', text: 'Aksepter tilbud', label: 'Liv klikker «Aksepter tilbud»' },
 
-          // Oppdraget viser nå akseptert tilstand: 'VALGT' chip + Betal-CTA
-          { action: 'goto', url: '/market/commissions/$requestId' },
+          // Akseptert tilstand: 'VALGT' chip + Betal-CTA er nå synlig
           { action: 'expectText', text: 'VALGT' },
           { action: 'expectText', text: 'Betal for oppdraget' },
         ],
@@ -838,6 +818,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             Object.assign(seedCache, r.data);
           }
           return r?.data;
+        },
+        onBindUrl: (key, value) => {
+          bindings[key] = value;
+          (seedCache as Record<string, unknown>)[key] = value;
         },
         onStep: async (i, step, res) => {
           if (res === 'running') {

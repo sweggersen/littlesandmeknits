@@ -30,6 +30,10 @@ export type FlowStep = StepCommon & (
   | { action: 'wait'; ms: number }
   | { action: 'loginAs'; persona: 'liv' | 'eline' | 'maja' | 'nora' | 'kari' | null }
   | { action: 'apiCall'; exec: string; actor?: string; params?: Record<string, unknown> }
+  // bindUrl: extract a regex group from the iframe's current URL and stash
+  // it under `key` so later steps can reference it as $key. Used to capture
+  // IDs after a real form submit (e.g. /market/commissions/<id>).
+  | { action: 'bindUrl'; key: string; pattern: string }
 );
 
 export type StepResult = { ok: true } | { ok: false; error: string };
@@ -51,6 +55,7 @@ function describe(step: FlowStep): string {
     case 'wait': return `wait ${step.ms}ms`;
     case 'loginAs': return `loginAs ${step.persona ?? '(anon)'}`;
     case 'apiCall': return `api ${step.exec}${step.actor ? ` (${step.actor})` : ''}`;
+    case 'bindUrl': return `bindUrl $${step.key} from ${step.pattern}`;
   }
 }
 
@@ -187,6 +192,8 @@ export type RunnerOptions = {
   onApiCall?: (exec: string, body: { actor?: string; params?: Record<string, unknown> }) => Promise<unknown>;
   /** Resolve dynamic placeholders in a goto URL just before navigation. */
   onResolveUrl?: (url: string) => string;
+  /** Capture a value extracted from the iframe URL into a binding. */
+  onBindUrl?: (key: string, value: string) => void;
 };
 
 export async function runFlow(
@@ -244,6 +251,18 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
   if (step.action === 'apiCall') {
     if (!opts.onApiCall) throw new Error('apiCall used but no onApiCall handler provided');
     await opts.onApiCall(step.exec, { actor: step.actor, params: step.params });
+    return;
+  }
+  if (step.action === 'bindUrl') {
+    if (!opts.onBindUrl) throw new Error('bindUrl used but no onBindUrl handler provided');
+    const win = iframe.contentWindow;
+    if (!win) throw new Error('iframe window unavailable');
+    const url = win.location.href;
+    const re = new RegExp(step.pattern);
+    const match = url.match(re);
+    if (!match) throw new Error(`bindUrl: pattern /${step.pattern}/ did not match ${url}`);
+    const captured = match[1] ?? match[0];
+    opts.onBindUrl(step.key, captured);
     return;
   }
   if (step.action === 'expectUrl') {
