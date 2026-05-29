@@ -120,33 +120,211 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     };
 
     const FLOWS: Flow[] = [
+      // ═══════════════════════════════════════════════════════════════
+      //   END-TO-END FLOWS  (full happy paths through the marketplace)
+      // ═══════════════════════════════════════════════════════════════
+      // These run first because they're the highest-signal tests — if
+      // any of them break, something foundational is wrong. Smaller
+      // per-page flows below.
+
+      // ────────────────────── Full E2E (kjøpsflyt) ─────────────────────
+      {
+        id: 'e2e-buyflow',
+        title: 'E2E — selger lager annonse, kjøper kjøper, bekrefter mottak',
+        persona: null,
+        steps: [
+          {
+            action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata',
+            overlay: {
+              icon: '🧹',
+              title: 'Rydder testdata',
+              body: 'I produksjon kjører ingen slik «rensing» — databasen vokser, og hver bruker sletter selv kontoen sin via Mine data og personvern (GDPR Art. 17).',
+              note: 'Bare i demoen.',
+            },
+          },
+          {
+            action: 'apiCall', exec: 'seed-buyflow-listing',
+            params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] },
+            label: 'Frø Eline + ny aktiv annonse',
+            overlay: {
+              icon: '🪡',
+              title: 'I virkeligheten: Selger lager annonsen',
+              body: 'Eline går gjennom 3-stegs-wizarden (Detaljer → Pris & frakt → Bilder), laster opp 2 bilder, og sender til moderering. Eline er «trusted seller» her, så annonsen går rett til aktiv uten manuell godkjenning.',
+              note: 'Forkortet i demoen — vi setter opp annonsen direkte.',
+            },
+          },
+
+          // Buyer view
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Liv åpner annonsen' },
+          { action: 'expectText', text: 'E2E demo: Strikket genser str. 2 år' },
+          { action: 'expectText', text: 'Beskyttet av', label: 'Kjøps-CTA synlig (Trygg betaling)' },
+
+          // Purchase (bypasses Stripe via test-exec)
+          {
+            action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no',
+            params: { listing_id: '$listingId' }, label: 'Liv kjøper',
+            overlay: {
+              icon: '💳',
+              title: 'Stripe Checkout',
+              body: 'Liv blir sendt til Stripes betalingsside, fyller inn leveringsadresse, og betaler 445 kr (350 vare + 76 frakt + 19 trygg betaling) med Vipps eller kort.\n\nStripe trekker beløpet og holder det i forvaring til kjøper bekrefter mottak.',
+              note: 'Stripe kan ikke vises i iframe — vi simulerer kjøpet direkte.',
+            },
+          },
+
+          // Seller sees the reserved state
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Eline ser annonsen' },
+          { action: 'expectText', text: 'Noen har kjøpt varen din!' },
+
+          // Seller marks shipped
+          {
+            action: 'apiCall', exec: 'ship-listing', actor: 'eline@test.strikketorget.no',
+            params: { listing_id: '$listingId', tracking_code: 'CD123456789NO' },
+            label: 'Eline merker som sendt',
+            overlay: {
+              icon: '📦',
+              title: 'I virkeligheten: Eline pakker og sender',
+              body: 'Eline tar med pakken til nærmeste Posten-utleveringssted, limer på fraktetiketten, og limer inn sporingsnummeret CD123456789NO i annonsesiden.',
+              note: 'Kjøper får varsel + sporingslenke automatisk.',
+            },
+          },
+
+          // Buyer sees shipped + can confirm
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/seed:$listingId', label: 'Liv ser «sendt»' },
+          { action: 'expectText', text: 'Bekreft' },
+
+          // Buyer confirms delivery
+          {
+            action: 'apiCall', exec: 'confirm-listing-delivery', actor: 'liv@test.strikketorget.no',
+            params: { listing_id: '$listingId' }, label: 'Liv bekrefter mottak',
+            overlay: {
+              icon: '✅',
+              title: 'I virkeligheten: Liv bekrefter mottak',
+              body: 'Liv åpner pakken, sjekker at genseren er som forventet, og trykker «Bekreft mottatt» på annonsesiden. Stripe frigjør 426 kr (445 minus trygg-betaling-avgiften) til Eline samme dag.\n\nHvis hun ikke svarer, frigjøres pengene automatisk 14 dager etter sending.',
+              note: 'Snarvei i demoen.',
+            },
+          },
+
+          // Seller sees sold final state
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/market/my-listings', label: 'Eline sjekker Mine annonser' },
+          { action: 'expectText', text: 'Solgt' },
+        ],
+      },
+
+      // ───────────────── E2E: Opprett butikk + storefront ──────────────
+      {
+        id: 'e2e-store-create',
+        title: 'E2E — Eline oppretter butikk + storefront vises',
+        persona: 'eline',
+        steps: [
+          { action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata' },
+          // Mine butikker tom-tilstand
+          { action: 'goto', url: '/profile/stores', label: 'Mine butikker (tom)' },
+          { action: 'expectText', text: 'Mine butikker' },
+
+          // Vi hopper over /api/stores som krever ekte Brønnøysund-oppslag og
+          // seeder en aktiv butikk direkte med Eline som eier.
+          {
+            action: 'apiCall', exec: 'seed-store', actor: 'eline@test.strikketorget.no',
+            params: { slug: 'e2e-trad-og-garn', name: 'E2E demo: Tråd & Garn' },
+            label: 'Opprett butikk (seed)',
+            overlay: {
+              icon: '🏪',
+              title: 'I virkeligheten: Slå opp orgnr',
+              body: 'Eline skriver inn organisasjonsnummeret. Vi henter navn, adresse og status fra Brønnøysundregistrene og låser dataene. Hun velger butikknavn og tagline, og publiserer.',
+              note: 'Demo: ekte Brønnøysund-oppslag er hoppet over.',
+            },
+          },
+
+          // Mine butikker — viser nå den nye butikken
+          { action: 'goto', url: '/profile/stores' },
+          { action: 'expectText', text: 'E2E demo: Tråd & Garn' },
+
+          // Offentlig butikkside
+          { action: 'goto', url: '/market/store/e2e-trad-og-garn', label: 'Storefront' },
+          { action: 'expectText', text: 'Tråd & Garn' },
+          { action: 'expectText', text: 'Håndlagde plagg' },
+
+          // Butikkadmin
+          { action: 'goto', url: '/market/store/e2e-trad-og-garn/admin', label: 'Butikkadmin' },
+          { action: 'expectText', text: 'Innstillinger' },
+        ],
+      },
+
+      // ─────────── E2E: Oppdrag — opprett, tilbud, aksept, kjøp ───────────
+      {
+        id: 'e2e-oppdrag',
+        title: 'E2E — Liv lager oppdrag, Eline byr, Liv aksepterer',
+        persona: null,
+        steps: [
+          { action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata' },
+
+          // Liv lager oppdrag
+          { action: 'loginAs', persona: 'liv' },
+          {
+            action: 'apiCall', exec: 'create-request', actor: 'liv@test.strikketorget.no',
+            params: {
+              title: 'E2E: Mariusgenser str. 3 år',
+              category: 'genser',
+              size_label: '3 år',
+              budget_nok_min: 800,
+              budget_nok_max: 1500,
+              description: 'Trenger en koselig Mariusgenser, helst i naturhvitt og rødt.',
+            },
+            label: 'Liv oppretter oppdrag',
+            overlay: {
+              icon: '✍️',
+              title: 'I virkeligheten: Liv lager oppdraget',
+              body: 'Liv går til Oppdrag → Nytt oppdrag, beskriver hva hun vil ha strikket (kategori, størrelse, garn, budsjett) og sender inn. Andre strikkere får varsel.',
+              note: 'Forkortet — vi sender skjemaet direkte via API.',
+            },
+          },
+
+          // Oppdraget vises på listen
+          { action: 'goto', url: '/market/commissions', label: 'Oppdrag-listen' },
+          { action: 'expectText', text: 'Mariusgenser str. 3 år' },
+
+          // Eline byr på det
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Eline ser oppdraget' },
+          { action: 'expectText', text: 'Mariusgenser str. 3 år' },
+          {
+            action: 'apiCall', exec: 'make-offer', actor: 'eline@test.strikketorget.no',
+            params: { request_id: '$requestId', price_nok: 1200, turnaround_weeks: 4, message: 'Jeg kan strikke denne for deg!' },
+            label: 'Eline sender tilbud',
+            overlay: {
+              icon: '🧶',
+              title: 'I virkeligheten: Eline sender tilbud',
+              body: 'Eline ser oppdraget, klikker «Gi tilbud», fyller inn pris og leveringstid, og legger ved en hilsen.',
+            },
+          },
+
+          // Liv ser tilbudet og aksepterer
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Liv ser tilbudet' },
+          { action: 'expectText', text: '1200' },
+          {
+            action: 'apiCall', exec: 'accept-offer', actor: 'liv@test.strikketorget.no',
+            params: { offer_id: '$offerId' },
+            label: 'Liv aksepterer tilbudet',
+            overlay: {
+              icon: '✅',
+              title: 'I virkeligheten: Liv aksepterer',
+              body: 'Liv velger Elines tilbud og blir sendt til Stripe for å reservere beløpet. Vi simulerer betalingen direkte.',
+              note: 'Andre tilbud blir automatisk avslått.',
+            },
+          },
+
+          // Oppdraget viser nå "akseptert" status
+          { action: 'goto', url: '/market/commissions/$requestId' },
+          { action: 'expectText', text: 'Akseptert' },
+        ],
+      },
+
       // ────────────────────────── Onboarding ──────────────────────────
-      {
-        id: 'login-magic',
-        title: 'Login — magisk lenke',
-        persona: null,
-        steps: [
-          { action: 'goto', url: '/login' },
-          { action: 'expectText', text: 'Logg inn' },
-          { action: 'fill', selector: 'input[type=email]', value: 'demo@example.com' },
-          { action: 'check', selector: 'input[type=checkbox]', checked: true, label: 'godta alder' },
-          // The second checkbox (terms) — we click the label so the bubble works.
-          { action: 'click', text: 'brukervilkårene', label: 'fokuser vilkår' },
-          { action: 'expectText', text: 'Få magisk lenke' },
-        ],
-      },
-      {
-        id: 'login-password-tab',
-        title: 'Login — bytt til passord-modus',
-        persona: null,
-        steps: [
-          { action: 'goto', url: '/login' },
-          { action: 'click', text: 'Passord' },
-          { action: 'expectText', text: 'Glemt passord?' },
-          { action: 'click', text: 'Ny her? Opprett konto' },
-          { action: 'expectText', text: 'Opprett konto' },
-        ],
-      },
       {
         id: 'help-tour',
         title: 'Hjelpesenter — gå gjennom alle sidene',
@@ -330,95 +508,6 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         steps: [
           { action: 'goto', url: '/seed:live-listing-promoter', label: 'goto listing#promoter' },
           { action: 'expectText', text: 'Fremhev annonsen' },
-        ],
-      },
-
-      // ────────────────────── Full E2E (kjøpsflyt) ─────────────────────
-      {
-        id: 'full-e2e',
-        title: 'Full E2E — selger lager → kjøper kjøper → bekrefter mottak',
-        persona: null,
-        steps: [
-          // Bootstrap: fresh state, Eline as trusted Stripe-onboarded seller,
-          // brand-new active listing with 2 photos.
-          {
-            action: 'apiCall', exec: 'cleanup', label: 'Slett tidligere testdata',
-            overlay: {
-              icon: '🧹',
-              title: 'Rydder testdata',
-              body: 'I produksjon kjører ingen slik «rensing» — databasen vokser, og hver bruker sletter selv kontoen sin via Mine data og personvern (GDPR Art. 17).',
-              note: 'Bare i demoen.',
-            },
-          },
-          {
-            action: 'apiCall', exec: 'seed-buyflow-listing',
-            params: { user_emails: ['eline@test.strikketorget.no', 'liv@test.strikketorget.no'] },
-            label: 'Frø Eline + ny aktiv annonse',
-            overlay: {
-              icon: '🪡',
-              title: 'I virkeligheten: Selger lager annonsen',
-              body: 'Eline går gjennom 3-stegs-wizarden (Detaljer → Pris & frakt → Bilder), laster opp 2 bilder, og sender til moderering. Eline er «trusted seller» her, så annonsen går rett til aktiv uten manuell godkjenning.',
-              note: 'Forkortet i demoen — vi setter opp annonsen direkte.',
-            },
-          },
-
-          // Buyer view
-          { action: 'loginAs', persona: 'liv' },
-          { action: 'goto', url: '/seed:$listingId', label: 'Liv åpner annonsen' },
-          { action: 'expectText', text: 'E2E demo: Strikket genser str. 2 år' },
-          { action: 'expectText', text: 'Beskyttet av', label: 'Kjøps-CTA synlig (Trygg betaling)' },
-
-          // Purchase (bypasses Stripe via test-exec)
-          {
-            action: 'apiCall', exec: 'purchase-listing', actor: 'liv@test.strikketorget.no',
-            params: { listing_id: '$listingId' }, label: 'Liv kjøper',
-            overlay: {
-              icon: '💳',
-              title: 'Stripe Checkout',
-              body: 'Liv blir sendt til Stripes betalingsside, fyller inn leveringsadresse, og betaler 445 kr (350 vare + 76 frakt + 19 trygg betaling) med kort, Apple Pay eller Google Pay.\n\nStripe trekker beløpet og holder det i forvaring til kjøper bekrefter mottak.',
-              note: 'Stripe kan ikke vises i iframe — vi simulerer kjøpet direkte.',
-            },
-          },
-
-          // Seller sees the reserved state
-          { action: 'loginAs', persona: 'eline' },
-          { action: 'goto', url: '/seed:$listingId', label: 'Eline ser annonsen' },
-          { action: 'expectText', text: 'Noen har kjøpt varen din!' },
-
-          // Seller marks shipped
-          {
-            action: 'apiCall', exec: 'ship-listing', actor: 'eline@test.strikketorget.no',
-            params: { listing_id: '$listingId', tracking_code: 'CD123456789NO' },
-            label: 'Eline merker som sendt',
-            overlay: {
-              icon: '📦',
-              title: 'I virkeligheten: Eline pakker og sender',
-              body: 'Eline tar med pakken til nærmeste Posten-utleveringssted, limer på fraktetiketten, og limer inn sporingsnummeret CD123456789NO i annonsesiden.',
-              note: 'Kjøper får varsel + sporingslenke automatisk.',
-            },
-          },
-
-          // Buyer sees shipped + can confirm
-          { action: 'loginAs', persona: 'liv' },
-          { action: 'goto', url: '/seed:$listingId', label: 'Liv ser «sendt»' },
-          { action: 'expectText', text: 'Bekreft' },
-
-          // Buyer confirms delivery
-          {
-            action: 'apiCall', exec: 'confirm-listing-delivery', actor: 'liv@test.strikketorget.no',
-            params: { listing_id: '$listingId' }, label: 'Liv bekrefter mottak',
-            overlay: {
-              icon: '✅',
-              title: 'I virkeligheten: Liv bekrefter mottak',
-              body: 'Liv åpner pakken, sjekker at genseren er som forventet, og trykker «Bekreft mottatt» på annonsesiden. Stripe frigjør 426 kr (445 minus trygg-betaling-avgiften) til Eline samme dag.\n\nHvis hun ikke svarer, frigjøres pengene automatisk 14 dager etter sending.',
-              note: 'Snarvei i demoen.',
-            },
-          },
-
-          // Seller sees sold final state
-          { action: 'loginAs', persona: 'eline' },
-          { action: 'goto', url: '/market/my-listings', label: 'Eline sjekker Mine annonser' },
-          { action: 'expectText', text: 'Solgt' },
         ],
       },
 
@@ -719,10 +808,15 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             const key = url.slice('/seed:$'.length);
             const val = (bindings as any)[key] ?? (seedCache as any)[key];
             if (typeof val !== 'string') throw new Error(`No binding for $${key}`);
-            // Convention: a $listingId binding maps to /market/listing/<id>.
-            // For other forms, embed the literal value in the URL.
             if (key === 'listingId') return `/market/listing/${val}`;
             return String(val);
+          }
+          // Interpolate $key tokens inline (used e.g. for /market/commissions/$requestId).
+          if (url.includes('$')) {
+            return url.replace(/\$([a-zA-Z_]+)/g, (m, key) => {
+              const val = (bindings as any)[key] ?? (seedCache as any)[key];
+              return typeof val === 'string' ? val : m;
+            });
           }
           return url;
         },

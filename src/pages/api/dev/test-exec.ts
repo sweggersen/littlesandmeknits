@@ -187,7 +187,10 @@ async function handle(
         offer_count: 0,
       }).select().single();
       if (error) throw error;
-      return { data };
+      // Also expose under a uniquely-named binding so ui-flows can ref
+      // $requestId without it getting overwritten by later apiCalls that
+      // happen to return an `id` field.
+      return { data: { ...data, requestId: data.id } };
     }
 
     case 'make-offer': {
@@ -217,7 +220,7 @@ async function handle(
           reference_id: data.id,
         });
       }
-      return { data };
+      return { data: { ...data, offerId: data.id } };
     }
 
     case 'accept-offer': {
@@ -466,6 +469,9 @@ async function handle(
         buyer_postal_code: p.buyer_postal_code ?? null,
         buyer_city: p.buyer_city ?? null,
         stripe_payment_intent_id: 'pi_test_' + Date.now(),
+        // reserved_at is what /market/listing/[id]/kvittering gates on -
+        // without it the receipt 404s after a test-exec purchase.
+        reserved_at: new Date().toISOString(),
         auto_release_at: autoRelease.toISOString(),
         platform_fee_nok: Math.round(listing.price_nok * 0.10),
       }).eq('id', p.listing_id);
@@ -775,6 +781,41 @@ async function handle(
       if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', l.id);
 
       return { data: { elineId, livId, listingId: l.id } };
+    }
+
+    case 'seed-store': {
+      // Bypass the Brønnøysund lookup that /api/stores requires - we
+      // just need an active store with the actor as owner so flow specs
+      // can exercise the storefront + admin views without hitting an
+      // external API.
+      if (!actorId) throw new Error('Actor required');
+      const slug = (p.slug as string) ?? `e2e-strikkebutikk-${Date.now()}`;
+      const orgnr = (p.orgnr as string) ?? String(Math.floor(900000000 + Math.random() * 99999999));
+      const name = (p.name as string) ?? 'E2E demo: Tråd & Garn';
+      const { data: store, error } = await db.from('stores').insert({
+        slug,
+        orgnr,
+        legal_name: 'TRÅD OG GARN AS',
+        legal_address: 'Storgata 1, 0123 Oslo',
+        legal_business_type: 'AS',
+        legal_status: 'aktiv',
+        name,
+        tagline: 'Håndlagde plagg, fra norske strikkere.',
+        location_city: 'Oslo',
+        contact_email: 'hei@trad-og-garn.no',
+        status: 'active',
+      }).select('id, slug').single();
+      if (error) throw error;
+
+      const { error: memErr } = await db.from('store_members').insert({
+        store_id: store.id,
+        user_id: actorId,
+        role: 'owner',
+        visible_on_storefront: true,
+      });
+      if (memErr) throw memErr;
+
+      return { data: { storeId: store.id, slug: store.slug } };
     }
 
     case 'count-follows': {
