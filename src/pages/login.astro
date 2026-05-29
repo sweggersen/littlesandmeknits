@@ -32,7 +32,13 @@ if (inviteKey && invitedNow && invitedNow === inviteKey) {
     maxAge: 60 * 60 * 24 * 30,
   });
 }
-const hasInvite = Astro.cookies.get(INVITE_COOKIE)?.value === '1'
+// Local dev is auto-invited so the gate doesn't get in the way while
+// developing. Anything reaching this code from localhost/127.0.0.1 is
+// the developer running their own machine.
+const host = Astro.url.hostname;
+const isLocalhost = host === 'localhost' || host === '127.0.0.1';
+const hasInvite = isLocalhost
+  || Astro.cookies.get(INVITE_COOKIE)?.value === '1'
   || (inviteKey && invitedNow === inviteKey);
 ---
 

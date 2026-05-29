@@ -16,9 +16,13 @@ const isStrikketorget = Astro.locals.isStrikketorget ?? false;
 // coming without being able to interact yet. Bypass when the visitor
 // has the login_invite cookie (set by /login?invite=<LOGIN_INVITE_KEY>).
 const hasInvite = Astro.cookies.get('login_invite')?.value === '1';
+// Localhost / 127.0.0.1 always skip the prelaunch lock so dev isn't gated.
+const isLocalhostHost =
+  Astro.url.hostname === 'localhost' || Astro.url.hostname === '127.0.0.1';
 const showLockOverlay =
   isStrikketorget
   && !hasInvite
+  && !isLocalhostHost
   && !Astro.url.pathname.startsWith('/login')
   && !Astro.url.pathname.startsWith('/auth/');
 
