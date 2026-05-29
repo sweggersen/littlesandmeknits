@@ -10,8 +10,12 @@ import { requireAdmin } from '../../../lib/admin-auth';
 // whether a public-facing site is in live mode is a fingerprint.
 
 export const GET: APIRoute = async ({ request, cookies }) => {
+  // Admins always allowed. Anyone with the login_invite cookie is allowed
+  // too — they already know the shared invite secret, so telling them
+  // whether Stripe is in test/live mode adds no new privilege.
   const admin = await requireAdmin(request, cookies);
-  if (!admin) return new Response('Not allowed', { status: 403 });
+  const hasInvite = cookies.get('login_invite')?.value === '1';
+  if (!admin && !hasInvite) return new Response('Not allowed', { status: 403 });
 
   const key = env.STRIPE_SECRET_KEY ?? '';
   let mode: 'test' | 'live' | 'unknown' = 'unknown';
