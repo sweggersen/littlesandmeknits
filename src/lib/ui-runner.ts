@@ -68,6 +68,23 @@ async function waitForLoad(iframe: HTMLIFrameElement, expectedUrl: string, timeo
   let expectedPath = expectedUrl;
   try { expectedPath = new URL(expectedUrl, window.location.href).pathname; } catch { /* keep raw */ }
 
+  // /market/listing/<uuid> 301-redirects to /market/listing/<slug>-<uuid>
+  // for SEO. Match by trailing UUID so test seeds with bare ids still
+  // resolve after the redirect.
+  const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const expectedUuidMatch = expectedPath.match(UUID_RE);
+  const expectedUuid = expectedUuidMatch?.[0] ?? null;
+
+  function pathMatches(actual: string): boolean {
+    if (actual === expectedPath) return true;
+    // If the expected path ends in a UUID, accept any path that ends
+    // in the same UUID (handles the pretty-URL 301 redirect).
+    if (expectedUuid && actual.toLowerCase().endsWith(expectedUuid.toLowerCase())) {
+      return true;
+    }
+    return false;
+  }
+
   const start = Date.now();
   return new Promise((resolve, reject) => {
     const check = () => {
@@ -76,7 +93,7 @@ async function waitForLoad(iframe: HTMLIFrameElement, expectedUrl: string, timeo
         const doc = iframe.contentDocument;
         if (win && doc) {
           const path = win.location.pathname;
-          if (path === expectedPath && doc.readyState === 'complete') {
+          if (pathMatches(path) && doc.readyState === 'complete') {
             // Give the iframe a tick to run hydration scripts before we touch it.
             return setTimeout(resolve, 60);
           }
