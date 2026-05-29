@@ -176,16 +176,29 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
   </head>
   <body class="min-h-screen bg-linen text-charcoal flex flex-col" data-embed={isEmbed ? '1' : undefined}>
     {!isEmbed && (() => {
-      // Variant picks the nav's brand + items + accent. Shared auth
-      // surfaces (/login, /profile, /inbox, etc) don't carry a section
-      // identity of their own, so we infer the right brand from:
-      //  1. Host: strikketorget.no -> Strikketorget by default
-      //  2. prev_section cookie: where the user just was
-      //  3. Path: explicit /market or /studio always wins
+      // Variant picks the nav's brand + items + accent.
+      //   1. Path identifies a section explicitly -> use it
+      //   2. LMK home / about / patterns / projects -> 'home' variant
+      //      (these are their own section; prev_section cookie shouldn't
+      //      override them, otherwise navigating market -> / keeps the
+      //      Strikketorget brand on what is clearly the LMK home).
+      //   3. Host is strikketorget.no -> default to Strikketorget
+      //   4. Otherwise fall back to prev_section for shared routes
+      //      like /login or /profile that lack section identity.
+      const path = Astro.url.pathname;
+      const isHomeContent =
+        path === '/'
+        || path.startsWith('/oppskrifter')
+        || path.startsWith('/prosjekter')
+        || path.startsWith('/p/')
+        || path === '/om' || path.startsWith('/om/')
+        || path === '/about' || path.startsWith('/about/')
+        || path === '/en' || path.startsWith('/en/');
       const prev = Astro.locals.prevSection ?? null;
       let navVariant: 'strikketorget' | 'strikkestua' | 'home';
       if (isStudioPath) navVariant = 'strikkestua';
       else if (isMarket) navVariant = 'strikketorget';
+      else if (isHomeContent) navVariant = 'home';
       else if (isStrikketorget) navVariant = 'strikketorget';
       else if (prev === 'studio') navVariant = 'strikkestua';
       else if (prev === 'market') navVariant = 'strikketorget';
