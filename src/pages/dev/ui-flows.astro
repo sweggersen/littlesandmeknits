@@ -58,13 +58,16 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
         <!-- Iframe panel -->
         <div>
-          <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Live</h2>
-          <div id="viewport-stage" class="bg-charcoal/[0.03] border border-sage-500/10 rounded-2xl overflow-hidden relative flex items-center justify-center" style="height: calc(100vh - 200px);" data-viewport="desktop">
-            <!-- Action banner — shows current step on top of the iframe. -->
-            <div id="action-banner" class="hidden absolute left-3 right-3 top-3 z-10 px-4 py-2 rounded-full bg-charcoal/90 text-linen text-sm font-medium shadow-lg backdrop-blur-sm pointer-events-none transition-opacity">
+          <div class="flex items-center justify-between gap-3 mb-2 min-h-[28px]">
+            <h2 class="font-mono text-xs font-bold uppercase tracking-widest text-charcoal/55">Live</h2>
+            <!-- Action banner — sits north of the iframe so it doesn't
+                 cover content. Reserves space via the wrapper's min-h. -->
+            <div id="action-banner" class="hidden px-4 py-1.5 rounded-full bg-charcoal/90 text-linen text-xs font-medium shadow transition-opacity max-w-full truncate">
               <span data-action-icon class="mr-1">▶</span>
               <span data-action-text>...</span>
             </div>
+          </div>
+          <div id="viewport-stage" class="bg-charcoal/[0.03] border border-sage-500/10 rounded-2xl overflow-hidden relative flex items-center justify-center" style="height: calc(100vh - 200px);" data-viewport="desktop">
             <!-- Shortcut overlay — shows over the iframe during cheat
                  steps (Stripe, file upload, etc.) to explain what's
                  happening in real life. -->
