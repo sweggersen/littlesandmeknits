@@ -327,6 +327,54 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           // Akseptert tilstand: 'VALGT' chip + Betal-CTA er nå synlig
           { action: 'expectText', text: 'VALGT' },
           { action: 'expectText', text: 'Betal for oppdraget' },
+
+          // ── Phase 2: Liv betaler ──────────────────────────────────────
+          {
+            action: 'apiCall', exec: 'pay', actor: 'liv@test.strikketorget.no',
+            params: { request_id: '$requestId' },
+            label: 'Liv betaler oppdraget',
+            overlay: {
+              icon: '💳',
+              title: 'Stripe Checkout',
+              body: 'Liv blir sendt til Stripes betalingsside, fyller inn betalingsdetaljer (Vipps eller kort), og betaler 1 200 kr.\n\nStripe trekker beløpet og holder det i forvaring til Liv bekrefter levering.',
+              note: 'Stripe Checkout kan ikke vises i iframe — vi simulerer betalingen.',
+            },
+          },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Status: under arbeid' },
+          { action: 'expectText', text: 'Under arbeid' },
+
+          // ── Phase 3: Eline + Liv utveksler oppdateringer ─────────────
+          { action: 'loginAs', persona: 'eline' },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Eline ser oppdraget' },
+          {
+            action: 'apiCall', exec: 'mark-completed', actor: 'eline@test.strikketorget.no',
+            params: { request_id: '$requestId' },
+            label: 'Eline merker som ferdig',
+            overlay: {
+              icon: '🧶',
+              title: 'I virkeligheten: Eline blokker, syr inn ender, og sender',
+              body: 'Eline strikker plagget over 4 uker, sender bilde-oppdateringer til Liv underveis (her hopper vi over chat), blokker det ferdige plagget, syr inn endene, og pakker det i papir for sending.\n\nNår hun merker oppdraget «ferdig», får Liv beskjed om å bekrefte mottak.',
+            },
+          },
+          { action: 'goto', url: '/market/commissions/$requestId' },
+          { action: 'expectText', text: 'Ferdigstrikket' },
+
+          // ── Phase 4: Liv bekrefter mottak ────────────────────────────
+          { action: 'loginAs', persona: 'liv' },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Liv ser «Ferdigstrikket»' },
+          {
+            action: 'apiCall', exec: 'confirm-delivery', actor: 'liv@test.strikketorget.no',
+            params: { request_id: '$requestId' },
+            label: 'Liv bekrefter levering',
+            overlay: {
+              icon: '✅',
+              title: 'I virkeligheten: Liv bekrefter levering',
+              body: 'Liv mottar pakken, prøver plagget på barnet sitt, og trykker «Bekreft mottak» på oppdragssiden. Stripe frigjør 1 080 kr (1 200 minus 10 % plattformavgift) til Elines kontonummer samme dag.\n\nHvis hun ikke svarer, frigjøres pengene automatisk 14 dager etter «ferdig»-merking.',
+              note: 'Snarvei i demoen.',
+            },
+          },
+          { action: 'goto', url: '/market/commissions/$requestId', label: 'Levert!' },
+          { action: 'expectText', text: 'Levert' },
         ],
       },
 
