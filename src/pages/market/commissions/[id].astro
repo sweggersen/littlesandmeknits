@@ -521,11 +521,11 @@ if (isBuyer && req.status === 'frozen') {
           <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
             <div class="md:text-right mb-4 md:mb-0">
               {isActive('awarded') ? (
-                isBuyer && linkedProject && projectLogs.length > 0 ? (
+                isBuyer && linkedProject ? (
                   <div class="md:ml-auto md:max-w-[280px] md:text-left">
                     <p class="text-xs text-charcoal/45 mb-2">Strikkeren jobber…</p>
                     {projectProgressPct !== null && (
-                      <div class="bg-white rounded-xl p-3 border border-sage-500/10">
+                      <div class="bg-white rounded-xl p-3 border border-sage-500/10 mb-2">
                         <div class="flex items-center justify-between text-[10px] text-charcoal/55 mb-1">
                           <span class="font-bold uppercase tracking-widest">Fremdrift</span>
                           <span>{projectProgressPct}%</span>
@@ -535,6 +535,9 @@ if (isBuyer && req.status === 'frozen') {
                         </div>
                       </div>
                     )}
+                    <a href={`/market/commissions/${req.id}/prosjekt`} class="inline-flex items-center gap-1.5 text-xs font-medium text-terracotta-500 hover:text-terracotta-700">
+                      Se prosjektet →
+                    </a>
                   </div>
                 ) : (
                   <p class="text-xs text-charcoal/45">Strikkeren jobber med bestillingen din.</p>
@@ -564,19 +567,8 @@ if (isBuyer && req.status === 'frozen') {
                       </div>
                     </a>
                   )}
-                  {!myOffer?.project_id && knitterProjects.length > 0 && (
-                    <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-                      <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Knytt til prosjekt</p>
-                      <form method="post" action="/api/marketplace/commissions/link-project" data-astro-reload class="space-y-2">
-                        <input type="hidden" name="offer_id" value={myOffer!.id} />
-                        <select name="project_id" required class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15">
-                          <option value="">Velg prosjekt…</option>
-                          {knitterProjects.map(p => <option value={p.id}>{p.title}</option>)}
-                        </select>
-                        <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2 rounded-full text-[10px] font-medium hover:bg-primary-hover transition-colors">Knytt til</button>
-                      </form>
-                    </div>
-                  )}
+                  {/* Manual project linking removed - projects are now
+                      auto-created when the buyer accepts the offer. */}
                   <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
                     <p class="text-sm font-medium mb-1">Ferdig strikket?</p>
                     <p class="text-xs text-charcoal/55 mb-3">Kjøper har 14 dager på å bekrefte mottak.</p>

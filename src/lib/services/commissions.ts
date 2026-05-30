@@ -125,7 +125,7 @@ export async function acceptOffer(
 
   const { data: offer } = await ctx.supabase
     .from('commission_offers')
-    .select('id, request_id, status, knitter_id')
+    .select('id, request_id, status, knitter_id, project_id')
     .eq('id', input.offerId)
     .maybeSingle();
 
@@ -133,7 +133,7 @@ export async function acceptOffer(
 
   const { data: req } = await ctx.supabase
     .from('commission_requests')
-    .select('id, buyer_id, status, title')
+    .select('id, buyer_id, status, title, description, category, size_label, yarn_preference, pattern_external_title')
     .eq('id', offer.request_id)
     .single();
 
@@ -142,6 +142,44 @@ export async function acceptOffer(
 
   await ctx.supabase.from('commission_offers').update({ status: 'accepted' }).eq('id', input.offerId);
   await ctx.supabase.from('commission_requests').update({ status: 'awaiting_payment', awarded_offer_id: input.offerId }).eq('id', offer.request_id);
+
+  // Auto-create a project for the knitter, prefilled from the commission
+  // request. This is the artifact that gets shared with the buyer as the
+  // knitter posts photos + updates. Created in 'planning' state until the
+  // buyer pays — payServ flips it to 'active'.
+  // Skipped if the offer already had a project_id (shouldn't happen but
+  // makes accept idempotent).
+  if (!offer.project_id) {
+    const { data: buyerProfile } = await ctx.admin
+      .from('profiles').select('display_name').eq('id', req.buyer_id).maybeSingle();
+    const recipientLabel = buyerProfile?.display_name ?? null;
+
+    const { data: project, error: projErr } = await ctx.admin
+      .from('projects')
+      .insert({
+        user_id: offer.knitter_id,
+        title: req.title,
+        summary: req.description ?? null,
+        recipient: recipientLabel,
+        target_size: req.size_label,
+        yarn: req.yarn_preference ?? null,
+        pattern_external: req.pattern_external_title ?? null,
+        status: 'planning',
+        commission_offer_id: offer.id,
+      })
+      .select('id')
+      .single();
+    if (projErr) {
+      console.error('Auto-create commission project failed', projErr);
+      // Soft-fail: the accept itself already succeeded. The knitter
+      // can manually create a project from their studio if needed.
+    } else if (project) {
+      await ctx.admin
+        .from('commission_offers')
+        .update({ project_id: project.id })
+        .eq('id', offer.id);
+    }
+  }
 
   const { data: declined } = await ctx.supabase
     .from('commission_offers')
@@ -154,7 +192,7 @@ export async function acceptOffer(
   await createNotification(ctx.admin, {
     userId: offer.knitter_id, type: 'offer_accepted',
     title: 'Tilbudet ditt er akseptert!',
-    body: `Kjøper valgte tilbudet ditt på «${req.title}». Venter nå på betaling.`,
+    body: `Kjøper valgte tilbudet ditt på «${req.title}». Vi har laget et prosjekt for deg i Strikkestua. Venter nå på betaling.`,
     url: `/market/commissions/${offer.request_id}`,
     actorId: ctx.user.id, referenceId: offer.request_id,
   }, ctx.env);
@@ -272,22 +310,39 @@ export async function payCommission(
 
   const needsYarn = req.yarn_provided_by_buyer;
 
-  const { data: project } = await ctx.admin
-    .from('projects')
-    .insert({
-      user_id: offer.knitter_id, title: req.title, target_size: req.size_label,
-      yarn: req.yarn_preference ?? undefined,
-      summary: [
-        req.pattern_external_title ? `Oppskrift: ${req.pattern_external_title}` : null,
-        req.colorway ? `Farge: ${req.colorway}` : null,
-      ].filter(Boolean).join('\n') || null,
-      status: 'planning', commission_offer_id: offer.id,
-    })
-    .select('id')
-    .single();
+  // The project was auto-created when the offer was accepted. On payment
+  // we just flip its status from 'planning' to 'active' — the knitter
+  // can start strikking now that the money is committed.
+  // Fallback: if accept-time create failed, insert one here as a safety net.
+  const { data: existingOffer } = await ctx.admin
+    .from('commission_offers')
+    .select('project_id')
+    .eq('id', offer.id)
+    .maybeSingle();
 
-  if (project) {
-    await ctx.admin.from('commission_offers').update({ project_id: project.id }).eq('id', offer.id);
+  if (existingOffer?.project_id) {
+    await ctx.admin
+      .from('projects')
+      .update({ status: 'active', started_at: new Date().toISOString() })
+      .eq('id', existingOffer.project_id);
+  } else {
+    const { data: project } = await ctx.admin
+      .from('projects')
+      .insert({
+        user_id: offer.knitter_id, title: req.title, target_size: req.size_label,
+        yarn: req.yarn_preference ?? undefined,
+        summary: [
+          req.pattern_external_title ? `Oppskrift: ${req.pattern_external_title}` : null,
+          req.colorway ? `Farge: ${req.colorway}` : null,
+        ].filter(Boolean).join('\n') || null,
+        status: 'active', started_at: new Date().toISOString(),
+        commission_offer_id: offer.id,
+      })
+      .select('id')
+      .single();
+    if (project) {
+      await ctx.admin.from('commission_offers').update({ project_id: project.id }).eq('id', offer.id);
+    }
   }
 
   await ctx.admin

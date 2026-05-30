@@ -179,19 +179,24 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
 
   {commissionInfo && (
     <div class="bg-terracotta-500/5 border border-terracotta-500/20 rounded-2xl p-4 mb-6 flex items-center justify-between gap-4 flex-wrap">
-      <div>
+      <div class="min-w-0">
         <div class="flex items-center gap-2 mb-1">
           <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
           <span class="text-[10px] text-charcoal/40">·</span>
           <span class="font-mono tabular-nums text-xs text-charcoal/70">{commissionInfo.priceNok} NOK</span>
         </div>
         <p class="text-sm text-charcoal/70">
-          Strikkes for <span class="font-medium text-charcoal">{commissionInfo.buyerName}</span> — bestiller kan se fremdrift, bilder og logger.
+          Strikkes for <span class="font-medium text-charcoal">{commissionInfo.buyerName}</span> — bilder og logger her vises også til kjøperen.
         </p>
       </div>
-      <a href={`/market/commissions/${commissionInfo.requestId}`} class="shrink-0 text-xs font-medium text-terracotta-500 hover:text-terracotta-600 transition-colors">
-        Se forespørsel →
-      </a>
+      <div class="flex items-center gap-3 shrink-0">
+        <a href={`/market/commissions/${commissionInfo.requestId}/prosjekt?preview=1`} target="_blank" rel="noopener" class="text-xs font-medium text-terracotta-500 hover:text-terracotta-600 transition-colors">
+          Forhåndsvis som {commissionInfo.buyerName} ↗
+        </a>
+        <a href={`/market/commissions/${commissionInfo.requestId}`} class="text-xs text-charcoal/45 hover:text-charcoal/70 transition-colors">
+          Se forespørsel →
+        </a>
+      </div>
     </div>
   )}
 

@@ -342,10 +342,18 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           },
           { action: 'goto', url: '/market/commissions/$requestId', label: 'Status: under arbeid' },
           { action: 'expectText', text: 'Strikkeren jobber' },
+          { action: 'expectText', text: 'Se prosjektet', label: 'Buyer ser «Se prosjektet»-CTA' },
 
-          // ── Phase 3: Eline + Liv utveksler oppdateringer ─────────────
+          // ── Phase 3a: Liv klikker inn på prosjektsiden ───────────────
+          { action: 'goto', url: '/market/commissions/$requestId/prosjekt', label: 'Liv åpner prosjektsiden' },
+          { action: 'expectText', text: 'strikker for deg' },
+
+          // ── Phase 3b: Eline ser at prosjektet er auto-opprettet ──────
           { action: 'loginAs', persona: 'eline' },
-          { action: 'goto', url: '/market/commissions/$requestId', label: 'Eline ser oppdraget' },
+          { action: 'goto', url: '/studio/projects', label: 'Eline åpner Strikkestua' },
+          { action: 'expectText', text: 'Mariusgenser str. 3 år', label: 'Auto-opprettet prosjekt vises' },
+
+          // ── Phase 3c: Eline merker som ferdig ────────────────────────
           {
             action: 'apiCall', exec: 'mark-completed', actor: 'eline@test.strikketorget.no',
             params: { request_id: '$requestId' },

@@ -1,0 +1,222 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import MarketplaceShell from '../../../../components/MarketplaceShell.astro';
+import ProfileAvatar from '../../../../components/ProfileAvatar.astro';
+import StatusBadge from '../../../../components/StatusBadge.astro';
+import EmptyState from '../../../../components/EmptyState.astro';
+import Alert from '../../../../components/Alert.astro';
+import { getCurrentUser } from '../../../../lib/auth';
+import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { projectPhotoUrl } from '../../../../lib/storage';
+import { formatDate } from '../../../../lib/time';
+import { env } from 'cloudflare:workers';
+
+const requestId = Astro.params.id;
+if (!requestId) return Astro.redirect('/market');
+
+const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+if (!user) return Astro.redirect(`/login?next=/market/commissions/${requestId}/prosjekt`);
+
+const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+// Load the commission request + the accepted offer + the linked project.
+// We use the admin client for the join because RLS would force separate
+// queries with different gates depending on viewer role.
+const { data: reqRow } = await admin
+  .from('commission_requests')
+  .select('id, buyer_id, awarded_offer_id, title, status, size_label, category, colorway, yarn_provided_by_buyer')
+  .eq('id', requestId)
+  .maybeSingle();
+if (!reqRow || !reqRow.awarded_offer_id) {
+  return Astro.redirect(`/market/commissions/${requestId}`);
+}
+
+const { data: offerRow } = await admin
+  .from('commission_offers')
+  .select('id, knitter_id, project_id, price_nok, turnaround_weeks')
+  .eq('id', reqRow.awarded_offer_id)
+  .maybeSingle();
+if (!offerRow || !offerRow.project_id) {
+  return Astro.redirect(`/market/commissions/${requestId}`);
+}
+
+// Viewer role: buyer reads via RLS, knitter reads via admin in preview mode.
+const isBuyer = reqRow.buyer_id === user.id;
+const isKnitter = offerRow.knitter_id === user.id;
+const isPreview = Astro.url.searchParams.get('preview') === '1' && isKnitter;
+if (!isBuyer && !isPreview) {
+  // Knitter without ?preview=1 goes to their studio page; anyone else bounces.
+  if (isKnitter) return Astro.redirect(`/studio/projects/${offerRow.project_id}`);
+  return Astro.redirect('/market');
+}
+
+// Project + logs. Admin client used because either path is authorized above.
+const { data: project } = await admin
+  .from('projects')
+  .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_external, hero_photo_path, started_at, finished_at, target_rows, current_rows, updated_at')
+  .eq('id', offerRow.project_id)
+  .maybeSingle();
+if (!project) return Astro.redirect(`/market/commissions/${requestId}`);
+
+const { data: logsRaw } = await admin
+  .from('project_logs')
+  .select('id, body, log_date, photos, rows_at, created_at')
+  .eq('project_id', project.id)
+  .order('log_date', { ascending: false })
+  .order('created_at', { ascending: false });
+const logs = logsRaw ?? [];
+
+const { data: knitterProfile } = await admin
+  .from('profiles')
+  .select('display_name, avatar_path, location')
+  .eq('id', offerRow.knitter_id)
+  .maybeSingle();
+const knitterName = knitterProfile?.display_name ?? 'Strikker';
+const knitterAvatarUrl = knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null;
+
+const heroUrl = projectPhotoUrl(project.hero_photo_path);
+
+// Translate the project status for the buyer-friendly view. We never show
+// 'frogged' here — if a knitter has frogged a paid commission, that's a
+// dispute case and the commission UI handles it separately.
+const buyerStatusLabel = (() => {
+  switch (project.status) {
+    case 'planning': return 'Klargjøres';
+    case 'active': return 'Pågående';
+    case 'finished': return 'Ferdig strikket';
+    case 'frogged': return 'På pause';
+    default: return null;
+  }
+})();
+const buyerStatusVariant: 'sage' | 'terracotta' | 'oatmeal' =
+  project.status === 'finished' ? 'sage'
+  : project.status === 'active' ? 'terracotta'
+  : 'oatmeal';
+
+// Progress percent (only if both target_rows and current_rows are known).
+const progressPct =
+  project.target_rows && project.current_rows
+    ? Math.min(100, Math.round((project.current_rows / project.target_rows) * 100))
+    : null;
+---
+
+<Layout title={`${project.title} · Strikketorget`} lang="nb" noindex>
+  <MarketplaceShell current={null}>
+    {isPreview && (
+      <div class="mb-6">
+        <Alert variant="warning">
+          <span class="font-medium">Forhåndsvisning.</span> Slik ser kjøperen prosjektet ditt.
+          <a href={`/studio/projects/${project.id}`} class="ml-2 underline">← Tilbake til Studio</a>
+        </Alert>
+      </div>
+    )}
+
+    <a href={`/market/commissions/${requestId}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 inline-flex items-center gap-1">
+      ← Tilbake til oppdraget
+    </a>
+
+    <header class="mb-6">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+        {isPreview ? `Strikkes til ${project.recipient ?? 'kjøperen'}` : `${knitterName} strikker for deg`}
+      </p>
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <h1 class="font-serif text-3xl sm:text-4xl">{project.title}</h1>
+        {buyerStatusLabel && (
+          <StatusBadge variant={buyerStatusVariant}>{buyerStatusLabel}</StatusBadge>
+        )}
+      </div>
+    </header>
+
+    {/* Hero image */}
+    {heroUrl ? (
+      <img src={heroUrl} alt="" class="w-full max-h-[480px] object-cover rounded-3xl mb-6" />
+    ) : (
+      <div class="w-full bg-sage-100/40 border border-sage-500/15 rounded-3xl py-12 mb-6 text-center text-charcoal/45 text-sm">
+        Ingen bilder lastet opp ennå.
+      </div>
+    )}
+
+    {/* Progress bar (optional) */}
+    {progressPct !== null && (
+      <div class="mb-6 bg-white rounded-2xl border border-sage-500/15 p-4">
+        <div class="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          <span>Fremdrift</span>
+          <span class="text-terracotta-500">{progressPct} %</span>
+        </div>
+        <div class="h-2 bg-sage-100 rounded-full overflow-hidden">
+          <div class="h-full bg-terracotta-500 transition-all" style={`width: ${progressPct}%`}></div>
+        </div>
+        <p class="text-[11px] text-charcoal/45 mt-2">
+          {project.current_rows} av {project.target_rows} rader
+        </p>
+      </div>
+    )}
+
+    {/* Knitter card */}
+    <div class="bg-white rounded-2xl border border-sage-500/15 p-4 mb-6 flex items-center gap-4">
+      <ProfileAvatar url={knitterAvatarUrl} name={knitterName} size="lg" />
+      <div class="flex-1 min-w-0">
+        <p class="font-medium text-charcoal">{knitterName}</p>
+        {knitterProfile?.location && (
+          <p class="text-xs text-charcoal/55">{knitterProfile.location}</p>
+        )}
+      </div>
+      <a href={`/market/seller/${offerRow.knitter_id}`} class="text-sm text-terracotta-500 hover:text-terracotta-700 shrink-0">
+        Se profil →
+      </a>
+    </div>
+
+    {/* Project details */}
+    <div class="grid sm:grid-cols-2 gap-4 mb-6">
+      <div class="bg-white rounded-2xl border border-sage-500/15 p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Strikkes med</p>
+        <p class="text-sm">
+          {project.yarn ?? <span class="text-charcoal/40">Ikke spesifisert</span>}
+        </p>
+        {project.needles && <p class="text-sm text-charcoal/70 mt-1">{project.needles}</p>}
+      </div>
+      <div class="bg-white rounded-2xl border border-sage-500/15 p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Detaljer</p>
+        <p class="text-sm">Størrelse {reqRow.size_label}</p>
+        {project.pattern_external && (
+          <p class="text-sm text-charcoal/70 mt-1">Oppskrift: {project.pattern_external}</p>
+        )}
+      </div>
+    </div>
+
+    {/* Knitter's summary, if any */}
+    {project.summary && (
+      <div class="bg-white rounded-2xl border border-sage-500/15 p-5 mb-6">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Notater fra strikkeren</p>
+        <p class="text-sm whitespace-pre-line text-charcoal/80">{project.summary}</p>
+      </div>
+    )}
+
+    {/* Progress logs */}
+    <section>
+      <h2 class="font-serif text-xl mb-4">Oppdateringer fra {knitterName}</h2>
+      {logs.length === 0 ? (
+        <EmptyState message="Ingen oppdateringer ennå. Vi sier fra når strikkeren legger ut bilder eller framdrift." />
+      ) : (
+        <ul class="space-y-4">
+          {logs.map((log) => (
+            <li class="bg-white rounded-2xl border border-sage-500/15 p-5">
+              <div class="flex items-center justify-between text-xs text-charcoal/55 mb-3">
+                <span>{formatDate(log.log_date, 'nb')}</span>
+                {log.rows_at && <span>{log.rows_at} rader</span>}
+              </div>
+              {log.body && <p class="text-sm whitespace-pre-line mb-3">{log.body}</p>}
+              {log.photos.length > 0 && (
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+                  {log.photos.map((path: string) => (
+                    <img src={projectPhotoUrl(path)} alt="" class="w-full aspect-square object-cover rounded-xl" />
+                  ))}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </MarketplaceShell>
+</Layout>
