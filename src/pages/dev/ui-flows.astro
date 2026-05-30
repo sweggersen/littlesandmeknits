@@ -341,7 +341,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             },
           },
           { action: 'goto', url: '/market/commissions/$requestId', label: 'Status: under arbeid' },
-          { action: 'expectText', text: 'Under arbeid' },
+          { action: 'expectText', text: 'Strikkeren jobber' },
 
           // ── Phase 3: Eline + Liv utveksler oppdateringer ─────────────
           { action: 'loginAs', persona: 'eline' },
