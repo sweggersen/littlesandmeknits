@@ -281,17 +281,20 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     return;
   }
   if (step.action === 'expectText') {
-    // Poll for up to 5s — handles slow nav/redirect cases where the new
-    // page is still painting when this step runs.
+    // Case-insensitive match: Chrome's innerText returns the rendered
+    // casing for text with CSS text-transform: uppercase, which would
+    // surprise the test author.
+    // Polls for up to 5s for the text to appear (slow navs/redirects).
+    const needle = step.text.toLowerCase();
     const start = Date.now();
     let doc: Document = getDoc(iframe);
-    let bodyText = doc.body.innerText ?? '';
-    while (!bodyText.includes(step.text) && Date.now() - start < 5_000) {
+    let bodyText = (doc.body.innerText ?? '').toLowerCase();
+    while (!bodyText.includes(needle) && Date.now() - start < 5_000) {
       await sleep(120);
       doc = getDoc(iframe);
-      bodyText = doc.body.innerText ?? '';
+      bodyText = (doc.body.innerText ?? '').toLowerCase();
     }
-    if (!bodyText.includes(step.text)) throw new Error(`Text "${step.text}" not found on page`);
+    if (!bodyText.includes(needle)) throw new Error(`Text "${step.text}" not found on page`);
     const el = findContainingElement(doc, step.text);
     if (el) await highlight(el, dur);
     return;
