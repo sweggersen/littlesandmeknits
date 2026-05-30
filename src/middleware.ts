@@ -13,7 +13,9 @@ const LEGACY_SEGMENTS: Record<string, string> = {
   'mine-kjop': 'my-purchases',
   nytt: 'new',
   oppdrag: 'commissions',
-  prosjekt: 'project',
+  // 'prosjekt' (singular) is intentionally not remapped - the new
+  // commission project view lives at /market/commissions/<id>/prosjekt
+  // and a blanket segment rewrite would break it.
   meldinger: 'messages',
   selger: 'seller',
   statistikk: 'stats',
