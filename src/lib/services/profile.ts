@@ -1,6 +1,8 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime, projectPhotoUrl } from '../storage';
+import { isValidKontonummer, normalizeKontonummer } from '../kontonummer';
+import { createSellerConnectAccount } from './stripe-connect';
 
 const VALID_LANGS = new Set(['nb', 'en']);
 const VALID_TAGS = new Set(['knitter', 'sells_pre_loved', 'sells_ready_made', 'open_for_requests', 'dyer']);
@@ -10,6 +12,289 @@ function cleanHandle(raw: string | undefined | null): string | null {
   const trimmed = raw.trim().replace(/^@+/, '');
   if (!trimmed || !/^[A-Za-z0-9._]{1,30}$/.test(trimmed)) return null;
   return trimmed;
+}
+
+/** GDPR Art. 15 (right of access) + Art. 20 (data portability).
+ *  Collect every personal datum we hold about ctx.user into a single
+ *  JSON-serialisable object. The route streams it as a download. */
+export async function exportPersonalData(
+  ctx: ServiceContext,
+): Promise<ServiceResult<Record<string, unknown>>> {
+  const [
+    profileRes, listingsRes, purchasesRes, favoritesRes, conversationsRes,
+    messagesRes, notificationsRes, reviewsGivenRes, reviewsReceivedRes,
+    storeMembersRes, commissionsRes, offersRes, reportsFiledRes, modThreadsRes,
+    authUserRes,
+  ] = await Promise.all([
+    ctx.supabase.from('profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
+    ctx.supabase.from('listings').select('*').eq('seller_id', ctx.user.id),
+    ctx.supabase.from('listings').select('*').eq('buyer_id', ctx.user.id),
+    ctx.supabase.from('favorites').select('*').eq('user_id', ctx.user.id),
+    ctx.supabase.from('marketplace_conversations').select('*').or(`buyer_id.eq.${ctx.user.id},seller_id.eq.${ctx.user.id}`),
+    ctx.supabase.from('marketplace_messages').select('*').eq('sender_id', ctx.user.id),
+    ctx.supabase.from('notifications').select('*').eq('user_id', ctx.user.id),
+    ctx.supabase.from('seller_reviews').select('*').eq('reviewer_id', ctx.user.id),
+    ctx.supabase.from('seller_reviews').select('*').eq('seller_id', ctx.user.id),
+    ctx.supabase.from('store_members').select('*').eq('user_id', ctx.user.id),
+    ctx.supabase.from('commission_requests').select('*').eq('buyer_id', ctx.user.id),
+    ctx.supabase.from('commission_offers').select('*').eq('knitter_id', ctx.user.id),
+    ctx.supabase.from('reports').select('*').eq('reporter_id', ctx.user.id),
+    ctx.supabase.from('moderation_threads').select('*').eq('recipient_id', ctx.user.id),
+    // auth.users isn't RLS-readable by end users; admin client is the right tool.
+    ctx.admin.auth.admin.getUserById(ctx.user.id),
+  ]);
+
+  return ok({
+    exportedAt: new Date().toISOString(),
+    note: 'GDPR data export. Includes everything we hold about you across Littles and Me Knits, Strikketorget and Strikkestua.',
+    auth: {
+      id: ctx.user.id,
+      email: authUserRes.data?.user?.email ?? null,
+      createdAt: authUserRes.data?.user?.created_at ?? null,
+      lastSignInAt: authUserRes.data?.user?.last_sign_in_at ?? null,
+    },
+    profile: profileRes.data ?? null,
+    marketplace: {
+      listingsAsSeller: listingsRes.data ?? [],
+      listingsAsBuyer: purchasesRes.data ?? [],
+      favorites: favoritesRes.data ?? [],
+      conversations: conversationsRes.data ?? [],
+      messagesSent: messagesRes.data ?? [],
+      commissions: commissionsRes.data ?? [],
+      commissionOffers: offersRes.data ?? [],
+      storeMemberships: storeMembersRes.data ?? [],
+    },
+    reviews: {
+      given: reviewsGivenRes.data ?? [],
+      received: reviewsReceivedRes.data ?? [],
+    },
+    moderation: {
+      reportsFiled: reportsFiledRes.data ?? [],
+      threadsAsRecipient: modThreadsRes.data ?? [],
+    },
+    notifications: notificationsRes.data ?? [],
+  });
+}
+
+export interface BookkeepingRow {
+  date: string;
+  type: string;
+  item_id: string;
+  title: string;
+  gross_nok: number;
+  fee_nok: number;
+  net_nok: number;
+  channel: string;
+  status: string;
+}
+
+/** Seller bookkeeping rows for a given date window. Returns sold listings
+ *  + completed commissions, oldest-first, with a totals object the route
+ *  can format into CSV / JSON / dashboard. */
+export async function getBookkeeping(
+  ctx: ServiceContext,
+  input: { fromIso: string; toIso: string },
+): Promise<ServiceResult<{ rows: BookkeepingRow[]; totals: { gross: number; fee: number; net: number } }>> {
+  const { data: soldListings } = await ctx.admin
+    .from('listings')
+    .select('id, title, price_nok, platform_fee_nok, sold_at, status, kind, store_id')
+    .eq('seller_id', ctx.user.id)
+    .in('status', ['sold', 'delivered'])
+    .gte('sold_at', input.fromIso)
+    .lte('sold_at', input.toIso + 'T23:59:59.999Z')
+    .order('sold_at', { ascending: true });
+
+  const { data: knitterOffers } = await ctx.admin
+    .from('commission_offers')
+    .select('id, price_nok, request_id, status, accepted_at, knitter_id, commission_requests!commission_offers_request_id_fkey(id, title, delivered_at, status, platform_fee_nok)')
+    .eq('knitter_id', ctx.user.id)
+    .eq('status', 'accepted');
+
+  const rows: BookkeepingRow[] = [];
+
+  for (const l of soldListings ?? []) {
+    const fee = (l as any).platform_fee_nok ?? 0;
+    rows.push({
+      date: ((l as any).sold_at ?? '').slice(0, 10),
+      type: (l as any).kind === 'pre_loved' ? 'brukt' : 'nytt',
+      item_id: (l as any).id,
+      title: (l as any).title,
+      gross_nok: (l as any).price_nok,
+      fee_nok: fee,
+      net_nok: (l as any).price_nok - fee,
+      channel: (l as any).store_id ? 'butikk' : 'privatsalg',
+      status: (l as any).status,
+    });
+  }
+
+  for (const o of (knitterOffers ?? []) as any[]) {
+    const req = o.commission_requests;
+    if (!req || !req.delivered_at) continue;
+    const d = req.delivered_at as string;
+    if (d.slice(0, 10) < input.fromIso || d.slice(0, 10) > input.toIso) continue;
+    const fee = req.platform_fee_nok ?? 0;
+    rows.push({
+      date: d.slice(0, 10),
+      type: 'oppdrag',
+      item_id: req.id,
+      title: req.title,
+      gross_nok: o.price_nok,
+      fee_nok: fee,
+      net_nok: o.price_nok - fee,
+      channel: 'oppdrag',
+      status: req.status,
+    });
+  }
+
+  rows.sort((a, b) => a.date.localeCompare(b.date));
+
+  const totals = rows.reduce(
+    (acc, r) => ({ gross: acc.gross + r.gross_nok, fee: acc.fee + r.fee_nok, net: acc.net + r.net_nok }),
+    { gross: 0, fee: 0, net: 0 },
+  );
+
+  return ok({ rows, totals });
+}
+
+/** Delete the user's account per GDPR Art. 17 ("right to be forgotten").
+ *  Refuses if there are pending obligations (open trades, open moderator
+ *  threads). On success: anonymises the profile, wipes personal artifacts,
+ *  archives draft listings, and removes the auth user. Transaction
+ *  history is retained 5 years per Norwegian bokføringsloven.
+ *  Returns the redirect target; the route clears the session cookies. */
+export async function deleteAccount(
+  ctx: ServiceContext,
+  input: { confirm: string },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (input.confirm !== 'SLETT') {
+    return fail('bad_input', 'Skriv SLETT for å bekrefte');
+  }
+
+  // 1. Refuse if there are pending obligations.
+  const blockers: string[] = [];
+  const { count: openListings } = await ctx.admin
+    .from('listings').select('id', { count: 'exact', head: true })
+    .eq('seller_id', ctx.user.id).in('status', ['reserved', 'shipped', 'disputed', 'frozen']);
+  if ((openListings ?? 0) > 0) blockers.push(`${openListings} aktive salg`);
+
+  const { count: pendingPurchases } = await ctx.admin
+    .from('listings').select('id', { count: 'exact', head: true })
+    .eq('buyer_id', ctx.user.id).in('status', ['reserved', 'shipped', 'disputed']);
+  if ((pendingPurchases ?? 0) > 0) blockers.push(`${pendingPurchases} aktive kjøp`);
+
+  const { count: openThreads } = await ctx.admin
+    .from('moderation_threads').select('id', { count: 'exact', head: true })
+    .eq('recipient_id', ctx.user.id).eq('status', 'open');
+  if ((openThreads ?? 0) > 0) blockers.push(`${openThreads} aktive moderasjonssaker`);
+
+  if (blockers.length) {
+    return fail(
+      'conflict',
+      `Kontoen kan ikke slettes med pågående saker: ${blockers.join(', ')}. `
+        + `Fullfør disse først, eller kontakt oss på hei@littlesandmeknits.com.`,
+    );
+  }
+
+  // 2. Anonymise the profile + clear personal content.
+  const anonName = `slettet-${ctx.user.id.slice(0, 8)}`;
+  await ctx.admin.from('profiles').update({
+    display_name: anonName,
+    avatar_path: null,
+    bio: null,
+    instagram_handle: null,
+    location: null,
+    seller_tags: null,
+    deleted_at: new Date().toISOString(),
+  }).eq('id', ctx.user.id);
+
+  await ctx.admin.from('favorites').delete().eq('user_id', ctx.user.id);
+  await ctx.admin.from('notifications').delete().eq('user_id', ctx.user.id);
+  await ctx.admin.from('notification_preferences').delete().eq('user_id', ctx.user.id);
+
+  await ctx.admin.from('listings').update({ status: 'removed' })
+    .eq('seller_id', ctx.user.id).in('status', ['draft', 'pending_review', 'active']);
+
+  // 3. Delete the auth user (revokes all sessions, removes login).
+  await ctx.admin.auth.admin.deleteUser(ctx.user.id);
+
+  return ok({ redirect: '/?deleted=1' });
+}
+
+/** Onboard a seller — collect payout details, create the Stripe Connect
+ *  Custom account, save the profile fields. Returns a redirect target.
+ *  Fine-grained validation errors use bad_input with a specific message
+ *  ('bad_kontonummer' / 'bad_name' / 'bad_birthdate' / 'stripe_error')
+ *  the route maps back to the ?error= query the form expects. */
+export async function becomeSeller(
+  ctx: ServiceContext,
+  input: {
+    legalName: string;
+    birthdate: string;
+    kontonummer: string;
+    address: string;
+    postalCode: string;
+    city: string;
+  },
+): Promise<ServiceResult<{ redirect: string }>> {
+  const legalName = input.legalName.trim();
+  if (!legalName || legalName.split(/\s+/).length < 2) {
+    return fail('bad_input', 'bad_name');
+  }
+  if (!input.birthdate) return fail('bad_input', 'bad_birthdate');
+  if (!isValidKontonummer(input.kontonummer)) return fail('bad_input', 'bad_kontonummer');
+
+  // RLS-safe read: profile owner reads their own row.
+  const { data: existing } = await ctx.supabase
+    .from('profiles')
+    .select('stripe_account_id, stripe_connect_status')
+    .eq('id', ctx.user.id)
+    .maybeSingle();
+
+  let accountId = (existing as any)?.stripe_account_id as string | null ?? null;
+
+  if (!accountId) {
+    const result = await createSellerConnectAccount(ctx.env.STRIPE_SECRET_KEY, {
+      legalName,
+      birthdate: input.birthdate,
+      kontonummer: input.kontonummer,
+      address: input.address,
+      postalCode: input.postalCode,
+      city: input.city,
+      email: ctx.user.email ?? '',
+    });
+    if (!result.ok) {
+      console.error('Become-seller create failed', result);
+      return fail('bad_input', result.reason ?? 'stripe_error');
+    }
+    accountId = result.accountId ?? null;
+  }
+
+  // Service-role write because the profile row's RLS policy is
+  // limited to read-own; this updates fields the user actually
+  // entered, scoped to their own row.
+  const { error: updateError } = await ctx.admin
+    .from('profiles')
+    .update({
+      seller_legal_name: legalName,
+      seller_birthdate: input.birthdate,
+      seller_kontonummer: normalizeKontonummer(input.kontonummer),
+      seller_address: input.address,
+      seller_postal_code: input.postalCode,
+      seller_city: input.city,
+      seller_terms_accepted_at: new Date().toISOString(),
+      stripe_account_id: accountId,
+      stripe_connect_status: (existing as any)?.stripe_connect_status === 'verified'
+        ? 'verified'
+        : 'pending',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', ctx.user.id);
+  if (updateError) {
+    console.error('Become-seller profile update failed', updateError);
+    return fail('server_error', 'Could not save seller profile');
+  }
+
+  return ok({ redirect: '/profile/become-seller?submitted=1' });
 }
 
 /** Persist a self-reported birthday on the profile. Validates the parts
