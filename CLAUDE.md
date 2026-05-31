@@ -1,5 +1,7 @@
 # CLAUDE.md — Littles and Me Knits
 
+> **⚠ Refactor in progress.** See [`refactor.md`](./refactor.md). Until those checkboxes are ticked, ship no new features that bypass the rules below. Items 1, 4, 11, 16 are ship-stopping — features wait on them.
+
 ## Project overview
 
 Norwegian knitting platform with three sections:
@@ -111,16 +113,75 @@ Do NOT also call `initMyFeature()` directly — `astro:page-load` fires on initi
 
 Exception: `<script is:inline>` re-runs on every page load (used by Navbar). Only use `is:inline` when you need `define:vars` or must avoid Astro's module bundling.
 
-## Service layer
+## Service layer (mandatory pattern, not a suggestion)
 
-API routes use a service layer pattern in `src/lib/services/`. Each service function receives a context object from `buildServiceContext()` (`src/lib/services/context.ts`) and returns via `toResponse()` (`src/lib/services/response.ts`).
+**Every write goes through a function in `src/lib/services/`.** API routes never inline `db.from(...).insert/update/delete(...)` or contain authorization checks. The route's job is: parse input → `buildServiceContext()` → call the service → `toResponse()`.
 
-## Supabase patterns
+Why mandatory: it's the only way to grep "who can do X" and get one answer. Refactor item #1 is the audit that completes the migration; until then, every new route follows the rule even if siblings don't.
 
-- Server-side: `createServerSupabase({ request, cookies })` — uses cookie-based auth
-- Admin/bypass RLS: `createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY)`
-- Auth: `getCurrentUser({ request, cookies })` — returns user or null
-- All tables use Row Level Security
+```ts
+// ✅ correct
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const ctx = await buildServiceContext(request, cookies);
+  if (!ctx) return new Response('Unauthorized', { status: 401 });
+  const form = await request.formData();
+  const result = await someService.doThing(ctx, { foo: form.get('foo') });
+  return toResponse(result);
+};
+
+// ❌ wrong — inline DB writes in the route
+export const POST: APIRoute = async ({ request, cookies }) => {
+  const user = await getCurrentUser({ request, cookies });
+  const supabase = createServerSupabase({ request, cookies });
+  await supabase.from('listings').update(...);   // NO
+  return new Response('ok');
+};
+```
+
+**Exceptions allowed:** Stripe webhook handler (entry point, no user), `/api/dev/*` (dev tooling — but see refactor item #5: dev actions should call real services, not duplicate logic), `/api/auth/vipps/*` (OIDC dance has its own flow).
+
+## Supabase access rules
+
+- **`createServerSupabase({ request, cookies })`** — cookie-bound, respects RLS. Use this in services for ordinary reads/writes.
+- **`createAdminSupabase(serviceRoleKey)`** — service role, bypasses RLS. **Forbidden in page modules and route handlers.** Allowed inside `src/lib/services/*` when the operation genuinely needs to span users (notifications, webhook side-effects, admin tools). Each admin-client call should have a comment one line above explaining *why* RLS doesn't fit.
+- **`getCurrentUser(...)`** — auth-gated routes use the new `Astro.locals.user` from middleware (refactor item #13). Don't reinvent the inline `if (!user) return Astro.redirect('/login?next=...')` pattern; the middleware now does it.
+- **All tables use Row Level Security.** A new table or sensitive column lands with at least one positive + one negative RLS test (refactor item #11). Pull-requests adding tables without RLS tests get rejected.
+
+## Authorization rules
+
+- **One canonical path:** services receive a verified `ctx.user` and check ownership/role against the resource using `ensureAuthorized()` helpers in `src/lib/services/types.ts` (per refactor item #4).
+- **Never gate authorization in a UI page.** Pages display, services authorize. If you find yourself writing `if (user.id !== listing.seller_id) return Astro.redirect(...)` in a page, that logic belongs in a service.
+- **No silent admin-bypass.** Reaching for `ctx.admin` to "make the query simpler" is the classic foot-gun. Use it only when the operation genuinely transcends a single user.
+
+## Commerce paths — no silent failures
+
+Any service touching money (Stripe, payouts, refunds, escrow capture) must either:
+1. Roll back fully on error (throw or return `fail(...)` and let the caller handle), or
+2. Land the failure in `dead_letter_events` via `recordDeadLetter()` (per refactor item #16) so support can audit.
+
+**Forbidden pattern:**
+```ts
+try { await stripe.something(...); } catch (e) { console.error(e); /* continue */ }
+```
+That's a bug report waiting six months. Either roll back or dead-letter.
+
+## Data model rules
+
+- **Don't add columns to `profiles`.** Per refactor item #2, that table is being split into `profiles` (display identity), `seller_profiles` (payout/KYC), `buyer_preferences` (interests/flags), `auth_identities` (provider records). New seller-payout fields, new onboarding flags, new identity providers — all land in the appropriate table.
+- **Migration discipline:** sensitive columns must have RLS that lets only the data subject + authorised staff read. The migration PR includes the corresponding test in `e2e/rls.spec.ts` or `src/lib/__tests__/rls.test.ts`.
+- **No `as any` on Supabase results.** Once `src/lib/database.types.ts` is in place (refactor item #3), the typed client exposes proper return shapes. If you reach for `as any`, you're hiding a real bug — fix the type instead, with a one-line comment if the cast is genuinely unavoidable.
+
+## Env access boundary
+
+`import { env } from 'cloudflare:workers'` is allowed in exactly **one file**: `src/lib/env.ts` (per refactor item #10). Every other module calls `getEnv()`. This is the swap point if we ever move off Cloudflare Workers.
+
+## Client-side scripts
+
+Inline `<script>` blocks in pages are deprecated. New client behaviour goes in `src/lib/client/controllers/<name>.ts` and is registered via the central `astro:page-load` handler (per refactor item #9). The exceptions called out earlier (`<script is:inline>` for `define:vars`, the navbar persistence dance) remain.
+
+## File-size rule
+
+No Astro page > 600 lines. If a page is hitting that, it's a state machine pretending to be a template — extract per-state components into `src/components/<domain>/<State><Role>.astro` (per refactor item #6).
 
 ## Language
 
