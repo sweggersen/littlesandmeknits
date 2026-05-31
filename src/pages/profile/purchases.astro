@@ -2,12 +2,10 @@
 import Layout from '../../layouts/Layout.astro';
 import { useTranslations } from '../../lib/i18n';
 import { createServerSupabase } from '../../lib/supabase';
-import { getCurrentUser } from '../../lib/auth';
 import { getEntry } from 'astro:content';
 import { formatNok } from '../../lib/format';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/profile/purchases');
+const user = Astro.locals.user!;  // middleware-gated route
 
 const t = useTranslations('nb');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });

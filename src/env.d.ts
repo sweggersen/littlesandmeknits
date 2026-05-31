@@ -28,6 +28,10 @@ declare namespace App {
     isStrikketorget?: boolean;
     inMarketSession?: boolean;
     prevSection?: 'market' | 'studio' | 'lmk' | null;
+    /** Set by middleware for auth-gated path prefixes (and read-along
+     *  on other routes so pages can render personalised content
+     *  without making a second auth call). May be null on public routes. */
+    user?: import('@supabase/supabase-js').User | null;
   }
 }
 

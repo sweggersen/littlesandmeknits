@@ -1,11 +1,12 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
-import { getCurrentUser } from '../../../lib/auth';
+import { requireUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/market/commissions/new');
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
 const targetKnitterId = Astro.url.searchParams.get('strikker') || null;
 let targetKnitterName: string | null = null;

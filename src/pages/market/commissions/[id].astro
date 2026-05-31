@@ -6,7 +6,6 @@ import ReviewForm from '../../../components/ReviewForm.astro';
 import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { createAdminSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { env } from 'cloudflare:workers';
 import { CATEGORY_LABEL, COMMISSION_STATUS, PROJECT_STATUS } from '../../../lib/labels';
@@ -15,7 +14,7 @@ const id = Astro.params.id;
 if (!id) return Astro.redirect('/market/commissions');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 let { data: req } = await supabase
   .from('commission_requests')

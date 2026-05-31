@@ -4,7 +4,6 @@ import StudioBackLink from '../../../components/StudioBackLink.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getEntry } from 'astro:content';
 import { projectPhotoUrl } from '../../../lib/storage';
-import { getCurrentUser } from '../../../lib/auth';
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/studio/projects');
@@ -165,7 +164,7 @@ const cardSummary = p.summary ?? null;
 const cardMeta = [p.recipient && `For ${p.recipient}`, p.yarn].filter(Boolean).join(' · ');
 
 // User profile bits used by the share card + caption builder.
-const profileUser = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const profileUser = Astro.locals.user;  // middleware-gated route, but typed as nullable
 const profileMeta = (profileUser?.user_metadata ?? {}) as {
   display_name?: string;
   instagram_handle?: string;

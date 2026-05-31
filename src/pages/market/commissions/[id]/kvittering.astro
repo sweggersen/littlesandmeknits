@@ -1,15 +1,16 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
-import { getCurrentUser } from '../../../../lib/auth';
+import { requireUser } from '../../../../lib/auth';
 import { CATEGORY_LABEL } from '../../../../lib/labels';
 import { env } from 'cloudflare:workers';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market');
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect(`/login?next=/market/commissions/${id}/kvittering`);
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);

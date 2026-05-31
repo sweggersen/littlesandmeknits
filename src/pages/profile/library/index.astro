@@ -1,11 +1,9 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/profile/library');
+const user = Astro.locals.user!;  // middleware-gated route
 
 type ExternalPattern = {
   id: string;

@@ -2,11 +2,12 @@
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
+import { requireUser } from '../../../lib/auth';
 import { env } from 'cloudflare:workers';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect(`/login?next=/market/moderasjon/${Astro.params.id ?? ''}`);
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market');

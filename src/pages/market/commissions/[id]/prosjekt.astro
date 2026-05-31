@@ -5,7 +5,7 @@ import ProfileAvatar from '../../../../components/ProfileAvatar.astro';
 import StatusBadge from '../../../../components/StatusBadge.astro';
 import EmptyState from '../../../../components/EmptyState.astro';
 import Alert from '../../../../components/Alert.astro';
-import { getCurrentUser } from '../../../../lib/auth';
+import { requireUser } from '../../../../lib/auth';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
 import { projectPhotoUrl } from '../../../../lib/storage';
 import { formatDate } from '../../../../lib/time';
@@ -14,8 +14,9 @@ import { env } from 'cloudflare:workers';
 const requestId = Astro.params.id;
 if (!requestId) return Astro.redirect('/market');
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect(`/login?next=/market/commissions/${requestId}/prosjekt`);
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 

@@ -2,16 +2,17 @@
 import Layout from '../../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../../components/MarketplaceShell.astro';
 import { createServerSupabase } from '../../../../lib/supabase';
-import { getCurrentUser } from '../../../../lib/auth';
+import { requireUser } from '../../../../lib/auth';
 import { projectPhotoUrl } from '../../../../lib/storage';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market/my-listings');
 
-const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
-if (!user) return Astro.redirect(`/login?next=${encodeURIComponent(`/market/listing/${id}/foto`)}`);
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
 const { data: listing } = await supabase
   .from('listings')

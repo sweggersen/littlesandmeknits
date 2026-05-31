@@ -1,13 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getCurrentUser } from '../../lib/auth';
 import { createServerSupabase } from '../../lib/supabase';
 import { createAdminSupabase } from '../../lib/supabase';
 import { env } from 'cloudflare:workers';
 import { getUserAchievements, checkAndGrantAchievements, ACHIEVEMENTS, CATEGORY_LABELS, TIER_LABEL, type AchievementTier } from '../../lib/achievements';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/profile/badges');
+const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);

@@ -2,10 +2,10 @@
 import Layout from '../layouts/Layout.astro';
 import InterestForm from '../components/InterestForm.astro';
 import Alert from '../components/Alert.astro';
-import { getCurrentUser } from '../lib/auth';
+// Auth lookup moved to middleware → Astro.locals.user
 import { env } from 'cloudflare:workers';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 if (user) {
   return Astro.redirect('/studio');
 }

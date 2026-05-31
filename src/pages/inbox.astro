@@ -1,12 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import MarketplaceShell from '../components/MarketplaceShell.astro';
-import { getCurrentUser } from '../lib/auth';
 import { createServerSupabase, createAdminSupabase } from '../lib/supabase';
 import { env } from 'cloudflare:workers';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/inbox');
+// Middleware guarantees Astro.locals.user is set on /inbox.
+const user = Astro.locals.user!;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);

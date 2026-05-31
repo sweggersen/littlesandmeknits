@@ -58,7 +58,11 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ---
 
-### ☐ Item 4 — Authorization is enforced in services, not pages
+### ☑ Item 4 — Authorization is enforced in services, not pages
+
+**Completed 2026-05-31.** Middleware now loads `Astro.locals.user` for every route (cheap, idempotent) and gates the prefixes `/admin`, `/studio`, `/profile`, `/inbox`, `/innstillinger`, `/onboarding` — redirecting to `/login?next=<encoded-path>` if missing. Two new helpers in `src/lib/auth.ts`: `requireUser(Astro)` returns the user or a 302 Response, `requireRole(Astro, roles, key)` checks profile role and returns 403 if underprivileged. 41 of 42 page modules swept; 1 deliberate inline (`reset-password.astro`, auth-flow edge case). `getCurrentUser` remains exported but is now only the implementation detail behind the helpers.
+
+
 
 **Goal:** one canonical path for "is this user allowed to do X".
 

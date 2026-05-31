@@ -9,7 +9,6 @@ import FavScript from '../../components/FavScript.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
-import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { CATEGORY_LABEL } from '../../lib/labels';
 
@@ -23,7 +22,7 @@ const cursor = url.searchParams.get('cursor');
 const hasFilters = !!(search || category || Number.isFinite(prisMin) || Number.isFinite(prisMax));
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 let q = supabase
   .from('listings')

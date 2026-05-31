@@ -5,7 +5,6 @@ import ListingCard from '../../../components/ListingCard.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import FavScript from '../../../components/FavScript.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { CATEGORY_LABEL } from '../../../lib/labels';
 
@@ -26,7 +25,7 @@ const kindLabelNo = kindParam === 'used' ? 'Brukt' : 'Nytt';
 const categoryLabel = CATEGORY_LABEL[categoryParam] ?? categoryParam;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 const { data: listings } = await supabase
   .from('listings')

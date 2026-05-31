@@ -9,7 +9,6 @@ import FavScript from '../../components/FavScript.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
-import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { CATEGORY_LABEL, CONDITION_LABEL } from '../../lib/labels';
 
@@ -24,7 +23,7 @@ const ageMax = parseInt(url.searchParams.get('alder_max') ?? '', 10);
 const cursor = url.searchParams.get('cursor');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 let q = supabase
   .from('listings')

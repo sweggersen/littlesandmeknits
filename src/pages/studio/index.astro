@@ -3,11 +3,10 @@ import StudioLayout from '../../layouts/StudioLayout.astro';
 import InstallAppButton from '../../components/InstallAppButton.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { useTranslations } from '../../lib/i18n';
-import { getCurrentUser } from '../../lib/auth';
 
 const t = useTranslations('nb');
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user!;  // middleware-gated route
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
 const now = new Date();

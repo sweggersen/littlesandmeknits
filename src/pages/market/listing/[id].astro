@@ -9,7 +9,6 @@ import { purchaseBreakdown } from '../../../lib/shipping';
 import Alert from '../../../components/Alert.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { env } from 'cloudflare:workers';
 import { KIND_LABEL, LISTING_STATUS, CONDITION_LABEL } from '../../../lib/labels';
@@ -23,7 +22,7 @@ const id = extractListingId(rawParam);
 if (!id) return Astro.redirect('/market');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 let { data: listing } = await supabase
   .from('listings')

@@ -7,13 +7,12 @@ import EmptyState from '../../components/EmptyState.astro';
 import FavScript from '../../components/FavScript.astro';
 import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
-import { getCurrentUser } from '../../lib/auth';
 import { projectPhotoUrl } from '../../lib/storage';
 import { KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
 import { rankPromoted, type UserPreferences } from '../../lib/promotion-ranker';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 const SLOTS = 8;
 const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_min, size_age_months_max, hero_photo_path, published_at, promoted_until, promoted_at, promotion_tier, category, favorite_count, seller_id, store_id';

@@ -144,7 +144,14 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
 - **`createServerSupabase({ request, cookies })`** — cookie-bound, respects RLS. Use this in services for ordinary reads/writes.
 - **`createAdminSupabase(serviceRoleKey)`** — service role, bypasses RLS. **Forbidden in page modules and route handlers.** Allowed inside `src/lib/services/*` when the operation genuinely needs to span users (notifications, webhook side-effects, admin tools). Each admin-client call should have a comment one line above explaining *why* RLS doesn't fit.
-- **`getCurrentUser(...)`** — auth-gated routes use the new `Astro.locals.user` from middleware (refactor item #13). Don't reinvent the inline `if (!user) return Astro.redirect('/login?next=...')` pattern; the middleware now does it.
+- **Auth in pages** — middleware loads `Astro.locals.user` for every route. Read it directly. For middleware-gated prefixes (`/admin`, `/studio`, `/profile`, `/inbox`, `/innstillinger`, `/onboarding`) the user is guaranteed non-null. For market pages that need auth (e.g. `/market/favorites`, `/market/my-listings`), use the helper:
+  ```ts
+  import { requireUser } from '../../lib/auth';
+  const guard = await requireUser(Astro);
+  if (guard instanceof Response) return guard;  // 302 to /login?next=…
+  const user = guard;
+  ```
+  Don't roll your own `if (!user) return Astro.redirect('/login?next=...')` — `requireUser` encodes the `next` consistently and respects the middleware-loaded user.
 - **All tables use Row Level Security.** A new table or sensitive column lands with at least one positive + one negative RLS test (refactor item #11). Pull-requests adding tables without RLS tests get rejected.
 
 ## Authorization rules

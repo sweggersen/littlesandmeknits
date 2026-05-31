@@ -7,7 +7,6 @@ import ListingCard from '../../../components/ListingCard.astro';
 import StarRating from '../../../components/StarRating.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { KIND_LABEL } from '../../../lib/labels';
 import { getUserAchievements, ACHIEVEMENT_MAP, ACHIEVEMENTS } from '../../../lib/achievements';
@@ -15,7 +14,7 @@ import { getUserAchievements, ACHIEVEMENT_MAP, ACHIEVEMENTS } from '../../../lib
 const sellerId = Astro.params.id;
 if (!sellerId) return Astro.redirect('/market');
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 

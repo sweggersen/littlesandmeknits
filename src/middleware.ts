@@ -160,10 +160,20 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     return ctx.rewrite('/market');
   }
 
-  if (path.startsWith('/admin') || path.startsWith('/studio') || path.startsWith('/profile')) {
+  // Auth load + gate, in one pass. We populate ctx.locals.user for every
+  // route so downstream pages can render personalised content without
+  // making another auth call. For gated prefixes we redirect to login
+  // when the user is missing.
+  const GATED_PREFIXES = ['/admin', '/studio', '/profile', '/inbox', '/innstillinger', '/onboarding'];
+  const isGated = GATED_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
+  if (isGated || !ctx.url.searchParams.has('skip_auth_load')) {
     const { getCurrentUser } = await import('./lib/auth');
     const user = await getCurrentUser({ request: ctx.request, cookies: ctx.cookies });
-    if (!user) return ctx.redirect(`/login?next=${encodeURIComponent(path)}`);
+    ctx.locals.user = user;
+    if (isGated && !user) {
+      const next = path + (ctx.url.search ?? '');
+      return ctx.redirect(`/login?next=${encodeURIComponent(next)}`);
+    }
   }
 
   return next();

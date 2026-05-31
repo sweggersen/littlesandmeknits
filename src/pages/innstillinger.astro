@@ -1,10 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { getCurrentUser } from '../lib/auth';
 import { createServerSupabase } from '../lib/supabase';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/innstillinger');
+const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 

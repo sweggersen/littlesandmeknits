@@ -1,13 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import MarketplaceShell from '../../components/MarketplaceShell.astro';
-import { getCurrentUser } from '../../lib/auth';
 import { createAdminSupabase } from '../../lib/supabase';
 import { env } from 'cloudflare:workers';
 
 if (import.meta.env.PROD) return Astro.redirect('/market');
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 if (!user || user.email !== 'ammon.weggersen@gmail.com') {
   return Astro.redirect('/market');
 }

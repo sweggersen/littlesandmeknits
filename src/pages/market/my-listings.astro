@@ -4,11 +4,12 @@ import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import { createServerSupabase } from '../../lib/supabase';
-import { getCurrentUser } from '../../lib/auth';
+import { requireUser } from '../../lib/auth';
 import { KIND_LABEL, LISTING_STATUS, COMMISSION_STATUS } from '../../lib/labels';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/market/my-listings');
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 

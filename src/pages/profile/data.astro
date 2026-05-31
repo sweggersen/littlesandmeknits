@@ -1,9 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getCurrentUser } from '../../lib/auth';
-
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/profile/data');
+const user = Astro.locals.user!;  // middleware-gated route
 
 const flash = Astro.url.searchParams.get('flash');
 const err = Astro.url.searchParams.get('err');

@@ -1,9 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import LoginContent from '../../components/LoginContent.astro';
-import { getCurrentUser } from '../../lib/auth';
-
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
+// Auth lookup moved to middleware → Astro.locals.user
+const user = Astro.locals.user;
 if (user) {
   return Astro.redirect('/studio');
 }

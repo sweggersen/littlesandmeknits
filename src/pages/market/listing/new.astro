@@ -1,13 +1,14 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
-import { getCurrentUser } from '../../../lib/auth';
+import { requireUser } from '../../../lib/auth';
 import { buildServiceContext } from '../../../lib/services/context';
 import { listMyStores } from '../../../lib/services/stores';
 import { SHIPPING_TIERS } from '../../../lib/shipping';
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/market/listing/new');
+const guard = await requireUser(Astro);
+if (guard instanceof Response) return guard;
+const user = guard;
 
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 const myStoresRes = ctx ? await listMyStores(ctx) : null;

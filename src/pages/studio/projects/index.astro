@@ -4,7 +4,6 @@ import StudioSubNav from '../../../components/StudioSubNav.astro';
 import ProjectCard from '../../../components/ProjectCard.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
 
 type ProjectRow = {
   id: string;
@@ -21,8 +20,7 @@ type ProjectRow = {
   public_slug: string | null;
 };
 
-const user = await getCurrentUser({ request: Astro.request, cookies: Astro.cookies });
-if (!user) return Astro.redirect('/login?next=/studio/projects');
+const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data } = await supabase
