@@ -5,6 +5,7 @@ import { createStripe } from '../stripe';
 import { insertQueueItem } from '../moderation';
 import { VALID_CATEGORIES } from '../labels';
 import { bookShipment, getTracking as bringGetTracking } from '../bring';
+import { recordDeadLetter } from './dead-letter';
 
 const toIntOrNull = (v: string | undefined): number | null => {
   if (!v) return null;
@@ -170,9 +171,19 @@ export async function acceptOffer(
       .select('id')
       .single();
     if (projErr) {
-      console.error('Auto-create commission project failed', projErr);
-      // Soft-fail: the accept itself already succeeded. The knitter
-      // can manually create a project from their studio if needed.
+      // Soft-fail: the accept itself already succeeded. Land in
+      // dead-letter so support can manually create the project + link
+      // it from /admin/dead-letters.
+      await recordDeadLetter(ctx, {
+        service: 'commissions.acceptOffer:project-create',
+        context: {
+          offer_id: offer.id,
+          request_id: offer.request_id,
+          knitter_id: offer.knitter_id,
+          buyer_id: req.buyer_id,
+        },
+        error: projErr,
+      });
     } else if (project) {
       await ctx.admin
         .from('commission_offers')

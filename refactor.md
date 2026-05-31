@@ -124,7 +124,9 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ---
 
-### ☐ Item 16 — Eliminate silent failures in commerce paths
+### ☑ Item 16 — Eliminate silent failures in commerce paths
+
+**Completed 2026-05-31.** Migration 0071 adds `dead_letter_events` (staff-readable, no public writes). New service `src/lib/services/dead-letter.ts` exports `recordDeadLetter(ctx, {service, context, error})` for best-effort recording when an error can't roll back the parent. Replaced three commerce-path catch-and-continue sites: `commissions.acceptOffer` (project auto-create failure), `listings.shipListing` (Stripe capture-on-ship), `listings.publishListing` (follower fan-out). New `/admin/dead-letters` page groups unresolved events by service; resolve via `resolveDeadLetter` service + `/api/admin/dead-letters/[id]/resolve` route.
 
 **Goal:** any failure in money-touching code either rolls back the parent operation or lands in a dead-letter queue we can audit.
 

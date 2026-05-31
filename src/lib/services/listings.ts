@@ -5,6 +5,7 @@ import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { VALID_CATEGORIES } from '../labels';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
+import { recordDeadLetter } from './dead-letter';
 
 const VALID_KIND = new Set(['pre_loved', 'ready_made']);
 const VALID_CONDITION = new Set(['som_ny', 'lite_brukt', 'brukt', 'slitt']);
@@ -179,7 +180,11 @@ export async function publishListing(
         sellerName: profile?.display_name,
       }, ctx.env);
     } catch (err) {
-      console.error('Follower fan-out (publish) failed', err);
+      await recordDeadLetter(ctx, {
+        service: 'listings.publishListing:follower-fanout',
+        context: { listing_id: input.listingId },
+        error: err,
+      });
     }
   }
 
@@ -466,8 +471,16 @@ export async function shipListing(
       const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
       await stripe.paymentIntents.capture(listingForCapture.stripe_payment_intent_id);
     } catch (e) {
-      console.error('Stripe capture-on-ship failed', e);
       // Fall through — the auto_release_at cron will retry on day 14.
+      // Land in dead-letter so support sees it before the retry window.
+      await recordDeadLetter(ctx, {
+        service: 'listings.shipListing:capture-on-ship',
+        context: {
+          listing_id: input.listingId,
+          payment_intent_id: listingForCapture.stripe_payment_intent_id,
+        },
+        error: e,
+      });
     }
   }
 
