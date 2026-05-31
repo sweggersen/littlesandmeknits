@@ -23,7 +23,11 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ## Tier 1 — Ship-stopping
 
-### ☐ Item 1 — Service-layer discipline
+### ☑ Item 1 — Service-layer discipline
+
+**Completed 2026-05-31.** 96 of 109 real API routes (88%) now route through `buildServiceContext`/`toResponse`. The remaining 13 are exception-eligible per CLAUDE.md (auth flow, cron entry, dev tooling, webhook, static-key endpoint). New service exports added: `profile.{becomeSeller, deleteAccount, getBookkeeping, exportPersonalData, completeStrikketorgetWelcome}`, `push.{subscribePush, unsubscribePush}`, `tracking.{recordImpressions, recordClick}`, `admin-mail.sendTestEmail`. Audit file at `audit/non-service-routes.txt`. Side effect: 467 `._*` AppleDouble files purged from the tree + gitignored.
+
+
 
 **Goal:** every write goes through `src/lib/services/`. API routes are thin shells.
 

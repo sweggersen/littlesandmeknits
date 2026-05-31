@@ -1,13 +1,10 @@
 import type { APIRoute } from 'astro';
-import { createServerSupabase } from '../../../lib/supabase';
-import { getCurrentUser } from '../../../lib/auth';
+import { buildServiceContext } from '../../../lib/services/context';
+import { recordClick } from '../../../lib/services/tracking';
 
-const validSources = new Set(['feed', 'search', 'category', 'home']);
-
-// Attributes a click to the most-recent impression for (viewer, listing, source)
-// within the last 30 minutes. Anonymous clicks are accepted but unattributed
-// (we have no stable session ID yet) — they return 200 to keep the beacon
-// fire-and-forget pattern simple.
+// Click attribution is opt-in for signed-in users. Anonymous clicks
+// return 200 silently (the beacon is fire-and-forget; we have no
+// stable anon session).
 export const POST: APIRoute = async ({ request, cookies }) => {
   let body: { listing_id?: string; source?: string };
   try {
@@ -16,36 +13,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response('Bad JSON', { status: 400 });
   }
 
-  const listingId = body.listing_id;
-  const source = body.source;
-  if (!listingId || !source || !validSources.has(source)) {
-    return new Response('Invalid', { status: 400 });
-  }
+  const ctx = await buildServiceContext(request, cookies);
+  if (!ctx) return new Response('ok', { status: 200 });
 
-  const user = await getCurrentUser({ request, cookies });
-  if (!user) return new Response('ok', { status: 200 });
-
-  const supabase = createServerSupabase({ request, cookies });
-
-  const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-  const { data: recent } = await supabase
-    .from('listing_impressions')
-    .select('id')
-    .eq('viewer_id', user.id)
-    .eq('listing_id', listingId)
-    .eq('source', source)
-    .eq('clicked', false)
-    .gte('created_at', cutoff)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (recent?.id) {
-    await supabase
-      .from('listing_impressions')
-      .update({ clicked: true, clicked_at: new Date().toISOString() })
-      .eq('id', recent.id);
-  }
-
+  const result = await recordClick(ctx, {
+    listingId: body.listing_id ?? '',
+    source: body.source ?? '',
+  });
+  if (!result.ok) return new Response(result.message, { status: 400 });
   return new Response('ok', { status: 200 });
 };

@@ -1,27 +1,17 @@
 import type { APIRoute } from 'astro';
-import { createServerSupabase } from '../../../lib/supabase';
 import { getCurrentUser } from '../../../lib/auth';
+import { createServerSupabase } from '../../../lib/supabase';
+import { recordImpressions, type ImpressionRow } from '../../../lib/services/tracking';
 
-type ImpressionRow = {
-  listing_id: string;
-  position?: number | null;
-  promoted?: boolean;
-  tier?: 'boost' | 'highlight' | null;
-};
-
-const validSources = new Set(['feed', 'search', 'category', 'home']);
-const validTiers = new Set(['boost', 'highlight']);
-
+// Impression tracking accepts anonymous viewers, so we don't use
+// buildServiceContext (which requires a user). The service helper takes
+// an explicit client + viewer id.
 export const POST: APIRoute = async ({ request, cookies }) => {
-  let body: { source: string; rows?: ImpressionRow[]; listing_ids?: string[]; promoted?: string[] };
+  let body: { source?: string; rows?: ImpressionRow[]; listing_ids?: string[]; promoted?: string[] };
   try {
     body = await request.json();
   } catch {
     return new Response('Bad JSON', { status: 400 });
-  }
-
-  if (!validSources.has(body.source)) {
-    return new Response('Invalid source', { status: 400 });
   }
 
   // New shape: rows[]. Legacy shape: listing_ids[] + promoted[].
@@ -36,28 +26,15 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     }));
   }
 
-  if (rows.length === 0 || rows.length > 50) {
-    return new Response('Invalid rows', { status: 400 });
-  }
-
   const user = await getCurrentUser({ request, cookies });
   const supabase = createServerSupabase({ request, cookies });
 
-  const inserts = rows
-    .filter((r) => typeof r.listing_id === 'string' && r.listing_id.length > 0)
-    .map((r) => ({
-      listing_id: r.listing_id,
-      viewer_id: user?.id ?? null,
-      source: body.source,
-      promoted: r.promoted === true,
-      tier: r.tier && validTiers.has(r.tier) ? r.tier : null,
-      position: typeof r.position === 'number' && r.position > 0 ? Math.min(r.position, 32767) : null,
-      clicked: false,
-    }));
-
-  if (inserts.length === 0) return new Response('Invalid rows', { status: 400 });
-
-  await supabase.from('listing_impressions').insert(inserts);
-
+  const result = await recordImpressions({
+    source: body.source ?? '',
+    rows,
+    viewerId: user?.id ?? null,
+    client: supabase,
+  });
+  if (!result.ok) return new Response(result.message, { status: 400 });
   return new Response('ok', { status: 200 });
 };

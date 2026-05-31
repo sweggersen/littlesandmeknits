@@ -14,6 +14,28 @@ function cleanHandle(raw: string | undefined | null): string | null {
   return trimmed;
 }
 
+const STRIKKETORGET_VALID_INTERESTS = new Set([
+  'children', 'adult', 'genser', 'cardigan', 'lue', 'votter',
+  'sokker', 'teppe', 'kjole', 'bukser',
+]);
+
+/** Mark the user as Strikketorget-welcomed and persist their interest
+ *  selection. `action: 'skip'` records a welcome with no preferences. */
+export async function completeStrikketorgetWelcome(
+  ctx: ServiceContext,
+  input: { action: 'save' | 'skip'; interests: string[] },
+): Promise<ServiceResult<{ redirect: string }>> {
+  const filtered = input.interests.filter((v) => STRIKKETORGET_VALID_INTERESTS.has(v));
+  await ctx.supabase
+    .from('profiles')
+    .update({
+      strikketorget_welcomed_at: new Date().toISOString(),
+      marketplace_interests: input.action === 'skip' ? null : filtered,
+    })
+    .eq('id', ctx.user.id);
+  return ok({ redirect: '/market' });
+}
+
 /** GDPR Art. 15 (right of access) + Art. 20 (data portability).
  *  Collect every personal datum we hold about ctx.user into a single
  *  JSON-serialisable object. The route streams it as a download. */

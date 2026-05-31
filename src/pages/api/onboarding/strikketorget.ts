@@ -1,27 +1,16 @@
 import type { APIRoute } from 'astro';
-import { getCurrentUser } from '../../../lib/auth';
-import { createServerSupabase } from '../../../lib/supabase';
-
-const VALID_INTERESTS = new Set(['children', 'adult', 'genser', 'cardigan', 'lue', 'votter', 'sokker', 'teppe', 'kjole', 'bukser']);
+import { buildServiceContext } from '../../../lib/services/context';
+import { completeStrikketorgetWelcome } from '../../../lib/services/profile';
+import { toResponse } from '../../../lib/services/response';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-  const user = await getCurrentUser({ request, cookies });
-  if (!user) return new Response('Unauthorized', { status: 401 });
+  const ctx = await buildServiceContext(request, cookies);
+  if (!ctx) return new Response('Unauthorized', { status: 401 });
 
   const form = await request.formData();
-  const action = String(form.get('action') ?? 'save');
-  const interests = form.getAll('interests')
-    .map((v) => String(v))
-    .filter((v) => VALID_INTERESTS.has(v));
+  const action = String(form.get('action') ?? 'save') === 'skip' ? 'skip' : 'save';
+  const interests = form.getAll('interests').map((v) => String(v));
 
-  const supabase = createServerSupabase({ request, cookies });
-  await supabase
-    .from('profiles')
-    .update({
-      strikketorget_welcomed_at: new Date().toISOString(),
-      marketplace_interests: action === 'skip' ? null : interests,
-    })
-    .eq('id', user.id);
-
-  return redirect('/market', 303);
+  const result = await completeStrikketorgetWelcome(ctx, { action, interests });
+  return toResponse(result, redirect);
 };
