@@ -94,7 +94,11 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ---
 
-### ☐ Item 11 — RLS policies have tests
+### ◑ Item 11 — RLS policies have tests
+
+**Foundation laid 2026-05-31.** Test harness at `src/lib/__tests__/rls.test.ts` exercises real RLS policies against a local Supabase. Three fixture users (alice/buyer, bob/seller-knitter, charlie/third-party) sign in via password and each gets a `SupabaseClient` to make user-scoped queries. Initial coverage: `profiles` (owner reads own + public-ish read), `dead_letter_events` (staff-only), `projects` (commission-buyer policy from migration 0070, owner policy, third-party deny). Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase status`). Skips gracefully when no local Supabase is available. **Remaining work**: expand to listings, commission_requests, commission_offers, conversations, marketplace_messages, stores, store_members, disputes, refunds. Pattern is established; each new table is ~15 lines of test code. Add CI integration once local-supabase is reliable in the worker.
+
+
 
 **Goal:** automated proof that anonymous, buyer, seller, knitter, moderator, admin all see what they're supposed to and nothing else.
 
