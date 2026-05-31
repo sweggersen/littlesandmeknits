@@ -288,7 +288,7 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
     { data: storeMemberships },
   ] = await Promise.all([
     admin.from('profiles')
-      .select('created_at, avatar_path, bio, location, instagram_handle, stripe_onboarded, trust_tier, role')
+      .select('created_at, avatar_path, bio, location, instagram_handle, stripe_connect_status, trust_tier, role')
       .eq('id', userId).single(),
     admin.from('user_achievements')
       .select('achievement_key')
@@ -382,7 +382,7 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
   if (profile.bio && profile.bio.length >= 10) await grant('bio_written');
   if (profile.avatar_path && profile.bio && profile.location && profile.instagram_handle) await grant('full_profile');
   if (profile.instagram_handle) await grant('instagram_linked');
-  if (profile.stripe_onboarded) await grant('stripe_onboarded');
+  if ((profile as any).stripe_connect_status === 'verified') await grant('stripe_onboarded');
   if (days >= 30) await grant('member_30d');
   if (days >= 90) await grant('member_90d');
   if (days >= 180) await grant('member_180d');

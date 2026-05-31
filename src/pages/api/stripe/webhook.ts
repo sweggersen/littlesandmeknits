@@ -224,11 +224,13 @@ export const POST: APIRoute = async ({ request }) => {
       stripe_connect_requirements: account.requirements ?? null,
       updated_at: new Date().toISOString(),
     };
-    // Keep the legacy boolean in sync for code paths still reading it.
     if (status === 'verified') {
-      update.stripe_onboarded = true;
       update.seller_verified_at = new Date().toISOString();
     }
+    // Note: the legacy stripe_onboarded boolean is no longer written.
+    // Reads have moved to stripe_connect_status === 'verified'; the
+    // column is scheduled for deletion in a follow-up migration after
+    // one prod week of observation (refactor.md item 7).
     await supabase
       .from('profiles')
       .update(update)

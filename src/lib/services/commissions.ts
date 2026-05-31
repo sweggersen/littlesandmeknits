@@ -294,7 +294,7 @@ export async function payCommission(
 
   const { data: knitterProfile } = await ctx.admin
     .from('profiles')
-    .select('stripe_account_id, stripe_onboarded, role')
+    .select('stripe_account_id, stripe_connect_status, role')
     .eq('id', offer.knitter_id)
     .maybeSingle();
 
@@ -303,7 +303,7 @@ export async function payCommission(
   const platformFee = Math.round(amountOre * feePercent / 100);
   let paymentIntentId: string | undefined;
 
-  if (knitterProfile?.stripe_onboarded && knitterProfile.stripe_account_id) {
+  if ((knitterProfile as any)?.stripe_connect_status === 'verified' && knitterProfile?.stripe_account_id) {
     const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
     const pi = await stripe.paymentIntents.create({
       amount: amountOre, currency: 'nok', capture_method: 'manual',

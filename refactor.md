@@ -208,7 +208,11 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ---
 
-### ☐ Item 7 — Consolidate Stripe Connect state
+### ☑ Item 7 — Consolidate Stripe Connect state
+
+**Completed 2026-05-31.** Profile-side `stripe_onboarded` is no longer written by the Stripe `account.updated` webhook and no longer read by any code path. All 10 reads moved to `stripe_connect_status === 'verified'`: `achievements.ts`, `trust.ts`, `moderation.ts`, `services/listings.ts` (seller branch), `services/commissions.ts`, `pages/market/listing/[id].astro` (seller branch), `pages/admin/{moderation,users}/[id].astro`, `pages/profile/edit.astro`, `pages/dev/test-tower.astro`, `pages/api/dev/test-exec.ts` (fixture writes). Store-side `stores.stripe_onboarded` is intentionally untouched — stores have their own state model that will get the same treatment when store-payouts are wired. Final-drop migration of `profiles.stripe_onboarded` scheduled as a follow-up after one prod week of observation.
+
+
 
 **Goal:** one truth column for "seller is verified".
 

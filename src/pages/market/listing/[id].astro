@@ -87,7 +87,7 @@ const sellerAvgRating = sellerReviewCount
   : 0;
 
 const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }, { data: followRow }] = await Promise.all([
-  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_onboarded').eq('id', listing.seller_id).maybeSingle(),
+  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_connect_status').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
   supabase.from('seller_reviews').select('id, reviewer_id, rating, comment, created_at').eq('listing_id', id),
   listing.store_id
@@ -136,9 +136,11 @@ const refundReasonLabels: Record<string, string> = {
 const justPublished = Astro.url.searchParams.get('published') === '1';
 const justPromoted = Astro.url.searchParams.get('promoted') === '1';
 const justPurchased = Astro.url.searchParams.get('purchased') === '1';
+// Store-level Stripe state is still the legacy boolean (refactor item 7
+// only retired the profile-level one); seller profile uses the new enum.
 const sellerOnboarded = isStoreListing
-  ? !!storeRow?.stripe_onboarded
-  : !!sellerProfile?.stripe_onboarded;
+  ? !!(storeRow as any)?.stripe_onboarded
+  : (sellerProfile as any)?.stripe_connect_status === 'verified';
 let frozenThreadId: string | null = null;
 if (isOwner && listing.status === 'frozen') {
   const { data: t } = await supabase

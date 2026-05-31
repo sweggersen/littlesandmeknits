@@ -974,7 +974,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             desc: 'Eline har koblet Stripe Connect — kan motta betaling.',
             params: {},
             expect: (s) => [
-              ['stripe_onboarded', s.profiles?.['eline@test.strikketorget.no']?.stripe_onboarded, true],
+              ['stripe_connect_status', s.profiles?.['eline@test.strikketorget.no']?.stripe_connect_status, 'verified'],
             ],
           },
           {

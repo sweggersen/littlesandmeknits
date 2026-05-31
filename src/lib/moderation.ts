@@ -21,7 +21,7 @@ interface ProfileData {
   bio: string | null;
   location: string | null;
   instagram_handle: string | null;
-  stripe_onboarded: boolean;
+  stripe_connect_status: string | null;
   total_completed_transactions: number;
   total_rejections: number;
 }
@@ -66,7 +66,7 @@ export function computeConfidenceScore(
   breakdown.push({ label: 'Profil-utfylling', points: profilePoints, max: 20 });
 
   // 3. Stripe onboarded (0-10)
-  const stripePoints = profile.stripe_onboarded ? 10 : 0;
+  const stripePoints = profile.stripe_connect_status === 'verified' ? 10 : 0;
   breakdown.push({ label: 'Stripe verifisert', points: stripePoints, max: 10 });
 
   // 4. Completed transactions (0-25)

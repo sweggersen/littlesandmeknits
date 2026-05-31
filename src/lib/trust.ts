@@ -9,7 +9,7 @@ interface TrustInput {
   bio: string | null;
   location: string | null;
   instagram_handle: string | null;
-  stripe_onboarded: boolean;
+  stripe_connect_status: string | null;
   total_completed_transactions: number;
   total_rejections: number;
 }
@@ -29,7 +29,7 @@ export function computeTrustScore(profile: TrustInput, reviewStats: { avg_rating
   if (profile.location) score += 5;
   if (profile.instagram_handle) score += 5;
 
-  if (profile.stripe_onboarded) score += 10;
+  if (profile.stripe_connect_status === 'verified') score += 10;
 
   const txn = profile.total_completed_transactions;
   if (txn >= 10) score += 25;
@@ -61,7 +61,7 @@ export function determineTier(score: number, profile: TrustInput): TrustTier {
 export async function recalculateTrust(admin: SupabaseClient, userId: string): Promise<{ score: number; tier: TrustTier }> {
   const { data: profile } = await admin
     .from('profiles')
-    .select('created_at, avatar_path, bio, location, instagram_handle, stripe_onboarded, total_completed_transactions, total_rejections')
+    .select('created_at, avatar_path, bio, location, instagram_handle, stripe_connect_status, total_completed_transactions, total_rejections')
     .eq('id', userId)
     .single();
 

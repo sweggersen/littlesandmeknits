@@ -17,7 +17,7 @@ const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 const { data: profile } = await admin
   .from('profiles')
-  .select('id, display_name, role, stripe_onboarded, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+  .select('id, display_name, role, stripe_connect_status, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
   .eq('id', userId)
   .single();
 
@@ -80,7 +80,7 @@ function tierColor(tier: string) {
           <span class="text-charcoal/40">Registrert</span>
           <span>{new Date(profile.created_at).toLocaleDateString('nb-NO')}</span>
           <span class="text-charcoal/40">Stripe</span>
-          <span>{profile.stripe_onboarded ? 'Verifisert' : 'Nei'}</span>
+          <span>{(profile as any).stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
           <span class="text-charcoal/40">Fullførte</span>
           <span>{profile.total_completed_transactions}</span>
           <span class="text-charcoal/40">Avvisninger</span>

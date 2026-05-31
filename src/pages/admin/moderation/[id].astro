@@ -29,7 +29,7 @@ if (!queueItem) return Astro.redirect('/admin/moderation');
 // Fetch submitter profile
 const { data: submitter } = await admin
   .from('profiles')
-  .select('id, display_name, stripe_onboarded, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+  .select('id, display_name, stripe_connect_status, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
   .eq('id', queueItem.submitter_id)
   .single();
 
@@ -129,7 +129,7 @@ if (queueItem.item_type === 'store' && itemData?.orgnr) {
     confidence = computeStoreConfidenceScore({
       profileCreatedAt: submitter.created_at,
       profileTotalRejections: submitter.total_rejections ?? 0,
-      stripeOnboarded: !!itemData.stripe_onboarded,
+      stripeOnboarded: !!(itemData as any).stripe_onboarded,
       submitterDisplayName: submitter.display_name ?? null,
       submitterEmail: submitterEmail,
       storeContactEmail: itemData.contact_email,
@@ -587,7 +587,7 @@ function scoreColor(s: number) {
             <span class="text-charcoal/40">Registrert</span>
             <span>{new Date(submitter.created_at).toLocaleDateString('nb-NO')}</span>
             <span class="text-charcoal/40">Stripe</span>
-            <span>{submitter.stripe_onboarded ? 'Verifisert' : 'Nei'}</span>
+            <span>{(submitter as any).stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
             <span class="text-charcoal/40">Avvisninger</span>
             <span class:list={[submitter.total_rejections > 0 ? 'text-red-600 font-medium' : '']}>{submitter.total_rejections}</span>
           </div>

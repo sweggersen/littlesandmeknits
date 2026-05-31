@@ -371,13 +371,13 @@ export async function purchaseListing(
   } else {
     const { data: seller } = await ctx.admin
       .from('profiles')
-      .select('stripe_account_id, stripe_onboarded, role')
+      .select('stripe_account_id, stripe_connect_status, role')
       .eq('id', listing.seller_id)
       .maybeSingle();
     if (!seller) return fail('not_found', 'Seller not found');
-    payoutAccountId = seller.stripe_account_id;
-    onboarded = !!seller.stripe_onboarded;
-    feePercent = seller.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
+    payoutAccountId = (seller as any).stripe_account_id;
+    onboarded = (seller as any).stripe_connect_status === 'verified';
+    feePercent = (seller as any).role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   }
 
   if (!onboarded || !payoutAccountId) {

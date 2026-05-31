@@ -458,9 +458,9 @@ async function handle(
       if (!actorId) throw new Error('Actor required');
       await db.from('profiles').update({
         stripe_account_id: 'acct_test_' + actorId.slice(0, 8),
-        stripe_onboarded: true,
+        stripe_connect_status: 'verified',
       }).eq('id', actorId);
-      return { data: { user_id: actorId, stripe_onboarded: true } };
+      return { data: { user_id: actorId, stripe_connect_status: 'verified' } };
     }
 
     case 'purchase-listing': {
@@ -760,7 +760,7 @@ async function handle(
       await db.from('profiles').update({
         profile_visible: true,
         trust_score: 100, trust_tier: 'trusted',
-        stripe_onboarded: true,
+        stripe_connect_status: 'verified',
       }).eq('id', elineId);
       await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
 
@@ -850,7 +850,7 @@ async function handle(
       const livId = emailToId.get('liv@test.strikketorget.no');
       if (!elineId || !livId) throw new Error('seed-screens needs user_emails: [eline, liv]');
       await db.from('profiles').update({
-        profile_visible: true, trust_score: 100, trust_tier: 'trusted', stripe_onboarded: true,
+        profile_visible: true, trust_score: 100, trust_tier: 'trusted', stripe_connect_status: 'verified',
       }).eq('id', elineId);
       await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
 
@@ -1424,7 +1424,7 @@ async function handle(
           const uid = emailToId.get(email);
           if (!uid) continue;
           const { data } = await db.from('profiles')
-            .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections, stripe_onboarded, stripe_account_id')
+            .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections, stripe_connect_status, stripe_account_id')
             .eq('id', uid).maybeSingle();
           if (data) profiles[email] = data;
         }
