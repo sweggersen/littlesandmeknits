@@ -1,0 +1,118 @@
+---
+// "Garn brukt" section for a project page: lists yarns linked from the
+// stash, lets the user attach a new one (when stash has unused yarns),
+// and shows the deducted state once the project is finished.
+//
+// Extracted from src/pages/studio/projects/[id].astro.
+
+interface YarnLink {
+  id: string;
+  grams_used: number | null;
+  deducted_at: string | null;
+  yarns: {
+    brand: string | null;
+    name: string | null;
+    color: string | null;
+    total_grams: number | null;
+  } | null;
+}
+
+interface Yarn {
+  id: string;
+  brand: string | null;
+  name: string | null;
+  color: string | null;
+  total_grams: number | null;
+}
+
+interface Props {
+  projectId: string;
+  status: string;
+  yarnLinks: YarnLink[];
+  availableStash: Yarn[];
+  stash: Yarn[];
+}
+const { projectId, status, yarnLinks, availableStash, stash } = Astro.props;
+---
+
+<section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
+  <details class="group" open={yarnLinks.length > 0}>
+    <summary class="flex items-baseline justify-between gap-3 cursor-pointer list-none">
+      <h2 class="font-serif text-lg">Garn brukt</h2>
+      {yarnLinks.length > 0 ? (
+        <span class="text-sm text-charcoal/65 font-medium">
+          {yarnLinks.length} {yarnLinks.length === 1 ? 'nøste' : 'nøster'} ·
+          {' '}{yarnLinks.reduce((s, l) => s + (l.grams_used ?? 0), 0)} g
+        </span>
+      ) : (
+        <span class="text-xs text-charcoal/45">Knytt garn fra lageret for å trekke fra automatisk når prosjektet er ferdig.</span>
+      )}
+    </summary>
+
+    {yarnLinks.length > 0 && (
+      <ul class="mt-4 space-y-2">
+        {yarnLinks.map((link) => (
+          <li class="flex items-center justify-between gap-3 bg-linen rounded-xl px-4 py-2.5">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium truncate">
+                {link.yarns?.brand} {link.yarns?.name}
+                {link.yarns?.color && <span class="text-charcoal/55"> · {link.yarns.color}</span>}
+              </p>
+              <p class="text-xs text-charcoal/55">
+                {link.grams_used} g
+                {link.deducted_at ? (
+                  <span class="text-sage-900 font-medium ml-2">✓ trukket fra lager</span>
+                ) : (
+                  link.yarns?.total_grams !== null && link.yarns?.total_grams !== undefined && (
+                    <span class="ml-2">av {link.yarns.total_grams} g i lager</span>
+                  )
+                )}
+              </p>
+            </div>
+            <form method="post" action={`/api/projects/${projectId}/yarn/${link.id}/delete`} class="inline">
+              <button
+                type="submit"
+                class="text-[11px] text-charcoal/40 hover:text-terracotta-500 transition-colors"
+                onclick="return confirm('Fjerne denne garnkoblingen? Hvis prosjektet er ferdig, legges grammene tilbake i lageret.')"
+              >
+                Fjern
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    )}
+
+    {availableStash.length > 0 ? (
+      <form method="post" action={`/api/projects/${projectId}/yarn`} class="mt-4 grid grid-cols-1 sm:grid-cols-[1fr_120px_auto] gap-3 items-end">
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garn fra lager</label>
+          <select name="yarn_id" required class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+            {availableStash.map((y) => (
+              <option value={y.id}>
+                {y.brand} {y.name}{y.color ? ` · ${y.color}` : ''}{y.total_grams ? ` (${y.total_grams} g)` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Brukt (g)</label>
+          <input type="number" name="grams_used" required min="0" step="10" placeholder="100" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+        <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
+          Knytt garn
+        </button>
+      </form>
+    ) : stash.length === 0 ? (
+      <p class="mt-4 text-xs text-charcoal/45">
+        Ingen garn i lageret ennå. <a href="/studio/yarn/new" class="text-terracotta-500 hover:underline">Legg til et garn</a> for å kunne knytte det til prosjekter.
+      </p>
+    ) : (
+      <p class="mt-4 text-xs text-charcoal/45">Alle garnene fra lageret er allerede knyttet til dette prosjektet.</p>
+    )}
+
+    {status === 'finished' && yarnLinks.length > 0 && yarnLinks.every((l) => l.deducted_at) && (
+      <p class="mt-4 text-xs text-sage-900">Garnene er trukket fra lageret. De legges automatisk tilbake hvis du endrer status.</p>
+    )}
+  </details>
+</section>

@@ -1,0 +1,117 @@
+---
+import { projectPhotoUrl } from '../../lib/storage';
+
+// "Ny logg" form + "Tidslinje" timeline for a project page. Logs are
+// rendered in the order received (newest-first is the parent's
+// responsibility). Extracted from src/pages/studio/projects/[id].astro.
+
+interface Log {
+  id: string;
+  log_date: string;
+  rows_at: number | null;
+  body: string;
+  photos: string[] | null;
+}
+
+interface Props {
+  projectId: string;
+  /** ISO date used as the default value on the "log_date" input */
+  today: string;
+  logs: Log[];
+}
+const { projectId, today, logs } = Astro.props;
+---
+
+<section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-8">
+  <h2 class="font-serif text-lg mb-4">Ny logg</h2>
+  <form method="post" action={`/api/projects/${projectId}/log`} enctype="multipart/form-data" class="space-y-3">
+    <textarea
+      name="body"
+      required
+      rows="4"
+      maxlength="4000"
+      placeholder="Hva skjedde i dag? Antall masker, endringer i mønsteret, hvordan det ser ut…"
+      class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+    ></textarea>
+    <div>
+      <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bilder (valgfritt, opptil 6)</label>
+      <input
+        type="file"
+        name="photos"
+        accept="image/*"
+        multiple
+        class="block w-full text-sm text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
+      />
+    </div>
+    <div class="flex items-center justify-between gap-3 pt-2 flex-wrap">
+      <div class="flex items-center gap-2">
+        <input
+          type="date"
+          name="log_date"
+          value={today}
+          class="bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+        <input
+          type="number"
+          name="rows_at"
+          min="0"
+          step="1"
+          placeholder="rad nr."
+          title="Hvilken rad er du på? (valgfritt)"
+          class="w-24 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
+        />
+      </div>
+      <button
+        type="submit"
+        class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
+      >
+        Legg til logg
+      </button>
+    </div>
+  </form>
+</section>
+
+<section>
+  <h2 class="font-serif text-lg mb-4">Tidslinje</h2>
+  {logs.length === 0 ? (
+    <p class="text-sm text-charcoal/50 italic">Ingen loggføringer ennå. Legg til en over for å begynne.</p>
+  ) : (
+    <ol class="space-y-4">
+      {logs.map((log) => (
+        <li class="bg-white rounded-2xl p-5 border border-sage-500/10">
+          <div class="flex items-baseline justify-between mb-2">
+            <div class="flex items-baseline gap-3 flex-wrap">
+              <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
+                {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+              </time>
+              {log.rows_at !== null && log.rows_at !== undefined && (
+                <span class="text-[10px] font-medium uppercase tracking-wider text-charcoal/45">
+                  Rad {log.rows_at}
+                </span>
+              )}
+            </div>
+            <form method="post" action={`/api/projects/${projectId}/log/${log.id}/delete`} class="inline">
+              <button
+                type="submit"
+                class="text-[11px] text-charcoal/40 hover:text-terracotta-500 transition-colors"
+                onclick="return confirm('Slette denne loggen?')"
+              >
+                Slett
+              </button>
+            </form>
+          </div>
+          <p class="text-sm text-charcoal/80 leading-relaxed whitespace-pre-wrap">{log.body}</p>
+          {log.photos && log.photos.length > 0 && (
+            <div class={`mt-4 grid gap-2 ${log.photos.length === 1 ? 'grid-cols-1' : log.photos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              {log.photos.map((path) => (
+                <a href={projectPhotoUrl(path)} target="_blank" rel="noopener" class="aspect-square rounded-xl overflow-hidden bg-oatmeal hover:opacity-90 transition-opacity">
+                  <img src={projectPhotoUrl(path)} alt="" class="w-full h-full object-cover" loading="lazy" />
+                </a>
+              ))}
+            </div>
+          )}
+        </li>
+      ))}
+    </ol>
+  )}
+</section>

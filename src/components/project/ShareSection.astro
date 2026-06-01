@@ -1,0 +1,104 @@
+---
+// Sidebar share panel for a project page: copy-link, IG share cards
+// (feed + story) with caption-copy, and stop-sharing form. Extracted
+// from src/pages/studio/projects/[id].astro.
+
+interface Props {
+  projectId: string;
+  shareUrl: string | null;
+  igHandle: string | null;
+}
+const { projectId, shareUrl, igHandle } = Astro.props;
+---
+
+<div class="bg-white rounded-3xl p-6 border border-sage-500/10">
+  <h2 class="font-serif text-lg mb-3">Deling</h2>
+  {shareUrl ? (
+    <>
+      <p class="text-xs text-charcoal/55 mb-2">Prosjektet er offentlig på:</p>
+      <div class="flex gap-2 items-center bg-linen rounded-xl px-3 py-2 mb-3">
+        <input
+          type="text"
+          value={shareUrl}
+          readonly
+          class="flex-1 bg-transparent text-xs text-charcoal/80 focus:outline-none truncate"
+          data-share-url
+        />
+        <button
+          type="button"
+          class="text-[10px] font-bold uppercase tracking-wider text-sage-900 hover:text-terracotta-500 transition-colors whitespace-nowrap"
+          data-copy-share
+        >
+          Kopier
+        </button>
+      </div>
+      <a
+        href={shareUrl}
+        target="_blank"
+        rel="noopener"
+        class="text-xs text-terracotta-500 hover:underline block mb-4"
+      >
+        Åpne delt side ↗
+      </a>
+
+      <div class="border-t border-sage-500/10 pt-4 mb-3">
+        <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">For Instagram</h3>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <button
+            type="button"
+            data-share-card="feed"
+            class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full disabled:opacity-50 disabled:cursor-wait"
+          >
+            Feed (4:5)
+          </button>
+          <button
+            type="button"
+            data-share-card="story"
+            class="block text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full disabled:opacity-50 disabled:cursor-wait"
+          >
+            Story (9:16)
+          </button>
+        </div>
+        <button
+          type="button"
+          data-share-caption
+          class="w-full mt-2 text-center text-xs font-medium text-charcoal/80 hover:text-terracotta-500 transition-colors py-2 border border-sage-500/15 rounded-full"
+        >
+          Kopier caption
+        </button>
+        <p class="text-[10px] text-charcoal/45 leading-relaxed mt-3" data-share-status>
+          Brandede delingskort. Trykk for å laste ned. Bruk «Kopier caption» og lim inn i Instagram-posten.
+        </p>
+        {!igHandle && (
+          <p class="text-[10px] text-charcoal/55 mt-2">
+            Tips: Legg til Instagram-handle på <a href="/studio/profile" class="text-terracotta-500 hover:underline">profilen din</a> så blir den med på kortet og i caption.
+          </p>
+        )}
+      </div>
+
+      <form method="post" action={`/api/projects/${projectId}/share`}>
+        <input type="hidden" name="share" value="false" />
+        <button
+          type="submit"
+          class="w-full text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors py-2"
+          onclick="return confirm('Slutte å dele dette prosjektet?')"
+        >
+          Slutt å dele
+        </button>
+      </form>
+    </>
+  ) : (
+    <>
+      <p class="text-xs text-charcoal/55 mb-3">Lag en offentlig lenke som hvem som helst kan se. Hovedbilde, detaljer og logger blir delt.</p>
+      <form method="post" action={`/api/projects/${projectId}/share`}>
+        <input type="hidden" name="share" value="true" />
+        <button
+          type="submit"
+          class="w-full bg-primary text-primary-fg px-3 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors"
+        >
+          Del prosjekt
+        </button>
+      </form>
+    </>
+  )}
+</div>
