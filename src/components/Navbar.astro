@@ -401,44 +401,7 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
 </script>
 
 <script>
-  function initNavbar() {
-    const trigger = document.querySelector<HTMLButtonElement>('[data-mobile-menu-trigger]');
-    const menu = document.querySelector<HTMLElement>('[data-mobile-menu]');
-    // Reset menu on every navigation in case it was open.
-    menu?.classList.add('hidden');
-    // Bind click handler ONCE per DOM node. initNavbar runs on every
-    // page-load and was previously double-binding, so each click toggled
-    // hidden twice and the menu never opened.
-    if (trigger && !(trigger as any)._navBound) {
-      (trigger as any)._navBound = true;
-      trigger.addEventListener('click', () => {
-        menu?.classList.toggle('hidden');
-      });
-    }
-
-    // Re-init dev menu after SPA navigation
-    if ((window as any).initDevMenu) (window as any).initDevMenu();
-
-    // Apply cached state immediately after DOM swap
-    const cached = sessionStorage.getItem('lm-auth') === '1';
-    if (cached) (window as any).applyAuthUI(true);
-
-    // Refresh in background
-    fetch('/api/me', { credentials: 'same-origin' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.user) {
-          sessionStorage.setItem('lm-auth', '1');
-          sessionStorage.setItem('lm-profile', JSON.stringify(data.user));
-          (window as any).applyAuthUI(true);
-          (window as any).applyProfileInfo(data.user);
-        } else {
-          sessionStorage.removeItem('lm-auth');
-          sessionStorage.removeItem('lm-profile');
-        }
-      })
-      .catch(() => {});
-  }
-
-  document.addEventListener('astro:page-load', initNavbar);
+  import { init } from "../lib/client/controllers/navbar";
+  import { registerController } from "../lib/client/dom";
+  registerController(init);
 </script>

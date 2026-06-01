@@ -73,14 +73,7 @@ const authLinks = [
 </script>
 
 <script>
-  function initMarketplaceAuth() {
-    if (sessionStorage.getItem('lm-auth') === '1') {
-      document.querySelectorAll<HTMLElement>('[data-marketplace-auth]').forEach((el) => {
-        el.classList.remove('hidden');
-      });
-    }
-  }
-
-  initMarketplaceAuth();
-  document.addEventListener('astro:page-load', initMarketplaceAuth);
+  import { init } from "../lib/client/controllers/marketplace-nav";
+  import { registerController } from "../lib/client/dom";
+  registerController(init);
 </script>

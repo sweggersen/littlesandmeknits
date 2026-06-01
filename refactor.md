@@ -463,7 +463,29 @@ Recommended follow-ups:
 
 ---
 
-### ◑ Item 9 — Client controller, not inline `<script>` sprawl
+### ☑ Item 9 — Client controller, not inline `<script>` sprawl
+
+**Completed 2026-06-01.** Every page and component with inline client logic has been migrated to a typed module under `src/lib/client/controllers/`. 26 controllers in total. Zero remaining inline `addEventListener('astro:page-load', ...)` blocks across `src/components`, `src/layouts`, and `src/pages`.
+
+**Shared infrastructure** in `src/lib/client/dom.ts`:
+- `bindOnce(controllerName, el)` — typed WeakSet replacement for the `(el as any)._fooBound = true` idiom that was scattered across every script.
+- `registerController(init)` — runs `init()` now AND on `astro:page-load`, in one line.
+
+**Standard page-level loader pattern:**
+```astro
+<script>
+  import { init } from '<rel>/lib/client/controllers/<name>';
+  import { registerController } from '<rel>/lib/client/dom';
+  registerController(init);
+</script>
+```
+
+**Documented exceptions retained** (per CLAUDE.md):
+- `<script is:inline>` blocks that need synchronous, no-flash execution before Astro's bundler can run them — e.g. Navbar's `applyAuthUI` hot-path, Layout's scroll-direction state, PWA preview, service worker register.
+- `<script is:inline define:vars={...}>` blocks that need server-injected values — e.g. ListingPhotos' `photoData`, ImpressionTracker's `source`.
+- `<script type="application/ld+json">` — JSON-LD product payload, data not logic.
+
+
 
 **Progress 2026-06-01.** New shared infrastructure:
 
