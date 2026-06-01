@@ -5,9 +5,6 @@ import AdminModPanel from '../../components/profile/AdminModPanel.astro';
 import DashboardGrid from '../../components/profile/DashboardGrid.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
-import { getEntry } from 'astro:content';
-import { formatNok } from '../../lib/format';
-import { KIND_LABEL, PROJECT_STATUS, CATEGORY_LABEL, COMMISSION_STATUS, OFFER_STATUS } from '../../lib/labels';
 import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../../lib/achievements';
 
 const user = Astro.locals.user!;  // middleware-gated route
@@ -121,7 +118,7 @@ const recentAchievements = earnedWithDates
   .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
   .slice(0, 6)
   .map(e => ACHIEVEMENT_MAP.get(e.key))
-  .filter(Boolean);
+  .filter((a): a is NonNullable<typeof a> => a !== undefined);
 
 let pendingQueueCount = 0;
 if (isStaff) {
@@ -157,9 +154,6 @@ if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProje
 // the previous fallback ('Alt i orden') reads as machine-translated.
 
 
-function isPdf(path: string | null): boolean {
-  return !!path && path.toLowerCase().endsWith('.pdf');
-}
 ---
 
 <Layout title="Min profil — Littles and Me Knits" lang="nb">
