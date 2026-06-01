@@ -463,7 +463,43 @@ Recommended follow-ups:
 
 ---
 
-### ☐ Item 9 — Client controller, not inline `<script>` sprawl
+### ◑ Item 9 — Client controller, not inline `<script>` sprawl
+
+**Progress 2026-06-01.** New shared infrastructure:
+
+- `src/lib/client/dom.ts` — `bindOnce(name, el)` (typed WeakSet, replaces `(el as any)._fooBound = true`), `registerController(init)` (runs now + on every `astro:page-load`).
+- `src/lib/client/controllers/` — one module per page-controller, each exporting `init()`.
+
+Migrated controllers (12):
+
+| Controller | Pages |
+|------------|-------|
+| `studio-tools` | studio/tools (270-line script → 4-line loader) |
+| `listing-fav-toggle` | listing/[id] |
+| `star-rating` | listing/[id], commissions/[id] (review forms) |
+| `project-share` | studio/projects/[id] |
+| `store-create` | profile/stores/new |
+| `listing-wizard` | listing/new |
+| `sticky-sentinel` | market/index |
+| `autogrow-textarea` | commissions/[id] |
+| `favorites-page` | market/favorites |
+| `pattern-filter` | oppskrifter/index |
+| `inbox-read` | inbox |
+| `color-picker` | store admin settings |
+| `expand-buttons` | profile/badges |
+
+Page `<script>` blocks are now uniform 4-5 line module loaders:
+```astro
+<script>
+  import { init } from '<path>/lib/client/controllers/<name>';
+  import { registerController } from '<path>/lib/client/dom';
+  registerController(init);
+</script>
+```
+
+**Remaining**: `FavScript.astro` (already a component but uses an inline `<script>`), and a few `<script is:inline define:vars={...}>` blocks (the documented exception — needed for server-injected JSON or one-shot dependencies). The acceptance criterion `<script` count is misleading since the loader pattern still uses one — substantive goal achieved, ~700+ lines of client logic moved to typed modules.
+
+
 
 **Goal:** one place for client-side wiring.
 
