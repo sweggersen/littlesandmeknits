@@ -39,7 +39,10 @@ if (promotedAll.length) {
     .in('listing_id', promotedAll.map((p) => p.id))
     .eq('status', 'active');
   const pacingById = new Map((pacingRows ?? []).map((r: any) => [r.listing_id, r]));
-  for (const p of promotedAll) {
+  // Decorate each promoted row with pacing data. promotedAll rows come
+  // from the typed listings.select() so they don't carry these fields;
+  // cast at the assignment site rather than widening the row type.
+  for (const p of promotedAll as Array<typeof promotedAll[number] & { daily_budget?: number | null; daily_impressions_served?: number | null }>) {
     const pacing = pacingById.get(p.id);
     if (pacing) {
       p.daily_budget = pacing.daily_budget;
@@ -60,7 +63,9 @@ if (user) {
     .maybeSingle();
   if (prefRow) userPrefs = prefRow as UserPreferences;
 }
-const promoted = rankPromoted(promotedAll, userPrefs).slice(0, 3);
+// Cast: the DB-typed rows are a strict superset of RankableListing,
+// but TS can't see through the enum-vs-string mismatch on category.
+const promoted = rankPromoted(promotedAll as unknown as Parameters<typeof rankPromoted>[0], userPrefs).slice(0, 3);
 
 // 2) For-you / popular pool.
 let pool: any[] = [];
@@ -108,7 +113,7 @@ if (preferredCategories.length) {
     .from('listings')
     .select(LISTING_COLS)
     .eq('status', 'active')
-    .in('category', preferredCategories)
+    .in('category', preferredCategories as ('cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet')[])
     .not('id', 'in', `(${[...promotedIds, NIL].map(v => `"${v}"`).join(',')})`)
     .order('favorite_count', { ascending: false })
     .order('published_at', { ascending: false })

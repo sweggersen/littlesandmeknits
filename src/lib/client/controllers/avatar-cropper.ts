@@ -10,9 +10,10 @@ import { bindOnce } from '../dom';
 
 export function init(): void {
   const fileInput = document.querySelector<HTMLInputElement>('[data-avatar-input]');
-  const modal = document.querySelector<HTMLElement>('[data-crop-modal]');
-  if (!fileInput || !modal) return;
+  const modalEl = document.querySelector<HTMLElement>('[data-crop-modal]');
+  if (!fileInput || !modalEl) return;
   if (!bindOnce('avatar-cropper', fileInput)) return;
+  const modal = modalEl; // narrowed alias, captured by closures below
 
   const container = modal.querySelector<HTMLElement>('[data-crop-container]')!;
   const img = modal.querySelector<HTMLImageElement>('[data-crop-image]')!;

@@ -69,7 +69,7 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
           </div>
           <p class="text-sm text-charcoal/65 line-clamp-2">{l.dispute_reason}</p>
           <p class="text-xs text-charcoal/45 mt-2">
-            Åpnet: {new Date(l.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+            Åpnet: {l.disputed_at ? new Date(l.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
             <span class="ml-2 text-terracotta-500">→ åpne</span>
           </p>
         </a>
@@ -83,7 +83,7 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
           </div>
           <p class="text-sm text-charcoal/65 line-clamp-2">{r.dispute_reason}</p>
           <p class="text-xs text-charcoal/45 mt-2">
-            Åpnet: {new Date(r.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' })}
+            Åpnet: {r.disputed_at ? new Date(r.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
             <span class="ml-2 text-terracotta-500">→ åpne</span>
           </p>
         </a>
@@ -99,13 +99,13 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
       {[
         ...(resolvedListings ?? []).map(l => ({ ...l, type: 'Annonse' as const, url: `/market/listing/${l.id}` })),
         ...(resolvedCommissions ?? []).map(r => ({ ...r, type: 'Oppdrag' as const, url: `/market/commissions/${r.id}` })),
-      ].sort((a, b) => new Date(b.dispute_resolved_at).getTime() - new Date(a.dispute_resolved_at).getTime()).map((item) => (
+      ].sort((a, b) => new Date(b.dispute_resolved_at ?? 0).getTime() - new Date(a.dispute_resolved_at ?? 0).getTime()).map((item) => (
         <div class="bg-white/60 rounded-xl p-4 border border-sage-500/5 flex items-center gap-3">
           <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{item.type}</span>
           <a href={item.url} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{item.title}</a>
           <span class="text-xs text-charcoal/45 ml-auto">{item.dispute_resolution}</span>
           <span class="text-xs text-charcoal/35">
-            {new Date(item.dispute_resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}
+            {item.dispute_resolved_at ? new Date(item.dispute_resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }) : '—'}
           </span>
         </div>
       ))}
