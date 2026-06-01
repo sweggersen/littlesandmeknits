@@ -1,6 +1,6 @@
 ---
 interface Props {
-  current?: string;
+  current?: string | null;
 }
 // `current` kept for backwards-compat with existing call sites — nav is
 // now rendered by Layout via StrikketorgetNav, so we no longer use it.

@@ -45,13 +45,13 @@ const defaultName = profile?.seller_legal_name
 
       {error && errorMessages[error] && (
         <div class="mb-6">
-          <Alert variant="error">{errorMessages[error]}</Alert>
+          <Alert type="error">{errorMessages[error]}</Alert>
         </div>
       )}
 
       {profile?.stripe_connect_status === 'pending' && (
         <div class="mb-6">
-          <Alert variant="info">
+          <Alert type="info">
             Vi venter på godkjenning fra banken. Dette tar vanligvis noen minutter; du kan trygt lukke siden og komme tilbake.
           </Alert>
         </div>
@@ -59,7 +59,7 @@ const defaultName = profile?.seller_legal_name
 
       {profile?.stripe_connect_status === 'restricted' && (
         <div class="mb-6">
-          <Alert variant="warning">
+          <Alert type="warning">
             Vi trenger mer informasjon for å verifisere deg som selger. Sjekk feltene under og oppdater om nødvendig.
           </Alert>
         </div>

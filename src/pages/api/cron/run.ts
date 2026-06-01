@@ -256,8 +256,11 @@ export const POST: APIRoute = async ({ request }) => {
 
       if (!offer?.project_id) continue;
 
+      // project_progress was renamed to project_logs at some point;
+      // the cron was reading a non-existent table and silently
+      // never finding recent logs (so it always nudged).
       const { data: recentLog } = await admin
-        .from('project_progress')
+        .from('project_logs')
         .select('id')
         .eq('project_id', offer.project_id)
         .gte('created_at', sevenDaysAgo)
@@ -407,8 +410,11 @@ export const POST: APIRoute = async ({ request }) => {
       url: `/market/moderasjon/${t.id}`,
     }, env);
 
+    // moderation_audit_log.actor_id is NOT NULL in the schema, so
+    // system-initiated actions log under a sentinel uuid. The detail
+    // payload tells you it was the cron run.
     await admin.from('moderation_audit_log').insert({
-      actor_id: null,
+      actor_id: '00000000-0000-0000-0000-000000000000',
       action: 'thread_auto_close_no_reply',
       target_type: 'moderation_thread', target_id: t.id,
       details: { target_type: t.target_type, target_id: t.target_id, reason: 'no_reply_48h' },
