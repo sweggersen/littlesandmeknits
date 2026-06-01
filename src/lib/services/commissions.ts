@@ -118,6 +118,86 @@ export async function makeOffer(
   return ok({ redirect: `/market/commissions/${input.requestId}` });
 }
 
+/** Ensures a Project exists for the accepted offer and that the offer
+ *  row points at it. Used by both `acceptOffer` (on buyer accept,
+ *  status='planning') and `payCommission` (on payment, status='active').
+ *
+ *  - Idempotent: if offer.project_id already points at a project, only
+ *    a status bump is performed when `startActive` is true.
+ *  - Failure is soft: lands in dead_letter_events so support can
+ *    manually link / create. The parent operation isn't rolled back.
+ *  - Returns the project id (or null on failure).
+ */
+async function ensureCommissionProject(
+  ctx: ServiceContext,
+  args: {
+    offer: { id: string; knitter_id: string; project_id: string | null };
+    req: {
+      buyer_id: string; title: string;
+      description?: string | null;
+      size_label?: string | null;
+      yarn_preference?: string | null;
+      pattern_external_title?: string | null;
+      colorway?: string | null;
+    };
+    startActive: boolean;
+    serviceLabel: string;
+  },
+): Promise<string | null> {
+  // Already linked — just flip status if the payment path is calling.
+  if (args.offer.project_id) {
+    if (args.startActive) {
+      await ctx.admin
+        .from('projects')
+        .update({ status: 'active', started_at: new Date().toISOString() })
+        .eq('id', args.offer.project_id);
+    }
+    return args.offer.project_id;
+  }
+
+  const { data: buyerProfile } = await ctx.admin
+    .from('profiles').select('display_name').eq('id', args.req.buyer_id).maybeSingle();
+  const recipientLabel = (buyerProfile as { display_name?: string } | null)?.display_name ?? null;
+
+  const insertFields: Record<string, unknown> = {
+    user_id: args.offer.knitter_id,
+    title: args.req.title,
+    summary: args.req.description ?? null,
+    recipient: recipientLabel,
+    target_size: args.req.size_label ?? null,
+    yarn: args.req.yarn_preference ?? null,
+    pattern_external: args.req.pattern_external_title ?? null,
+    status: args.startActive ? 'active' : 'planning',
+    commission_offer_id: args.offer.id,
+  };
+  if (args.startActive) insertFields.started_at = new Date().toISOString();
+
+  const { data: project, error: projErr } = await ctx.admin
+    .from('projects')
+    .insert(insertFields)
+    .select('id')
+    .single();
+
+  if (projErr || !project) {
+    await recordDeadLetter(ctx, {
+      service: args.serviceLabel,
+      context: {
+        offer_id: args.offer.id,
+        knitter_id: args.offer.knitter_id,
+        buyer_id: args.req.buyer_id,
+      },
+      error: projErr ?? new Error('insert returned no row'),
+    });
+    return null;
+  }
+
+  await ctx.admin
+    .from('commission_offers')
+    .update({ project_id: project.id })
+    .eq('id', args.offer.id);
+  return project.id;
+}
+
 export async function acceptOffer(
   ctx: ServiceContext,
   input: { offerId: string },
@@ -144,53 +224,14 @@ export async function acceptOffer(
   await ctx.supabase.from('commission_offers').update({ status: 'accepted' }).eq('id', input.offerId);
   await ctx.supabase.from('commission_requests').update({ status: 'awaiting_payment', awarded_offer_id: input.offerId }).eq('id', offer.request_id);
 
-  // Auto-create a project for the knitter, prefilled from the commission
-  // request. This is the artifact that gets shared with the buyer as the
-  // knitter posts photos + updates. Created in 'planning' state until the
-  // buyer pays — payServ flips it to 'active'.
-  // Skipped if the offer already had a project_id (shouldn't happen but
-  // makes accept idempotent).
-  if (!offer.project_id) {
-    const { data: buyerProfile } = await ctx.admin
-      .from('profiles').select('display_name').eq('id', req.buyer_id).maybeSingle();
-    const recipientLabel = buyerProfile?.display_name ?? null;
-
-    const { data: project, error: projErr } = await ctx.admin
-      .from('projects')
-      .insert({
-        user_id: offer.knitter_id,
-        title: req.title,
-        summary: req.description ?? null,
-        recipient: recipientLabel,
-        target_size: req.size_label,
-        yarn: req.yarn_preference ?? null,
-        pattern_external: req.pattern_external_title ?? null,
-        status: 'planning',
-        commission_offer_id: offer.id,
-      })
-      .select('id')
-      .single();
-    if (projErr) {
-      // Soft-fail: the accept itself already succeeded. Land in
-      // dead-letter so support can manually create the project + link
-      // it from /admin/dead-letters.
-      await recordDeadLetter(ctx, {
-        service: 'commissions.acceptOffer:project-create',
-        context: {
-          offer_id: offer.id,
-          request_id: offer.request_id,
-          knitter_id: offer.knitter_id,
-          buyer_id: req.buyer_id,
-        },
-        error: projErr,
-      });
-    } else if (project) {
-      await ctx.admin
-        .from('commission_offers')
-        .update({ project_id: project.id })
-        .eq('id', offer.id);
-    }
-  }
+  // Auto-create the linked project (shared with the buyer once payment
+  // lands). Starts in 'planning'; payCommission flips it to 'active'.
+  await ensureCommissionProject(ctx, {
+    offer,
+    req,
+    startActive: false,
+    serviceLabel: 'commissions.acceptOffer:project-create',
+  });
 
   const { data: declined } = await ctx.supabase
     .from('commission_offers')
@@ -286,7 +327,7 @@ export async function payCommission(
 
   const { data: offer } = await ctx.supabase
     .from('commission_offers')
-    .select('id, knitter_id, price_nok')
+    .select('id, knitter_id, price_nok, project_id')
     .eq('id', req.awarded_offer_id!)
     .single();
 
@@ -321,40 +362,19 @@ export async function payCommission(
 
   const needsYarn = req.yarn_provided_by_buyer;
 
-  // The project was auto-created when the offer was accepted. On payment
-  // we just flip its status from 'planning' to 'active' — the knitter
-  // can start strikking now that the money is committed.
-  // Fallback: if accept-time create failed, insert one here as a safety net.
-  const { data: existingOffer } = await ctx.admin
-    .from('commission_offers')
-    .select('project_id')
-    .eq('id', offer.id)
-    .maybeSingle();
-
-  if (existingOffer?.project_id) {
-    await ctx.admin
-      .from('projects')
-      .update({ status: 'active', started_at: new Date().toISOString() })
-      .eq('id', existingOffer.project_id);
-  } else {
-    const { data: project } = await ctx.admin
-      .from('projects')
-      .insert({
-        user_id: offer.knitter_id, title: req.title, target_size: req.size_label,
-        yarn: req.yarn_preference ?? undefined,
-        summary: [
-          req.pattern_external_title ? `Oppskrift: ${req.pattern_external_title}` : null,
-          req.colorway ? `Farge: ${req.colorway}` : null,
-        ].filter(Boolean).join('\n') || null,
-        status: 'active', started_at: new Date().toISOString(),
-        commission_offer_id: offer.id,
-      })
-      .select('id')
-      .single();
-    if (project) {
-      await ctx.admin.from('commission_offers').update({ project_id: project.id }).eq('id', offer.id);
-    }
-  }
+  // Flip the linked project to 'active' now that money is committed.
+  // ensureCommissionProject is idempotent; if accept-time create failed
+  // (offer.project_id still null), this also acts as a safety-net insert.
+  await ensureCommissionProject(ctx, {
+    offer: {
+      id: offer.id,
+      knitter_id: offer.knitter_id,
+      project_id: (offer as any).project_id ?? null,
+    },
+    req,
+    startActive: true,
+    serviceLabel: 'commissions.payCommission:project-activate',
+  });
 
   await ctx.admin
     .from('commission_requests')

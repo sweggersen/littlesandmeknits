@@ -452,7 +452,11 @@ These are merge-conflict generators and reading nightmares. Each holds multiple 
 
 ## Tier 5 — Cleanup
 
-### ☐ Item 8 — `ensureCommissionProject` extraction
+### ☑ Item 8 — `ensureCommissionProject` extraction
+
+**Completed 2026-06-01.** Both `acceptOffer` and `payCommission` previously inlined a project insert/update with slightly different field sets; drift bait. Extracted to `ensureCommissionProject(ctx, { offer, req, startActive, serviceLabel })` in `src/lib/services/commissions.ts`. Idempotent: if `offer.project_id` is already set, only the status bump runs (when `startActive` is true). Dead-letter on insert failure. Both callers now reduced to ~6-line invocations. `payCommission` fetches `offer.project_id` so the helper can short-circuit the duplicate-create branch.
+
+
 
 **Goal:** one place that creates/links a commission project.
 
