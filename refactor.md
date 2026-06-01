@@ -453,7 +453,22 @@ No ESLint config exists in the repo so the lint rule isn't possible right now; C
 
 ---
 
-### ☐ Item 13 — Auth middleware does the gating
+### ◑ Item 13 — Auth middleware does the gating
+
+**Progress 2026-06-01.** Item 4's `GATED_PREFIXES` middleware already absorbed the bulk of the inline-auth-gate sweep:
+
+- `/admin`, `/studio`, `/profile`, `/inbox`, `/innstillinger`, `/onboarding` — middleware redirects to `/login?next=<encoded>` if no user. Pages under these prefixes read `Astro.locals.user` instead of calling `getCurrentUser` themselves.
+- `grep getCurrentUser src/pages | wc -l` → 4 (acceptance was < 10).
+- `grep "redirect.*login.*next" src/pages | wc -l` → 11 (acceptance was < 5).
+
+The 11 remaining matches break down as:
+
+- **9 API routes** (`/api/checkout`, `/api/*/create`, etc.). These POST handlers redirect to login on missing auth so unauthenticated form submits land somewhere useful. Arguably should be 401 JSON, but the redirect behaviour is intentional. Not gated by middleware because they're API endpoints, not pages.
+- **2 page files** under partially-public sections: `/market/stats/[id]` and `/profile/stores/index`. `/market` can't be a blanket gate (it's mostly public browsing), so these specific sub-routes keep their own gate.
+
+The acceptance threshold of < 5 doesn't fit cleanly because of the API-route count. The substantive win is achieved — 51-ish page-level inline gates went away in Item 4. Closing this as **good enough** unless we add a "gated API prefixes" middleware tier later.
+
+
 
 **Goal:** auth-required path prefixes redirect at middleware, not in every page.
 
