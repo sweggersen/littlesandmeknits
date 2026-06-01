@@ -342,27 +342,9 @@ if (isBuyer && req.status === 'frozen') {
   </MarketplaceShell>
 
   <script>
-    function initAutogrow() {
-      document.querySelectorAll<HTMLTextAreaElement>('textarea[data-autogrow]').forEach((el) => {
-        if ((el as any)._stBound) return;
-        (el as any)._stBound = true;
-        const resize = () => {
-          el.style.height = 'auto';
-          el.style.height = Math.min(el.scrollHeight, 320) + 'px';
-        };
-        el.addEventListener('focus', resize);
-        el.addEventListener('input', resize);
-        // After submit, clear the value so the post-redirect view doesn't
-        // show stale text (browsers + view-transitions both retain
-        // <textarea> content otherwise).
-        const form = el.closest('form');
-        form?.addEventListener('submit', () => {
-          setTimeout(() => { el.value = ''; resize(); }, 0);
-        });
-        resize();
-      });
-    }
-    document.addEventListener('astro:page-load', initAutogrow);
+    import { init } from "../../../lib/client/controllers/autogrow-textarea";
+    import { registerController } from "../../../lib/client/dom";
+    registerController(init);
   </script>
 </Layout>
 

@@ -215,22 +215,9 @@ const orgJsonLd = {
       <div data-sticky-sentinel aria-hidden="true" class="h-0 w-0"></div>
 
       <script>
-        function initStickySentinel() {
-          const sentinel = document.querySelector<HTMLElement>('[data-sticky-sentinel]');
-          if (!sentinel) return;
-          const obs = new IntersectionObserver(
-            ([entry]) => {
-              if (entry.isIntersecting) {
-                document.body.removeAttribute('data-past-anchor');
-              } else if (entry.boundingClientRect.top < 0) {
-                document.body.setAttribute('data-past-anchor', 'true');
-              }
-            },
-            { rootMargin: '-120px 0px 0px 0px', threshold: 0 },
-          );
-          obs.observe(sentinel);
-        }
-        document.addEventListener('astro:page-load', initStickySentinel);
+        import { init } from "../../lib/client/controllers/sticky-sentinel";
+        import { registerController } from "../../lib/client/dom";
+        registerController(init);
       </script>
 
       <!-- Categories: compact horizontal cards on mobile, rich cards with art on sm+ -->

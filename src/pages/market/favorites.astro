@@ -162,30 +162,8 @@ const totalInactive = inactiveListings.length + closedRequests.length;
       )}
   </MarketplaceShell>
   <script>
-    function initFavPage() {
-      document.querySelectorAll('[data-fav-btn]').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const el = btn as HTMLElement;
-          const body = new FormData();
-          body.set('item_type', el.dataset.favType!);
-          body.set('item_id', el.dataset.favBtn!);
-          const res = await fetch('/api/favorites/toggle', { method: 'POST', body, credentials: 'same-origin' });
-          if (!res.ok) return;
-          const { favorited } = await res.json();
-          if (!favorited) {
-            const li = btn.closest('li');
-            if (li) {
-              (li as HTMLElement).style.transition = 'opacity 0.2s, transform 0.2s';
-              (li as HTMLElement).style.opacity = '0';
-              (li as HTMLElement).style.transform = 'scale(0.95)';
-              setTimeout(() => li.remove(), 200);
-            }
-          }
-        });
-      });
-    }
-    document.addEventListener('astro:page-load', initFavPage);
+    import { init } from "../../lib/client/controllers/favorites-page";
+    import { registerController } from "../../lib/client/dom";
+    registerController(init);
   </script>
 </Layout>

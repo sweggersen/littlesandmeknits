@@ -252,25 +252,8 @@ function timeAgo(dateStr: string): string {
   </MarketplaceShell>
 
   <script>
-    function initInboxRead() {
-      document.querySelectorAll<HTMLAnchorElement>('[data-inbox-item][data-unread]').forEach((el) => {
-        if ((el as any)._stBound) return;
-        (el as any)._stBound = true;
-        el.addEventListener('click', () => {
-          // Optimistically clear the unread chrome so navigating back shows it as read.
-          el.removeAttribute('data-unread');
-          el.querySelector<HTMLElement>('[data-unread-dot]')?.classList.add('invisible');
-          const id = el.dataset.notifId;
-          if (id) {
-            // Beacon-style fire-and-forget so it doesn't block navigation.
-            const fd = new FormData();
-            fd.set('id', id);
-            (navigator.sendBeacon?.('/api/notifications/read', fd))
-              || fetch('/api/notifications/read', { method: 'POST', body: fd, credentials: 'same-origin', keepalive: true });
-          }
-        });
-      });
-    }
-    document.addEventListener('astro:page-load', initInboxRead);
+    import { init } from "../lib/client/controllers/inbox-read";
+    import { registerController } from "../lib/client/dom";
+    registerController(init);
   </script>
 </Layout>

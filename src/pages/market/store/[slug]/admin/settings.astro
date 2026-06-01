@@ -139,24 +139,9 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
         </div>
 
         <script>
-          function initColorPicker() {
-            document.querySelectorAll<HTMLElement>('[data-color-picker]').forEach((root) => {
-              const colorInput = root.querySelector<HTMLInputElement>('[data-color-input]');
-              const textInput = root.querySelector<HTMLInputElement>('[data-color-text]');
-              if (!colorInput || !textInput) return;
-              // If text starts empty, leave color input alone but don't push its default to the text field
-              const isValidHex = (s: string) => /^#[0-9A-Fa-f]{6}$/.test(s);
-              if (textInput.value) colorInput.value = textInput.value;
-              colorInput.addEventListener('input', () => {
-                textInput.value = colorInput.value.toUpperCase();
-              });
-              textInput.addEventListener('input', () => {
-                const v = textInput.value.trim();
-                if (isValidHex(v)) colorInput.value = v;
-              });
-            });
-          }
-          document.addEventListener('astro:page-load', initColorPicker);
+          import { init } from "../../../../../lib/client/controllers/color-picker";
+          import { registerController } from "../../../../../lib/client/dom";
+          registerController(init);
         </script>
       </div>
 

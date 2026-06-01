@@ -121,20 +121,9 @@ const TIER_BG: Record<AchievementTier, string> = {
       </div>
 
       <script>
-        function initExpandButtons() {
-          document.querySelectorAll('[data-expand-btn]').forEach(btn => {
-            const el = btn as HTMLElement;
-            const label = el.textContent ?? '';
-            el.addEventListener('click', () => {
-              const content = el.closest('[data-expand-section]')?.querySelector('[data-expand-content]') as HTMLElement | null;
-              if (!content) return;
-              const opening = content.style.display === 'none';
-              content.style.display = opening ? '' : 'none';
-              el.textContent = opening ? 'Skjul ▴' : label;
-            });
-          });
-        }
-        document.addEventListener('astro:page-load', initExpandButtons);
+        import { init } from "../../lib/client/controllers/expand-buttons";
+        import { registerController } from "../../lib/client/dom";
+        registerController(init);
       </script>
 
     </div>
