@@ -10,11 +10,15 @@ import {
   payCommission as svcPayCommission,
   markCompleted as svcMarkCompleted,
   confirmDelivery as svcConfirmDelivery,
+  shipYarn as svcShipYarn,
+  receiveYarn as svcReceiveYarn,
 } from '../../../lib/services/commissions';
 import {
+  publishListing as svcPublishListing,
   shipListing as svcShipListing,
   confirmListingDelivery as svcConfirmListingDelivery,
 } from '../../../lib/services/listings';
+import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/services/seller-reviews';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -280,61 +284,18 @@ async function handle(
 
     case 'ship-yarn': {
       if (!actorId) throw new Error('Actor required');
-      await db.from('commission_requests')
-        .update({
-          yarn_shipped_at: new Date().toISOString(),
-          yarn_tracking_code: p.tracking_code ?? 'TEST-TRACK-001',
-        })
-        .eq('id', p.request_id);
-
-      const { data: req } = await db.from('commission_requests')
-        .select('title, commission_offers!commission_requests_awarded_offer_fkey(knitter_id)')
-        .eq('id', p.request_id)
-        .single();
-
-      const knitterId = (req as any)?.commission_offers?.knitter_id;
-      if (knitterId) {
-        await db.from('notifications').insert({
-          user_id: knitterId,
-          type: 'yarn_shipped',
-          title: 'Garnet er sendt!',
-          body: p.tracking_code ? `Sporing: ${p.tracking_code}` : 'Ingen sporingskode.',
-          url: `/market/commissions/${p.request_id}`,
-          actor_id: actorId,
-        });
-      }
-
+      const result = await svcShipYarn(synthCtx(db, actorId), {
+        requestId: p.request_id as string,
+        trackingCode: p.tracking_code as string | undefined,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { shipped: true } };
     }
 
     case 'receive-yarn': {
       if (!actorId) throw new Error('Actor required');
-      await db.from('commission_requests')
-        .update({ status: 'awarded', yarn_received_at: new Date().toISOString() })
-        .eq('id', p.request_id);
-
-      const { data: req } = await db.from('commission_requests')
-        .select('title, buyer_id, awarded_offer_id')
-        .eq('id', p.request_id)
-        .single();
-
-      if (req?.awarded_offer_id) {
-        await db.from('projects')
-          .update({ status: 'active', started_at: new Date().toISOString().slice(0, 10) })
-          .eq('commission_offer_id', req.awarded_offer_id);
-      }
-
-      if (req) {
-        await db.from('notifications').insert({
-          user_id: req.buyer_id,
-          type: 'yarn_received',
-          title: 'Strikkeren har mottatt garnet',
-          body: `«${req.title}»`,
-          url: `/market/commissions/${p.request_id}`,
-          actor_id: actorId,
-        });
-      }
-
+      const result = await svcReceiveYarn(synthCtx(db, actorId), { requestId: p.request_id as string });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'awarded' } };
     }
 
@@ -428,32 +389,13 @@ async function handle(
 
     case 'submit-seller-review': {
       if (!actorId) throw new Error('Actor required');
-      const { data: rl } = await db.from('listings')
-        .select('id, seller_id, title')
-        .eq('id', p.listing_id)
-        .single();
-      if (!rl) throw new Error('Listing not found');
-
-      const { data: rev, error: revErr } = await db.from('seller_reviews').insert({
-        seller_id: rl.seller_id,
-        reviewer_id: actorId,
-        listing_id: rl.id,
-        rating: p.rating ?? 5,
-        comment: p.comment ?? null,
-      }).select().single();
-      if (revErr) throw revErr;
-
-      await db.from('notifications').insert({
-        user_id: rl.seller_id,
-        type: 'review_received',
-        title: 'Du har fått en ny vurdering!',
-        body: `${p.rating ?? 5}/5 stjerner for «${rl.title}».`,
-        url: `/market/listing/${rl.id}`,
-        actor_id: actorId,
-        reference_id: rl.id,
+      const result = await svcSubmitSellerReview(synthCtx(db, actorId), {
+        listingId: p.listing_id as string,
+        rating: (p.rating as number) ?? 5,
+        comment: p.comment as string | undefined,
       });
-
-      return { data: rev };
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: result.data };
     }
 
     // ── Listing & messaging ──────────────────────────
@@ -491,22 +433,11 @@ async function handle(
     }
 
     case 'publish-listing': {
-      const { data: l, error } = await db.from('listings')
-        .update({ status: 'active', published_at: new Date().toISOString(), listing_fee_nok: 29 })
-        .eq('id', p.listing_id)
-        .select('id, seller_id, title')
-        .maybeSingle();
-      if (error) throw error;
-      if (l?.seller_id) {
-        const { data: profile } = await db.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
-        const { notifyFollowersOfNewListing } = await import('../../../lib/notify');
-        await notifyFollowersOfNewListing(db, {
-          sellerId: l.seller_id,
-          listingId: l.id,
-          listingTitle: l.title ?? 'Ny annonse',
-          sellerName: profile?.display_name,
-        });
-      }
+      // Resolve the seller (test-exec callers do not pass actorId here).
+      const { data: l } = await db.from('listings').select('seller_id').eq('id', p.listing_id).maybeSingle();
+      if (!l?.seller_id) throw new Error('Listing not found');
+      const result = await svcPublishListing(synthCtx(db, l.seller_id), { listingId: p.listing_id as string });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'active' } };
     }
 
