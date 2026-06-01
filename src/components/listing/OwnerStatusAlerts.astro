@@ -1,0 +1,48 @@
+---
+import Alert from '../Alert.astro';
+import StatusBadge from '../StatusBadge.astro';
+import { LISTING_STATUS } from '../../lib/labels';
+
+// Status banners the listing owner sees at the top of the page:
+//   - "publisert nå" success flash
+//   - pending_review / frozen / rejected warnings
+//   - a generic status badge for any other non-active state
+// Extracted from src/pages/market/listing/[id].astro to keep that page
+// under the 600-line ceiling.
+
+interface Props {
+  status: string;
+  justPublished: boolean;
+  moderationNotes?: string | null;
+  frozenThreadId?: string | null;
+}
+const { status, justPublished, moderationNotes, frozenThreadId } = Astro.props;
+---
+
+{justPublished && (
+  <Alert type="success" class="mb-6">Annonsen er publisert og synlig for alle.</Alert>
+)}
+
+{status === 'pending_review' && (
+  <Alert type="warning" class="mb-6">Annonsen din er under vurdering. Den blir synlig når den er godkjent.</Alert>
+)}
+
+{status === 'frozen' && (
+  <Alert type="warning" class="mb-6">
+    <strong>Annonsen er frosset av moderator.</strong> Den er skjult fra Strikketorget mens saken behandles.
+    {frozenThreadId && (
+      <> <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium">Åpne samtalen og svar moderator &rarr;</a></>
+    )}
+  </Alert>
+)}
+
+{status === 'rejected' && (
+  <Alert type="error" class="mb-6">
+    Annonsen ble avvist. {moderationNotes ? `Grunn: ${moderationNotes}` : 'Innholdet oppfyller ikke retningslinjene våre.'}
+    Annonsegebyret er refundert.
+  </Alert>
+)}
+
+{status !== 'active' && status !== 'pending_review' && status !== 'rejected' && (
+  <StatusBadge label={LISTING_STATUS[status as keyof typeof LISTING_STATUS]} class="mb-4" />
+)}

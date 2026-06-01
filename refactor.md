@@ -309,7 +309,24 @@ Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase stat
 
 ---
 
-### ☐ Item 6 — Split god components
+### ◑ Item 6 — Split god components
+
+**Progress 2026-06-01.** Started with the biggest offender, `src/pages/market/listing/[id].astro`. First two extractions landed:
+
+- `src/components/listing/OwnerStatusAlerts.astro` — the 5 owner-only banner branches (publisert/pending_review/frozen/rejected/generic-status-badge). Pure conditional render, takes `status, justPublished, moderationNotes, frozenThreadId` as props.
+- `src/components/listing/BuyActions.astro` — the "Kjøp" + "Gi et bud" CTA pair with both dialog modals and the wiring script. Caller still guards `!isOwner && !isBuyer && status === 'active' && escrow_enabled && sellerOnboarded` so the component is self-contained but the policy stays at the call site.
+
+Page went **1380 → 1216 lines** (-164). Still over the 600-line ceiling. Remaining big chunks worth extracting in follow-up PRs:
+
+- Photo gallery + thumbnails + lightbox script (~120 lines)
+- Refund-request flow (~85 lines)
+- Buyer purchase-state panels: reserved / shipped / disputed / sold (~120 lines)
+- Review-after-delivery form (~40 lines)
+- Seller's "share / promote / mark-as-sold" actions (~110 lines)
+
+Build + 192 tests green.
+
+
 
 **Goal:** no Astro page > 600 lines.
 

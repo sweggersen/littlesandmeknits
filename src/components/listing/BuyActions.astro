@@ -1,0 +1,170 @@
+---
+import TryggBetaling from '../TryggBetaling.astro';
+import { purchaseBreakdown } from '../../lib/shipping';
+
+// "Kjøp" + "Gi et bud" buttons for an active, escrow-enabled listing
+// whose seller has finished Stripe onboarding. Contains the two
+// dialogs (buy confirmation, bid form) and the small client script
+// that wires them. Extracted from listing/[id].astro.
+//
+// Caller decides whether to render at all — this component does NOT
+// check isOwner/isBuyer/status. Render only when the predicate
+// `!isOwner && !isBuyer && status === 'active' && escrow_enabled && sellerOnboarded`
+// holds.
+
+interface Props {
+  listingId: string;
+  title: string;
+  sizeLabel: string | null;
+  priceNok: number;
+  shippingOption: string | null;
+  heroPhotoUrl: string | undefined;
+}
+const { listingId, title, sizeLabel, priceNok, shippingOption, heroPhotoUrl } = Astro.props;
+
+const bd = purchaseBreakdown(priceNok, shippingOption ?? 'free', true);
+---
+
+<section class="space-y-3">
+  <div class="grid grid-cols-2 gap-2">
+    <button type="button" data-open-buy class="bg-terracotta-500 text-linen px-5 py-2.5 rounded-2xl font-medium hover:bg-terracotta-700 transition-colors flex flex-col items-center leading-tight">
+      <span class="text-base">Kjøp</span>
+      <span class="text-[11px] font-normal text-linen/80">med <TryggBetaling /></span>
+    </button>
+    <button type="button" data-open-bid class="bg-white border border-sage-500/25 text-charcoal px-5 py-2.5 rounded-2xl font-medium hover:border-charcoal/40 transition-colors flex flex-col items-center leading-tight">
+      <span class="text-base">Gi et bud</span>
+      <span class="text-[11px] font-normal text-charcoal/45">foreslå en annen pris</span>
+    </button>
+  </div>
+  <p class="text-[11px] text-charcoal/45 text-center">
+    Beskyttet av <TryggBetaling /> til du bekrefter mottak.
+  </p>
+
+  <dialog id="buy-modal" class="rounded-3xl p-0 max-w-md w-[92vw] bg-white backdrop:bg-charcoal/55">
+    <div class="p-6 space-y-5">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p><TryggBetaling size="header" /></p>
+          <h3 class="font-serif text-2xl mt-1">Bekreft kjøp</h3>
+        </div>
+        <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
+      </div>
+
+      <div class="bg-linen/60 rounded-2xl p-4 flex items-center gap-3">
+        {heroPhotoUrl
+          ? <img src={heroPhotoUrl} alt="" class="w-14 h-14 rounded-lg object-cover shrink-0" />
+          : <div class="w-14 h-14 rounded-lg bg-oatmeal/50 shrink-0" />}
+        <div class="min-w-0">
+          <p class="text-sm font-medium line-clamp-2">{title}</p>
+          <p class="text-xs text-charcoal/55 mt-0.5">str. {sizeLabel}</p>
+        </div>
+      </div>
+
+      <dl class="text-sm space-y-1.5">
+        <div class="flex items-baseline justify-between gap-3">
+          <dt class="text-charcoal/65 min-w-0">Vare</dt>
+          <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.itemNok} kr</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3">
+          <dt class="text-charcoal/65 min-w-0">{bd.shippingNok > 0 ? `Frakt (${bd.shippingLabel})` : 'Frakt'}</dt>
+          <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.shippingNok > 0 ? `${bd.shippingNok} kr` : 'Gratis'}</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3">
+          <dt class="text-charcoal/65 min-w-0">Trygg betaling</dt>
+          <dd class="font-mono tabular-nums whitespace-nowrap shrink-0">{bd.tbFeeNok} kr</dd>
+        </div>
+        <div class="flex items-baseline justify-between gap-3 pt-2 border-t border-sage-500/10">
+          <dt class="font-medium min-w-0">Du betaler totalt</dt>
+          <dd class="font-mono tabular-nums font-bold whitespace-nowrap shrink-0">{bd.totalNok} kr</dd>
+        </div>
+      </dl>
+
+      <form method="post" action={`/api/marketplace/listings/${listingId}/buy`}>
+        <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
+          Bekreft kjøp · {bd.totalNok} kr
+        </button>
+      </form>
+      <p class="text-[11px] text-charcoal/45 text-center">
+        Du blir sendt til Stripe for leveringsadresse og betaling.
+      </p>
+    </div>
+  </dialog>
+
+  <dialog id="bid-modal" class="rounded-3xl p-0 max-w-md w-[92vw] bg-white backdrop:bg-charcoal/55">
+    <div class="p-6 space-y-5">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Bud</p>
+          <h3 class="font-serif text-2xl mt-1">Gi et bud</h3>
+        </div>
+        <button type="button" data-close-modal class="text-charcoal/45 hover:text-charcoal text-2xl leading-none -mt-1">&times;</button>
+      </div>
+
+      <p class="text-sm text-charcoal/65">
+        Annonseprisen er <strong>{priceNok} kr</strong>. Send et bud
+        med din pris, så får selger meldingen i innboksen og kan svare deg direkte.
+        Når dere er enige, fullfører dere kjøpet med <TryggBetaling />.
+      </p>
+
+      <form method="post" action="/api/marketplace/conversations/create" class="space-y-3">
+        <input type="hidden" name="listing_id" value={listingId} />
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Ditt bud</span>
+          <div class="relative">
+            <input id="bid-amount" type="number" min="1" max={priceNok} required
+              placeholder={String(Math.round(priceNok * 0.8))}
+              class="w-full bg-linen rounded-xl pl-4 pr-12 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-charcoal/45 pointer-events-none">kr</span>
+          </div>
+        </label>
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Melding til selger (valgfritt)</span>
+          <textarea id="bid-message" name="message" rows="2" maxlength="500"
+            placeholder="Hei! Kunne du tenke deg å selge den til denne prisen?"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+        </label>
+        <p class="text-[11px] text-charcoal/45">
+          Selger må godta budet før kjøpet kan gjennomføres.
+        </p>
+        <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
+          Send bud
+        </button>
+      </form>
+    </div>
+  </dialog>
+
+  <script define:vars={{ listingPrice: priceNok }}>
+    function init() {
+      const buyOpen = document.querySelector('[data-open-buy]');
+      const bidOpen = document.querySelector('[data-open-bid]');
+      const buyModal = document.querySelector('#buy-modal');
+      const bidModal = document.querySelector('#bid-modal');
+      const bidForm = bidModal?.querySelector('form');
+      const bidAmount = document.querySelector('#bid-amount');
+      const bidMessage = document.querySelector('#bid-message');
+      if (!buyOpen || !bidOpen || !buyModal || !bidModal) return;
+
+      buyOpen.addEventListener('click', () => buyModal.showModal && buyModal.showModal());
+      bidOpen.addEventListener('click', () => bidModal.showModal && bidModal.showModal());
+      document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          const dlg = e.target.closest('dialog');
+          if (dlg) dlg.close();
+        });
+      });
+
+      bidForm?.addEventListener('submit', (e) => {
+        const amount = parseInt(bidAmount?.value || '0', 10);
+        if (!amount || amount < 1) {
+          e.preventDefault();
+          return;
+        }
+        const note = (bidMessage?.value || '').trim();
+        const prefix = `💸 Bud: ${amount} kr (annonsepris: ${listingPrice} kr).`;
+        bidMessage.value = note ? `${prefix}\n\n${note}` : prefix;
+      });
+    }
+    init();
+    document.addEventListener('astro:page-load', init);
+  </script>
+</section>
