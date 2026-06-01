@@ -24,9 +24,9 @@ export interface CreateAccountResult {
   detail?: string;
 }
 
-function splitName(full: string): { first: string; last: string } {
-  const parts = full.trim().split(/\s+/);
-  if (parts.length === 1) return { first: parts[0], last: parts[0] };
+function splitName(full: string): { first: string; last: string } | null {
+  const parts = full.trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
   return { first: parts[0], last: parts.slice(1).join(' ') };
 }
 
@@ -50,9 +50,7 @@ export async function createSellerConnectAccount(
     return { ok: false, reason: 'bad_kontonummer' };
   }
   const name = splitName(input.legalName);
-  if (!name.first || !name.last) {
-    return { ok: false, reason: 'bad_name' };
-  }
+  if (!name) return { ok: false, reason: 'bad_name' };
   const dob = parseBirthdate(input.birthdate);
   if (!dob) return { ok: false, reason: 'bad_birthdate' };
 

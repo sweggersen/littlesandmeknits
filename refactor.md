@@ -333,7 +333,18 @@ These are merge-conflict generators and reading nightmares. Each holds multiple 
 
 ---
 
-### ☐ Item 14 — Service test coverage
+### ◑ Item 14 — Service test coverage
+
+**Progress 2026-06-01.** Added peer `*.test.ts` for the freshly-built services that have pure or mockable surfaces:
+
+- `stripe-connect.test.ts` (8 tests) — `statusFromAccount` mapping + input validation branches. Caught a real bug: `splitName` silently accepted single-word legal names and let them through to Stripe, now properly rejected with `bad_name`.
+- `dead-letter.test.ts` (7 tests) — record + resolve, including the failure-while-failing path and long-error truncation.
+- `tracking.test.ts` (12 tests) — `recordImpressions` validation + position clamp + tier filter; `recordClick` happy + error paths.
+- `push.test.ts` (7 tests) — subscribe + unsubscribe with all input variants.
+
+Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this loop started). Remaining services (listings, commissions, disputes, refunds, payouts, stores, conversations, moderation) need real-DB integration tests — the `rls.test.ts` harness pattern can be extended to cover them. **Item open** for those.
+
+
 
 **Goal:** every service file has a peer `*.test.ts`.
 
