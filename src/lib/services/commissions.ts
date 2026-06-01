@@ -44,7 +44,7 @@ export async function createRequest(
       buyer_id: ctx.user.id,
       title,
       description: input.description?.trim() || null,
-      category: input.category,
+      category: input.category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet',
       size_label: sizeLabel,
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
       size_age_months_max: toIntOrNull(input.sizeAgeMonthsMax),
@@ -159,7 +159,18 @@ async function ensureCommissionProject(
     .from('profiles').select('display_name').eq('id', args.req.buyer_id).maybeSingle();
   const recipientLabel = (buyerProfile as { display_name?: string } | null)?.display_name ?? null;
 
-  const insertFields: Record<string, unknown> = {
+  const insertFields: {
+    user_id: string;
+    title: string;
+    summary: string | null;
+    recipient: string | null;
+    target_size: string | null;
+    yarn: string | null;
+    pattern_external: string | null;
+    status: 'active' | 'planning';
+    commission_offer_id: string;
+    started_at?: string;
+  } = {
     user_id: args.offer.knitter_id,
     title: args.req.title,
     summary: args.req.description ?? null,

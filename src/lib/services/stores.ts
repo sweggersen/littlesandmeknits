@@ -216,7 +216,9 @@ export async function softDeleteStore(
 
   const { error } = await ctx.admin
     .from('stores')
-    .update({ deleted_at: new Date().toISOString(), status: 'removed' })
+    // stores.status enum is draft/active/pending_review/suspended/archived;
+    // 'archived' is the soft-deleted state.
+    .update({ deleted_at: new Date().toISOString(), status: 'archived' })
     .eq('id', storeId);
   if (error) return fail('server_error', 'Kunne ikke slette butikk');
 

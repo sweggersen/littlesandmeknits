@@ -33,7 +33,7 @@ export async function createProject(
     .insert({
       user_id: ctx.user.id, title,
       summary: input.summary?.trim() || null,
-      status,
+      status: status as 'active' | 'planning' | 'finished' | 'frogged',
       recipient: input.recipient?.trim() || null,
       target_size: input.targetSize?.trim() || null,
       yarn: input.yarn?.trim() || null,
@@ -278,8 +278,8 @@ export async function updateStatus(
   if (!input.projectId) return fail('bad_input', 'Missing project');
   if (!VALID_PROJECT_STATUSES.has(input.status)) return fail('bad_input', 'Invalid status');
 
-  type Patch = { status: string; finished_at?: string | null };
-  const patch: Patch = { status: input.status };
+  type Patch = { status: 'active' | 'planning' | 'finished' | 'frogged'; finished_at?: string | null };
+  const patch: Patch = { status: input.status as Patch['status'] };
   if (input.status === 'finished') {
     patch.finished_at = new Date().toISOString().slice(0, 10);
   } else if (['planning', 'active', 'frogged'].includes(input.status)) {
