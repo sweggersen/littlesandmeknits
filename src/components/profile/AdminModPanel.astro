@@ -1,0 +1,63 @@
+---
+// Admin / moderator quick-links panel on the profile dashboard.
+// Shows pending moderation queue count with a soft pulse when > 0.
+// Extracted from src/pages/profile/index.astro.
+
+interface Props {
+  isAdmin: boolean;
+  pendingQueueCount: number;
+}
+const { isAdmin, pendingQueueCount } = Astro.props;
+---
+
+<div class="mb-10 bg-white rounded-2xl border border-sage-500/10 p-5">
+  <div class="flex items-center gap-2 mb-4">
+    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{isAdmin ? 'Admin' : 'Moderator'}</span>
+    {pendingQueueCount > 0 && (
+      <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{pendingQueueCount}</span>
+    )}
+  </div>
+  <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+    <a href="/admin" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+      <p class="text-sm font-medium">Dashboard</p>
+      <p class="text-[10px] text-charcoal/45">Oversikt</p>
+    </a>
+    <a href="/admin/moderation" class:list={[
+      "bg-linen rounded-xl p-3 text-center transition-colors relative",
+      pendingQueueCount > 0 ? "ring-2 ring-amber-500/40 hover:ring-amber-500/60" : "hover:bg-sage-100/50",
+    ]}>
+      <p class="text-sm font-medium">Modereringskø</p>
+      {pendingQueueCount > 0 ? (
+        <div class="flex items-center justify-center gap-1.5 mt-0.5">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <p class="text-[11px] text-amber-600 font-bold">{pendingQueueCount} venter</p>
+        </div>
+      ) : (
+        <p class="text-[10px] text-charcoal/45">Ingen ventende</p>
+      )}
+    </a>
+    <a href="/admin/reports" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+      <p class="text-sm font-medium">Rapporter</p>
+      <p class="text-[10px] text-charcoal/45">Flagget innhold</p>
+    </a>
+    {isAdmin && (
+      <>
+        <a href="/admin/users" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+          <p class="text-sm font-medium">Brukere</p>
+          <p class="text-[10px] text-charcoal/45">Roller og tillit</p>
+        </a>
+        <a href="/admin/moderators" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+          <p class="text-sm font-medium">Moderatorer</p>
+          <p class="text-[10px] text-charcoal/45">Ytelse og stats</p>
+        </a>
+        <a href="/admin/log" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+          <p class="text-sm font-medium">Aktivitetslogg</p>
+          <p class="text-[10px] text-charcoal/45">Revisjon</p>
+        </a>
+      </>
+    )}
+  </div>
+</div>
