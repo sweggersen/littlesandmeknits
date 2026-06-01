@@ -1,8 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { TypedSupabaseClient } from '../supabase';
 
 export interface ServiceContext {
-  supabase: SupabaseClient;
-  admin: SupabaseClient;
+  supabase: TypedSupabaseClient;
+  admin: TypedSupabaseClient;
   user: { id: string; email?: string };
   env: Record<string, string>;
 }

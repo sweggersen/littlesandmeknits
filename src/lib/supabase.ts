@@ -2,6 +2,12 @@ import { createServerClient, parseCookieHeader } from '@supabase/ssr';
 import { createBrowserClient } from '@supabase/ssr';
 import type { AstroCookies } from 'astro';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
+
+// The typed Supabase client. Use TypedSupabaseClient instead of
+// SupabaseClient everywhere. Re-exported for downstream service code
+// that wants to type a stand-in (e.g. test mocks).
+export type TypedSupabaseClient = SupabaseClient<Database>;
 
 const SUPABASE_URL = import.meta.env.PUBLIC_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
@@ -17,9 +23,9 @@ function assertConfigured(): void {
 export function createServerSupabase(opts: {
   request: Request;
   cookies: AstroCookies;
-}): SupabaseClient {
+}): TypedSupabaseClient {
   assertConfigured();
-  return createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  return createServerClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
     cookies: {
       getAll() {
         const header = opts.request.headers.get('Cookie') ?? '';
@@ -36,16 +42,16 @@ export function createServerSupabase(opts: {
   });
 }
 
-export function createBrowserSupabase(): SupabaseClient {
+export function createBrowserSupabase(): TypedSupabaseClient {
   assertConfigured();
-  return createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return createBrowserClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-export function createAdminSupabase(serviceRoleKey: string): SupabaseClient {
+export function createAdminSupabase(serviceRoleKey: string): TypedSupabaseClient {
   assertConfigured();
   // Use the service-role key — bypasses RLS. Only call from trusted server code
   // (webhook handlers, admin endpoints). Never expose this key to the browser.
-  return createServerClient(SUPABASE_URL, serviceRoleKey, {
+  return createServerClient<Database>(SUPABASE_URL, serviceRoleKey, {
     cookies: {
       getAll: () => [],
       setAll: () => {},

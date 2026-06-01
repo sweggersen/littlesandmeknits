@@ -371,7 +371,23 @@ Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this 
 
 ## Tier 4 — Dev velocity
 
-### ☐ Item 3 — Generate Supabase types, remove `as any`
+### ◑ Item 3 — Generate Supabase types, remove `as any`
+
+**Progress 2026-06-01.** Infrastructure landed:
+
+- `npm run db:types` runs `supabase gen types typescript --linked` and writes `src/lib/database.types.ts` (2668-line generated file, committed).
+- `src/lib/supabase.ts` exports `TypedSupabaseClient = SupabaseClient<Database>`. `createServerSupabase` / `createBrowserSupabase` / `createAdminSupabase` all return `TypedSupabaseClient`.
+- `ServiceContext` in `src/lib/services/types.ts` now uses `TypedSupabaseClient` for both `supabase` and `admin`. Every service automatically gets the typed client.
+- `npm run build` and `npm test` (192 pass) both green.
+
+**Remaining (incremental sweep).** 197 `as any` casts site-wide, 62 in services. Many are legitimate (test mocks, `cf as any` env-cast, deliberately untyped JSON columns); many are not (`(row as any).field` reading typed columns). Burning these is incremental work — best done **alongside the next time someone touches each file** rather than in one giant unsafe sweep that could regress runtime behaviour the build can't catch (Astro's default build does not strict-typecheck; would need `@astrojs/check`).
+
+Recommended follow-ups:
+1. Install `@astrojs/check` and add `npm run typecheck` to CI; that surfaces the real bugs hiding behind `as any`.
+2. Once typecheck is green, sweep service files one at a time. Start with commerce paths (`commissions.ts`, `listings.ts`, `profile.ts`).
+3. Move window-attribute hacks (`(trigger as any)._navBound`) to a typed WeakMap module.
+
+
 
 **Goal:** type the database schema, kill `as any` on query results.
 
