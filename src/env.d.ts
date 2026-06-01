@@ -1,5 +1,13 @@
 /// <reference types="astro/client" />
 
+// Make `import { env } from 'cloudflare:workers'` typecheck. The
+// actual runtime binding is provided by @astrojs/cloudflare /
+// wrangler at deploy time; this is the type-side declaration so
+// `astro check` (TypeScript) can resolve the module.
+declare module 'cloudflare:workers' {
+  export const env: Env;
+}
+
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;
 
 interface Env {

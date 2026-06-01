@@ -196,7 +196,11 @@ async function handle(
   db: ReturnType<typeof createAdminSupabase>,
   action: string,
   actorId: string | null,
-  p: Record<string, unknown>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // The fixture input is shaped per-case at the call site (e.g. JSON
+  // bodies posted from Playwright). Using `any` is the deliberate
+  // choice here -- this is a dev/test endpoint, not user-facing code.
+  p: any,
   emailToId: Map<string, string>,
 ) {
   switch (action) {
