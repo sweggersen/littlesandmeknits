@@ -199,6 +199,94 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('commission_requests', () => {
+    it('open public requests are readable by any signed-in user; private targeted ones are hidden', async () => {
+      const { data: openReq } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId,
+        title: 'rls open',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200,
+        status: 'open',
+      }).select('id').single();
+      const { data: privateReq } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId,
+        title: 'rls private',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200,
+        status: 'open',
+        target_knitter_id: bobId,
+      }).select('id').single();
+
+      // Third party (charlie): sees only the public open one
+      const { data: charlieOpen } = await charlieClient.from('commission_requests')
+        .select('id').eq('id', openReq!.id);
+      expect(charlieOpen ?? []).toHaveLength(1);
+      const { data: charliePrivate } = await charlieClient.from('commission_requests')
+        .select('id').eq('id', privateReq!.id);
+      expect(charliePrivate ?? []).toHaveLength(0);
+
+      // Targeted knitter (bob): sees the private one
+      const { data: bobPrivate } = await bobClient.from('commission_requests')
+        .select('id').eq('id', privateReq!.id);
+      expect(bobPrivate ?? []).toHaveLength(1);
+
+      await admin.from('commission_requests').delete().in('id', [openReq!.id, privateReq!.id]);
+    });
+
+    it('frozen requests are hidden from non-owners', async () => {
+      const { data: req } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId,
+        title: 'rls frozen',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200,
+        status: 'frozen',
+      }).select('id').single();
+
+      const { data: charlieReads } = await charlieClient.from('commission_requests')
+        .select('id').eq('id', req!.id);
+      expect(charlieReads ?? []).toHaveLength(0);
+
+      // Owner (alice) still sees their own
+      const { data: aliceReads } = await aliceClient.from('commission_requests')
+        .select('id').eq('id', req!.id);
+      expect(aliceReads ?? []).toHaveLength(1);
+
+      await admin.from('commission_requests').delete().eq('id', req!.id);
+    });
+  });
+
+  describe('commission_offers', () => {
+    it('only the offering knitter and the request buyer can read the offer', async () => {
+      const { data: req } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId,
+        title: 'rls offer-req',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200,
+        status: 'open',
+      }).select('id').single();
+      const { data: offer } = await admin.from('commission_offers').insert({
+        request_id: req!.id, knitter_id: bobId,
+        price_nok: 150, turnaround_weeks: 2, message: 'rls',
+        status: 'pending',
+      }).select('id').single();
+
+      const { data: bobReads } = await bobClient.from('commission_offers')
+        .select('id').eq('id', offer!.id);
+      expect(bobReads ?? []).toHaveLength(1);
+
+      const { data: aliceReads } = await aliceClient.from('commission_offers')
+        .select('id').eq('id', offer!.id);
+      expect(aliceReads ?? []).toHaveLength(1);
+
+      const { data: charlieReads } = await charlieClient.from('commission_offers')
+        .select('id').eq('id', offer!.id);
+      expect(charlieReads ?? []).toHaveLength(0);
+
+      await admin.from('commission_offers').delete().eq('id', offer!.id);
+      await admin.from('commission_requests').delete().eq('id', req!.id);
+    });
+  });
+
   describe('projects (commission buyer access via 0070 policy)', () => {
     it('buyer of a commission can read the linked project; third party cannot', async () => {
       // Set up: Bob (knitter) creates an offer accepted by Alice (buyer);
