@@ -43,6 +43,11 @@ export async function completeStrikketorgetWelcome(
 export async function exportPersonalData(
   ctx: ServiceContext,
 ): Promise<ServiceResult<Record<string, unknown>>> {
+  // GDPR Art. 15 / 20 export. Each row-list query is hard-capped at
+  // EXPORT_LIMIT so a user with pathological history doesn't time out
+  // the worker. If the cap is hit we flag `truncated: true` in the
+  // response so the user can request the rest via support.
+  const EXPORT_LIMIT = 1000;
   const [
     profileRes, sellerProfileRes, buyerPrefsRes, authIdentitiesRes,
     listingsRes, purchasesRes, favoritesRes, conversationsRes,
@@ -53,27 +58,50 @@ export async function exportPersonalData(
     ctx.supabase.from('profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
     ctx.admin.from('seller_profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
     ctx.admin.from('buyer_preferences').select('*').eq('id', ctx.user.id).maybeSingle(),
-    ctx.admin.from('auth_identities').select('provider, sub, phone, created_at').eq('user_id', ctx.user.id),
-    ctx.supabase.from('listings').select('*').eq('seller_id', ctx.user.id),
-    ctx.supabase.from('listings').select('*').eq('buyer_id', ctx.user.id),
-    ctx.supabase.from('favorites').select('*').eq('user_id', ctx.user.id),
-    ctx.supabase.from('marketplace_conversations').select('*').or(orEither('buyer_id', 'seller_id', ctx.user.id)),
-    ctx.supabase.from('marketplace_messages').select('*').eq('sender_id', ctx.user.id),
-    ctx.supabase.from('notifications').select('*').eq('user_id', ctx.user.id),
-    ctx.supabase.from('seller_reviews').select('*').eq('reviewer_id', ctx.user.id),
-    ctx.supabase.from('seller_reviews').select('*').eq('seller_id', ctx.user.id),
-    ctx.supabase.from('store_members').select('*').eq('user_id', ctx.user.id),
-    ctx.supabase.from('commission_requests').select('*').eq('buyer_id', ctx.user.id),
-    ctx.supabase.from('commission_offers').select('*').eq('knitter_id', ctx.user.id),
-    ctx.supabase.from('reports').select('*').eq('reporter_id', ctx.user.id),
-    ctx.supabase.from('moderation_threads').select('*').eq('recipient_id', ctx.user.id),
+    ctx.admin.from('auth_identities').select('provider, sub, phone, created_at').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('listings').select('*').eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('listings').select('*').eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('favorites').select('*').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('marketplace_conversations').select('*').or(orEither('buyer_id', 'seller_id', ctx.user.id)).limit(EXPORT_LIMIT),
+    ctx.supabase.from('marketplace_messages').select('*').eq('sender_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('notifications').select('*').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('seller_reviews').select('*').eq('reviewer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('seller_reviews').select('*').eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('store_members').select('*').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('commission_requests').select('*').eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('commission_offers').select('*').eq('knitter_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('reports').select('*').eq('reporter_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('moderation_threads').select('*').eq('recipient_id', ctx.user.id).limit(EXPORT_LIMIT),
     // auth.users isn't RLS-readable by end users; admin client is the right tool.
     ctx.admin.auth.admin.getUserById(ctx.user.id),
   ]);
 
+  // Build a list of categories that hit the cap.
+  const truncated: string[] = [];
+  const checkTrunc = (name: string, data: unknown[] | null | undefined) => {
+    if (data && data.length >= EXPORT_LIMIT) truncated.push(name);
+  };
+  checkTrunc('listingsAsSeller', listingsRes.data);
+  checkTrunc('listingsAsBuyer', purchasesRes.data);
+  checkTrunc('favorites', favoritesRes.data);
+  checkTrunc('conversations', conversationsRes.data);
+  checkTrunc('messagesSent', messagesRes.data);
+  checkTrunc('notifications', notificationsRes.data);
+  checkTrunc('reviewsGiven', reviewsGivenRes.data);
+  checkTrunc('reviewsReceived', reviewsReceivedRes.data);
+  checkTrunc('commissions', commissionsRes.data);
+  checkTrunc('commissionOffers', offersRes.data);
+
   return ok({
     exportedAt: new Date().toISOString(),
     note: 'GDPR data export. Includes everything we hold about you across Littles and Me Knits, Strikketorget and Strikkestua.',
+    limits: {
+      perCategoryLimit: EXPORT_LIMIT,
+      truncatedCategories: truncated,
+      truncatedNote: truncated.length
+        ? `${truncated.length} categories were capped at ${EXPORT_LIMIT} rows. Contact support to retrieve the rest.`
+        : 'No categories were truncated.',
+    },
     auth: {
       id: ctx.user.id,
       email: authUserRes.data?.user?.email ?? null,

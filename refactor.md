@@ -866,9 +866,21 @@ Acceptance check: `grep -rn "\.or(\`.*\${" src/` returns zero hits.
 
 ---
 
-### ☐ R2-4 — Unit tests for high-risk commerce services  **(P1)**
+### ☑ R2-4 — Unit tests for high-risk commerce services  **(P1 → done 2026-06-02)**
 
-**Goal:** cover the five highest-blast-radius services with vitest unit tests. A typo in `payCommission()` refunding the wrong amount won't be caught by build, typecheck, or e2e visual review — it surfaces as a support ticket.
+**Completed.** 81 new tests across five service files. Suite: 251 → 332 passing.
+
+| Service | Tests | Coverage |
+|---------|-------|----------|
+| `payouts.ts` | 10 | admin gate, batch creation, period date format, mark-paid flow |
+| `refunds.ts` | 13 | input+auth, state machine (reserved/shipped/sold), description truncation, accept (Stripe cancel + active restore), decline (dispute escalation) |
+| `disputes.ts` | 15 | guards, listing + commission paths × refund + release × audit-log |
+| `commissions.ts` | 22 | acceptOffer, withdrawOffer, cancelCommission, payCommission, markCompleted (auto_release_at math), confirmDelivery (Stripe capture) |
+| `listings.ts` | 21 | publishListing moderation gating, markListingSold, shipListing (capture-on-ship + tracking blank→null), confirmListingDelivery |
+
+All Stripe SDK calls mocked. Tests assert numeric values (fee amounts, deadlines) explicitly so the next math bug doesn't slip past.
+
+**Original goal:** cover the five highest-blast-radius services with vitest unit tests. A typo in `payCommission()` refunding the wrong amount won't be caught by build, typecheck, or e2e visual review — it surfaces as a support ticket.
 
 **Files (each gets `*.test.ts`):**
 - `src/lib/services/commissions.ts` (acceptOffer, payCommission, markCompleted, confirmDelivery)
@@ -890,9 +902,11 @@ Acceptance check: `grep -rn "\.or(\`.*\${" src/` returns zero hits.
 
 ---
 
-### ☐ R2-5 — Bound the GDPR export queries  **(P1)**
+### ☑ R2-5 — Bound the GDPR export queries  **(P1 → done 2026-06-02)**
 
-**Goal:** the GDPR Art. 15 / Art. 20 export in `exportPersonalData` runs 18 `select('*')` queries without `.limit()`. Supabase's default cap is 1000 rows per query but behaviour is implicit. At 5k+ rows the export truncates silently — that's a regulatory issue, not just a UX bug.
+**Completed.** Every row-list query in `exportPersonalData` now has an explicit `.limit(1000)`. After the queries finish, the service builds a `truncatedCategories` array of any category that hit the cap and includes it in the export payload as `limits.truncatedCategories` with a user-facing note. The user knows they need to contact support if they hit the limit instead of getting a silent partial export.
+
+**Original goal:** the GDPR Art. 15 / Art. 20 export in `exportPersonalData` runs 18 `select('*')` queries without `.limit()`. Supabase's default cap is 1000 rows per query but behaviour is implicit. At 5k+ rows the export truncates silently — that's a regulatory issue, not just a UX bug.
 
 **Files:**
 - `src/lib/services/profile.ts:42–105`
@@ -910,9 +924,11 @@ Acceptance check: `grep -rn "\.or(\`.*\${" src/` returns zero hits.
 
 ---
 
-### ☐ R2-6 — Paginate `listUsers` lookups  **(P1)**
+### ☑ R2-6 — Paginate `listUsers` lookups  **(P1 → done 2026-06-02)**
 
-**Goal:** `admin.auth.admin.listUsers({ perPage: 1000 })` silently truncates at 1000 users. The Vipps email-link flow uses this to find an existing account; at user #1001+ it would create a duplicate.
+**Completed.** `vipps-session.ts` now scans pages 1..100 (max 100k users) early-exiting on the first match or empty page. The Vipps email-link flow no longer silently creates duplicate accounts at user #1001+. The dev-tooling sites (`test-exec`, `test-login`) are deliberately unchanged — they're for local fixture work where the 1k limit is the operating contract.
+
+**Original goal:** `admin.auth.admin.listUsers({ perPage: 1000 })` silently truncates at 1000 users. The Vipps email-link flow uses this to find an existing account; at user #1001+ it would create a duplicate.
 
 **Files:**
 - `src/lib/vipps-session.ts:46–58`

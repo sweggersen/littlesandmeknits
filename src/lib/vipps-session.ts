@@ -44,11 +44,21 @@ export async function signInWithVippsUserinfo(opts: {
 
   // 2. By auth email — link Vipps to the existing account.
   // profiles doesn't carry email; the canonical email lives on auth.users.
-  // listUsers is paginated; we scan up to 1000 which is fine for current scale.
+  // listUsers is paginated at 1000/page; scan all pages so a user at
+  // position 1001+ doesn't silently get a duplicate account created.
   if (!userId && userinfo.email) {
     const target = userinfo.email.toLowerCase();
-    const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    const existing = list?.users.find((u) => u.email?.toLowerCase() === target);
+    let existing: { id: string; email?: string | null } | null = null;
+    const PER_PAGE = 1000;
+    for (let page = 1; page <= 100; page++) {
+      const { data: list } = await admin.auth.admin.listUsers({ perPage: PER_PAGE, page });
+      const match = list?.users.find((u) => u.email?.toLowerCase() === target);
+      if (match) {
+        existing = { id: match.id, email: match.email ?? null };
+        break;
+      }
+      if (!list?.users.length || list.users.length < PER_PAGE) break;
+    }
     if (existing) {
       userId = existing.id;
       userEmail = existing.email ?? target;
