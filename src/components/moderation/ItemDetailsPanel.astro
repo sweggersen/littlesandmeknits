@@ -1,0 +1,292 @@
+---
+import { projectPhotoUrl } from '../../lib/storage';
+import { CATEGORY_LABEL } from '../../lib/labels';
+
+// Left panel on /admin/moderation/[id]: switches on the queue item
+// type and renders type-specific details (store, store_image,
+// listing, commission_request). For stores, includes the Brønnøysund
+// roles verification and the contact-email outreach buttons.
+//
+// Extracted from src/pages/admin/moderation/[id].astro.
+
+interface QueueItem {
+  id: string;
+  item_id: string;
+  item_type: 'listing' | 'commission_request' | 'store' | 'store_image';
+  submitter_id: string;
+}
+
+interface Auth {
+  user: { id: string };
+}
+
+interface Submitter {
+  id: string;
+  display_name: string | null;
+}
+
+interface StoreRole {
+  isOrganisation: boolean;
+  personName: string | null;
+  organisationName: string | null;
+  roleDescription: string;
+}
+
+interface Props {
+  queueItem: QueueItem;
+  auth: Auth;
+  isStoreMember: boolean;
+  itemData: any;
+  photoUrls: string[];
+  storeRoles: StoreRole[];
+  rolesError: string | null;
+  /** Map of normalized name -> 'strong' | 'weak' match against Brønnøysund roles */
+  matchedRoleNames: Map<string, 'strong' | 'weak'>;
+  submitter: Submitter | null;
+  submitterEmail: string | null;
+}
+const {
+  queueItem, auth, isStoreMember, itemData, photoUrls,
+  storeRoles, rolesError, matchedRoleNames,
+  submitter, submitterEmail,
+} = Astro.props;
+---
+
+<div class="bg-white rounded-xl border border-sage-500/10 p-5">
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-2">
+      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{
+        queueItem.item_type === 'listing' ? 'Annonse'
+          : queueItem.item_type === 'store' ? 'Butikk'
+          : 'Oppdrag'
+      }</span>
+      {queueItem.submitter_id === auth.user.id && (
+        <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Ditt eget — kan ikke vurdere</span>
+      )}
+      {isStoreMember && queueItem.submitter_id !== auth.user.id && (
+        <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Du er medlem — kan ikke vurdere</span>
+      )}
+    </div>
+    <a
+      href={
+        queueItem.item_type === 'listing' ? `/market/listing/${queueItem.item_id}`
+          : queueItem.item_type === 'store' ? `/market/store/${itemData?.slug ?? ''}`
+          : `/market/commissions/${queueItem.item_id}`
+      }
+      target="_blank"
+      class="text-[10px] font-medium text-charcoal/50 hover:text-terracotta-500 transition-colors border border-sage-500/15 rounded-lg px-2.5 py-1">
+      Se offentlig visning &nearr;
+    </a>
+  </div>
+
+  {!itemData ? (
+    <p class="text-sm text-charcoal/45">Element ikke funnet.</p>
+  ) : queueItem.item_type === 'store_image' ? (
+    <div>
+      <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
+      <p class="text-xs text-charcoal/55 mb-4">Endring i butikkbilder — /market/store/{itemData.slug}</p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Logo</p>
+          <div class="aspect-square rounded-2xl bg-sage-100 overflow-hidden border border-sage-500/15">
+            {itemData.logo_path ? (
+              <img src={projectPhotoUrl(itemData.logo_path)} alt="" class="w-full h-full object-cover" />
+            ) : (
+              <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-sage-700">
+                {itemData.name[0]?.toUpperCase()}
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Banner</p>
+          <div class="aspect-[16/5] rounded-2xl bg-gradient-to-br from-oatmeal/60 to-sage-100/60 overflow-hidden border border-sage-500/15">
+            {itemData.banner_path && (
+              <img src={projectPhotoUrl(itemData.banner_path)} alt="" class="w-full h-full object-cover" />
+            )}
+          </div>
+        </div>
+      </div>
+      <p class="text-xs text-charcoal/55">
+        Sjekk at bildene er passende for plattformen, ikke krenker
+        opphavsrett, og at de viser butikken (ikke konkurrenter, navn
+        på andre virksomheter, e.l.).
+      </p>
+    </div>
+  ) : queueItem.item_type === 'store' ? (
+    <div>
+      <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
+      <p class="text-xs text-charcoal/55 mb-3">/market/store/{itemData.slug}</p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Logo</p>
+          <div class="aspect-square rounded-2xl bg-sage-100 overflow-hidden border border-sage-500/15">
+            {itemData.logo_path ? (
+              <img src={projectPhotoUrl(itemData.logo_path)} alt="" class="w-full h-full object-cover" />
+            ) : (
+              <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-sage-700">
+                {itemData.name[0]?.toUpperCase()}
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Banner</p>
+          <div class="aspect-[16/5] rounded-2xl bg-gradient-to-br from-oatmeal/60 to-sage-100/60 overflow-hidden border border-sage-500/15">
+            {itemData.banner_path && (
+              <img src={projectPhotoUrl(itemData.banner_path)} alt="" class="w-full h-full object-cover" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-sage-100/50 rounded-lg p-3 mb-3">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Brønnøysund-registrert</p>
+        <p class="text-sm font-medium">{itemData.legal_name}</p>
+        <p class="text-xs text-charcoal/65 font-mono">{itemData.orgnr} {itemData.legal_business_type && `· ${itemData.legal_business_type}`}</p>
+        {itemData.legal_address && <p class="text-xs text-charcoal/55 mt-1">{itemData.legal_address}</p>}
+      </div>
+
+      {itemData.tagline && (
+        <p class="text-sm text-charcoal/75 italic mb-2">"{itemData.tagline}"</p>
+      )}
+      {itemData.description && (
+        <div class="bg-linen rounded-lg p-3 mb-3">
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Beskrivelse</span>
+          <p class="text-sm text-charcoal/75 whitespace-pre-line mt-1">{itemData.description}</p>
+        </div>
+      )}
+
+      <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+        {itemData.contact_email && (
+          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">E-post</span><p class="truncate">{itemData.contact_email}</p></div>
+        )}
+        {itemData.contact_phone && (
+          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Telefon</span><p>{itemData.contact_phone}</p></div>
+        )}
+        {itemData.location_city && (
+          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">By</span><p>{itemData.location_city}</p></div>
+        )}
+        {itemData.website_url && (
+          <div class="col-span-2"><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Nettside</span><p class="truncate"><a href={itemData.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{itemData.website_url}</a></p></div>
+        )}
+      </div>
+
+      {(itemData.instagram_url || itemData.etsy_url || itemData.pinterest_url || itemData.tiktok_url) && (
+        <div class="flex flex-wrap gap-2 text-xs">
+          {itemData.instagram_url && <a href={itemData.instagram_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">Instagram</a>}
+          {itemData.etsy_url && <a href={itemData.etsy_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">Etsy</a>}
+          {itemData.pinterest_url && <a href={itemData.pinterest_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">Pinterest</a>}
+          {itemData.tiktok_url && <a href={itemData.tiktok_url} target="_blank" rel="noopener" class="text-charcoal/55 hover:text-charcoal underline">TikTok</a>}
+        </div>
+      )}
+
+      <div class="mt-5 pt-5 border-t border-sage-500/15">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-sm font-medium">Registrerte representanter</h3>
+          <a href={`https://virksomhet.brreg.no/nb/oppslag/enheter/${itemData.orgnr}/roller`} target="_blank" rel="noopener"
+            class="text-[10px] text-charcoal/45 hover:text-terracotta-500 underline">
+            Se på brreg.no &nearr;
+          </a>
+        </div>
+        {rolesError ? (
+          <p class="text-xs text-charcoal/55 bg-amber-50 rounded-lg p-2">
+            Kunne ikke hente roller fra Brønnøysund ({rolesError}).
+          </p>
+        ) : storeRoles.length === 0 ? (
+          <p class="text-xs text-charcoal/55">Ingen aktive registrerte roller funnet.</p>
+        ) : (
+          <ul class="space-y-1.5">
+            {storeRoles.map((role) => {
+              const match = role.personName ? matchedRoleNames.get(role.personName) : null;
+              const bg = match === 'strong' ? 'bg-sage-100/60' : match === 'weak' ? 'bg-amber-50/80' : '';
+              return (
+                <li class:list={['text-xs flex items-center justify-between gap-2 rounded px-2 py-1', bg]}>
+                  <div>
+                    <span class={match ? 'font-bold' : 'font-medium'}>
+                      {role.isOrganisation ? role.organisationName : role.personName}
+                    </span>
+                    {role.isOrganisation && <span class="text-charcoal/45 ml-1">(org)</span>}
+                    <span class="text-charcoal/55"> · {role.roleDescription}</span>
+                  </div>
+                  {match === 'strong' && <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">samsvarer</span>}
+                  {match === 'weak' && <span class="text-[10px] font-bold uppercase tracking-widest text-amber-700">delvis</span>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <div class="mt-5 pt-5 border-t border-sage-500/15">
+        <h3 class="text-sm font-medium mb-2">Verifisering</h3>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between"><span class="text-charcoal/55">Innmelders navn:</span><span class:list={['font-medium', [...matchedRoleNames.values()].includes('strong') && 'text-sage-700']}>{submitter?.display_name ?? '—'} {[...matchedRoleNames.values()].includes('strong') ? '✓' : matchedRoleNames.size > 0 ? '~' : ''}</span></div>
+          <div class="flex justify-between"><span class="text-charcoal/55">Innmelders konto-e-post:</span><span class="font-mono">{submitterEmail ?? '—'}</span></div>
+          <div class="flex justify-between"><span class="text-charcoal/55">Oppgitt kontakt-e-post:</span><span class="font-mono">{itemData.contact_email ?? '—'}</span></div>
+        </div>
+
+        <p class="text-xs text-charcoal/55 mt-3 mb-2">
+          Hvis usikker på eierskap: send forespørsel om bekreftelse til kontakt-e-posten.
+        </p>
+        <div class="flex flex-wrap gap-2">
+          {itemData.contact_email && (
+            <a
+              href={`mailto:${itemData.contact_email}?subject=${encodeURIComponent('Verifisering av butikkregistrering på Strikketorget')}&body=${encodeURIComponent(`Hei,\n\nVi har mottatt en søknad om å opprette butikk på Strikketorget med organisasjonsnummer ${itemData.orgnr} (${itemData.legal_name}).\n\nFor å bekrefte at registreringen er gjort av en autorisert representant for virksomheten, kan du svare på denne e-posten og bekrefte:\n\n• Ditt navn og stilling i ${itemData.legal_name}\n• At du ønsker å være representert på Strikketorget\n\nDenne e-posten er sendt til den oppgitte kontakt-adressen.\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`}
+              class="text-xs bg-primary text-primary-fg px-3 py-1.5 rounded-full font-medium hover:bg-primary-hover transition-colors">
+              Send til kontakt-e-post
+            </a>
+          )}
+          {submitterEmail && submitterEmail !== itemData.contact_email && (
+            <a
+              href={`mailto:${submitterEmail}?subject=${encodeURIComponent('Verifisering av butikkregistrering på Strikketorget')}&body=${encodeURIComponent(`Hei,\n\nVi behandler søknaden din om butikk for organisasjonsnummer ${itemData.orgnr} (${itemData.legal_name}).\n\nKan du bekrefte din rolle i virksomheten?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`}
+              class="text-xs border border-sage-500/30 text-charcoal/70 px-3 py-1.5 rounded-full font-medium hover:bg-sage-100/50 transition-colors">
+              Send til innmelder
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
+  ) : (
+    <div>
+      <h2 class="font-serif text-xl mb-2">{itemData.title}</h2>
+      {photoUrls.length > 0 && (
+        <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
+          {photoUrls.map((url, i) => (
+            <a href={url} target="_blank" rel="noopener" class="shrink-0">
+              <img src={url} alt={`Bilde ${i + 1}`} class="w-24 h-24 object-cover rounded-lg border border-sage-500/10" loading="lazy" />
+            </a>
+          ))}
+        </div>
+      )}
+      <div class="grid grid-cols-2 gap-2 text-sm mb-3">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Kategori</span>
+          <p>{CATEGORY_LABEL[itemData.category] ?? itemData.category}</p>
+        </div>
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Størrelse</span>
+          <p>{itemData.size_label}</p>
+        </div>
+        {itemData.price_nok != null && (
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Pris</span>
+            <p class="font-mono">{itemData.price_nok} NOK</p>
+          </div>
+        )}
+        {itemData.budget_nok_min != null && (
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Budsjett</span>
+            <p class="font-mono">{itemData.budget_nok_min}–{itemData.budget_nok_max} NOK</p>
+          </div>
+        )}
+      </div>
+      {itemData.description && (
+        <div class="bg-linen rounded-lg p-3">
+          <p class="text-sm text-charcoal/75 whitespace-pre-line">{itemData.description}</p>
+        </div>
+      )}
+    </div>
+  )}
+</div>
