@@ -62,17 +62,25 @@ export function determineTier(score: number, profile: TrustInput): TrustTier {
 }
 
 export async function recalculateTrust(admin: SupabaseClient, userId: string): Promise<{ score: number; tier: TrustTier }> {
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('created_at, avatar_path, bio, location, instagram_handle, stripe_connect_status, total_completed_transactions, total_rejections')
-    .eq('id', userId)
-    .single();
+  const [{ data: profile }, { data: sellerConnect }] = await Promise.all([
+    admin
+      .from('profiles')
+      .select('created_at, avatar_path, bio, location, instagram_handle, total_completed_transactions, total_rejections')
+      .eq('id', userId)
+      .single(),
+    admin
+      .from('seller_profiles')
+      .select('stripe_connect_status')
+      .eq('id', userId)
+      .maybeSingle(),
+  ]);
 
   if (!profile) return { score: 0, tier: 'new' };
 
   const reviewStats = await getReviewStats(admin, userId);
-  const score = computeTrustScore(profile, reviewStats);
-  const tier = determineTier(score, profile);
+  const profileForTrust = { ...profile, stripe_connect_status: sellerConnect?.stripe_connect_status ?? null };
+  const score = computeTrustScore(profileForTrust, reviewStats);
+  const tier = determineTier(score, profileForTrust);
 
   await admin
     .from('profiles')

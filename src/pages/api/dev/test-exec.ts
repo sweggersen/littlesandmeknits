@@ -324,10 +324,12 @@ async function handle(
 
     case 'set-stripe-onboarded': {
       if (!actorId) throw new Error('Actor required');
-      await db.from('profiles').update({
+      await db.from('seller_profiles').upsert({
+        id: actorId,
         stripe_account_id: 'acct_test_' + actorId.slice(0, 8),
         stripe_connect_status: 'verified',
-      }).eq('id', actorId);
+        seller_verified_at: new Date().toISOString(),
+      });
       return { data: { user_id: actorId, stripe_connect_status: 'verified' } };
     }
 
@@ -561,8 +563,13 @@ async function handle(
       await db.from('profiles').update({
         profile_visible: true,
         trust_score: 100, trust_tier: 'trusted',
-        stripe_connect_status: 'verified',
       }).eq('id', elineId);
+      await db.from('seller_profiles').upsert({
+        id: elineId,
+        stripe_account_id: 'acct_test_' + elineId.slice(0, 8),
+        stripe_connect_status: 'verified',
+        seller_verified_at: new Date().toISOString(),
+      });
       await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
 
       const cat = 'genser';
@@ -652,8 +659,14 @@ async function handle(
       const livId = emailToId.get('liv@test.strikketorget.no');
       if (!elineId || !livId) throw new Error('seed-screens needs user_emails: [eline, liv]');
       await db.from('profiles').update({
-        profile_visible: true, trust_score: 100, trust_tier: 'trusted', stripe_connect_status: 'verified',
+        profile_visible: true, trust_score: 100, trust_tier: 'trusted',
       }).eq('id', elineId);
+      await db.from('seller_profiles').upsert({
+        id: elineId,
+        stripe_account_id: 'acct_test_' + elineId.slice(0, 8),
+        stripe_connect_status: 'verified',
+        seller_verified_at: new Date().toISOString(),
+      });
       await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
 
       // Narrowed alias so closures below carry non-null type from the

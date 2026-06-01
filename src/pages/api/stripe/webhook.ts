@@ -227,20 +227,19 @@ export const POST: APIRoute = async ({ request }) => {
     const { statusFromAccount } = await import('../../../lib/services/stripe-connect');
     const status = statusFromAccount(account);
     const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-    const update: Record<string, unknown> = {
+    const update: {
+      stripe_connect_status: string;
+      stripe_connect_requirements: Stripe.Account.Requirements | null;
+      seller_verified_at?: string;
+    } = {
       stripe_connect_status: status,
       stripe_connect_requirements: account.requirements ?? null,
-      updated_at: new Date().toISOString(),
     };
     if (status === 'verified') {
       update.seller_verified_at = new Date().toISOString();
     }
-    // Note: the legacy stripe_onboarded boolean is no longer written.
-    // Reads have moved to stripe_connect_status === 'verified'; the
-    // column is scheduled for deletion in a follow-up migration after
-    // one prod week of observation (refactor.md item 7).
     await supabase
-      .from('profiles')
+      .from('seller_profiles')
       .update(update as never)
       .eq('stripe_account_id', account.id);
   }

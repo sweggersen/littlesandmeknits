@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -39,6 +34,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      auth_identities: {
+        Row: {
+          created_at: string
+          id: string
+          phone: string | null
+          provider: string
+          sub: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          phone?: string | null
+          provider: string
+          sub: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          phone?: string | null
+          provider?: string
+          sub?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auth_identities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buyer_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          marketplace_interests: string[] | null
+          strikketorget_welcomed_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          marketplace_interests?: string[] | null
+          strikketorget_welcomed_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marketplace_interests?: string[] | null
+          strikketorget_welcomed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buyer_preferences_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_offers: {
         Row: {
           created_at: string
@@ -1414,31 +1476,15 @@ export type Database = {
           locale: string
           location: string | null
           marketing_consent_at: string | null
-          marketplace_interests: string[] | null
           profile_visible: boolean
           role: Database["public"]["Enums"]["user_role"] | null
-          seller_address: string | null
-          seller_birthdate: string | null
-          seller_city: string | null
-          seller_kontonummer: string | null
-          seller_legal_name: string | null
-          seller_postal_code: string | null
           seller_tags: string[]
-          seller_terms_accepted_at: string | null
-          seller_verified_at: string | null
-          strikketorget_welcomed_at: string | null
-          stripe_account_id: string | null
-          stripe_connect_requirements: Json | null
-          stripe_connect_status: string
-          stripe_onboarded: boolean
           tos_accepted_at: string | null
           total_completed_transactions: number
           total_rejections: number
           trust_score: number
           trust_tier: string
           updated_at: string
-          vipps_phone_e164: string | null
-          vipps_sub: string | null
           welcomed_at: string | null
         }
         Insert: {
@@ -1456,31 +1502,15 @@ export type Database = {
           locale?: string
           location?: string | null
           marketing_consent_at?: string | null
-          marketplace_interests?: string[] | null
           profile_visible?: boolean
           role?: Database["public"]["Enums"]["user_role"] | null
-          seller_address?: string | null
-          seller_birthdate?: string | null
-          seller_city?: string | null
-          seller_kontonummer?: string | null
-          seller_legal_name?: string | null
-          seller_postal_code?: string | null
           seller_tags?: string[]
-          seller_terms_accepted_at?: string | null
-          seller_verified_at?: string | null
-          strikketorget_welcomed_at?: string | null
-          stripe_account_id?: string | null
-          stripe_connect_requirements?: Json | null
-          stripe_connect_status?: string
-          stripe_onboarded?: boolean
           tos_accepted_at?: string | null
           total_completed_transactions?: number
           total_rejections?: number
           trust_score?: number
           trust_tier?: string
           updated_at?: string
-          vipps_phone_e164?: string | null
-          vipps_sub?: string | null
           welcomed_at?: string | null
         }
         Update: {
@@ -1498,31 +1528,15 @@ export type Database = {
           locale?: string
           location?: string | null
           marketing_consent_at?: string | null
-          marketplace_interests?: string[] | null
           profile_visible?: boolean
           role?: Database["public"]["Enums"]["user_role"] | null
-          seller_address?: string | null
-          seller_birthdate?: string | null
-          seller_city?: string | null
-          seller_kontonummer?: string | null
-          seller_legal_name?: string | null
-          seller_postal_code?: string | null
           seller_tags?: string[]
-          seller_terms_accepted_at?: string | null
-          seller_verified_at?: string | null
-          strikketorget_welcomed_at?: string | null
-          stripe_account_id?: string | null
-          stripe_connect_requirements?: Json | null
-          stripe_connect_status?: string
-          stripe_onboarded?: boolean
           tos_accepted_at?: string | null
           total_completed_transactions?: number
           total_rejections?: number
           trust_score?: number
           trust_tier?: string
           updated_at?: string
-          vipps_phone_e164?: string | null
-          vipps_sub?: string | null
           welcomed_at?: string | null
         }
         Relationships: []
@@ -1851,6 +1865,68 @@ export type Database = {
             foreignKeyName: "seller_follows_seller_id_fkey"
             columns: ["seller_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_profiles: {
+        Row: {
+          address: string | null
+          birthdate: string | null
+          city: string | null
+          created_at: string
+          id: string
+          kontonummer: string | null
+          legal_name: string | null
+          postal_code: string | null
+          seller_terms_accepted_at: string | null
+          seller_verified_at: string | null
+          stripe_account_id: string | null
+          stripe_connect_requirements: Json | null
+          stripe_connect_status: string
+          stripe_onboarded: boolean
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          birthdate?: string | null
+          city?: string | null
+          created_at?: string
+          id: string
+          kontonummer?: string | null
+          legal_name?: string | null
+          postal_code?: string | null
+          seller_terms_accepted_at?: string | null
+          seller_verified_at?: string | null
+          stripe_account_id?: string | null
+          stripe_connect_requirements?: Json | null
+          stripe_connect_status?: string
+          stripe_onboarded?: boolean
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          birthdate?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          kontonummer?: string | null
+          legal_name?: string | null
+          postal_code?: string | null
+          seller_terms_accepted_at?: string | null
+          seller_verified_at?: string | null
+          stripe_account_id?: string | null
+          stripe_connect_requirements?: Json | null
+          stripe_connect_status?: string
+          stripe_onboarded?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2340,6 +2416,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_moderator_stats: {
+        Args: { p_amount?: number; p_field: string; p_user_id: string }
+        Returns: undefined
+      }
       increment_profile_rejections: {
         Args: { p_user_id: string }
         Returns: undefined
@@ -2666,3 +2746,4 @@ export const Constants = {
     },
   },
 } as const
+

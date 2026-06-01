@@ -375,15 +375,14 @@ export async function purchaseListing(
     const tierDelta = store.tier === 'elite' ? 0 : store.tier === 'pro' ? 1 : 2;
     feePercent = PLATFORM_FEE_PERCENT + tierDelta;
   } else {
-    const { data: seller } = await ctx.admin
-      .from('profiles')
-      .select('stripe_account_id, stripe_connect_status, role')
-      .eq('id', listing.seller_id)
-      .maybeSingle();
+    const [{ data: seller }, { data: sellerConnect }] = await Promise.all([
+      ctx.admin.from('profiles').select('role').eq('id', listing.seller_id).maybeSingle(),
+      ctx.admin.from('seller_profiles').select('stripe_account_id, stripe_connect_status').eq('id', listing.seller_id).maybeSingle(),
+    ]);
     if (!seller) return fail('not_found', 'Seller not found');
-    payoutAccountId = (seller as any).stripe_account_id;
-    onboarded = (seller as any).stripe_connect_status === 'verified';
-    feePercent = (seller as any).role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
+    payoutAccountId = sellerConnect?.stripe_account_id ?? null;
+    onboarded = sellerConnect?.stripe_connect_status === 'verified';
+    feePercent = seller.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   }
 
   if (!onboarded || !payoutAccountId) {

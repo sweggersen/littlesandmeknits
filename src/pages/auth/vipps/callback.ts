@@ -75,12 +75,12 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
   // the userId returned from the signin helper.
   if (isStrikketorget && result.userId) {
     const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-    const { data: profile } = await admin
-      .from('profiles')
+    const { data: prefs } = await admin
+      .from('buyer_preferences')
       .select('strikketorget_welcomed_at')
       .eq('id', result.userId)
       .maybeSingle();
-    if (!profile?.strikketorget_welcomed_at) {
+    if (!prefs?.strikketorget_welcomed_at) {
       return redirect(`${origin}/market/velkommen`);
     }
   }

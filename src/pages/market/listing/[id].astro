@@ -95,8 +95,13 @@ const sellerAvgRating = sellerReviewCount
   ? (sellerRatingRows!.reduce((s, r) => s + (r.rating ?? 0), 0) / sellerReviewCount)
   : 0;
 
-const [{ data: sellerProfile }, { data: photoRows }, { data: reviews }, { data: storeRow }, { data: followRow }] = await Promise.all([
-  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags, stripe_connect_status').eq('id', listing.seller_id).maybeSingle(),
+// seller_profile is read via the admin client because the table's RLS
+// is owner-read only; we just need the connect status to gate the
+// "buy with escrow" CTA. Cheap, safe.
+const adminForSellerCheck = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+const [{ data: sellerProfile }, { data: sellerConnect }, { data: photoRows }, { data: reviews }, { data: storeRow }, { data: followRow }] = await Promise.all([
+  supabase.from('profiles').select('display_name, avatar_path, location, seller_tags').eq('id', listing.seller_id).maybeSingle(),
+  adminForSellerCheck.from('seller_profiles').select('stripe_connect_status').eq('id', listing.seller_id).maybeSingle(),
   supabase.from('listing_photos').select('id, path, caption, position').eq('listing_id', id).order('position'),
   supabase.from('seller_reviews').select('id, reviewer_id, rating, comment, created_at').eq('listing_id', id),
   listing.store_id
@@ -149,7 +154,7 @@ const justPurchased = Astro.url.searchParams.get('purchased') === '1';
 // only retired the profile-level one); seller profile uses the new enum.
 const sellerOnboarded = isStoreListing
   ? !!(storeRow as any)?.stripe_onboarded
-  : (sellerProfile as any)?.stripe_connect_status === 'verified';
+  : sellerConnect?.stripe_connect_status === 'verified';
 let frozenThreadId: string | null = null;
 if (isOwner && listing.status === 'frozen') {
   const { data: t } = await supabase

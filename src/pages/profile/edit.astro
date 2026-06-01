@@ -7,11 +7,18 @@ import { projectPhotoUrl } from '../../lib/storage';
 const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('display_name, first_name, last_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, stripe_connect_status, stripe_account_id, updated_at')
-  .eq('id', user.id)
-  .maybeSingle();
+const [{ data: profile }, { data: sellerConnect }] = await Promise.all([
+  supabase
+    .from('profiles')
+    .select('display_name, first_name, last_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, updated_at')
+    .eq('id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('seller_profiles')
+    .select('stripe_connect_status')
+    .eq('id', user.id)
+    .maybeSingle(),
+]);
 
 const meta = (user.user_metadata ?? {}) as { language?: 'nb' | 'en' };
 const language = meta.language ?? 'nb';
@@ -172,7 +179,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
       {currentTags.length > 0 && (
         <div class="mt-8 bg-white rounded-3xl p-6 border border-sage-500/10">
           <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-3">Utbetalinger</h2>
-          {(profile as any)?.stripe_connect_status === 'verified' ? (
+          {sellerConnect?.stripe_connect_status === 'verified' ? (
             <div>
               <p class="text-sm text-sage-600 mb-3">Du er verifisert som selger. Vi setter pengene rett i kontoen din etter hvert salg.</p>
               <a href="/profile/become-seller" class="text-sm text-charcoal/55 hover:text-charcoal underline">

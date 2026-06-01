@@ -27,12 +27,25 @@ const { data: queueItem } = await supabase
 
 if (!queueItem) return Astro.redirect('/admin/moderation');
 
-// Fetch submitter profile
-const { data: submitter } = await admin
-  .from('profiles')
-  .select('id, display_name, stripe_connect_status, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
-  .eq('id', queueItem.submitter_id)
-  .single();
+// Fetch submitter profile + their seller connect status (separate
+// table after the profiles split). Profile is required; seller_profile
+// is optional.
+const [{ data: submitterRow }, { data: submitterSeller }] = await Promise.all([
+  admin
+    .from('profiles')
+    .select('id, display_name, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+    .eq('id', queueItem.submitter_id)
+    .single(),
+  admin
+    .from('seller_profiles')
+    .select('stripe_connect_status')
+    .eq('id', queueItem.submitter_id)
+    .maybeSingle(),
+]);
+const submitter = submitterRow ? {
+  ...submitterRow,
+  stripe_connect_status: submitterSeller?.stripe_connect_status ?? null,
+} : null;
 
 // Fetch the actual item
 let itemData: any = null;

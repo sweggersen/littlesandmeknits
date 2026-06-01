@@ -25,15 +25,17 @@ export async function signInWithVippsUserinfo(opts: {
 
   const admin = createAdminSupabase(serviceRoleKey);
 
-  // 1. By vipps_sub. profiles has no email column; fetch the auth user's
-  // email separately if we get a hit so we can mint the magic-link OTP.
+  // 1. By Vipps identity. profiles has no email column; fetch the
+  // auth user's email separately if we get a hit so we can mint the
+  // magic-link OTP.
   const { data: byVipps } = await admin
-    .from('profiles')
-    .select('id, vipps_sub')
-    .eq('vipps_sub', userinfo.sub)
+    .from('auth_identities')
+    .select('user_id')
+    .eq('provider', 'vipps')
+    .eq('sub', userinfo.sub)
     .maybeSingle();
 
-  let userId = byVipps?.id ?? null;
+  let userId = byVipps?.user_id ?? null;
   let userEmail: string | null = null;
   if (userId) {
     const { data: authUser } = await admin.auth.admin.getUserById(userId);
@@ -50,10 +52,14 @@ export async function signInWithVippsUserinfo(opts: {
     if (existing) {
       userId = existing.id;
       userEmail = existing.email ?? target;
+      // Link the Vipps identity to this user. Upsert so re-running
+      // doesn't error on the (provider, sub) unique constraint.
       await admin
-        .from('profiles')
-        .update({ vipps_sub: userinfo.sub, vipps_phone_e164: userinfo.phone_number ?? null })
-        .eq('id', userId);
+        .from('auth_identities')
+        .upsert(
+          { user_id: userId, provider: 'vipps', sub: userinfo.sub, phone: userinfo.phone_number ?? null },
+          { onConflict: 'user_id,provider' },
+        );
     }
   }
 
@@ -97,18 +103,26 @@ export async function signInWithVippsUserinfo(opts: {
     userId = created.user.id;
     userEmail = synthEmail;
 
-    const profileUpdate: Record<string, unknown> = {
-      vipps_sub: userinfo.sub,
-      vipps_phone_e164: userinfo.phone_number ?? null,
+    const profileUpdate: {
+      first_name: string | null;
+      last_name: string | null;
+      display_name?: string;
+    } = {
       first_name: userinfo.given_name ?? null,
       last_name: userinfo.family_name ?? null,
     };
     // Only override display_name if Vipps actually gave us a name — don't
     // wipe whatever the handle_new_user trigger just set if Vipps was silent.
     if (displayName) profileUpdate.display_name = displayName;
-    // Dynamic update payload — the keys are validated upstream but TS
-    // can't see through that into the Insert row type. Cast at call.
-    await admin.from('profiles').update(profileUpdate as never).eq('id', userId);
+    await admin.from('profiles').update(profileUpdate).eq('id', userId);
+
+    // Persist the Vipps identity for next time.
+    await admin.from('auth_identities').insert({
+      user_id: userId,
+      provider: 'vipps',
+      sub: userinfo.sub,
+      phone: userinfo.phone_number ?? null,
+    });
   }
 
   if (!userId || !userEmail) return { ok: false, reason: 'no-user' };

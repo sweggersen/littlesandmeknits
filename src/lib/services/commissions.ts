@@ -344,23 +344,22 @@ export async function payCommission(
 
   if (!offer) return fail('not_found', 'Offer not found');
 
-  const { data: knitterProfile } = await ctx.admin
-    .from('profiles')
-    .select('stripe_account_id, stripe_connect_status, role')
-    .eq('id', offer.knitter_id)
-    .maybeSingle();
+  const [{ data: knitterProfile }, { data: knitterSeller }] = await Promise.all([
+    ctx.admin.from('profiles').select('role').eq('id', offer.knitter_id).maybeSingle(),
+    ctx.admin.from('seller_profiles').select('stripe_account_id, stripe_connect_status').eq('id', offer.knitter_id).maybeSingle(),
+  ]);
 
   const feePercent = knitterProfile?.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   const amountOre = offer.price_nok * 100;
   const platformFee = Math.round(amountOre * feePercent / 100);
   let paymentIntentId: string | undefined;
 
-  if ((knitterProfile as any)?.stripe_connect_status === 'verified' && knitterProfile?.stripe_account_id) {
+  if (knitterSeller?.stripe_connect_status === 'verified' && knitterSeller.stripe_account_id) {
     const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
     const pi = await stripe.paymentIntents.create({
       amount: amountOre, currency: 'nok', capture_method: 'manual',
       application_fee_amount: platformFee,
-      transfer_data: { destination: knitterProfile.stripe_account_id },
+      transfer_data: { destination: knitterSeller.stripe_account_id },
       metadata: { commission_request_id: input.requestId, buyer_id: ctx.user.id },
     });
     paymentIntentId = pi.id;

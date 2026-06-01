@@ -26,13 +26,13 @@ export async function completeStrikketorgetWelcome(
   input: { action: 'save' | 'skip'; interests: string[] },
 ): Promise<ServiceResult<{ redirect: string }>> {
   const filtered = input.interests.filter((v) => STRIKKETORGET_VALID_INTERESTS.has(v));
-  await ctx.supabase
-    .from('profiles')
-    .update({
+  await ctx.admin
+    .from('buyer_preferences')
+    .upsert({
+      id: ctx.user.id,
       strikketorget_welcomed_at: new Date().toISOString(),
       marketplace_interests: input.action === 'skip' ? null : filtered,
-    })
-    .eq('id', ctx.user.id);
+    });
   return ok({ redirect: '/market' });
 }
 
@@ -43,12 +43,16 @@ export async function exportPersonalData(
   ctx: ServiceContext,
 ): Promise<ServiceResult<Record<string, unknown>>> {
   const [
-    profileRes, listingsRes, purchasesRes, favoritesRes, conversationsRes,
+    profileRes, sellerProfileRes, buyerPrefsRes, authIdentitiesRes,
+    listingsRes, purchasesRes, favoritesRes, conversationsRes,
     messagesRes, notificationsRes, reviewsGivenRes, reviewsReceivedRes,
     storeMembersRes, commissionsRes, offersRes, reportsFiledRes, modThreadsRes,
     authUserRes,
   ] = await Promise.all([
     ctx.supabase.from('profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
+    ctx.admin.from('seller_profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
+    ctx.admin.from('buyer_preferences').select('*').eq('id', ctx.user.id).maybeSingle(),
+    ctx.admin.from('auth_identities').select('provider, sub, phone, created_at').eq('user_id', ctx.user.id),
     ctx.supabase.from('listings').select('*').eq('seller_id', ctx.user.id),
     ctx.supabase.from('listings').select('*').eq('buyer_id', ctx.user.id),
     ctx.supabase.from('favorites').select('*').eq('user_id', ctx.user.id),
@@ -76,6 +80,9 @@ export async function exportPersonalData(
       lastSignInAt: authUserRes.data?.user?.last_sign_in_at ?? null,
     },
     profile: profileRes.data ?? null,
+    sellerProfile: sellerProfileRes.data ?? null,
+    buyerPreferences: buyerPrefsRes.data ?? null,
+    authIdentities: authIdentitiesRes.data ?? [],
     marketplace: {
       listingsAsSeller: listingsRes.data ?? [],
       listingsAsBuyer: purchasesRes.data ?? [],
@@ -265,14 +272,14 @@ export async function becomeSeller(
   if (!input.birthdate) return fail('bad_input', 'bad_birthdate');
   if (!isValidKontonummer(input.kontonummer)) return fail('bad_input', 'bad_kontonummer');
 
-  // RLS-safe read: profile owner reads their own row.
+  // RLS-safe read: seller_profile owner reads their own row.
   const { data: existing } = await ctx.supabase
-    .from('profiles')
+    .from('seller_profiles')
     .select('stripe_account_id, stripe_connect_status')
     .eq('id', ctx.user.id)
     .maybeSingle();
 
-  let accountId = (existing as any)?.stripe_account_id as string | null ?? null;
+  let accountId = existing?.stripe_account_id ?? null;
 
   if (!accountId) {
     const result = await createSellerConnectAccount(ctx.env.STRIPE_SECRET_KEY, {
@@ -291,28 +298,27 @@ export async function becomeSeller(
     accountId = result.accountId ?? null;
   }
 
-  // Service-role write because the profile row's RLS policy is
-  // limited to read-own; this updates fields the user actually
-  // entered, scoped to their own row.
+  // Upsert into seller_profiles. Service-role because the table's
+  // RLS is owner-read but app uses admin client for writes so
+  // server-controlled fields (status, account_id) stay tamper-proof.
   const { error: updateError } = await ctx.admin
-    .from('profiles')
-    .update({
-      seller_legal_name: legalName,
-      seller_birthdate: input.birthdate,
-      seller_kontonummer: normalizeKontonummer(input.kontonummer),
-      seller_address: input.address,
-      seller_postal_code: input.postalCode,
-      seller_city: input.city,
+    .from('seller_profiles')
+    .upsert({
+      id: ctx.user.id,
+      legal_name: legalName,
+      birthdate: input.birthdate,
+      kontonummer: normalizeKontonummer(input.kontonummer),
+      address: input.address,
+      postal_code: input.postalCode,
+      city: input.city,
       seller_terms_accepted_at: new Date().toISOString(),
       stripe_account_id: accountId,
-      stripe_connect_status: (existing as any)?.stripe_connect_status === 'verified'
+      stripe_connect_status: existing?.stripe_connect_status === 'verified'
         ? 'verified'
         : 'pending',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', ctx.user.id);
+    });
   if (updateError) {
-    console.error('Become-seller profile update failed', updateError);
+    console.error('Become-seller seller_profile upsert failed', updateError);
     return fail('server_error', 'Could not save seller profile');
   }
 

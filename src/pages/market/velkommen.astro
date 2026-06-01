@@ -9,14 +9,21 @@ if (guard instanceof Response) return guard;
 const user = guard;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('first_name, display_name, strikketorget_welcomed_at')
-  .eq('id', user.id)
-  .maybeSingle();
+const [{ data: profile }, { data: prefs }] = await Promise.all([
+  supabase
+    .from('profiles')
+    .select('first_name, display_name')
+    .eq('id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('buyer_preferences')
+    .select('strikketorget_welcomed_at')
+    .eq('id', user.id)
+    .maybeSingle(),
+]);
 
 // Already welcomed — don't show it again.
-if (profile?.strikketorget_welcomed_at) return Astro.redirect('/market');
+if (prefs?.strikketorget_welcomed_at) return Astro.redirect('/market');
 
 const greetName = profile?.first_name || profile?.display_name?.split(' ')[0] || null;
 

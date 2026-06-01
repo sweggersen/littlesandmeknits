@@ -15,17 +15,26 @@ if (!userId) return Astro.redirect('/admin/users');
 
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-const { data: profile } = await admin
-  .from('profiles')
-  .select('id, display_name, role, stripe_connect_status, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
-  .eq('id', userId)
-  .single();
+const [{ data: profile }, { data: sellerConnect }] = await Promise.all([
+  admin
+    .from('profiles')
+    .select('id, display_name, role, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
+    .eq('id', userId)
+    .single(),
+  admin
+    .from('seller_profiles')
+    .select('stripe_connect_status')
+    .eq('id', userId)
+    .maybeSingle(),
+]);
 
 if (!profile) return Astro.redirect('/admin/users');
 
 const reviewStats = await getReviewStats(admin, userId);
-const trustScore = computeTrustScore(profile, reviewStats);
-const trustTier = determineTier(trustScore, profile);
+// Trust computation needs stripe_connect_status; merge in for compatibility.
+const profileForTrust = { ...profile, stripe_connect_status: sellerConnect?.stripe_connect_status ?? null };
+const trustScore = computeTrustScore(profileForTrust, reviewStats);
+const trustTier = determineTier(trustScore, profileForTrust);
 
 const { data: queueHistory } = await admin
   .from('moderation_queue')
@@ -80,7 +89,7 @@ function tierColor(tier: string) {
           <span class="text-charcoal/40">Registrert</span>
           <span>{new Date(profile.created_at).toLocaleDateString('nb-NO')}</span>
           <span class="text-charcoal/40">Stripe</span>
-          <span>{(profile as any).stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
+          <span>{sellerConnect?.stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
           <span class="text-charcoal/40">Fullførte</span>
           <span>{profile.total_completed_transactions}</span>
           <span class="text-charcoal/40">Avvisninger</span>

@@ -6,14 +6,21 @@ import { createServerSupabase } from '../../lib/supabase';
 const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('first_name, last_name, display_name, seller_legal_name, seller_birthdate, seller_kontonummer, seller_address, seller_postal_code, seller_city, stripe_connect_status')
-  .eq('id', user.id)
-  .maybeSingle();
+const [{ data: profile }, { data: seller }] = await Promise.all([
+  supabase
+    .from('profiles')
+    .select('first_name, last_name, display_name')
+    .eq('id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('seller_profiles')
+    .select('legal_name, birthdate, kontonummer, address, postal_code, city, stripe_connect_status')
+    .eq('id', user.id)
+    .maybeSingle(),
+]);
 
 // If already verified, send them on. If pending/restricted, show status.
-if (profile?.stripe_connect_status === 'verified') {
+if (seller?.stripe_connect_status === 'verified') {
   return Astro.redirect('/profile?seller=verified');
 }
 
@@ -28,7 +35,7 @@ const errorMessages: Record<string, string> = {
 };
 
 // Pre-fill from existing profile data when available
-const defaultName = profile?.seller_legal_name
+const defaultName = seller?.legal_name
   || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
   || profile?.display_name
   || '';
@@ -49,7 +56,7 @@ const defaultName = profile?.seller_legal_name
         </div>
       )}
 
-      {profile?.stripe_connect_status === 'pending' && (
+      {seller?.stripe_connect_status === 'pending' && (
         <div class="mb-6">
           <Alert type="info">
             Vi venter på godkjenning fra banken. Dette tar vanligvis noen minutter; du kan trygt lukke siden og komme tilbake.
@@ -57,7 +64,7 @@ const defaultName = profile?.seller_legal_name
         </div>
       )}
 
-      {profile?.stripe_connect_status === 'restricted' && (
+      {seller?.stripe_connect_status === 'restricted' && (
         <div class="mb-6">
           <Alert type="warning">
             Vi trenger mer informasjon for å verifisere deg som selger. Sjekk feltene under og oppdater om nødvendig.
@@ -93,7 +100,7 @@ const defaultName = profile?.seller_legal_name
             type="date"
             required
             max={`${new Date().getFullYear() - 18}-12-31`}
-            value={profile?.seller_birthdate ?? ''}
+            value={seller?.birthdate ?? ''}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
         </div>
@@ -108,7 +115,7 @@ const defaultName = profile?.seller_legal_name
             inputmode="numeric"
             pattern="[\d\s.\-]{11,15}"
             placeholder="1234 56 78901"
-            value={profile?.seller_kontonummer ?? ''}
+            value={seller?.kontonummer ?? ''}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
           <span class="block text-xs text-charcoal/45 mt-1.5">11 siffer. Vi sjekker at det er gyldig før vi lagrer.</span>
@@ -123,7 +130,7 @@ const defaultName = profile?.seller_legal_name
             required
             maxlength="120"
             autocomplete="street-address"
-            value={profile?.seller_address ?? ''}
+            value={seller?.address ?? ''}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
         </div>
@@ -140,7 +147,7 @@ const defaultName = profile?.seller_legal_name
               pattern="\d{4}"
               inputmode="numeric"
               autocomplete="postal-code"
-              value={profile?.seller_postal_code ?? ''}
+              value={seller?.postal_code ?? ''}
               class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
             />
           </div>
@@ -153,7 +160,7 @@ const defaultName = profile?.seller_legal_name
               required
               maxlength="60"
               autocomplete="address-level2"
-              value={profile?.seller_city ?? ''}
+              value={seller?.city ?? ''}
               class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
             />
           </div>

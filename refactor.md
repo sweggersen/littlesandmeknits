@@ -183,7 +183,22 @@ Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase stat
 
 ## Tier 2 — Hard to walk back later
 
-### ☐ Item 2 — Split `profiles` into purpose-specific tables
+### ☑ Item 2 — Split `profiles` into purpose-specific tables
+
+**Completed 2026-06-02.** Migration `0072_split_profiles.sql` ships three new tables and drops 16 legacy columns from `profiles`:
+
+- **`profiles`** keeps display identity + general onboarding + trust signals (`role`, `trust_score`, `trust_tier`, `total_completed_transactions`, `total_rejections`, `profile_visible`, `language`, `seller_tags`).
+- **`seller_profiles`** (1:1 with profiles via `id`): KYC + Stripe Connect — `legal_name`, `kontonummer`, `birthdate`, `address/postal_code/city`, `stripe_account_id`, `stripe_connect_status`, `stripe_connect_requirements`, `stripe_onboarded`, `seller_terms_accepted_at`, `seller_verified_at`.
+- **`buyer_preferences`** (1:1): `marketplace_interests`, `strikketorget_welcomed_at`.
+- **`auth_identities`** (1:N): one row per `(user_id, provider)` pair, holds `sub` + `phone`. Vipps rows backfilled from `profiles.vipps_sub` / `profiles.vipps_phone_e164`.
+
+RLS: owners can read+upsert their own rows in `seller_profiles` and `buyer_preferences`; staff (admin/moderator) read `seller_profiles` and `auth_identities` for moderation; service role bypasses for app writes. The existing "Users can update their own profile" policy was rewritten to drop the `stripe_*` pinned columns (they live in `seller_profiles` now and aren't user-writable from the profiles policy anymore).
+
+App audit: 9 call sites updated to read from the new tables (Stripe webhook, Vipps session, profile services, become-seller, profile/edit, market/listing/[id], admin/users/[id], admin/moderation/[id], market/velkommen, trust.ts, achievements.ts, listings.ts purchase path, commissions.ts pay path). Each affected service was tested via `npm test` (232 passing) and `astro check` (0 errors). Dev server smoke-tests `/market` in 142ms.
+
+Because there are no external users yet, this is a single-PR migration — no compat view, no two-phase rollout. Legacy columns dropped in the same migration.
+
+**Original plan:**
 
 **Goal:** stop using profiles as a junk drawer. Separate buyer-facing identity from seller payout data and signup flags.
 
