@@ -524,63 +524,10 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
   </style>
 
   <script>
-    function initFavBtn() {
-      document.querySelectorAll<HTMLButtonElement>('[data-fav-btn]').forEach(btn => {
-        if ((btn as any)._favBound) return;
-        (btn as any)._favBound = true;
-        const icon = btn.querySelector('[data-fav-icon]') as SVGElement;
-        function render() {
-          const on = btn.dataset.favorited === 'true';
-          icon?.setAttribute('fill', on ? 'currentColor' : 'none');
-          btn.style.color = on ? 'var(--color-primary)' : '';
-          btn.setAttribute('aria-label', on ? 'Fjern favoritt' : 'Legg til favoritt');
-        }
-        render();
-        btn.addEventListener('click', async () => {
-          btn.disabled = true;
-          const form = new FormData();
-          form.set('item_type', btn.dataset.itemType!);
-          form.set('item_id', btn.dataset.itemId!);
-          try {
-            const res = await fetch('/api/favorites/toggle', { method: 'POST', body: form, credentials: 'same-origin' });
-            if (res.ok) {
-              const data = await res.json();
-              btn.dataset.favorited = data.favorited ? 'true' : 'false';
-              render();
-            }
-          } finally { btn.disabled = false; }
-        });
-      });
-    }
-    initFavBtn();
-    document.addEventListener('astro:page-load', initFavBtn);
-  </script>
-  <script>
-    function initStarRating() {
-      document.querySelectorAll<HTMLFieldSetElement>('[data-star-rating]').forEach(fs => {
-        if ((fs as any)._bound) return;
-        (fs as any)._bound = true;
-        const stars = fs.querySelectorAll<SVGElement>('[data-star]');
-        const inputs = fs.querySelectorAll<HTMLInputElement>('input[name="rating"]');
-        function highlight(n: number) {
-          stars.forEach(s => {
-            const v = parseInt(s.dataset.star!, 10);
-            s.setAttribute('fill', v <= n ? 'currentColor' : 'none');
-            s.classList.toggle('text-terracotta-500', v <= n);
-            s.classList.toggle('text-charcoal/20', v > n);
-          });
-        }
-        inputs.forEach(inp => inp.addEventListener('change', () => highlight(parseInt(inp.value, 10))));
-        stars.forEach(s => {
-          s.addEventListener('mouseenter', () => highlight(parseInt(s.dataset.star!, 10)));
-          s.addEventListener('mouseleave', () => {
-            const checked = fs.querySelector<HTMLInputElement>('input[name="rating"]:checked');
-            highlight(checked ? parseInt(checked.value, 10) : 0);
-          });
-        });
-      });
-    }
-    initStarRating();
-    document.addEventListener('astro:page-load', initStarRating);
+    import { init as initFav } from "../../../lib/client/controllers/listing-fav-toggle";
+    import { init as initStars } from "../../../lib/client/controllers/star-rating";
+    import { registerController } from "../../../lib/client/dom";
+    registerController(initFav);
+    registerController(initStars);
   </script>
 </Layout>
