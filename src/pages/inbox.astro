@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import MarketplaceShell from '../components/MarketplaceShell.astro';
 import { createServerSupabase, createAdminSupabase } from '../lib/supabase';
+import { orEither } from '../lib/db/assert';
 import { env } from '../lib/env';
 
 // Middleware guarantees Astro.locals.user is set on /inbox.
@@ -21,7 +22,7 @@ const [convsRes, modRes, notifsRes] = await Promise.all([
       commission_requests(title),
       marketplace_messages(body, sender_id, created_at, read_at)
     `)
-    .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+    .or(orEither('buyer_id', 'seller_id', user.id))
     .order('updated_at', { ascending: false })
     .limit(50),
   supabase

@@ -4,6 +4,7 @@ import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import EmptyState from '../../components/EmptyState.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { orEither } from '../../lib/db/assert';
 import { requireUser } from '../../lib/auth';
 import { KIND_LABEL, LISTING_STATUS, COMMISSION_STATUS } from '../../lib/labels';
 
@@ -23,7 +24,7 @@ const [{ data: listings }, { data: conversations }, { data: knitterOffers }] = a
   supabase
     .from('marketplace_conversations')
     .select('id, marketplace_messages!inner(id, sender_id, read_at)')
-    .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
+    .or(orEither('buyer_id', 'seller_id', user.id))
     .neq('marketplace_messages.sender_id', user.id)
     .is('marketplace_messages.read_at', null),
   supabase

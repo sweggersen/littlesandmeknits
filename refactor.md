@@ -835,9 +835,15 @@ New regression test at `src/pages/api/stripe/webhook.test.ts`: parses the webhoo
 
 ---
 
-### ☐ R2-3 — Sanitize user IDs in `.or()` filter strings  **(P0)**
+### ☑ R2-3 — Sanitize user IDs in `.or()` filter strings  **(P0 → done 2026-06-02)**
 
-**Goal:** stop concatenating user IDs into PostgREST filter DSL strings. Today's risk is low (UUIDs from Supabase auth are strict), but the pattern is a foot-gun — the next dev who needs to query "conversations involving this user" will copy it without checking whether their ID is user-controlled and strictly-typed.
+**Completed.** All five `.or(\`...${id}...\`)` call sites refactored to go through `orEither(columnA, columnB, value)` in `src/lib/db/assert.ts`. The helper validates the value (UUID-safe alphanumeric only) before interpolating, so a maliciously-crafted ID can't break out of the `eq.<value>` clause and inject extra filter terms.
+
+Acceptance check: `grep -rn "\.or(\`.*\${" src/` returns zero hits.
+
+15 new tests in `src/lib/db/assert.test.ts` covering `assertUuid`, `asUuid`, `assertSafeForOrFilter`, and `orEither` including the injection cases that would have slipped past the old pattern.
+
+**Original goal:** stop concatenating user IDs into PostgREST filter DSL strings. Today's risk is low (UUIDs from Supabase auth are strict), but the pattern is a foot-gun — the next dev who needs to query "conversations involving this user" will copy it without checking whether their ID is user-controlled and strictly-typed.
 
 **Why:** PostgREST `.or()` takes a filter string. Concatenating raw values violates defense-in-depth. The right pattern is `.in()` on an array of IDs, or two chained queries merged in JS.
 

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { orEither } from './db/assert';
 
 const PRICE_RANGES: Record<string, [number, number]> = {
   genser: [200, 3000],
@@ -286,12 +287,13 @@ export async function hasConflict(admin: SupabaseClient, moderatorId: string, su
     if (offerCount && offerCount > 0) return true;
   }
 
-  // Check conversations
+  // Check conversations. AND between the two .or()s — match rows
+  // where the moderator AND the submitter are both participants.
   const { count: convCount } = await admin
     .from('marketplace_conversations')
     .select('id', { count: 'exact', head: true })
-    .or(`buyer_id.eq.${moderatorId},seller_id.eq.${moderatorId}`)
-    .or(`buyer_id.eq.${submitterId},seller_id.eq.${submitterId}`);
+    .or(orEither('buyer_id', 'seller_id', moderatorId))
+    .or(orEither('buyer_id', 'seller_id', submitterId));
   if (convCount && convCount > 0) return true;
 
   return false;

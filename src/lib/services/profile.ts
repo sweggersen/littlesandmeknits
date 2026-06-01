@@ -2,6 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime, projectPhotoUrl } from '../storage';
 import { isValidKontonummer, normalizeKontonummer } from '../kontonummer';
+import { orEither } from '../db/assert';
 import { createSellerConnectAccount } from './stripe-connect';
 
 const VALID_LANGS = new Set(['nb', 'en']);
@@ -56,7 +57,7 @@ export async function exportPersonalData(
     ctx.supabase.from('listings').select('*').eq('seller_id', ctx.user.id),
     ctx.supabase.from('listings').select('*').eq('buyer_id', ctx.user.id),
     ctx.supabase.from('favorites').select('*').eq('user_id', ctx.user.id),
-    ctx.supabase.from('marketplace_conversations').select('*').or(`buyer_id.eq.${ctx.user.id},seller_id.eq.${ctx.user.id}`),
+    ctx.supabase.from('marketplace_conversations').select('*').or(orEither('buyer_id', 'seller_id', ctx.user.id)),
     ctx.supabase.from('marketplace_messages').select('*').eq('sender_id', ctx.user.id),
     ctx.supabase.from('notifications').select('*').eq('user_id', ctx.user.id),
     ctx.supabase.from('seller_reviews').select('*').eq('reviewer_id', ctx.user.id),
