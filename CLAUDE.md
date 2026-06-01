@@ -1,6 +1,6 @@
 # CLAUDE.md — Littles and Me Knits
 
-> **⚠ Refactor in progress.** See [`refactor.md`](./refactor.md). Until those checkboxes are ticked, ship no new features that bypass the rules below. Items 1, 4, 11, 16 are ship-stopping — features wait on them.
+> **Hardening refactor closed 2026-06-02.** See [`refactor.md`](./refactor.md) for the historical record (15 ☑ done, 1 ⊘ wontfix). The rules below are derived from that work and remain in force.
 
 ## Project overview
 

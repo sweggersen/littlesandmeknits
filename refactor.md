@@ -1,9 +1,10 @@
 # Refactor plan — Strikketorget hardening
 
-**Status:** in progress
+**Status:** ☑ closed 2026-06-02 — 15 ☑ done · 1 ⊘ wontfix
 **Owner:** Sam + Claude
 **Started:** 2026-05-31
-**Rule:** until this document says every item is ☑, all other work is paused except urgent production fixes.
+
+This document was the single source of truth for the staff-engineer-review refactor. It's complete. Items below are kept as the historical record. New refactor work goes into its own document.
 
 This is the single source of truth for the refactor. We march top-to-bottom. Each item has a `Goal`, `Why`, `Files`, `Steps`, `Acceptance`, and `Effort`. Tick the box when done.
 
@@ -264,7 +265,11 @@ Because there are no external users yet, this is a single-PR migration — no co
 
 ---
 
-### ☐ Item 12 — Schema baseline consolidation
+### ⊘ Item 12 — Schema baseline consolidation — **WONTFIX 2026-06-02**
+
+Closed as not-worth-doing. The audience for this work is "new contributors reading 70 migrations to understand the schema" — and there's currently one contributor. `supabase db reset` runs in a reasonable amount of time on a local machine, and prod doesn't care. If a real onboarding pain emerges later (new dev joins, migration runtime gets annoying), revisit then — the procedure below still applies.
+
+**Original plan kept for reference:**
 
 **Goal:** new contributors don't have to read 70 migrations to understand the schema.
 
