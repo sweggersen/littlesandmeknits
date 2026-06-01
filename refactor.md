@@ -429,7 +429,29 @@ Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this 
 
 ### ◑ Item 3 — Generate Supabase types, remove `as any`
 
-**Infrastructure complete. Sweep documented as known-baseline.**
+**Infrastructure complete + most of the sweep landed: 270 → 41 errors (-229).**
+
+Real bugs surfaced and fixed (hidden behind `as any` casts before):
+
+| Bug | File | Impact |
+|-----|------|--------|
+| Cron read non-existent `project_progress` table (was renamed to `project_logs`) | `cron/run.ts` | Cron always thought no recent log existed → nudged every day |
+| `moderation_audit_log.actor_id: null` inserted into NOT NULL column | `cron/run.ts` | Insert would fail at runtime |
+| `listings.in('status', ['sold','delivered'])` — listings have no `delivered` status | `profile.ts` | Bookkeeping export silently missed half the data |
+| `stores.updated_at` doesn't exist | `sitemap.xml.ts` | Sitemap query was broken |
+| `now` used at L102 but declared at L155 | `cron/run.ts` | ReferenceError at runtime |
+| `webhook` reading `env.PUBLIC_SITE_URL` (PUBLIC_* lives on `import.meta.env`) | `stripe/webhook.ts` | Email links broken |
+| `stores.status: 'removed'` (not in store status enum) | `stores.ts deleteStore` | DB rejected the soft-delete |
+
+Big leverage fixes:
+
+- `toResponse()` widened to accept Astro's `RedirectFn` literal-union type → −70 errors in one edit.
+- `test-exec.ts` handler `p: any` (it's a dev fixture) → −87 errors.
+- `cloudflare:workers` ambient module in `env.d.ts`, web-push `BufferSource` casts.
+
+Remaining 41 errors are small typed-insert/update mismatches scattered across files — each ~5 lines to address. Path to zero is incremental.
+
+
 
 `npm run typecheck` now runs `astro check` (`@astrojs/check` + `typescript` installed as dev deps). Baseline: **~270 errors** across the repo. These reflect long-standing latent type issues the `as any` casts were hiding. The errors fall into recognisable groups:
 
