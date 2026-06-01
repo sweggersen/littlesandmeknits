@@ -655,7 +655,7 @@ async function handle(
       }).eq('id', elineId);
       await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
 
-      async function listing(opts: { title: string; status: string; photoCount: number; category?: string }) {
+      async function listing(opts: { title: string; status: 'draft' | 'active' | 'sold'; photoCount: number; category?: 'genser' | 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'teppe' | 'votter' | 'kjole' | 'annet' }) {
         const cat = opts.category ?? 'genser';
         const { data, error } = await db.from('listings').insert({
           seller_id: elineId,

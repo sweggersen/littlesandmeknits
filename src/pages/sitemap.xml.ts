@@ -47,9 +47,10 @@ export const GET: APIRoute = async () => {
     .limit(20000);
 
   // Active stores — small but valuable for brand-name queries.
+  // stores has no updated_at column; use created_at as the lastmod hint.
   const { data: stores } = await admin
     .from('stores')
-    .select('slug, updated_at')
+    .select('slug, created_at')
     .eq('status', 'active');
 
   const entries: string[] = [];
@@ -72,7 +73,7 @@ export const GET: APIRoute = async () => {
   }
   for (const s of stores ?? []) {
     if (!s.slug) continue;
-    entries.push(urlEntry(`/market/store/${s.slug}`, s.updated_at ?? undefined, 'weekly', '0.5'));
+    entries.push(urlEntry(`/market/store/${s.slug}`, s.created_at ?? undefined, 'weekly', '0.5'));
   }
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -190,11 +190,11 @@ export async function updateStore(
     'location_city', 'accent_color', 'opening_hours',
     'banner_path', 'logo_path',
   ];
-  const update: Record<string, unknown> = {};
+  const update: Partial<UpdateStoreInput> = {};
   for (const key of allowed) {
-    if (patch[key] !== undefined) update[key] = patch[key];
+    if (patch[key] !== undefined) (update[key] as unknown) = patch[key];
   }
-  if (typeof update.name === 'string' && (update.name as string).trim().length < 2) {
+  if (typeof update.name === 'string' && update.name.trim().length < 2) {
     return fail('bad_input', 'Navn er for kort');
   }
 
@@ -216,7 +216,7 @@ export async function softDeleteStore(
 
   const { error } = await ctx.admin
     .from('stores')
-    .update({ deleted_at: new Date().toISOString(), status: 'archived' })
+    .update({ deleted_at: new Date().toISOString(), status: 'removed' })
     .eq('id', storeId);
   if (error) return fail('server_error', 'Kunne ikke slette butikk');
 
@@ -225,7 +225,7 @@ export async function softDeleteStore(
   // (delivery confirm, refund, dispute) keeps working.
   await ctx.admin
     .from('listings')
-    .update({ status: 'archived' })
+    .update({ status: 'removed' })
     .eq('store_id', storeId)
     .in('status', ['active', 'draft', 'pending_review']);
 
@@ -280,15 +280,15 @@ export async function uploadStoreImage(
   }
 
   // Delete old image (if any) so storage doesn't accumulate orphans.
-  const { data: prev } = await ctx.admin.from('stores').select(`${kind}_path`).eq('id', storeId).maybeSingle();
-  const prevPath = prev?.[`${kind}_path` as keyof typeof prev] as string | null;
+  const pathField: 'logo_path' | 'banner_path' = kind === 'logo' ? 'logo_path' : 'banner_path';
+  const { data: prev } = await ctx.admin.from('stores').select(pathField).eq('id', storeId).maybeSingle();
+  const prevPath = prev ? (prev as Record<typeof pathField, string | null>)[pathField] : null;
   if (prevPath && prevPath !== path) {
     await ctx.admin.storage.from('projects').remove([prevPath]).catch(() => {});
   }
 
-  const updateField = kind === 'logo' ? 'logo_path' : 'banner_path';
   const { error: updErr } = await ctx.admin
-    .from('stores').update({ [updateField]: path }).eq('id', storeId);
+    .from('stores').update({ [pathField]: path }).eq('id', storeId);
   if (updErr) {
     console.error('Store image update failed', updErr);
     return fail('server_error', 'Kunne ikke lagre bilde');

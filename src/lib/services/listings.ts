@@ -84,11 +84,17 @@ export async function createListing(
       escrow_enabled: escrowEnabled,
       shipping_option: tier.id,
       shipping_price_nok: tier.priceNok,
-      kind: input.kind, title, description: input.description?.trim() || null,
+      // VALID_KIND / VALID_CATEGORIES / VALID_CONDITION above narrow
+      // these to the enum values but TS can't carry the narrowing
+      // across a Set.has() check. Cast at the insert site.
+      kind: input.kind as 'pre_loved' | 'ready_made',
+      title,
+      description: input.description?.trim() || null,
       price_nok: priceNok, size_label: sizeLabel,
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
       size_age_months_max: toIntOrNull(input.sizeAgeMonthsMax),
-      category: input.category, condition,
+      category: input.category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet',
+      condition: condition as 'lite_brukt' | 'brukt' | 'som_ny' | 'slitt' | null,
       pattern_slug: input.patternSlug?.trim() || null,
       pattern_external_title: input.patternExternalTitle?.trim() || null,
       colorway: input.colorway?.trim() || null,
@@ -409,8 +415,9 @@ export async function purchaseListing(
     mode: 'payment',
     line_items: lineItems,
     // Vipps is the Norwegian default; card + Apple Pay cover everyone else.
-    // 'vipps' became available as a Stripe Checkout payment method in NO.
-    payment_method_types: ['vipps', 'card'],
+    // 'vipps' became available as a Stripe Checkout payment method in
+    // NO. Stripe's TS types lag the API by months; cast at call site.
+    payment_method_types: ['vipps' as 'card', 'card'],
     shipping_address_collection: { allowed_countries: ['NO'] },
     payment_intent_data: {
       capture_method: 'manual',

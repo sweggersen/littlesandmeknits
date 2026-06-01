@@ -142,7 +142,10 @@ export const POST: APIRoute = async ({ request }) => {
       const now = new Date().toISOString();
       const feeNok = session.amount_total ? Math.round((session.amount_total * 0.13) / 100) : 0;
 
-      const shipping = session.shipping_details;
+      // Stripe's TS types lag on Checkout Session shipping_details
+      // (the field is present in API responses for sessions created
+      // with shipping_address_collection enabled).
+      const shipping = (session as unknown as { shipping_details?: { name?: string | null; address?: { line1?: string | null; postal_code?: string | null; city?: string | null } | null } }).shipping_details;
       const { error } = await supabase
         .from('listings')
         .update({
@@ -180,7 +183,12 @@ export const POST: APIRoute = async ({ request }) => {
           url: `/market/listing/${purchaseListingId}`,
           actorId: buyerId,
           referenceId: purchaseListingId,
-        }, { RESEND_API_KEY: env.RESEND_API_KEY, PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, PUBLIC_VAPID_KEY: env.PUBLIC_VAPID_KEY, VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY });
+        }, {
+          RESEND_API_KEY: env.RESEND_API_KEY,
+          PUBLIC_SITE_URL: import.meta.env.PUBLIC_SITE_URL,
+          PUBLIC_VAPID_KEY: import.meta.env.PUBLIC_VAPID_KEY,
+          VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY,
+        });
       }
 
       return new Response('ok', { status: 200 });

@@ -121,7 +121,7 @@ export async function getBookkeeping(
     .from('listings')
     .select('id, title, price_nok, platform_fee_nok, sold_at, status, kind, store_id')
     .eq('seller_id', ctx.user.id)
-    .in('status', ['sold', 'delivered'])
+    .eq('status', 'sold')
     .gte('sold_at', input.fromIso)
     .lte('sold_at', input.toIso + 'T23:59:59.999Z')
     .order('sold_at', { ascending: true });
@@ -225,7 +225,7 @@ export async function deleteAccount(
     bio: null,
     instagram_handle: null,
     location: null,
-    seller_tags: null,
+    seller_tags: [],
     deleted_at: new Date().toISOString(),
   }).eq('id', ctx.user.id);
 
@@ -401,7 +401,18 @@ export async function editProfile(
     avatarPath = path;
   }
 
-  const profileUpdate: Record<string, any> = {
+  const profileUpdate: {
+    display_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    bio: string | null;
+    location: string | null;
+    instagram_handle: string | null;
+    seller_tags: string[];
+    profile_visible: boolean;
+    updated_at: string;
+    avatar_path?: string;
+  } = {
     display_name: displayName, first_name: firstName, last_name: lastName,
     bio, location,
     instagram_handle: instagram, seller_tags: sellerTags,
@@ -473,7 +484,16 @@ export async function updateMarketplaceProfile(
     if (upErr) return fail('server_error', 'Upload failed');
   }
 
-  const update: Record<string, unknown> = {
+  const update: {
+    display_name: string | null;
+    bio: string | null;
+    location: string | null;
+    instagram_handle: string | null;
+    seller_tags: string[];
+    profile_visible: boolean;
+    updated_at: string;
+    avatar_path?: string;
+  } = {
     display_name: displayName, bio, location,
     instagram_handle: instagram, seller_tags: sellerTags,
     profile_visible: input.profileVisible,

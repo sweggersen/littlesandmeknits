@@ -198,7 +198,9 @@ export async function shadowConfirm(
       status: overriddenStatus, shadow_confirmed_at: now, shadow_confirmed_by: ctx.user.id,
     }).eq('id', input.queueId);
 
-    await ctx.admin.rpc('increment_shadow_overrides', { p_user_id: qi.decision_by });
+    if (qi.decision_by) {
+      await ctx.admin.rpc('increment_shadow_overrides', { p_user_id: qi.decision_by });
+    }
 
     if (overriddenStatus === 'approved') {
       await applyApproval(ctx.admin, qi, ctx.user.id, ctx.env, createNotification);
@@ -319,7 +321,7 @@ export async function resolveReport(
   if (affect === 'archive') {
     if (report.target_type === 'listing') {
       await ctx.admin.from('listings').update({
-        status: 'archived', reviewed_at: now, reviewed_by: ctx.user.id,
+        status: 'removed', reviewed_at: now, reviewed_by: ctx.user.id,
         moderation_notes: input.notes || null,
       }).eq('id', report.target_id);
       itemAction = 'listing_archived';
@@ -330,7 +332,7 @@ export async function resolveReport(
       // Hide store's active listings as well (matches the moderation
       // rejection flow).
       await ctx.admin.from('listings')
-        .update({ status: 'archived' })
+        .update({ status: 'removed' })
         .eq('store_id', report.target_id)
         .in('status', ['active', 'draft', 'pending_review']);
       itemAction = 'store_suspended';
@@ -373,7 +375,7 @@ export async function changeUserRole(
     .from('profiles').select('role').eq('id', input.userId).single();
   if (!profile) return fail('not_found', 'User not found');
 
-  const newRole = input.role || null;
+  const newRole = (input.role || null) as 'admin' | 'moderator' | 'ambassador' | null;
   await ctx.admin.from('profiles').update({ role: newRole }).eq('id', input.userId);
 
   await ctx.admin.from('moderation_audit_log').insert({
