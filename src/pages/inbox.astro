@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import MarketplaceShell from '../components/MarketplaceShell.astro';
 import { createServerSupabase, createAdminSupabase } from '../lib/supabase';
-import { env } from 'cloudflare:workers';
+import { env } from '../lib/env';
 
 // Middleware guarantees Astro.locals.user is set on /inbox.
 const user = Astro.locals.user!;

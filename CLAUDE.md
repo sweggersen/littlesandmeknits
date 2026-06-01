@@ -180,7 +180,7 @@ That's a bug report waiting six months. Either roll back or dead-letter.
 
 ## Env access boundary
 
-`import { env } from 'cloudflare:workers'` is allowed in exactly **one file**: `src/lib/env.ts` (per refactor item #10). Every other module calls `getEnv()`. This is the swap point if we ever move off Cloudflare Workers.
+`import { env } from 'cloudflare:workers'` is allowed in exactly **one file**: `src/lib/env.ts`. Every other module imports `env` from there (`import { env } from '../lib/env'`). This is the swap point if we ever move off Cloudflare Workers. Enforce with: `grep -rln "from 'cloudflare:workers'" src/` should return only `src/lib/env.ts`.
 
 ## Client-side scripts
 

@@ -9,7 +9,7 @@ import { requireUser } from '../../../../lib/auth';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
 import { projectPhotoUrl } from '../../../../lib/storage';
 import { formatDate } from '../../../../lib/time';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../../lib/env';
 
 const requestId = Astro.params.id;
 if (!requestId) return Astro.redirect('/market');

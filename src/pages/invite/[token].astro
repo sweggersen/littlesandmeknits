@@ -3,7 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import { buildServiceContext } from '../../lib/services/context';
 import { ROLE_LABEL_NB } from '../../lib/services/store-permissions';
 import { createAdminSupabase } from '../../lib/supabase';
-import { env } from 'cloudflare:workers';
+import { env } from '../../lib/env';
 import type { StoreRole } from '../../lib/types/stores';
 
 const token = Astro.params.token ?? '';

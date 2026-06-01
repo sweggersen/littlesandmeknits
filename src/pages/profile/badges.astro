@@ -2,7 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { createAdminSupabase } from '../../lib/supabase';
-import { env } from 'cloudflare:workers';
+import { env } from '../../lib/env';
 import { getUserAchievements, checkAndGrantAchievements, ACHIEVEMENTS, CATEGORY_LABELS, TIER_LABEL, type AchievementTier } from '../../lib/achievements';
 
 const user = Astro.locals.user!;  // middleware-gated route

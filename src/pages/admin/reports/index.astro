@@ -3,7 +3,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { REPORT_STATUS } from '../../../lib/labels';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');

@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { vippsConfig, randomToken, pkceChallenge, authorizationUrl } from '../../../lib/vipps';
 
 // Cookie names — short-lived, signed by being random + httpOnly.

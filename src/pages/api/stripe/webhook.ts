@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import type Stripe from 'stripe';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { createStripe } from '../../../lib/stripe';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';

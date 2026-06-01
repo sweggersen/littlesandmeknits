@@ -3,7 +3,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../lib/admin-auth';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { anonymizeUser, staffOrAnon } from '../../../lib/anonymize';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/admin');

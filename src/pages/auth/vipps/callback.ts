@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { vippsConfig, exchangeCode, fetchUserinfo } from '../../../lib/vipps';
 import { signInWithVippsUserinfo } from '../../../lib/vipps-session';
 import { createAdminSupabase } from '../../../lib/supabase';

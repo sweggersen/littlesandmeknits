@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { createAdminSupabase, createServerSupabase } from '../../../lib/supabase';
 
 // A GET on this endpoint usually means the user hit refresh on the URL.

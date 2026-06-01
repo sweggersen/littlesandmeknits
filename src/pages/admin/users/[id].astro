@@ -5,7 +5,7 @@ import { createAdminSupabase } from '../../../lib/supabase';
 import { getReviewStats } from '../../../lib/moderation';
 import { computeTrustScore, determineTier } from '../../../lib/trust';
 import { anonymizeUser, staffOrAnon } from '../../../lib/anonymize';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/admin');

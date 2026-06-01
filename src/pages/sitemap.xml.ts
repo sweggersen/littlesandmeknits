@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createAdminSupabase } from '../lib/supabase';
 import { listingPath } from '../lib/listing-url';
-import { env } from 'cloudflare:workers';
+import { env } from '../lib/env';
 
 const SITE = 'https://littlesandmeknits.com';
 

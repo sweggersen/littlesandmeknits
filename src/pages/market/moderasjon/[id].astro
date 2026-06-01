@@ -3,7 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { requireUser } from '../../../lib/auth';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 const guard = await requireUser(Astro);
 if (guard instanceof Response) return guard;

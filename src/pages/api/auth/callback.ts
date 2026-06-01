@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { sendEmail } from '../../../lib/email';
 import { renderWelcomeEmail } from '../../../lib/email-templates';
 

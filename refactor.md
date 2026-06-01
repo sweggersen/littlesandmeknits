@@ -420,7 +420,18 @@ Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this 
 
 ---
 
-### ☐ Item 10 — Single env-import boundary
+### ☑ Item 10 — Single env-import boundary
+
+**Completed 2026-06-01.** All 42 callers now `import { env } from '<relative>/lib/env'`. The one Cloudflare-coupled import lives in `src/lib/env.ts` itself.
+
+```
+$ grep -rln "from 'cloudflare:workers'" src/
+src/lib/env.ts
+```
+
+No ESLint config exists in the repo so the lint rule isn't possible right now; CLAUDE.md now documents the rule + the grep command that enforces it. When ESLint lands, add `no-restricted-imports: ['error', { paths: [{ name: 'cloudflare:workers', message: "import { env } from '@/lib/env' instead" }] }]` scoped to all files except `src/lib/env.ts`.
+
+
 
 **Goal:** swap runtime without rewriting 108 files.
 

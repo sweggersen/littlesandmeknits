@@ -1,7 +1,7 @@
 // Dev-only: instantly approve a store by slug, bypassing the moderation queue.
 //   POST /api/dev/approve-store with { slug } JSON body
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
 

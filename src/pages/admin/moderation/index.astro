@@ -4,7 +4,7 @@ import { requireModerator, isShadowEligible } from '../../../lib/admin-auth';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { MODERATION_QUEUE_STATUS } from '../../../lib/labels';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');

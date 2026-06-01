@@ -2,7 +2,7 @@
 import Layout from '../../../../layouts/Layout.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
 import { requireUser } from '../../../../lib/auth';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../../lib/env';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market');

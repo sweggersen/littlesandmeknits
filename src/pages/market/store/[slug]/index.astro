@@ -9,7 +9,7 @@ import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/servic
 import { getMyRole } from '../../../../lib/services/store-members';
 import { projectPhotoUrl } from '../../../../lib/storage';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../../lib/env';
 
 const slug = Astro.params.slug ?? '';
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);

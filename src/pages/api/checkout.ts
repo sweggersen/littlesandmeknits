@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../lib/env';
 import { getEntry } from 'astro:content';
 import { buildServiceContext } from '../../lib/services/context';
 import { createPatternCheckout } from '../../lib/services/checkout';

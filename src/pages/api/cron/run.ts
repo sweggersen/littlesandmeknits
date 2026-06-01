@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env as cfEnv } from 'cloudflare:workers';
+import { env as cfEnv } from '../../../lib/env';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { createStripe } from '../../../lib/stripe';

@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../lib/env';
 
 if (import.meta.env.PROD) return Astro.redirect('/market');
 

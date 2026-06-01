@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../../../lib/env';
 import { buildServiceContext } from '../../../../../lib/services/context';
 import { purchaseListing } from '../../../../../lib/services/listings';
 

@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 
 // Dev-only endpoint. Signs in as a @test.strikketorget.no user by setting a

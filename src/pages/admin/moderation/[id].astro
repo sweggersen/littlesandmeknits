@@ -7,7 +7,7 @@ import { anonymizeUser } from '../../../lib/anonymize';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { CATEGORY_LABEL } from '../../../lib/labels';
 import { lookupOrgnrRoles, type OrgRole } from '../../../lib/brreg';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');

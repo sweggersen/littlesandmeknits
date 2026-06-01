@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import InterestForm from '../components/InterestForm.astro';
 import Alert from '../components/Alert.astro';
 // Auth lookup moved to middleware → Astro.locals.user
-import { env } from 'cloudflare:workers';
+import { env } from '../lib/env';
 
 const user = Astro.locals.user;
 if (user) {

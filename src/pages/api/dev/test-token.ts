@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 
 // Returns the daily HMAC admin token used to authenticate /api/dev/test-exec
 // from Playwright tests. Localhost-only.

@@ -10,7 +10,7 @@ import Alert from '../../../components/Alert.astro';
 import StatusBadge from '../../../components/StatusBadge.astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { KIND_LABEL, LISTING_STATUS, CONDITION_LABEL } from '../../../lib/labels';
 import { extractListingId, listingPath } from '../../../lib/listing-url';
 

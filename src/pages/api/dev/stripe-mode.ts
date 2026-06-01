@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { env } from 'cloudflare:workers';
+import { env } from '../../../lib/env';
 import { requireAdmin } from '../../../lib/admin-auth';
 
 // Returns whether STRIPE_SECRET_KEY currently in the env is in TEST or
