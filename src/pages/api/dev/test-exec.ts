@@ -2,6 +2,36 @@ import type { APIRoute } from 'astro';
 import { env } from 'cloudflare:workers';
 import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
+import type { ServiceContext } from '../../../lib/services/types';
+import {
+  createRequest as svcCreateRequest,
+  makeOffer as svcMakeOffer,
+  acceptOffer as svcAcceptOffer,
+  payCommission as svcPayCommission,
+  markCompleted as svcMarkCompleted,
+  confirmDelivery as svcConfirmDelivery,
+} from '../../../lib/services/commissions';
+import {
+  shipListing as svcShipListing,
+  confirmListingDelivery as svcConfirmListingDelivery,
+} from '../../../lib/services/listings';
+
+/** Test-only synthetic ctx: the admin client backs both `supabase` and
+ *  `admin` slots, so services can do their work without RLS getting
+ *  in the way. RLS is exercised by the dedicated rls.spec.ts suite,
+ *  not by test-exec — these are flow fixtures, not policy tests. */
+function synthCtx(
+  db: ReturnType<typeof createAdminSupabase>,
+  actorId: string,
+  actorEmail?: string,
+): ServiceContext {
+  return {
+    supabase: db,
+    admin: db,
+    user: { id: actorId, email: actorEmail ?? undefined },
+    env: env as unknown as Record<string, string>,
+  };
+}
 
 const ADMINS = ['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'];
 
@@ -195,143 +225,57 @@ async function handle(
 
     case 'make-offer': {
       if (!actorId) throw new Error('Actor required');
-      const { data, error } = await db.from('commission_offers').insert({
-        request_id: p.request_id,
-        knitter_id: actorId,
-        price_nok: p.price_nok ?? 1200,
-        turnaround_weeks: p.turnaround_weeks ?? 3,
-        message: p.message ?? 'Jeg kan strikke dette for deg!',
-        status: 'pending',
-      }).select().single();
-      if (error) throw error;
-
-      const { data: req } = await db.from('commission_requests')
-        .select('buyer_id, title')
-        .eq('id', p.request_id)
-        .single();
-      if (req) {
-        await db.from('notifications').insert({
-          user_id: req.buyer_id,
-          type: 'new_offer',
-          title: `Nytt tilbud på «${req.title}»`,
-          body: `${p.price_nok ?? 1200} kr — ${p.turnaround_weeks ?? 3} uker`,
-          url: `/market/commissions/${p.request_id}`,
-          actor_id: actorId,
-          reference_id: data.id,
-        });
-      }
-      return { data: { ...data, offerId: data.id } };
+      const result = await svcMakeOffer(synthCtx(db, actorId), {
+        requestId: p.request_id as string,
+        priceNok: String(p.price_nok ?? 1200),
+        turnaroundWeeks: String(p.turnaround_weeks ?? 3),
+        message: (p.message as string) ?? 'Jeg kan strikke dette for deg!',
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      // Fetch the just-created offer so ui-flows can capture $offerId.
+      const { data: offer } = await db.from('commission_offers')
+        .select('id').eq('request_id', p.request_id).eq('knitter_id', actorId)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      return { data: { id: offer?.id, offerId: offer?.id } };
     }
 
     case 'accept-first-offer': {
       // Convenience for ui-flows: when the buyer doesn't have a captured
       // $offerId (e.g. the offer was created via real UI form submit),
-      // accept whichever pending offer exists on the request.
+      // accept whichever pending offer exists on the request. Falls
+      // through to accept-offer which calls the real service.
       if (!actorId) throw new Error('Actor required');
       const { data: pending } = await db.from('commission_offers')
         .select('id').eq('request_id', p.request_id).eq('status', 'pending')
         .order('created_at', { ascending: true }).limit(1).maybeSingle();
       if (!pending) throw new Error('No pending offer found');
       p.offer_id = pending.id;
-      // Fall through to the existing accept-offer logic below.
     }
     // eslint-disable-next-line no-fallthrough
     case 'accept-offer': {
       if (!actorId) throw new Error('Actor required');
-      const { data: offer } = await db.from('commission_offers')
-        .select('id, request_id, knitter_id, price_nok')
-        .eq('id', p.offer_id)
-        .single();
-      if (!offer) throw new Error('Offer not found');
-
-      const { data: req } = await db.from('commission_requests')
-        .select('id, title, buyer_id')
-        .eq('id', offer.request_id)
-        .single();
-      if (!req) throw new Error('Request not found');
-
-      await db.from('commission_offers')
-        .update({ status: 'accepted' })
-        .eq('id', p.offer_id);
-
-      const { data: declined } = await db.from('commission_offers')
-        .update({ status: 'declined' })
-        .eq('request_id', offer.request_id)
-        .neq('id', p.offer_id as string)
-        .eq('status', 'pending')
-        .select('knitter_id');
-
-      await db.from('commission_requests')
-        .update({ status: 'awaiting_payment', awarded_offer_id: p.offer_id })
-        .eq('id', offer.request_id);
-
-      await db.from('notifications').insert({
-        user_id: offer.knitter_id,
-        type: 'offer_accepted',
-        title: 'Tilbudet ditt ble akseptert!',
-        body: `«${req.title}» — ${offer.price_nok} kr`,
-        url: `/market/commissions/${offer.request_id}`,
-        actor_id: actorId,
-        reference_id: p.offer_id,
-      });
-
-      for (const d of declined ?? []) {
-        await db.from('notifications').insert({
-          user_id: d.knitter_id,
-          type: 'offer_declined',
-          title: 'Tilbudet ditt ble avslått',
-          body: `«${req.title}»`,
-          url: `/market/commissions/${offer.request_id}`,
-          actor_id: actorId,
-        });
-      }
-
-      return { data: { offerId: p.offer_id, declined: declined?.length ?? 0 } };
+      const result = await svcAcceptOffer(synthCtx(db, actorId), { offerId: p.offer_id as string });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { offerId: p.offer_id } };
     }
 
     case 'pay': {
+      // Calls the real payCommission service. In test env the knitter's
+      // stripe_connect_status is usually not 'verified' so the Stripe
+      // PaymentIntent step is skipped — the service still flips status,
+      // notifies the knitter, and ensures the project exists.
       if (!actorId) throw new Error('Actor required');
+      const result = await svcPayCommission(synthCtx(db, actorId), { requestId: p.request_id as string });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      // Fetch the project so existing tests that pluck `.data.project` keep working.
       const { data: req } = await db.from('commission_requests')
-        .select('*, commission_offers!commission_requests_awarded_offer_fkey(knitter_id, price_nok)')
-        .eq('id', p.request_id)
-        .single();
-      if (!req) throw new Error('Request not found');
-
-      const offer = (req as any).commission_offers;
-      if (!offer) throw new Error('No awarded offer');
-
-      const nextStatus = req.yarn_provided_by_buyer ? 'awaiting_yarn' : 'awarded';
-
-      await db.from('commission_requests')
-        .update({
-          status: nextStatus,
-          stripe_payment_intent_id: 'pi_test_' + Date.now(),
-          platform_fee_nok: Math.round(offer.price_nok * 0.13),
-        })
-        .eq('id', p.request_id);
-
-      const projectStatus = req.yarn_provided_by_buyer ? 'planning' : 'active';
-      const { data: project } = await db.from('projects').insert({
-        user_id: offer.knitter_id,
-        title: req.title,
-        status: projectStatus,
-        target_size: req.size_label,
-        yarn: req.yarn_preference,
-        summary: req.description,
-        commission_offer_id: req.awarded_offer_id,
-      }).select().single();
-
-      await db.from('notifications').insert({
-        user_id: offer.knitter_id,
-        type: 'payment_received',
-        title: `Betaling mottatt for «${req.title}»`,
-        body: `${offer.price_nok} kr`,
-        url: `/market/commissions/${p.request_id}`,
-        actor_id: actorId,
-        reference_id: p.request_id as string,
-      });
-
-      return { data: { status: nextStatus, project } };
+        .select('status, commission_offers!commission_requests_awarded_offer_fkey(project_id)')
+        .eq('id', p.request_id).single();
+      const projectId = (req as any)?.commission_offers?.project_id ?? null;
+      const project = projectId
+        ? (await db.from('projects').select('*').eq('id', projectId).maybeSingle()).data
+        : null;
+      return { data: { status: req?.status, project } };
     }
 
     case 'ship-yarn': {
@@ -396,59 +340,18 @@ async function handle(
 
     case 'mark-completed': {
       if (!actorId) throw new Error('Actor required');
-      const autoRelease = new Date();
-      autoRelease.setDate(autoRelease.getDate() + 14);
-
-      await db.from('commission_requests')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-          auto_release_at: autoRelease.toISOString(),
-        })
-        .eq('id', p.request_id);
-
-      const { data: req } = await db.from('commission_requests')
-        .select('title, buyer_id')
-        .eq('id', p.request_id)
-        .single();
-
-      if (req) {
-        await db.from('notifications').insert({
-          user_id: req.buyer_id,
-          type: 'commission_completed',
-          title: 'Oppdraget er ferdig!',
-          body: `«${req.title}» — bekreft mottak innen 14 dager.`,
-          url: `/market/commissions/${p.request_id}`,
-          actor_id: actorId,
-        });
-      }
-
+      const result = await svcMarkCompleted(synthCtx(db, actorId), {
+        requestId: p.request_id as string,
+        trackingCode: (p.tracking_code as string | undefined),
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'completed' } };
     }
 
     case 'confirm-delivery': {
       if (!actorId) throw new Error('Actor required');
-      await db.from('commission_requests')
-        .update({ status: 'delivered', delivered_at: new Date().toISOString() })
-        .eq('id', p.request_id);
-
-      const { data: req } = await db.from('commission_requests')
-        .select('title, commission_offers!commission_requests_awarded_offer_fkey(knitter_id)')
-        .eq('id', p.request_id)
-        .single();
-
-      const knitterId = (req as any)?.commission_offers?.knitter_id;
-      if (knitterId) {
-        await db.from('notifications').insert({
-          user_id: knitterId,
-          type: 'commission_delivered',
-          title: 'Levering bekreftet!',
-          body: `«${req?.title}» — pengene frigis.`,
-          url: `/market/commissions/${p.request_id}`,
-          actor_id: actorId,
-        });
-      }
-
+      const result = await svcConfirmDelivery(synthCtx(db, actorId), { requestId: p.request_id as string });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'delivered' } };
     }
 
@@ -505,57 +408,20 @@ async function handle(
 
     case 'ship-listing': {
       if (!actorId) throw new Error('Actor required');
-      const now = new Date().toISOString();
-      const { error: shipErr } = await db.from('listings').update({
-        status: 'shipped',
-        shipped_at: now,
-        tracking_code: p.tracking_code ?? 'TEST-TRACK-001',
-      }).eq('id', p.listing_id);
-      if (shipErr) throw new Error(shipErr.message);
-
-      const { data: sl } = await db.from('listings')
-        .select('title, buyer_id')
-        .eq('id', p.listing_id)
-        .single();
-
-      if (sl?.buyer_id) {
-        await db.from('notifications').insert({
-          user_id: sl.buyer_id,
-          type: 'listing_shipped',
-          title: 'Varen er sendt!',
-          body: p.tracking_code ? `Sporing: ${p.tracking_code}` : `«${sl.title}»`,
-          url: `/market/listing/${p.listing_id}`,
-          actor_id: actorId,
-        });
-      }
-
+      const result = await svcShipListing(synthCtx(db, actorId), {
+        listingId: p.listing_id as string,
+        trackingCode: (p.tracking_code as string | undefined) ?? 'TEST-TRACK-001',
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'shipped' } };
     }
 
     case 'confirm-listing-delivery': {
       if (!actorId) throw new Error('Actor required');
-      const now = new Date().toISOString();
-      const { error: delErr } = await db.from('listings').update({
-        status: 'sold',
-        delivered_at: now,
-      }).eq('id', p.listing_id);
-      if (delErr) throw new Error(delErr.message);
-
-      const { data: dl } = await db.from('listings')
-        .select('title, seller_id')
-        .eq('id', p.listing_id)
-        .single();
-
-      if (dl?.seller_id) {
-        await db.from('notifications').insert({
-          user_id: dl.seller_id,
-          type: 'listing_delivered',
-          title: 'Levering bekreftet!',
-          body: `«${dl.title}» — pengene frigis.`,
-          url: `/market/listing/${p.listing_id}`,
-          actor_id: actorId,
-        });
-      }
+      const result = await svcConfirmListingDelivery(synthCtx(db, actorId), {
+        listingId: p.listing_id as string,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
 
       return { data: { status: 'sold' } };
     }

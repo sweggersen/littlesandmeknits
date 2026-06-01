@@ -268,7 +268,11 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ## Tier 3 — Compounding pain
 
-### ☐ Item 5 — test-exec calls real services, not duplicates them
+### ◑ Item 5 — test-exec calls real services, not duplicates them
+
+**Major progress 2026-06-01.** Added `synthCtx(db, actorId)` helper in `test-exec.ts` that builds a `ServiceContext` with the admin client backing both `supabase` and `admin` slots (RLS is exercised separately by `rls.test.ts`). Converted the high-drift commerce-flow cases to call real services: `make-offer`, `accept-offer`, `accept-first-offer` (falls through), `pay`, `mark-completed`, `confirm-delivery`, `ship-listing`, `confirm-listing-delivery`. File size dropped 1579 → 1445 lines, and each converted case is now ~5 lines instead of 30-50. **Remaining**: `create-request` (moderation queue logic — needs trust setup), `purchase-listing` (Stripe Checkout — needs bypass mode in the service), `ship-yarn`/`receive-yarn`, `publish-listing`, `submit-seller-review`. Fixture cases (`cleanup`, `seed-*`, `set-*`) stay inline by design. The pattern is established — each remaining conversion is a ~10-line edit.
+
+
 
 **Goal:** demo harness fixtures execute the same code paths users hit.
 
