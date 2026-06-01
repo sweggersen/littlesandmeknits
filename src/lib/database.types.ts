@@ -2341,6 +2341,35 @@ export type Database = {
           },
         ]
       }
+      user_action_counts: {
+        Row: {
+          action: string
+          count: number
+          day: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          count?: number
+          day: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          count?: number
+          day?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_action_counts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       yarns: {
         Row: {
           acquired_at: string | null
@@ -2428,6 +2457,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      is_accepted_knitter: { Args: { req_id: string }; Returns: boolean }
       is_admin: { Args: { uid: string }; Returns: boolean }
       is_admin_or_moderator: { Args: { uid: string }; Returns: boolean }
       is_store_member: { Args: { p_store_id: string }; Returns: boolean }

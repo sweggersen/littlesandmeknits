@@ -1,6 +1,7 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createNotification } from '../notify';
+import { assertWithinQuota } from './quota';
 
 export async function createConversation(
   ctx: ServiceContext,
@@ -114,6 +115,10 @@ export async function reply(
     .from('marketplace_conversations').select('id, buyer_id, seller_id')
     .eq('id', input.conversationId).maybeSingle();
   if (!conv) return fail('not_found', 'Not found');
+
+  // Daily quota — 100 messages/day is generous for any genuine user.
+  const quotaFail = await assertWithinQuota(ctx, 'marketplace_message_send');
+  if (quotaFail) return quotaFail;
 
   const { error } = await ctx.supabase
     .from('marketplace_messages').insert({ conversation_id: input.conversationId, sender_id: ctx.user.id, body });

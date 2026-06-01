@@ -1007,9 +1007,19 @@ Without these, `deleteAccount` would silently fail with a constraint violation a
 
 ---
 
-### ☐ R2-9 — Rate-limit / quota commerce operations  **(P2)**
+### ☑ R2-9 — Rate-limit / quota commerce operations  **(P2 → done 2026-06-02)**
 
-**Goal:** prevent bots or grievers from flooding `createRequest`, `makeOffer`, `sendMessage`. No quotas exist today; a single user could create unlimited rows.
+**Completed.** New table `user_action_counts` (migration `0075_user_action_quotas.sql`) with one row per (user, action, UTC day). New helper service `src/lib/services/quota.ts` exposes `assertWithinQuota(ctx, action)` that early-returns `fail('conflict', ...)` when the user hits today's cap. Caller patterns into the three target services:
+
+| Service | Action | Daily limit |
+|---------|--------|-------------|
+| `commissions.createRequest` | `commission_request_create` | 5 |
+| `commissions.makeOffer` | `commission_offer_make` | 20 |
+| `conversations.reply` | `marketplace_message_send` | 100 |
+
+Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover boundary cases (5th allowed, 6th blocked, per-action limits, upsert row shape, getQuotaUsed reporting).
+
+**Original goal:** prevent bots or grievers from flooding `createRequest`, `makeOffer`, `sendMessage`. No quotas exist today; a single user could create unlimited rows.
 
 **Files:**
 - `src/lib/services/commissions.ts` (createRequest, makeOffer)

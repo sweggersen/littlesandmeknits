@@ -6,6 +6,7 @@ import { insertQueueItem } from '../moderation';
 import { VALID_CATEGORIES } from '../labels';
 import { bookShipment, getTracking as bringGetTracking } from '../bring';
 import { recordDeadLetter } from './dead-letter';
+import { assertWithinQuota } from './quota';
 
 const toIntOrNull = (v: string | undefined): number | null => {
   if (!v) return null;
@@ -33,6 +34,10 @@ export async function createRequest(
   const budgetNokMax = toIntOrNull(input.budgetNokMax);
   if (budgetNokMin === null || budgetNokMax === null) return fail('bad_input', 'Budget required');
   if (budgetNokMax < budgetNokMin) return fail('bad_input', 'Max budget must exceed minimum');
+
+  // Daily quota — prevents bot floods.
+  const quotaFail = await assertWithinQuota(ctx, 'commission_request_create');
+  if (quotaFail) return quotaFail;
 
   const { data: buyerProfile } = await ctx.supabase
     .from('profiles').select('trust_tier').eq('id', ctx.user.id).maybeSingle();
@@ -96,6 +101,11 @@ export async function makeOffer(
 
   if (!req || req.status !== 'open') return fail('bad_input', 'Request not open');
   if (req.buyer_id === ctx.user.id) return fail('bad_input', 'Cannot bid on own request');
+
+  // Daily quota — prevents an attacker from flooding offers on a
+  // popular request. 20/day is generous for any genuine knitter.
+  const quotaFail = await assertWithinQuota(ctx, 'commission_offer_make');
+  if (quotaFail) return quotaFail;
 
   const { error } = await ctx.supabase
     .from('commission_offers')
