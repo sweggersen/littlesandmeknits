@@ -61,7 +61,7 @@ export async function decideReport(
   const { data: report } = await ctx.admin
     .from('reports').select('id, target_type, target_id, reporter_id, status').eq('id', input.reportId).maybeSingle();
   if (!report) return fail('not_found', 'Report not found');
-  if (report.status !== 'open') return fail('bad_state', 'Report already handled');
+  if (report.status !== 'open') return fail('conflict', 'Report already handled');
 
   const now = new Date().toISOString();
 
@@ -113,7 +113,7 @@ export async function decideReport(
   }).select('id').single();
   if (tErr || !thread) {
     console.error('moderation_threads insert failed', tErr);
-    return fail('internal', `Kunne ikke opprette tråd: ${tErr?.message ?? 'ukjent feil'}`);
+    return fail('server_error', `Kunne ikke opprette tråd: ${tErr?.message ?? 'ukjent feil'}`);
   }
 
   // Initial moderator message. If this fails, undo the thread.
@@ -125,7 +125,7 @@ export async function decideReport(
   });
   if (mErr) {
     await ctx.admin.from('moderation_threads').delete().eq('id', thread.id);
-    return fail('internal', `Kunne ikke sende melding: ${mErr.message}`);
+    return fail('server_error', `Kunne ikke sende melding: ${mErr.message}`);
   }
 
   // Freeze the item. Stash the previous status so we can restore on unfreeze.
@@ -190,7 +190,7 @@ export async function sendThreadMessage(
   const { data: thread } = await ctx.admin
     .from('moderation_threads').select('*').eq('id', input.threadId).maybeSingle();
   if (!thread) return fail('not_found', 'Tråd ikke funnet');
-  if (thread.status !== 'open') return fail('bad_state', 'Tråden er lukket');
+  if (thread.status !== 'open') return fail('conflict', 'Tråden er lukket');
   if (!mod && thread.recipient_id !== ctx.user.id) return fail('forbidden', 'Ingen tilgang');
 
   await ctx.admin.from('moderation_messages').insert({

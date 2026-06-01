@@ -15,7 +15,13 @@ export const POST: APIRoute = async ({ request }) => {
   const encoder = new TextEncoder();
   const a = encoder.encode(secret ?? '');
   const b = encoder.encode(expectedSecret ?? '');
-  if (!secret || a.byteLength !== b.byteLength || !(await crypto.subtle.timingSafeEqual(a, b))) {
+  // crypto.subtle.timingSafeEqual is a Cloudflare Workers extension --
+  // the standard SubtleCrypto type doesn't include it. Cast at the
+  // single call site rather than widen the global type.
+  const subtleCf = crypto.subtle as unknown as {
+    timingSafeEqual(a: ArrayBufferView, b: ArrayBufferView): Promise<boolean>;
+  };
+  if (!secret || a.byteLength !== b.byteLength || !(await subtleCf.timingSafeEqual(a, b))) {
     return new Response('Unauthorized', { status: 401 });
   }
 
@@ -95,11 +101,12 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // 0. Expire listing promotions
+  const nowIso = new Date().toISOString();
   const { data: expiredPromos } = await admin
     .from('listing_promotions')
     .select('id, listing_id')
     .eq('status', 'active')
-    .lt('ends_at', now);
+    .lt('ends_at', nowIso);
 
   if (expiredPromos?.length) {
     for (const promo of expiredPromos) {
