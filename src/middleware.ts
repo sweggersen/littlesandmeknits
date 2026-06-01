@@ -1,60 +1,8 @@
 import { defineMiddleware } from 'astro:middleware';
+import { resolveRedirect } from './lib/routing/redirects';
 
 const STRIKKETORGET_HOSTS = ['strikketorget.no', 'www.strikketorget.no'];
 const LITTLES_HOSTS = ['littlesandmeknits.com', 'www.littlesandmeknits.com'];
-
-// Legacy Norwegian path segments → English. Applied left-to-right as URL segments.
-// Kept here (not in routing) so old notification URLs / bookmarks 301 to the
-// new English routes.
-const LEGACY_SEGMENTS: Record<string, string> = {
-  marked: 'market',
-  brukt: 'used',
-  favoritter: 'favorites',
-  'mine-kjop': 'my-purchases',
-  nytt: 'new',
-  oppdrag: 'commissions',
-  // 'prosjekt' (singular) is intentionally not remapped - the new
-  // commission project view lives at /market/commissions/<id>/prosjekt
-  // and a blanket segment rewrite would break it.
-  meldinger: 'messages',
-  selger: 'seller',
-  statistikk: 'stats',
-  profil: 'profile',
-  bibliotek: 'library',
-  'logg-inn': 'login',
-  varsler: 'notifications',
-  personvern: 'privacy',
-  vilkar: 'terms',
-  // NOTE: the patterns + projects + about pages still live under their Norwegian
-  // route dirs (src/pages/oppskrifter, src/pages/prosjekter). We map the
-  // English-named paths back to Norwegian below so internal /patterns and
-  // /projects links work.
-  garn: 'yarn',
-  laer: 'learn',
-  'mine-oppskrifter': 'my-patterns',
-  pinner: 'needles',
-  verktoy: 'tools',
-  brukere: 'users',
-  logg: 'log',
-  moderatorer: 'moderators',
-  moderering: 'moderation',
-  rapporter: 'reports',
-  tvister: 'disputes',
-  utbetalinger: 'payouts',
-};
-
-function rewriteLegacyPath(path: string): string | null {
-  const segments = path.split('/');
-  let changed = false;
-  const rewritten = segments.map((seg) => {
-    if (seg in LEGACY_SEGMENTS) {
-      changed = true;
-      return LEGACY_SEGMENTS[seg];
-    }
-    return seg;
-  });
-  return changed ? rewritten.join('/') : null;
-}
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const host = ctx.url.hostname;
@@ -109,23 +57,15 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     });
   }
 
-  // 301 legacy Norwegian paths to the new English routes.
-  const rewritten = rewriteLegacyPath(path);
-  if (rewritten) {
-    const target = rewritten + ctx.url.search;
-    return new Response(null, { status: 301, headers: { Location: target } });
-  }
-
-  // English-named aliases for routes that physically live under Norwegian
-  // dirs. Top-level only — /en/patterns is its own English-locale page.
-  if (path === '/patterns' || path.startsWith('/patterns/')) {
-    return ctx.redirect(path.replace(/^\/patterns/, '/oppskrifter') + ctx.url.search, 308);
-  }
-  if (path === '/projects' || path.startsWith('/projects/')) {
-    return ctx.redirect(path.replace(/^\/projects/, '/prosjekter') + ctx.url.search, 308);
-  }
-  if (path === '/about') {
-    return ctx.redirect('/om' + ctx.url.search, 308);
+  // Centralised legacy → canonical redirects. Table lives in
+  // src/lib/routing/redirects.ts. Matches segment boundaries only —
+  // no mid-path rewrites.
+  const redirect = resolveRedirect(path);
+  if (redirect) {
+    return new Response(null, {
+      status: redirect.status,
+      headers: { Location: redirect.location + ctx.url.search },
+    });
   }
 
   // All authenticated routes live on strikketorget.no exclusively. This

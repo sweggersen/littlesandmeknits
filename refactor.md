@@ -496,7 +496,17 @@ Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this 
 
 ---
 
-### ☐ Item 15 — Consolidate NO/EN route aliases
+### ☑ Item 15 — Consolidate NO/EN route aliases
+
+**Completed 2026-06-01.** Replaced the 30-entry segment-translation map in `middleware.ts` with a single explicit prefix-redirect table in `src/lib/routing/redirects.ts`. Key differences:
+
+- **Prefix, not segment.** Old code rewrote any URL segment matching the dictionary — wherever it appeared in the path. New code only matches at the start of the path and copies the rest verbatim. This kills an entire class of bug (the `prosjekt`-anywhere-in-URL issue called out in the original entry).
+- **One source of truth.** The `/patterns`, `/projects`, `/about` aliases moved into the same table as the legacy `marked/...` redirects.
+- **Tests.** 9 unit tests in `redirects.test.ts` cover boundary matches, longer-prefix-wins ordering, and the mid-path-segment regression.
+
+The "physical page rename to canonical English dirs" step from the original entry (move `src/pages/oppskrifter` → `src/pages/patterns`) is **deliberately not done** in this PR: it's a separate large rename that doesn't belong with the middleware cleanup. The aliases continue to serve `/patterns` → `/oppskrifter` via 308; flipping the canonical direction later is a one-line table edit.
+
+
 
 **Goal:** pick one route language; the other is a SEO-only redirect.
 
