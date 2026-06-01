@@ -333,7 +333,20 @@ Build green throughout. Browser smoke test passed (Kjøp/Gi-et-bud modals open, 
 
 All user-facing pages now well under 600 lines. Build green at every step.
 
-**Still over 600**: only the dev pages (`/dev/test-tower` 1722, `/dev/ui-flows` 966) and `studio/tools` (528 — close to ceiling, but the bulk is a ~270-line inline calculator script that belongs to Item 9 not Item 6). `profile/index` (556) and a few others are under 600 but multi-section card layouts that would benefit from per-section components — leaving as follow-ups since they are not over the ceiling.
+**Phase 3 2026-06-01.** Continued past the 600 ceiling into the "comfortable under 300" zone per user comfort guidance:
+
+| Page | Before → After | Components extracted |
+|------|----------------|----------------------|
+| `profile/index.astro` | 556 → 240 | `profile/AdminModPanel`, `profile/DashboardGrid` |
+| `profile/edit.astro` | 356 → 209 | `profile/AvatarCropper` (modal markup + ~125-line script) |
+| `market/listing/new.astro` | 317 → 166 | `listing/new/WizardStep1Details`, `listing/new/WizardStep2Shipping` |
+
+**Still above ~300** (open if you want them split):
+- `studio/tools.astro` (528) — markup is small, bulk is a ~270-line inline calculator script. Belongs to **Item 9**, not Item 6.
+- `market/index.astro` (336) — frontmatter is ~180 lines of data-fetching; template is only ~150. Real win there is extracting the data layer to `src/lib/market/home-data.ts`, not splitting markup.
+- `market/my-listings.astro` (315), `market/store/[slug]/index.astro` (299), `profile/stores/new.astro` (288), `inbox.astro` (276) — borderline. Each has a single dominant block; extractable but ROI is shrinking.
+
+**Dev pages** (`/dev/test-tower` 1722, `/dev/ui-flows` 966) intentionally large — they are demo harnesses.
 
 
 
