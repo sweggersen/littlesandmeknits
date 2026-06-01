@@ -6,8 +6,12 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "predev": "supabase start",
+    "predev:fresh": "supabase start",
     "dev": "astro dev",
     "dev:fresh": "rm -rf node_modules/.vite && astro dev",
+    "db:up": "supabase start",
+    "db:down": "supabase stop",
     "build": "astro build && find dist -name '._*' -delete",
     "preview": "astro preview",
     "deploy": "npm run build && wrangler deploy --config dist/server/wrangler.json",
