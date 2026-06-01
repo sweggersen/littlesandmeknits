@@ -5,10 +5,13 @@ export type TrustTier = 'new' | 'established' | 'trusted';
 
 interface TrustInput {
   created_at: string;
-  avatar_path: string | null;
-  bio: string | null;
-  location: string | null;
-  instagram_handle: string | null;
+  // The "profile completeness" inputs are optional so admin pages can
+  // compute trust on a narrow column projection (id, role, score, …)
+  // without re-fetching the whole profile row.
+  avatar_path?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  instagram_handle?: string | null;
   stripe_connect_status: string | null;
   total_completed_transactions: number;
   total_rejections: number;

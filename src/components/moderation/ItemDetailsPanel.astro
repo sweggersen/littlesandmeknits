@@ -12,7 +12,10 @@ import { CATEGORY_LABEL } from '../../lib/labels';
 interface QueueItem {
   id: string;
   item_id: string;
-  item_type: 'listing' | 'commission_request' | 'store' | 'store_image';
+  // DB column is `string` (no enum constraint); the four narrow values
+  // are the only ones this component renders for, but we accept any
+  // string and fall through to the default render.
+  item_type: string;
   submitter_id: string;
 }
 

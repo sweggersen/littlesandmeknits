@@ -270,7 +270,7 @@ if (isBuyer && req.status === 'frozen') {
           paramId={id}
           isBuyer={isBuyer}
           allOffers={allOffers}
-          myOffer={myOffer}
+          myOffer={myOffer ?? null}
           hasUser={!!user}
           daysUntilExpiry={daysUntilExpiry}
           expiringSoon={expiringSoon}
@@ -283,8 +283,8 @@ if (isBuyer && req.status === 'frozen') {
           req={req}
           isBuyer={isBuyer}
           isKnitter={isKnitter}
-          acceptedOffer={acceptedOffer}
-          myOffer={myOffer}
+          acceptedOffer={acceptedOffer ?? null}
+          myOffer={myOffer ?? null}
           knitterProfile={knitterProfile}
           knitterName={knitterName}
           yarnPhase={yarnPhase}
