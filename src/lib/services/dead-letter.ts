@@ -17,7 +17,9 @@ export interface DeadLetterInput {
  *  Best-effort: if even the dead-letter insert fails, we log to the
  *  worker console and return — there's no third layer of recovery. */
 export async function recordDeadLetter(
-  ctx: Pick<ServiceContext, 'admin' | 'user'>,
+  // user is optional because some callers (Stripe webhook, cron) don't
+  // have a session-bound actor — they record on behalf of "the system".
+  ctx: { admin: ServiceContext['admin']; user?: ServiceContext['user'] | undefined },
   input: DeadLetterInput,
 ): Promise<void> {
   const message = input.error instanceof Error

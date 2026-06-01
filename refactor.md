@@ -807,9 +807,15 @@ Also fixed the test harness: `.env.local` had a stale `192.168.68.67` URL, and t
 
 ---
 
-### ☐ R2-2 — Stripe webhook records dead-letters on failure  **(P0)**
+### ☑ R2-2 — Stripe webhook records dead-letters on failure  **(P0 → done 2026-06-02)**
 
-**Goal:** any DB failure in a Stripe-driven money operation lands in `dead_letter_events` instead of `console.error`-and-forget. This is the whole point of the dead-letter table built in Item 16.
+**Completed.** Six error paths in `src/pages/api/stripe/webhook.ts` now call `recordDeadLetter()` before returning 500: listing fee, escrow upgrade, promotion activate (two-step), listing purchase, pattern PDF purchase, and the `account.updated` connect status update. Stripe retries 3× as before; if the final retry fails, the support team has an audit row instead of a lost console.error.
+
+Also widened `recordDeadLetter` ctx so the webhook can pass `user: undefined` for cases where the Stripe event has no metadata user (e.g. `account.updated` doesn't carry a buyer/seller id).
+
+New regression test at `src/pages/api/stripe/webhook.test.ts`: parses the webhook source and asserts (a) every "DB error" 500 is preceded by a `recordDeadLetter`, (b) every call passes a `service:` label and a `context:` object, (c) no inline `{ admin, user }` ctx — must go through the local `dlCtx` helper so future paths get the same null-handling. Pinning these in static analysis stops the next "I'll just `console.error` quickly" regression.
+
+**Original goal:** any DB failure in a Stripe-driven money operation lands in `dead_letter_events` instead of `console.error`-and-forget. This is the whole point of the dead-letter table built in Item 16.
 
 **Why:** the webhook handles 4 flows (listing fee, escrow upgrade, promotion start, listing purchase). All four currently swallow DB errors with `console.error()` and a 500 response. Stripe retries 3× and gives up. If the third retry fails, the buyer paid but the listing is never marked `reserved` — and there's no audit trail.
 

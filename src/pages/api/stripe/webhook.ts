@@ -2,8 +2,19 @@ import type { APIRoute } from 'astro';
 import type Stripe from 'stripe';
 import { env } from '../../../lib/env';
 import { createStripe } from '../../../lib/stripe';
-import { createAdminSupabase } from '../../../lib/supabase';
+import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
+import { recordDeadLetter } from '../../../lib/services/dead-letter';
+
+/** Minimal context for recordDeadLetter from inside the Stripe
+ *  webhook. The webhook has no user session, so the actor (if any)
+ *  comes from Stripe event metadata (buyer_id / seller_id / etc.). */
+function dlCtx(admin: TypedSupabaseClient, userId?: string | null) {
+  return {
+    admin,
+    user: userId ? { id: userId } : undefined,
+  };
+}
 
 export const POST: APIRoute = async ({ request }) => {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET || !env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -56,7 +67,12 @@ export const POST: APIRoute = async ({ request }) => {
         .eq('id', listingId)
         .eq('status', 'draft');
       if (error) {
-        console.error('Listing fee publish failed', error, { listingId });
+        await recordDeadLetter(dlCtx(supabase, sellerId), {
+          service: 'stripe.webhook:listing_fee',
+          context: { listing_id: listingId, session_id: session.id, seller_id: sellerId, auto_approve: autoApprove },
+          error,
+        });
+        // 500 so Stripe retries — but the audit row is already written.
         return new Response('DB error', { status: 500 });
       }
 
@@ -83,7 +99,11 @@ export const POST: APIRoute = async ({ request }) => {
         })
         .eq('id', listingId);
       if (error) {
-        console.error('Escrow upgrade webhook update failed', error);
+        await recordDeadLetter(dlCtx(supabase, session.metadata?.seller_id), {
+          service: 'stripe.webhook:escrow_upgrade',
+          context: { listing_id: listingId, session_id: session.id },
+          error,
+        });
         return new Response('DB error', { status: 500 });
       }
       return new Response('ok', { status: 200 });
@@ -102,7 +122,7 @@ export const POST: APIRoute = async ({ request }) => {
       const startsAtIso = new Date().toISOString();
       const endsAt = new Date(Date.now() + 7 * 86400_000).toISOString();
 
-      await supabase
+      const { error: promoErr } = await supabase
         .from('listing_promotions')
         .update({
           status: 'active',
@@ -115,10 +135,31 @@ export const POST: APIRoute = async ({ request }) => {
         })
         .eq('stripe_session_id', session.id);
 
-      await supabase
+      if (promoErr) {
+        await recordDeadLetter(dlCtx(supabase, sellerId), {
+          service: 'stripe.webhook:promotion_activate',
+          context: { listing_id: promoListingId, session_id: session.id, tier },
+          error: promoErr,
+        });
+        return new Response('DB error', { status: 500 });
+      }
+
+      const { error: listingErr } = await supabase
         .from('listings')
         .update({ promoted_until: endsAt, promotion_tier: tier, promoted_at: startsAtIso })
         .eq('id', promoListingId);
+
+      if (listingErr) {
+        // Promotion row already marked active; listing row failed.
+        // This is the classic "partial commit" case — record and let
+        // Stripe retry. Idempotent updates make the retry safe.
+        await recordDeadLetter(dlCtx(supabase, sellerId), {
+          service: 'stripe.webhook:promotion_listing_mark',
+          context: { listing_id: promoListingId, session_id: session.id, tier },
+          error: listingErr,
+        });
+        return new Response('DB error', { status: 500 });
+      }
 
       return new Response('ok', { status: 200 });
     }
@@ -164,7 +205,19 @@ export const POST: APIRoute = async ({ request }) => {
         .eq('status', 'active');
 
       if (error) {
-        console.error('Listing purchase update failed', error, { purchaseListingId });
+        await recordDeadLetter(dlCtx(supabase, buyerId), {
+          service: 'stripe.webhook:listing_purchase',
+          context: {
+            listing_id: purchaseListingId,
+            session_id: session.id,
+            buyer_id: buyerId,
+            payment_intent_id: piId ?? null,
+          },
+          error,
+        });
+        // CRITICAL: buyer has paid. Stripe will retry; if final retry
+        // fails, the dead-letter row tells support which listing is
+        // stuck in 'active' with a paid PaymentIntent.
         return new Response('DB error', { status: 500 });
       }
 
@@ -217,7 +270,11 @@ export const POST: APIRoute = async ({ request }) => {
         { onConflict: 'stripe_session_id' }
       );
     if (error) {
-      console.error('Purchase upsert failed', error);
+      await recordDeadLetter(dlCtx(supabase, userId), {
+        service: 'stripe.webhook:pattern_purchase',
+        context: { user_id: userId, pattern_slug: slug, session_id: session.id },
+        error,
+      });
       return new Response('DB error', { status: 500 });
     }
   }
@@ -238,10 +295,18 @@ export const POST: APIRoute = async ({ request }) => {
     if (status === 'verified') {
       update.seller_verified_at = new Date().toISOString();
     }
-    await supabase
+    const { error: connectErr } = await supabase
       .from('seller_profiles')
       .update(update as never)
       .eq('stripe_account_id', account.id);
+    if (connectErr) {
+      await recordDeadLetter(dlCtx(supabase), {
+        service: 'stripe.webhook:account_updated',
+        context: { stripe_account_id: account.id, new_status: status },
+        error: connectErr,
+      });
+      return new Response('DB error', { status: 500 });
+    }
   }
 
   return new Response('ok', { status: 200 });
