@@ -429,7 +429,23 @@ Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this 
 
 ### ◑ Item 3 — Generate Supabase types, remove `as any`
 
-**Progress 2026-06-01.** Infrastructure landed:
+**Infrastructure complete. Sweep documented as known-baseline.**
+
+`npm run typecheck` now runs `astro check` (`@astrojs/check` + `typescript` installed as dev deps). Baseline: **~270 errors** across the repo. These reflect long-standing latent type issues the `as any` casts were hiding. The errors fall into recognisable groups:
+
+- `Cannot find module 'cloudflare:workers'` — needs `@cloudflare/workers-types` referenced in tsconfig.
+- `web-push.ts` Uint8Array vs ArrayBuffer mismatches — lib.dom version drift.
+- `vipps-session.ts` insert payloads typed as `Record<string, unknown>` against the strict generated row types.
+- Service code reading fields that aren't in the `.select()` projection (legitimate bugs hidden by `as any`).
+
+**Why we are not burning all 197 casts in one PR**: each removal can surface a real type error, and we have no green typecheck baseline yet. Sweeping blindly would leave the CI/dev experience full of failures with no signal of which were intentional vs which broke prod.
+
+**Path forward** (each is its own PR):
+1. Fix the framework-level errors (cloudflare workers types, web-push lib).
+2. Get typecheck to green baseline, then add to CI as a blocking step.
+3. With typecheck green, the `as any` sweep becomes safe: each removal either compiles or shows a real bug to fix.
+
+**Original infrastructure:**
 
 - `npm run db:types` runs `supabase gen types typescript --linked` and writes `src/lib/database.types.ts` (2668-line generated file, committed).
 - `src/lib/supabase.ts` exports `TypedSupabaseClient = SupabaseClient<Database>`. `createServerSupabase` / `createBrowserSupabase` / `createAdminSupabase` all return `TypedSupabaseClient`.
