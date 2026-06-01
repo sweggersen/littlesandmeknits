@@ -311,20 +311,19 @@ Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase stat
 
 ### ◑ Item 6 — Split god components
 
-**Progress 2026-06-01.** Started with the biggest offender, `src/pages/market/listing/[id].astro`. First two extractions landed:
+**Phase 1 done 2026-06-01.** The worst offender, `market/listing/[id].astro`, taken from **1380 → 586 lines** — under the 600-line ceiling. Six extracted per-state components in `src/components/listing/`:
 
-- `src/components/listing/OwnerStatusAlerts.astro` — the 5 owner-only banner branches (publisert/pending_review/frozen/rejected/generic-status-badge). Pure conditional render, takes `status, justPublished, moderationNotes, frozenThreadId` as props.
-- `src/components/listing/BuyActions.astro` — the "Kjøp" + "Gi et bud" CTA pair with both dialog modals and the wiring script. Caller still guards `!isOwner && !isBuyer && status === 'active' && escrow_enabled && sellerOnboarded` so the component is self-contained but the policy stays at the call site.
+- `OwnerStatusAlerts.astro` — publisert / pending_review / frozen / rejected / generic-status-badge banners (props: status, justPublished, moderationNotes, frozenThreadId).
+- `BuyActions.astro` — "Kjøp" + "Gi et bud" CTA pair, both dialog modals, the wiring `define:vars` script.
+- `ListingPhotos.astro` — full photo subsystem (gallery viewer + owner manager + fullscreen lightbox + shared `define:vars` script). Coherent unit; the script's closure binds all three together so they had to move as one.
+- `BuyerPostPurchase.astro` — receipt link, refund request + pending state, awaiting-shipping with confirm-delivery & open-dispute, disputed banner, sold confirmation, review form.
+- `SellerPostPurchase.astro` — "Noen har kjøpt varen din" with buyer address + ship form, shipped confirmation, dispute notice.
+- `PromotePanel.astro` — Boost / Fremhevet pricing tiers, current-promotion-status branch with stats link, dev-only simulate buttons.
+- `MarkSoldPanel.astro` — owner "solgt utenfor Strikketorget" mark-as-sold for non-escrow listings.
 
-Page went **1380 → 1216 lines** (-164). Still over the 600-line ceiling. Remaining big chunks worth extracting in follow-up PRs:
+Build green throughout. Browser smoke test passed (Kjøp/Gi-et-bud modals open, lightbox triggers, page renders for owner and buyer perspectives).
 
-- Photo gallery + thumbnails + lightbox script (~120 lines)
-- Refund-request flow (~85 lines)
-- Buyer purchase-state panels: reserved / shipped / disputed / sold (~120 lines)
-- Review-after-delivery form (~40 lines)
-- Seller's "share / promote / mark-as-sold" actions (~110 lines)
-
-Build + 192 tests green.
+**Phase 2** — other pages still above 600 lines. Apply the same per-state-component pattern. Each gets its own PR.
 
 
 

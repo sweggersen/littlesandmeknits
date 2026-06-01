@@ -1,0 +1,38 @@
+---
+import TryggBetaling from '../TryggBetaling.astro';
+
+// Owner-only "Solgt utenfor Strikketorget?" panel for non-escrow active
+// listings. Lets the seller mark a privately-sold listing as sold so
+// it disappears from search. Extracted from market/listing/[id].astro.
+
+interface Listing {
+  id: string;
+  status: string;
+  escrow_enabled: boolean | null;
+}
+
+interface Props {
+  listing: Listing;
+}
+const { listing } = Astro.props;
+---
+
+{listing.status === 'active' && !listing.escrow_enabled && (
+  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 mt-4">
+    <h2 class="font-serif text-lg mb-2">Solgt utenfor Strikketorget?</h2>
+    <p class="text-sm text-charcoal/65 mb-4">
+      Denne annonsen bruker ikke <TryggBetaling />, så Strikketorget ser ingen kjøp.
+      Hvis du har solgt varen privat (Vipps, kontant, etc.), marker den selv så den
+      forsvinner fra søk.
+    </p>
+    <form method="post" action={`/api/marketplace/listings/${listing.id}/mark-sold`}
+      onsubmit="return confirm('Marker som solgt? Annonsen forsvinner fra søk og kan ikke gjenåpnes.');">
+      <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+        Marker som solgt
+      </button>
+    </form>
+    <p class="text-[11px] text-charcoal/45 mt-3">
+      Tips: Aktiver <a href={`/market/listing/${listing.id}?tb_info=1`} class="text-terracotta-500 hover:underline"><TryggBetaling tint="inherit" /></a> så håndteres alt automatisk neste gang.
+    </p>
+  </section>
+)}

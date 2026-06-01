@@ -1,0 +1,215 @@
+---
+// Everything a buyer (or non-buyer owner viewing the buyer column) sees
+// after the "Kjøp" button has been clicked: receipt link, refund flow
+// (request + pending state), shipping/awaiting-shipping status with
+// confirm-delivery & open-dispute, disputed banner, sold confirmation,
+// and the post-sale review form.
+//
+// Extracted from src/pages/market/listing/[id].astro. Render only on
+// the buyer/visitor side of the isOwner ternary; the caller is
+// responsible for that branch.
+
+interface Listing {
+  id: string;
+  status: string;
+  tracking_code: string | null;
+  dispute_resolution: string | null;
+  reserved_at: string | null;
+  delivered_at: string | null;
+}
+
+interface RefundRow {
+  refund_reason: string | null;
+  refund_description: string | null;
+  refund_outcome: string | null;
+}
+
+interface BuyerReview {
+  rating: number;
+  comment: string | null;
+}
+
+interface Props {
+  listing: Listing;
+  isOwner: boolean;
+  isBuyer: boolean;
+  justPurchased: boolean;
+  refundOpen: boolean;
+  refundRow: RefundRow | null;
+  refundReasonLabels: Record<string, string>;
+  autoReleaseDays: number | null;
+  hasReviewed: boolean;
+  buyerReview: BuyerReview | null;
+}
+const {
+  listing, isOwner, isBuyer, justPurchased,
+  refundOpen, refundRow, refundReasonLabels,
+  autoReleaseDays, hasReviewed, buyerReview,
+} = Astro.props;
+---
+
+{isBuyer && justPurchased && listing.status === 'reserved' && (
+  <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
+    Kjøpet er registrert! Pengene holdes trygt til du bekrefter mottak.
+  </div>
+)}
+
+{(isBuyer || isOwner) && listing.reserved_at && (
+  <a href={`/market/listing/${listing.id}/kvittering`} class="inline-block text-xs text-charcoal/55 hover:text-terracotta-500">📄 Se kvittering →</a>
+)}
+
+{/* Refund request — buyer side */}
+{isBuyer && !refundOpen && ['reserved', 'shipped', 'sold'].includes(listing.status) && refundRow?.refund_outcome !== 'declined' && (
+  <details class="bg-white rounded-3xl p-5 border border-sage-500/10">
+    <summary class="cursor-pointer text-sm font-medium text-charcoal/70 hover:text-charcoal">Be om refusjon</summary>
+    <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-request`} class="mt-3 space-y-3">
+      <label class="block text-xs">
+        <span class="text-charcoal/55">Grunn</span>
+        <select name="reason" required class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15">
+          <option value="">Velg…</option>
+          <option value="not_received">Ikke mottatt</option>
+          <option value="damaged">Skadet</option>
+          <option value="not_as_described">Ikke som beskrevet</option>
+          <option value="wrong_size">Feil størrelse</option>
+          <option value="changed_mind">Ombestemte meg</option>
+          <option value="other">Annet</option>
+        </select>
+      </label>
+      <label class="block text-xs">
+        <span class="text-charcoal/55">Beskrivelse (valgfritt)</span>
+        <textarea name="description" rows="3" maxlength="1000" placeholder="Hva er problemet?" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
+      </label>
+      <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send forespørsel</button>
+      <p class="text-[10px] text-charcoal/45">Selger får varsel og kan godta eller avvise. Hvis avvist, sendes saken til moderator.</p>
+    </form>
+  </details>
+)}
+
+{/* Refund request — pending state for both parties */}
+{refundOpen && (isBuyer || isOwner) && (
+  <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-sm">
+    <p class="font-medium text-amber-900 mb-1">Refusjon etterspurt</p>
+    <p class="text-amber-900/80 text-xs mb-2">
+      Grunn: <strong>{refundReasonLabels[refundRow?.refund_reason ?? ''] ?? refundRow?.refund_reason}</strong>
+    </p>
+    {refundRow?.refund_description && (
+      <p class="text-amber-900/80 text-xs mb-3 whitespace-pre-wrap">«{refundRow.refund_description}»</p>
+    )}
+    {isOwner ? (
+      <div class="flex flex-wrap gap-2">
+        <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-respond`}>
+          <input type="hidden" name="action" value="accept" />
+          <button type="submit" class="bg-sage-500 text-white px-4 py-2 rounded-full text-xs font-medium hover:bg-sage-600 transition-colors">Godta refusjon</button>
+        </form>
+        <details class="inline-block">
+          <summary class="cursor-pointer text-xs text-amber-900/80 px-3 py-2 rounded-full border border-amber-300/40 hover:bg-amber-100">Avvis</summary>
+          <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-respond`} class="mt-2 space-y-2 bg-white rounded-lg p-3 border border-amber-200">
+            <input type="hidden" name="action" value="decline" />
+            <label class="block text-xs">
+              <span class="text-charcoal/55">Begrunnelse (sees av moderator)</span>
+              <textarea name="notes" rows="2" required maxlength="1000" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
+            </label>
+            <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-full text-xs font-medium hover:bg-red-700">Avvis og send til moderator</button>
+          </form>
+        </details>
+      </div>
+    ) : (
+      <p class="text-amber-900/70 text-xs">Venter på svar fra selger.</p>
+    )}
+  </div>
+)}
+
+{isBuyer && (listing.status === 'reserved' || listing.status === 'shipped') && (
+  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-4">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+      <h2 class="font-serif text-lg">
+        {listing.status === 'shipped' ? 'Varen er sendt' : 'Venter på sending'}
+      </h2>
+    </div>
+    {listing.tracking_code && (
+      <p class="text-sm text-charcoal/65">
+        Sporingskode: <span class="font-mono">{listing.tracking_code}</span>
+      </p>
+    )}
+    {autoReleaseDays !== null && (
+      <p class="text-xs text-charcoal/45">
+        Betalingen frigis automatisk om {autoReleaseDays} {autoReleaseDays === 1 ? 'dag' : 'dager'} hvis du ikke svarer.
+      </p>
+    )}
+    <div class="flex gap-3">
+      <form method="post" action={`/api/marketplace/listings/${listing.id}/confirm-delivery`} class="flex-1">
+        <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+          Bekreft mottatt
+        </button>
+      </form>
+      <details class="flex-1">
+        <summary class="cursor-pointer w-full bg-red-50 text-red-700 px-6 py-3 rounded-full text-sm font-medium text-center hover:bg-red-100 transition-colors">
+          Rapporter problem
+        </summary>
+        <form method="post" action={`/api/marketplace/listings/${listing.id}/dispute`} class="mt-3 space-y-3">
+          <textarea name="reason" required rows="3" maxlength="500" placeholder="Beskriv problemet..."
+            class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+          <button type="submit" class="w-full bg-red-600 text-white px-4 py-2.5 rounded-full text-sm font-medium hover:bg-red-700 transition-colors">
+            Åpne tvist
+          </button>
+        </form>
+      </details>
+    </div>
+    <p class="text-[11px] text-charcoal/45 text-center">
+      Pengene holdes trygt av plattformen til du bekrefter mottak.
+    </p>
+  </section>
+)}
+
+{isBuyer && listing.status === 'disputed' && (
+  <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 text-sm">
+    Du har åpnet en tvist. Saken er under behandling.
+    {listing.dispute_resolution && (
+      <p class="mt-2 font-medium">Resultat: {listing.dispute_resolution}</p>
+    )}
+  </div>
+)}
+
+{isBuyer && listing.status === 'sold' && listing.delivered_at && (
+  <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
+    Levering bekreftet. Betalingen er frigitt til selger.
+  </div>
+)}
+
+{isBuyer && listing.status === 'sold' && !hasReviewed && (
+  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
+    <h2 class="font-serif text-lg">Gi selger en vurdering</h2>
+    <form method="post" action={`/api/marketplace/listings/${listing.id}/review`} class="space-y-3">
+      <fieldset class="flex gap-1" data-star-rating>
+        {[1, 2, 3, 4, 5].map((v) => (
+          <label class="cursor-pointer">
+            <input type="radio" name="rating" value={v} required class="sr-only" />
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-charcoal/20 hover:text-terracotta-500 transition-colors" data-star={v}>
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            </svg>
+          </label>
+        ))}
+      </fieldset>
+      <textarea name="comment" rows="2" maxlength="500" placeholder="Valgfri kommentar..."
+        class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+      <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+        Send vurdering
+      </button>
+    </form>
+  </section>
+)}
+
+{isBuyer && hasReviewed && buyerReview && (
+  <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm">
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Din vurdering</p>
+    <div class="flex gap-0.5 mb-1">
+      {[1, 2, 3, 4, 5].map((v) => (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={v <= buyerReview.rating ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.5" class={v <= buyerReview.rating ? 'text-terracotta-500' : 'text-charcoal/20'}>
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      ))}
+    </div>
+    {buyerReview.comment && <p class="text-charcoal/65">{buyerReview.comment}</p>}
+  </div>
+)}
