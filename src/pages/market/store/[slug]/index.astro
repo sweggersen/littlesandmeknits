@@ -124,7 +124,7 @@ const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
 // Owners/members viewing a suspended (frozen) store get a link straight
 // into the moderator thread, if any.
 let frozenThreadId: string | null = null;
-if (previewBanner === 'suspended' && user) {
+if (previewBanner === 'suspended' && ctx) {
   const { data: t } = await supabase.from('moderation_threads')
     .select('id').eq('target_type', 'store').eq('target_id', store.id)
     .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();

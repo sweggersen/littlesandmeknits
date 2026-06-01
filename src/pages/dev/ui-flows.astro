@@ -926,8 +926,8 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     function init() {
       renderFlowList();
       renderSteps(currentFlow());
-      $('#flow-select').addEventListener('change', () => renderSteps(currentFlow()));
-      $('#btn-run').addEventListener('click', runCurrent);
+      $<HTMLSelectElement>('#flow-select').addEventListener('change', () => renderSteps(currentFlow()));
+      $<HTMLButtonElement>('#btn-run').addEventListener('click', () => runCurrent());
 
       // Viewport toggle — sets data-viewport on the stage; CSS does the rest.
       const stage = document.querySelector('#viewport-stage') as HTMLElement | null;

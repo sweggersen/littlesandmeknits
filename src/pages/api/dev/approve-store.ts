@@ -48,7 +48,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     actorId = user.id;
   }
 
-  const { slug } = await request.json<{ slug: string }>();
+  const { slug } = await request.json() as { slug: string };
   if (!slug) return new Response('Missing slug', { status: 400 });
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);

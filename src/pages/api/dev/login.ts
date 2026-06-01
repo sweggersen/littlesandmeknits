@@ -74,7 +74,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   };
   const devRole = DEV_ROLES[email.toLowerCase()];
   if (devRole && data.user?.id) {
-    await admin.from('profiles').update({ role: devRole }).eq('id', data.user.id);
+    await admin.from('profiles').update({ role: devRole as 'admin' | 'moderator' | 'ambassador' }).eq('id', data.user.id);
   }
 
   return redirect(next, 303);

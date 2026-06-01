@@ -241,7 +241,7 @@ export const POST: APIRoute = async ({ request }) => {
     // one prod week of observation (refactor.md item 7).
     await supabase
       .from('profiles')
-      .update(update)
+      .update(update as never)
       .eq('stripe_account_id', account.id);
   }
 

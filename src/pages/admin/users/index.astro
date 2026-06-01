@@ -22,7 +22,7 @@ if (search) {
   query = query.ilike('id', `%${search}%`);
 }
 if (roleFilter) {
-  query = query.eq('role', roleFilter);
+  query = query.eq('role', roleFilter as 'admin' | 'moderator' | 'ambassador');
 }
 
 const { data: users } = await query;

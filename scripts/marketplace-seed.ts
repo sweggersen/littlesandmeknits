@@ -340,7 +340,7 @@ async function main() {
 
     let userId: string;
     if (existing) {
-      userId = existing.id;
+      userId = (existing as { id: string }).id;
       warn(`${p.displayName} (${p.location}) — already exists`);
     } else {
       const { data, error } = await admin.auth.admin.createUser({

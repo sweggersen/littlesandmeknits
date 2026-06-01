@@ -6,6 +6,7 @@ import DashboardGrid from '../../components/profile/DashboardGrid.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../../lib/achievements';
+import { getEntry } from 'astro:content';
 
 const user = Astro.locals.user!;  // middleware-gated route
 

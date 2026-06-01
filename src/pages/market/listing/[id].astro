@@ -63,7 +63,10 @@ if (!listing && isStaff) {
       .maybeSingle();
     if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
   }
-  listing = data;
+  // The admin-client fallback returns a narrower select; cast to the
+  // primary listing shape so downstream code (which expects the full
+  // row) typechecks.
+  listing = data as typeof listing;
 }
 
 if (!listing) return Astro.redirect('/market');

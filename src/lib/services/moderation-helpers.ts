@@ -85,10 +85,9 @@ export function validateDecideInput(input: {
 }
 
 /** Decide what status a listing should restore to when unfrozen. */
-export function restoreStatus(preFreeze: string | null | undefined): string {
-  // Only "active" makes sense to restore to — if the listing was in some
-  // weird intermediate state (reserved/shipped) before the freeze, drop
-  // back to active so the seller can re-engage normally.
-  const safe = new Set(['active', 'draft']);
-  return preFreeze && safe.has(preFreeze) ? preFreeze : 'active';
+export function restoreStatus(preFreeze: string | null | undefined): 'active' | 'draft' {
+  // Only "active" or "draft" make sense to restore to — if the listing
+  // was in some weird intermediate state (reserved/shipped) before the
+  // freeze, drop back to active so the seller can re-engage normally.
+  return preFreeze === 'draft' ? 'draft' : 'active';
 }

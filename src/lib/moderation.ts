@@ -270,17 +270,21 @@ export async function getReviewStats(admin: SupabaseClient, userId: string): Pro
 }
 
 export async function hasConflict(admin: SupabaseClient, moderatorId: string, submitterId: string): Promise<boolean> {
-  // Check commission offers
-  const { count: offerCount } = await admin
-    .from('commission_offers')
-    .select('id', { count: 'exact', head: true })
-    .eq('knitter_id', moderatorId)
-    .in('request_id', admin
-      .from('commission_requests')
-      .select('id')
-      .eq('buyer_id', submitterId)
-    );
-  if (offerCount && offerCount > 0) return true;
+  // Check commission offers. supabase-js doesn't accept a query
+  // builder inside .in() -- resolve the buyer's request IDs first.
+  const { data: buyerRequests } = await admin
+    .from('commission_requests')
+    .select('id')
+    .eq('buyer_id', submitterId);
+  const requestIds = (buyerRequests ?? []).map((r) => r.id);
+  if (requestIds.length) {
+    const { count: offerCount } = await admin
+      .from('commission_offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('knitter_id', moderatorId)
+      .in('request_id', requestIds);
+    if (offerCount && offerCount > 0) return true;
+  }
 
   // Check conversations
   const { count: convCount } = await admin

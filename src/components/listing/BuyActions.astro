@@ -22,7 +22,7 @@ interface Props {
 }
 const { listingId, title, sizeLabel, priceNok, shippingOption, heroPhotoUrl } = Astro.props;
 
-const bd = purchaseBreakdown(priceNok, shippingOption ?? 'free', true);
+const bd = purchaseBreakdown(priceNok, (shippingOption ?? 'free') as 'free' | 'small_letter' | 'small_parcel' | 'parcel', true);
 ---
 
 <section class="space-y-3">

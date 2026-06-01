@@ -23,7 +23,7 @@ let q = supabase
   .order('created_at', { ascending: false });
 
 if (search) q = q.ilike('title', `%${search}%`);
-if (category) q = q.eq('category', category);
+if (category) q = q.eq('category', category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet');
 if (Number.isFinite(budgetMin)) q = q.gte('budget_nok_max', budgetMin);
 if (Number.isFinite(budgetMax)) q = q.lte('budget_nok_min', budgetMax);
 if (cursor) q = q.lt('created_at', cursor);

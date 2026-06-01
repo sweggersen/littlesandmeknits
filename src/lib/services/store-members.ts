@@ -179,7 +179,7 @@ export async function updateMyPresentation(
 
   const { error } = await ctx.admin
     .from('store_members')
-    .update(update)
+    .update(update as never)
     .eq('store_id', storeId)
     .eq('user_id', ctx.user.id);
   if (error) return fail('server_error', 'Kunne ikke oppdatere');

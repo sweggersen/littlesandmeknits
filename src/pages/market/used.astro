@@ -34,7 +34,7 @@ let q = supabase
   .order('published_at', { ascending: false });
 
 if (search) q = q.ilike('title', `%${search}%`);
-if (category) q = q.eq('category', category);
+if (category) q = q.eq('category', category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet');
 if (Number.isFinite(prisMin)) q = q.gte('price_nok', prisMin);
 if (Number.isFinite(prisMax)) q = q.lte('price_nok', prisMax);
 if (Number.isFinite(ageMin)) q = q.gte('size_age_months_max', ageMin);

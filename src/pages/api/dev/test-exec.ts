@@ -609,6 +609,7 @@ async function handle(
       const { data: store, error } = await db.from('stores').insert({
         slug,
         orgnr,
+        created_by: actorId,
         legal_name: 'TRÅD OG GARN AS',
         legal_address: 'Storgata 1, 0123 Oslo',
         legal_business_type: 'AS',
@@ -655,10 +656,13 @@ async function handle(
       }).eq('id', elineId);
       await db.from('profiles').update({ profile_visible: true }).eq('id', livId);
 
+      // Narrowed alias so closures below carry non-null type from the
+      // null-guard above.
+      const sellerId = elineId;
       async function listing(opts: { title: string; status: 'draft' | 'active' | 'sold'; photoCount: number; category?: 'genser' | 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'teppe' | 'votter' | 'kjole' | 'annet' }) {
         const cat = opts.category ?? 'genser';
         const { data, error } = await db.from('listings').insert({
-          seller_id: elineId,
+          seller_id: sellerId,
           kind: 'pre_loved',
           title: opts.title,
           category: cat,
@@ -864,7 +868,7 @@ async function handle(
             total_earned_nok: ((modStats as any)?.total_earned_nok ?? 0) + rate,
             rate_nok_per_review: rate,
             last_review_at: now,
-          }).eq('user_id', actorId);
+          } as never).eq('user_id', actorId);
         } else {
           await db.from('moderator_stats').insert({
             user_id: actorId,
@@ -905,7 +909,7 @@ async function handle(
           }).eq('id', qi.item_id);
         }
         await db.from('profiles').update({
-          total_rejections: (await db.from('profiles').select('total_rejections').eq('id', qi.submitter_id).single()).data?.total_rejections + 1 || 1,
+          total_rejections: ((await db.from('profiles').select('total_rejections').eq('id', qi.submitter_id).single()).data?.total_rejections ?? 0) + 1,
         }).eq('id', qi.submitter_id);
       }
 

@@ -107,7 +107,7 @@ export async function updatePattern(
     }
   }
 
-  const { error } = await ctx.supabase.from('external_patterns').update(patch).eq('id', input.patternId);
+  const { error } = await ctx.supabase.from('external_patterns').update(patch as never).eq('id', input.patternId);
   if (error) {
     console.error('External pattern update failed', error);
     return fail('server_error', 'Could not update');

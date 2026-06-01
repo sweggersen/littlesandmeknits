@@ -30,7 +30,7 @@ export async function recordDeadLetter(
     await ctx.admin.from('dead_letter_events').insert({
       service: input.service,
       user_id: ctx.user?.id ?? null,
-      context: input.context ?? {},
+      context: (input.context ?? {}) as Record<string, unknown> as never,
       error: message.slice(0, 2000),
     });
   } catch (e) {

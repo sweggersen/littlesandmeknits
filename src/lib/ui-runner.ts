@@ -344,7 +344,9 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     // use form.submit() so the form actually navigates the iframe.
     const asButton = button as HTMLButtonElement;
     if (
-      (asButton.tagName === 'BUTTON' && (asButton.type === 'submit' || asButton.type === ''))
+      // HTMLButtonElement.type defaults to 'submit' when omitted, so we
+      // don't need the '' fallback the older code carried.
+      (asButton.tagName === 'BUTTON' && asButton.type === 'submit')
       && asButton.form
     ) {
       asButton.form.submit();
@@ -364,7 +366,7 @@ async function runStep(step: FlowStep, iframe: HTMLIFrameElement, opts: RunnerOp
     // document to be replaced (a new readyState transition) OR for the
     // body innerText to change.
     const submitButton = (button.tagName === 'BUTTON'
-      && ((button as HTMLButtonElement).type === 'submit' || (button as HTMLButtonElement).type === ''))
+      && (button as HTMLButtonElement).type === 'submit')
       && (button as HTMLButtonElement).form;
     const beforeBodyText = iframe.contentDocument?.body?.innerText ?? '';
     await new Promise<void>((resolve) => {

@@ -106,7 +106,9 @@ export async function signInWithVippsUserinfo(opts: {
     // Only override display_name if Vipps actually gave us a name — don't
     // wipe whatever the handle_new_user trigger just set if Vipps was silent.
     if (displayName) profileUpdate.display_name = displayName;
-    await admin.from('profiles').update(profileUpdate).eq('id', userId);
+    // Dynamic update payload — the keys are validated upstream but TS
+    // can't see through that into the Insert row type. Cast at call.
+    await admin.from('profiles').update(profileUpdate as never).eq('id', userId);
   }
 
   if (!userId || !userEmail) return { ok: false, reason: 'no-user' };

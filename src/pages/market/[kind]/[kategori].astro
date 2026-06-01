@@ -32,7 +32,7 @@ const { data: listings } = await supabase
   .select('id, title, kind, price_nok, size_label, hero_photo_path, promoted_until, promotion_tier, category, favorite_count')
   .eq('status', 'active')
   .eq('kind', dbKind)
-  .eq('category', categoryParam)
+  .eq('category', categoryParam as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet')
   .order('promoted_until', { ascending: false, nullsFirst: false })
   .order('published_at', { ascending: false })
   .limit(48);
@@ -92,7 +92,7 @@ const seoDescription = `${rows.length > 0 ? `${rows.length}+ annonser` : 'Annons
             showFav={!!user}
             isFav={favIds.includes(l.id)}
             promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
-            promotionTier={l.promotion_tier ?? null}
+            promotionTier={l.promotion_tier as 'boost' | 'highlight' | null ?? null}
           />
         ))}
       </ul>

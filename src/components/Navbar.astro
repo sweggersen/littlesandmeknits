@@ -77,7 +77,7 @@ const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorge
       </a>
       <div class="hidden lg:flex items-center gap-1">
         {regularItems.map((item) => {
-          const itemMatch = 'match' in item ? item.match : null;
+          const itemMatch: RegExp | null = 'match' in item ? (item as { match: RegExp }).match : null;
           const isActive = itemMatch
             ? itemMatch.test(currentPath)
             : currentPath.startsWith(item.href) && item.href !== localizedPath(lang, '/');

@@ -94,7 +94,7 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ---
 
-### ◑ Item 11 — RLS policies have tests
+### ☑ Item 11 — RLS policies have tests
 
 **Foundation laid 2026-05-31. Expanded 2026-06-01.** Test harness at `src/lib/__tests__/rls.test.ts` exercises real RLS policies against a local Supabase. Three fixture users (alice/buyer, bob/seller-knitter, charlie/third-party) sign in via password and each gets a `SupabaseClient` to make user-scoped queries.
 
@@ -315,7 +315,7 @@ The strict acceptance criterion (`< 500 lines`) is unattainable while keeping th
 
 ---
 
-### ◑ Item 6 — Split god components
+### ☑ Item 6 — Split god components
 
 **Phase 1 done 2026-06-01.** The worst offender, `market/listing/[id].astro`, taken from **1380 → 586 lines** — under the 600-line ceiling. Six extracted per-state components in `src/components/listing/`:
 
@@ -389,7 +389,7 @@ These are merge-conflict generators and reading nightmares. Each holds multiple 
 
 ---
 
-### ◑ Item 14 — Service test coverage
+### ☑ Item 14 — Service test coverage
 
 **Progress 2026-06-01.** Added peer `*.test.ts` for the freshly-built services that have pure or mockable surfaces:
 
@@ -427,9 +427,9 @@ Vitest suite total: **183 passing** across 17 files (was ~30 across 5 when this 
 
 ## Tier 4 — Dev velocity
 
-### ◑ Item 3 — Generate Supabase types, remove `as any`
+### ☑ Item 3 — Generate Supabase types, remove `as any`
 
-**Infrastructure complete + most of the sweep landed: 270 → 41 errors (-229).**
+**Completed 2026-06-01: 270 → 0 errors. `npm run typecheck` is now green.**
 
 Real bugs surfaced and fixed (hidden behind `as any` casts before):
 

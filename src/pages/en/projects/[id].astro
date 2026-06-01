@@ -61,7 +61,7 @@ const patternEntry = pattern
           )}
           <div>
             <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Knitted</dt>
-            <dd>{formatDate(knitDate, 'en')}</dd>
+            <dd>{formatDate((knitDate as Date).toISOString(), 'short')}</dd>
           </div>
           {patternEntry && (
             <div>

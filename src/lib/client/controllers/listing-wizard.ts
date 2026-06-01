@@ -6,9 +6,10 @@
 import { bindOnce } from '../dom';
 
 export function init(): void {
-  const form = document.querySelector<HTMLFormElement>('[data-wizard]');
-  if (!form) return;
-  if (!bindOnce('listing-wizard', form)) return;
+  const formEl = document.querySelector<HTMLFormElement>('[data-wizard]');
+  if (!formEl) return;
+  if (!bindOnce('listing-wizard', formEl)) return;
+  const form = formEl; // narrowed alias for the closures below
 
   const steps = Array.from(form.querySelectorAll<HTMLElement>('[data-step]'));
   const pills = Array.from(document.querySelectorAll<HTMLElement>('[data-step-pill]'));

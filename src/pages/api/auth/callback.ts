@@ -42,7 +42,7 @@ export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
         update.marketing_consent_at = meta.marketing_consent_at;
       }
       if (Object.keys(update).length) {
-        await admin.from('profiles').update(update).eq('id', userId);
+        await admin.from('profiles').update(update as never).eq('id', userId);
       }
     }
   } catch { /* non-fatal */ }

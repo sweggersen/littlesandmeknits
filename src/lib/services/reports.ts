@@ -32,7 +32,7 @@ export async function submitReport(
     reporter_id: ctx.user.id,
     target_type: input.targetType,
     target_id: input.targetId,
-    reason: input.reason,
+    reason: input.reason as 'scam' | 'inappropriate' | 'wrong_category' | 'spam' | 'other',
     description: input.description || null,
     anonymous: !!input.anonymous,
   });

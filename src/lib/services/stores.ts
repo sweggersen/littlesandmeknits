@@ -290,7 +290,7 @@ export async function uploadStoreImage(
   }
 
   const { error: updErr } = await ctx.admin
-    .from('stores').update({ [pathField]: path }).eq('id', storeId);
+    .from('stores').update({ [pathField]: path } as never).eq('id', storeId);
   if (updErr) {
     console.error('Store image update failed', updErr);
     return fail('server_error', 'Kunne ikke lagre bilde');

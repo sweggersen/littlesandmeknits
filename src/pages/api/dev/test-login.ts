@@ -17,7 +17,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     return new Response('Service role key not configured', { status: 503 });
   }
 
-  const { email } = await request.json<{ email?: string }>();
+  const { email } = await request.json() as { email?: string };
   if (!email?.endsWith('@test.strikketorget.no')) {
     return new Response('Only @test.strikketorget.no emails allowed', { status: 400 });
   }

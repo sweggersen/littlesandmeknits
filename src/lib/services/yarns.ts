@@ -90,7 +90,7 @@ export async function updateYarn(
     patch.photo_path = path;
   }
 
-  const { error } = await ctx.supabase.from('yarns').update(patch).eq('id', input.yarnId);
+  const { error } = await ctx.supabase.from('yarns').update(patch as never).eq('id', input.yarnId);
   if (error) {
     console.error('Yarn update failed', error);
     return fail('server_error', 'Could not update');

@@ -57,7 +57,7 @@ const fields = [
               <input
                 type="checkbox"
                 name={key}
-                checked={prefs ? (prefs as Record<string, boolean>)[key] !== false : true}
+                checked={prefs ? (prefs as unknown as Record<string, boolean>)[key] !== false : true}
                 class="w-4 h-4 rounded border-sage-500/30 text-sage-600 focus:ring-sage-500"
               />
               <span class="text-sm group-hover:text-charcoal transition-colors">{label}</span>

@@ -104,7 +104,7 @@ export async function createNotification(
       .maybeSingle();
 
     const col = EMAIL_PREF_COL[opts.type];
-    const emailEnabled = prefs ? (prefs as Record<string, boolean>)[col] !== false : true;
+    const emailEnabled = prefs ? (prefs as unknown as Record<string, boolean>)[col] !== false : true;
     if (!emailEnabled) return;
 
     const { data: authUser } = await admin.auth.admin.getUserById(opts.userId);
