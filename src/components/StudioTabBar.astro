@@ -61,15 +61,7 @@ const avatarInitial = initial();
 </nav>
 
 <script>
-  function initTabBar() {
-    const path = window.location.pathname.replace(/\/$/, '') || '/studio';
-    document
-      .querySelectorAll<HTMLElement>('[data-studio-tabbar] [data-tab-match]')
-      .forEach((el) => {
-        const re = el.getAttribute('data-tab-match');
-        if (!re) return;
-        el.classList.toggle('is-active', new RegExp(re).test(path));
-      });
-  }
-  document.addEventListener('astro:page-load', initTabBar);
+  import { init } from "../lib/client/controllers/studio-tab-bar";
+  import { registerController } from "../lib/client/dom";
+  registerController(init);
 </script>
