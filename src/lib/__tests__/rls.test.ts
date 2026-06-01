@@ -105,6 +105,100 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('listings', () => {
+    it('active listing is readable by any signed-in user', async () => {
+      const { data: listing } = await admin.from('listings').insert({
+        seller_id: bobId,
+        title: 'rls-active', description: 'x',
+        price_nok: 100, kind: 'new', category: 'genser',
+        status: 'active',
+      }).select('id').single();
+      const { data } = await charlieClient.from('listings').select('id').eq('id', listing!.id);
+      expect(data ?? []).toHaveLength(1);
+      await admin.from('listings').delete().eq('id', listing!.id);
+    });
+
+    it('draft listing is NOT readable by a third party', async () => {
+      const { data: listing } = await admin.from('listings').insert({
+        seller_id: bobId,
+        title: 'rls-draft', description: 'x',
+        price_nok: 100, kind: 'new', category: 'genser',
+        status: 'draft',
+      }).select('id').single();
+      const { data: third } = await charlieClient.from('listings').select('id').eq('id', listing!.id);
+      expect(third ?? []).toHaveLength(0);
+      const { data: own } = await bobClient.from('listings').select('id').eq('id', listing!.id);
+      expect(own ?? []).toHaveLength(1);
+      await admin.from('listings').delete().eq('id', listing!.id);
+    });
+
+    it('buyer can read their own reserved listing (purchase-flow policy)', async () => {
+      const { data: listing } = await admin.from('listings').insert({
+        seller_id: bobId,
+        title: 'rls-reserved', description: 'x',
+        price_nok: 100, kind: 'new', category: 'genser',
+        status: 'reserved',
+        buyer_id: aliceId,
+      }).select('id').single();
+      const { data: buyer } = await aliceClient.from('listings').select('id').eq('id', listing!.id);
+      expect(buyer ?? []).toHaveLength(1);
+      const { data: third } = await charlieClient.from('listings').select('id').eq('id', listing!.id);
+      expect(third ?? []).toHaveLength(0);
+      await admin.from('listings').delete().eq('id', listing!.id);
+    });
+  });
+
+  describe('marketplace conversations + messages', () => {
+    let listingId: string;
+    let convId: string;
+
+    beforeAll(async () => {
+      const { data: l } = await admin.from('listings').insert({
+        seller_id: bobId,
+        title: 'rls-msg-listing', description: 'x',
+        price_nok: 100, kind: 'new', category: 'genser',
+        status: 'active',
+      }).select('id').single();
+      listingId = l!.id;
+      const { data: c } = await admin.from('marketplace_conversations').insert({
+        listing_id: listingId, buyer_id: aliceId, seller_id: bobId,
+      }).select('id').single();
+      convId = c!.id;
+      await admin.from('marketplace_messages').insert({
+        conversation_id: convId, sender_id: aliceId, body: 'rls hello',
+      });
+    });
+
+    it('participants see the conversation; third party does not', async () => {
+      const { data: a } = await aliceClient.from('marketplace_conversations')
+        .select('id').eq('id', convId);
+      expect(a ?? []).toHaveLength(1);
+      const { data: b } = await bobClient.from('marketplace_conversations')
+        .select('id').eq('id', convId);
+      expect(b ?? []).toHaveLength(1);
+      const { data: c } = await charlieClient.from('marketplace_conversations')
+        .select('id').eq('id', convId);
+      expect(c ?? []).toHaveLength(0);
+    });
+
+    it('participants see messages; third party does not', async () => {
+      const { data: a } = await aliceClient.from('marketplace_messages')
+        .select('id, body').eq('conversation_id', convId);
+      expect((a ?? []).length).toBeGreaterThan(0);
+      const { data: c } = await charlieClient.from('marketplace_messages')
+        .select('id, body').eq('conversation_id', convId);
+      expect(c ?? []).toHaveLength(0);
+    });
+
+    it('third party cannot send a message into someone else conversation', async () => {
+      const { error } = await charlieClient.from('marketplace_messages').insert({
+        conversation_id: convId, sender_id: charlieId, body: 'intruder',
+      });
+      // RLS WITH CHECK violation surfaces as a row-level security error.
+      expect(error).not.toBeNull();
+    });
+  });
+
   describe('projects (commission buyer access via 0070 policy)', () => {
     it('buyer of a commission can read the linked project; third party cannot', async () => {
       // Set up: Bob (knitter) creates an offer accepted by Alice (buyer);

@@ -96,7 +96,18 @@ This is the single source of truth for the refactor. We march top-to-bottom. Eac
 
 ### ◑ Item 11 — RLS policies have tests
 
-**Foundation laid 2026-05-31.** Test harness at `src/lib/__tests__/rls.test.ts` exercises real RLS policies against a local Supabase. Three fixture users (alice/buyer, bob/seller-knitter, charlie/third-party) sign in via password and each gets a `SupabaseClient` to make user-scoped queries. Initial coverage: `profiles` (owner reads own + public-ish read), `dead_letter_events` (staff-only), `projects` (commission-buyer policy from migration 0070, owner policy, third-party deny). Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase status`). Skips gracefully when no local Supabase is available. **Remaining work**: expand to listings, commission_requests, commission_offers, conversations, marketplace_messages, stores, store_members, disputes, refunds. Pattern is established; each new table is ~15 lines of test code. Add CI integration once local-supabase is reliable in the worker.
+**Foundation laid 2026-05-31. Expanded 2026-06-01.** Test harness at `src/lib/__tests__/rls.test.ts` exercises real RLS policies against a local Supabase. Three fixture users (alice/buyer, bob/seller-knitter, charlie/third-party) sign in via password and each gets a `SupabaseClient` to make user-scoped queries.
+
+Current coverage:
+- `profiles` — owner reads own; anyone reads any (display-table-public).
+- `dead_letter_events` — non-staff denied; staff (admin role) allowed.
+- `projects` — commission-buyer policy (0070), owner policy, third-party deny.
+- `listings` — active visible to third party; draft hidden from third party; draft visible to owner; reserved visible to buyer (purchase-flow policy from 0040).
+- `marketplace_conversations` + `marketplace_messages` — participants see; third party denied; third-party message INSERT rejected (WITH CHECK).
+
+Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase status`). Skips gracefully when no local Supabase is available.
+
+**Remaining**: commission_requests, commission_offers, stores, store_members, disputes, refunds. Pattern is established; each new table is ~15 lines of test code. Add CI integration once local-supabase is reliable in the worker.
 
 
 
