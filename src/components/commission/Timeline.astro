@@ -1,0 +1,354 @@
+---
+import ProfileAvatar from '../ProfileAvatar.astro';
+import { projectPhotoUrl } from '../../lib/storage';
+import { PROJECT_STATUS } from '../../lib/labels';
+
+// Six-phase commission timeline shown once a knitter's offer has been
+// accepted: Valgt tilbud → Betaling → Garn (conditional) → Pågår →
+// Ferdigstilt → Levert. Each phase renders side-by-side columns
+// (bestiller / strikker) with state-specific CTAs.
+//
+// Extracted from src/pages/market/commissions/[id].astro. Caller must
+// only render when !isOpen.
+
+interface Request {
+  id: string;
+  status: string;
+  yarn_shipped_at: string | null;
+  yarn_tracking_code: string | null;
+  yarn_bring_shipment_number: string | null;
+  finished_item_tracking_code: string | null;
+  delivered_at: string | null;
+  offer_count: number;
+}
+
+interface Offer {
+  id: string;
+  knitter_id: string;
+  price_nok: number;
+  turnaround_weeks: number;
+}
+
+interface KnitterProfile {
+  avatar_path: string | null;
+  display_name?: string | null;
+}
+
+interface LinkedProject {
+  id: string;
+  title: string;
+  status: keyof typeof PROJECT_STATUS;
+  hero_photo_path: string | null;
+}
+
+interface Props {
+  req: Request;
+  isBuyer: boolean;
+  isKnitter: boolean;
+  acceptedOffer: Offer | null;
+  myOffer: (Offer & { status: string; project_id: string | null }) | null;
+  knitterProfile: KnitterProfile | null;
+  knitterName: string;
+  yarnPhase: boolean;
+  linkedProject: LinkedProject | null;
+  projectProgressPct: number | null;
+  daysUntilAutoRelease: number | null;
+  /** Returns true when this is the current state */
+  isActive: (status: string) => boolean;
+  /** Returns true when this state has already been left behind */
+  isPast: (status: string) => boolean;
+}
+const {
+  req, isBuyer, isKnitter, acceptedOffer, myOffer,
+  knitterProfile, knitterName, yarnPhase,
+  linkedProject, projectProgressPct, daysUntilAutoRelease,
+  isActive, isPast,
+} = Astro.props;
+---
+
+<div class="relative">
+  <div class="hidden md:grid grid-cols-[1fr_32px_1fr] gap-x-4 mb-6">
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/35 text-right">Bestiller</p>
+    <div></div>
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/35">Strikker</p>
+  </div>
+
+  <div class="hidden md:block absolute left-1/2 top-10 bottom-0 w-px bg-sage-500/15 -translate-x-1/2 pointer-events-none"></div>
+
+  {/* ── Phase 1: Valgt tilbud ── */}
+  <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
+    <div class="md:text-right mb-4 md:mb-0">
+      {isBuyer ? (
+        <div>
+          <p class="text-xs text-charcoal/45 mb-2">Du valgte:</p>
+          <div class="md:ml-auto md:max-w-[260px] bg-white rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
+            <div class="flex items-center gap-2 mb-1">
+              <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
+              <a href={`/market/seller/${acceptedOffer!.knitter_id}`} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{knitterName}</a>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Valgt</span>
+            </div>
+            <p class="font-mono tabular-nums">{acceptedOffer!.price_nok} NOK</p>
+            <p class="text-xs text-charcoal/55">{acceptedOffer!.turnaround_weeks} {acceptedOffer!.turnaround_weeks === 1 ? 'uke' : 'uker'} leveringstid</p>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p class="text-xs text-charcoal/45 mb-2">Valgt tilbud:</p>
+          <div class="md:ml-auto md:max-w-[260px] bg-white rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
+            <div class="flex items-center gap-2 mb-1">
+              <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
+              <span class="text-sm font-medium">{knitterName}</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Valgt</span>
+            </div>
+            <p class="font-mono tabular-nums">{acceptedOffer!.price_nok} NOK</p>
+            <p class="text-xs text-charcoal/55">{acceptedOffer!.turnaround_weeks} {acceptedOffer!.turnaround_weeks === 1 ? 'uke' : 'uker'} leveringstid</p>
+            {req.offer_count > 1 && (
+              <p class="text-[10px] text-charcoal/40 mt-2">{req.offer_count - 1} {req.offer_count - 1 === 1 ? 'annet tilbud' : 'andre tilbud'} ble vurdert.</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+    <div class="hidden md:flex justify-center relative z-10">
+      <div class="w-3 h-3 rounded-full mt-1 bg-sage-500"></div>
+    </div>
+    <div>
+      {isKnitter ? (
+        <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+          <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ditt tilbud — akseptert</p>
+          <p class="font-mono tabular-nums">{myOffer!.price_nok} NOK · {myOffer!.turnaround_weeks} uker</p>
+        </div>
+      ) : (
+        <p class="text-xs text-charcoal/40">Tilbud akseptert</p>
+      )}
+    </div>
+  </div>
+
+  {/* ── Phase 2: Betaling ── */}
+  <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
+    <div class="md:text-right mb-4 md:mb-0">
+      {isActive('awaiting_payment') && isBuyer ? (
+        <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/30 md:text-left">
+          <p class="font-medium text-sm mb-1">Betal for oppdraget</p>
+          <p class="text-xs text-charcoal/55 mb-3">Pengene holdes til prosjektet er levert.</p>
+          <p class="font-mono tabular-nums text-lg mb-3">{acceptedOffer!.price_nok} NOK</p>
+          <form method="post" action="/api/marketplace/commissions/pay" data-astro-reload>
+            <input type="hidden" name="request_id" value={req.id} />
+            <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Betal nå</button>
+          </form>
+          <p class="text-[10px] text-charcoal/30 text-center mt-2">Stripe-betaling kommer snart.</p>
+        </div>
+      ) : isPast('awaiting_payment') ? (
+        <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Betalt</p>
+      ) : (
+        <p class="text-xs text-charcoal/30">Betaling</p>
+      )}
+    </div>
+    <div class="hidden md:flex justify-center relative z-10">
+      <div class:list={['w-3 h-3 rounded-full mt-1', isPast('awaiting_payment') ? 'bg-sage-500' : isActive('awaiting_payment') ? 'bg-terracotta-500 ring-4 ring-terracotta-500/15' : 'bg-sage-500/20']}></div>
+    </div>
+    <div>
+      {isActive('awaiting_payment') ? (
+        <p class="text-xs text-charcoal/45">Venter på betaling fra bestiller…</p>
+      ) : isPast('awaiting_payment') ? (
+        <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Betaling mottatt</p>
+      ) : (
+        <p class="text-xs text-charcoal/30">—</p>
+      )}
+    </div>
+  </div>
+
+  {/* ── Phase 3: Garn (conditional) ── */}
+  {yarnPhase && !isActive('awaiting_payment') && (
+    <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
+      <div class="md:text-right mb-4 md:mb-0">
+        {isActive('awaiting_yarn') && !req.yarn_shipped_at && isBuyer ? (
+          <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
+            <p class="font-medium text-sm mb-1">Send garnet</p>
+            <p class="text-xs text-charcoal/55 mb-3">Send garnet til strikkeren med sporing.</p>
+            <form method="post" action="/api/marketplace/commissions/ship-yarn" data-astro-reload class="space-y-2">
+              <input type="hidden" name="request_id" value={req.id} />
+              <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+              <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Merk som sendt</button>
+            </form>
+          </div>
+        ) : isActive('awaiting_yarn') && req.yarn_shipped_at ? (
+          <div class="md:ml-auto md:max-w-[260px] md:text-left">
+            <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Garnet er sendt</p>
+            <p class="text-[10px] text-charcoal/40 mt-0.5">
+              {new Date(req.yarn_shipped_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })}
+              {req.yarn_tracking_code && <span> · <span class="font-mono">{req.yarn_tracking_code}</span></span>}
+            </p>
+          </div>
+        ) : isPast('awaiting_yarn') ? (
+          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Garn sendt og mottatt</p>
+        ) : (
+          <p class="text-xs text-charcoal/30">Send garn</p>
+        )}
+      </div>
+      <div class="hidden md:flex justify-center relative z-10">
+        <div class:list={['w-3 h-3 rounded-full mt-1', isPast('awaiting_yarn') ? 'bg-sage-500' : isActive('awaiting_yarn') ? 'bg-terracotta-500 ring-4 ring-terracotta-500/15' : 'bg-sage-500/20']}></div>
+      </div>
+      <div>
+        {isActive('awaiting_yarn') && !req.yarn_shipped_at ? (
+          <p class="text-xs text-charcoal/45">Venter på garn fra bestiller…</p>
+        ) : isActive('awaiting_yarn') && req.yarn_shipped_at ? (
+          <div class="bg-white rounded-2xl p-4 border border-terracotta-500/20">
+            <p class="font-medium text-sm mb-1">Garnet er på vei!</p>
+            {req.yarn_tracking_code && <p class="text-xs text-charcoal/55 mb-2">Sporing: <span class="font-mono">{req.yarn_tracking_code}</span></p>}
+            {req.yarn_bring_shipment_number && <div data-tracking-events class="text-xs text-charcoal/55 mb-3"></div>}
+            <form method="post" action="/api/marketplace/commissions/receive-yarn" data-astro-reload>
+              <input type="hidden" name="request_id" value={req.id} />
+              <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Bekreft mottatt</button>
+            </form>
+          </div>
+        ) : isPast('awaiting_yarn') ? (
+          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Garn mottatt</p>
+        ) : (
+          <p class="text-xs text-charcoal/30">—</p>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* ── Phase 4: Pågår ── */}
+  {isPast('awaiting_payment') && (isPast('awaiting_yarn') || !yarnPhase) && (
+    <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
+      <div class="md:text-right mb-4 md:mb-0">
+        {isActive('awarded') ? (
+          isBuyer && linkedProject ? (
+            <div class="md:ml-auto md:max-w-[280px] md:text-left">
+              <p class="text-xs text-charcoal/45 mb-2">Strikkeren jobber…</p>
+              {projectProgressPct !== null && (
+                <div class="bg-white rounded-xl p-3 border border-sage-500/10 mb-2">
+                  <div class="flex items-center justify-between text-[10px] text-charcoal/55 mb-1">
+                    <span class="font-bold uppercase tracking-widest">Fremdrift</span>
+                    <span>{projectProgressPct}%</span>
+                  </div>
+                  <div class="h-1.5 bg-sage-500/10 rounded-full overflow-hidden">
+                    <div class="h-full bg-sage-500 rounded-full" style={`width: ${projectProgressPct}%`}></div>
+                  </div>
+                </div>
+              )}
+              <a href={`/market/commissions/${req.id}/prosjekt`} class="inline-flex items-center gap-1.5 text-xs font-medium text-terracotta-500 hover:text-terracotta-700">
+                Se prosjektet →
+              </a>
+            </div>
+          ) : (
+            <p class="text-xs text-charcoal/45">Strikkeren jobber med bestillingen din.</p>
+          )
+        ) : isPast('awarded') ? (
+          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Strikking ferdig</p>
+        ) : (
+          <p class="text-xs text-charcoal/30">Pågår</p>
+        )}
+      </div>
+      <div class="hidden md:flex justify-center relative z-10">
+        <div class:list={['w-3 h-3 rounded-full mt-1', isPast('awarded') ? 'bg-sage-500' : isActive('awarded') ? 'bg-terracotta-500 ring-4 ring-terracotta-500/15' : 'bg-sage-500/20']}></div>
+      </div>
+      <div>
+        {isActive('awarded') && isKnitter ? (
+          <div class="space-y-3">
+            {linkedProject && (
+              <a href={`/studio/projects/${linkedProject.id}`} class="flex items-center gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                {linkedProject.hero_photo_path ? (
+                  <img src={projectPhotoUrl(linkedProject.hero_photo_path)!} alt="" class="w-10 h-10 rounded-lg object-cover shrink-0" />
+                ) : (
+                  <div class="w-10 h-10 rounded-lg bg-oatmeal/60 shrink-0"></div>
+                )}
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium line-clamp-1">{linkedProject.title}</p>
+                  <p class="text-[10px] text-charcoal/45">{PROJECT_STATUS[linkedProject.status]} · Åpne i Strikkestua</p>
+                </div>
+              </a>
+            )}
+            <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+              <p class="text-sm font-medium mb-1">Ferdig strikket?</p>
+              <p class="text-xs text-charcoal/55 mb-3">Kjøper har 14 dager på å bekrefte mottak.</p>
+              <form method="post" action="/api/marketplace/commissions/mark-completed" data-astro-reload class="space-y-2">
+                <input type="hidden" name="request_id" value={req.id} />
+                <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode (valgfritt)" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+                <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Merk som ferdig</button>
+              </form>
+            </div>
+          </div>
+        ) : isActive('awarded') ? (
+          <p class="text-xs text-charcoal/45">Strikkeren jobber…</p>
+        ) : isPast('awarded') ? (
+          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Ferdigstrikket</p>
+        ) : (
+          <p class="text-xs text-charcoal/30">—</p>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* ── Phase 5: Ferdigstilt ── */}
+  {(isActive('completed') || isPast('completed')) && (
+    <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
+      <div class="md:text-right mb-4 md:mb-0">
+        {isActive('completed') && isBuyer ? (
+          <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
+            <p class="font-medium text-sm mb-1">Bekreft mottak</p>
+            <p class="text-xs text-charcoal/55 mb-3">Har du mottatt arbeidet?</p>
+            {req.finished_item_tracking_code && (
+              <p class="text-xs text-charcoal/55 mb-2">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
+            )}
+            {daysUntilAutoRelease !== null && (
+              <p class="text-[10px] text-charcoal/40 mb-3">Automatisk godkjenning om {daysUntilAutoRelease} {daysUntilAutoRelease === 1 ? 'dag' : 'dager'}.</p>
+            )}
+            <form method="post" action="/api/marketplace/commissions/confirm-delivery" data-astro-reload>
+              <input type="hidden" name="request_id" value={req.id} />
+              <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Bekreft mottatt</button>
+            </form>
+            <form method="post" action="/api/marketplace/commissions/dispute" data-astro-reload class="mt-2">
+              <input type="hidden" name="request_id" value={req.id} />
+              <input name="reason" required maxlength="500" placeholder="Beskriv problemet…" class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 mb-1" />
+              <button type="submit" class="w-full text-[10px] text-charcoal/35 hover:text-terracotta-500 transition-colors">Rapporter problem</button>
+            </form>
+          </div>
+        ) : isActive('completed') ? (
+          <p class="text-xs text-charcoal/45">Venter på bekreftelse fra bestiller…</p>
+        ) : (
+          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Mottak bekreftet</p>
+        )}
+      </div>
+      <div class="hidden md:flex justify-center relative z-10">
+        <div class:list={['w-3 h-3 rounded-full mt-1', isPast('completed') ? 'bg-sage-500' : 'bg-terracotta-500 ring-4 ring-terracotta-500/15']}></div>
+      </div>
+      <div>
+        {isActive('completed') ? (
+          <div>
+            <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Merket som ferdig</p>
+            {req.finished_item_tracking_code && (
+              <p class="text-[10px] text-charcoal/40 mt-0.5">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
+            )}
+            {daysUntilAutoRelease !== null && (
+              <p class="text-[10px] text-charcoal/40 mt-0.5">Automatisk godkjenning om {daysUntilAutoRelease}d</p>
+            )}
+          </div>
+        ) : (
+          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Ferdigstrikket</p>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* ── Phase 6: Levert ── */}
+  {req.status === 'delivered' && (
+    <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4">
+      <div class="md:text-right mb-4 md:mb-0">
+        <p class="text-sm font-medium text-sage-700">✓ Levert</p>
+        {req.delivered_at && (
+          <p class="text-[10px] text-charcoal/40">{new Date(req.delivered_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        )}
+      </div>
+      <div class="hidden md:flex justify-center relative z-10">
+        <div class="w-4 h-4 rounded-full bg-sage-500 ring-4 ring-sage-500/15 mt-0.5"></div>
+      </div>
+      <div>
+        <p class="text-sm font-medium text-sage-700">✓ Betaling frigitt</p>
+      </div>
+    </div>
+  )}
+</div>

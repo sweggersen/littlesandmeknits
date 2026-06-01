@@ -1,0 +1,144 @@
+---
+import ProfileAvatar from '../ProfileAvatar.astro';
+import { projectPhotoUrl } from '../../lib/storage';
+
+// Open-state offers list for a commission request:
+//   - Buyer view: list of received offers with accept button
+//   - Knitter view (not yet bid): submit-offer form
+//   - Knitter view (already bid): own offer summary + withdraw
+//   - Anon view: login CTA
+// Plus the buyer's manage-row at the bottom (expiry, extend, cancel).
+//
+// Extracted from src/pages/market/commissions/[id].astro. Caller must
+// only render when isOpen.
+
+interface Offer {
+  id: string;
+  knitter_id: string;
+  price_nok: number;
+  turnaround_weeks: number;
+  message: string | null;
+}
+
+interface OfferWithProfile extends Offer {
+  profiles?: {
+    avatar_path: string | null;
+    display_name: string | null;
+  } | null;
+}
+
+interface Props {
+  requestId: string;
+  /** raw param id used to build the login-next URL */
+  paramId: string;
+  isBuyer: boolean;
+  allOffers: OfferWithProfile[];
+  myOffer: Offer | null;
+  hasUser: boolean;
+  daysUntilExpiry: number | null;
+  expiringSoon: boolean;
+}
+const {
+  requestId, paramId, isBuyer, allOffers, myOffer, hasUser,
+  daysUntilExpiry, expiringSoon,
+} = Astro.props;
+---
+
+<div class="mb-10">
+  {isBuyer ? (
+    allOffers.length === 0 ? (
+      <div class="text-center py-8">
+        <p class="text-sm text-charcoal/55 mb-1">Ingen tilbud ennå</p>
+        <p class="text-xs text-charcoal/40">Strikkere kan se forespørselen din og sende tilbud.</p>
+      </div>
+    ) : (
+      <div>
+        <h2 class="font-serif text-xl mb-4">{allOffers.length} {allOffers.length === 1 ? 'tilbud' : 'tilbud'} mottatt</h2>
+        <div class="space-y-3">
+          {allOffers.map((o) => {
+            const kp = o.profiles;
+            return (
+              <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
+                <div class="flex items-start gap-4">
+                  <a href={`/market/seller/${o.knitter_id}`} class="shrink-0">
+                    <ProfileAvatar url={kp?.avatar_path ? projectPhotoUrl(kp.avatar_path) : null} name={kp?.display_name ?? '?'} size="md" />
+                  </a>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-baseline justify-between gap-3 mb-1">
+                      <a href={`/market/seller/${o.knitter_id}`} class="font-medium hover:text-terracotta-500 transition-colors">{kp?.display_name ?? 'Anonym'}</a>
+                      <p class="font-mono tabular-nums text-lg shrink-0">{o.price_nok} NOK</p>
+                    </div>
+                    <p class="text-xs text-charcoal/55 mb-2">{o.turnaround_weeks} {o.turnaround_weeks === 1 ? 'uke' : 'uker'} leveringstid</p>
+                    {o.message && <p class="text-sm text-charcoal/70 whitespace-pre-line mb-3">{o.message}</p>}
+                    <form method="post" action="/api/marketplace/commissions/accept" data-astro-reload>
+                      <input type="hidden" name="offer_id" value={o.id} />
+                      <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Aksepter tilbud</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    )
+  ) : !isBuyer && !myOffer && hasUser ? (
+    <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10">
+      <p class="font-medium text-sm mb-3">Send tilbud</p>
+      <form method="post" action="/api/marketplace/commissions/offer" data-astro-reload class="space-y-2">
+        <input type="hidden" name="request_id" value={requestId} />
+        <div class="grid grid-cols-2 gap-2">
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Pris (NOK)</span>
+            <input name="price_nok" type="number" required min="1" step="1" placeholder="600" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </label>
+          <label class="block">
+            <span class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Uker</span>
+            <input name="turnaround_weeks" type="number" required min="1" max="52" placeholder="3" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          </label>
+        </div>
+        <textarea name="message" required rows="2" maxlength="500" placeholder="Kort melding til bestiller…" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+        <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send tilbud</button>
+      </form>
+    </div>
+  ) : myOffer ? (
+    <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10">
+      <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ditt tilbud</p>
+      <p class="font-mono tabular-nums">{myOffer.price_nok} NOK · {myOffer.turnaround_weeks} uker</p>
+      <p class="text-[10px] text-charcoal/45 mt-1">Venter på svar fra bestiller</p>
+      <form method="post" action="/api/marketplace/commissions/withdraw" data-astro-reload class="mt-2">
+        <input type="hidden" name="offer_id" value={myOffer.id} />
+        <button type="submit" class="text-[10px] text-charcoal/35 hover:text-terracotta-500 transition-colors">Trekk tilbake</button>
+      </form>
+    </div>
+  ) : !hasUser ? (
+    <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+      <p class="text-sm text-charcoal/55 mb-2">Logg inn for å gi tilbud</p>
+      <a href={`/login?next=/market/commissions/${paramId}`} class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Logg inn</a>
+    </div>
+  ) : null}
+
+  {isBuyer && (
+    <div class="mt-4 text-center space-y-2">
+      {daysUntilExpiry !== null && (
+        <p class="text-xs text-charcoal/45">
+          {expiringSoon ? (
+            <span class="text-amber-600">Utloper om {daysUntilExpiry} {daysUntilExpiry === 1 ? 'dag' : 'dager'}</span>
+          ) : (
+            <span>Utloper om {daysUntilExpiry} dager</span>
+          )}
+        </p>
+      )}
+      {isBuyer && expiringSoon && (
+        <form method="post" action="/api/marketplace/commissions/extend" data-astro-reload>
+          <input type="hidden" name="request_id" value={requestId} />
+          <button type="submit" class="text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors">Forleng 30 dager</button>
+        </form>
+      )}
+      <form method="post" action="/api/marketplace/commissions/cancel" data-astro-reload>
+        <input type="hidden" name="request_id" value={requestId} />
+        <button type="submit" class="text-xs text-charcoal/35 hover:text-terracotta-500 transition-colors">Avbryt forespørsel</button>
+      </form>
+    </div>
+  )}
+</div>
