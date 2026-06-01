@@ -3,6 +3,7 @@ import { ok, fail } from './types';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime, projectPhotoUrl } from '../storage';
 import { isValidKontonummer, normalizeKontonummer } from '../kontonummer';
 import { orEither } from '../db/assert';
+import { recordDeadLetter } from './dead-letter';
 import { createSellerConnectAccount } from './stripe-connect';
 
 const VALID_LANGS = new Set(['nb', 'en']);
@@ -253,9 +254,39 @@ export async function deleteAccount(
     );
   }
 
-  // 2. Anonymise the profile + clear personal content.
+  // 2. Anonymise the profile + clear personal content. Halt on the
+  // first failure so the user doesn't end up in a half-deleted state
+  // (display_name swapped to "slettet-…" but favorites still there).
+  // The profile UPDATE comes LAST so a failure at any earlier step
+  // leaves the profile recognisably-still-the-user's-account.
+  const fail500 = async (step: string, error: unknown): Promise<ServiceResult<{ redirect: string }>> => {
+    await recordDeadLetter(ctx, {
+      service: `profile.deleteAccount:${step}`,
+      context: { user_id: ctx.user.id },
+      error,
+    });
+    return fail('server_error', `Sletting feilet på «${step}». Kontoen er fortsatt aktiv. Kontakt hei@littlesandmeknits.com.`);
+  };
+
+  const favRes = await ctx.admin.from('favorites').delete().eq('user_id', ctx.user.id);
+  if (favRes.error) return fail500('favorites', favRes.error);
+
+  const notifRes = await ctx.admin.from('notifications').delete().eq('user_id', ctx.user.id);
+  if (notifRes.error) return fail500('notifications', notifRes.error);
+
+  const prefRes = await ctx.admin.from('notification_preferences').delete().eq('user_id', ctx.user.id);
+  if (prefRes.error) return fail500('notification_preferences', prefRes.error);
+
+  const listingsRes = await ctx.admin.from('listings').update({ status: 'removed' })
+    .eq('seller_id', ctx.user.id).in('status', ['draft', 'pending_review', 'active']);
+  if (listingsRes.error) return fail500('listings_archive', listingsRes.error);
+
+  // Anonymise the profile LAST. After this point the user can't sign
+  // in, so we can't recover from a downstream error easily — but the
+  // earlier-step failures get a real rollback because the profile
+  // is still intact.
   const anonName = `slettet-${ctx.user.id.slice(0, 8)}`;
-  await ctx.admin.from('profiles').update({
+  const profileRes = await ctx.admin.from('profiles').update({
     display_name: anonName,
     avatar_path: null,
     bio: null,
@@ -264,16 +295,22 @@ export async function deleteAccount(
     seller_tags: [],
     deleted_at: new Date().toISOString(),
   }).eq('id', ctx.user.id);
-
-  await ctx.admin.from('favorites').delete().eq('user_id', ctx.user.id);
-  await ctx.admin.from('notifications').delete().eq('user_id', ctx.user.id);
-  await ctx.admin.from('notification_preferences').delete().eq('user_id', ctx.user.id);
-
-  await ctx.admin.from('listings').update({ status: 'removed' })
-    .eq('seller_id', ctx.user.id).in('status', ['draft', 'pending_review', 'active']);
+  if (profileRes.error) return fail500('profile_anonymise', profileRes.error);
 
   // 3. Delete the auth user (revokes all sessions, removes login).
-  await ctx.admin.auth.admin.deleteUser(ctx.user.id);
+  // If this fails we have an orphan: the profile is anonymised but
+  // the auth user can still log in. Land in dead-letter so support
+  // can finish the job manually.
+  const { error: authErr } = await ctx.admin.auth.admin.deleteUser(ctx.user.id);
+  if (authErr) {
+    await recordDeadLetter(ctx, {
+      service: 'profile.deleteAccount:auth_delete',
+      context: { user_id: ctx.user.id, profile_anonymised: true },
+      error: authErr,
+    });
+    // Don't fail the response — the user-visible part (their data
+    // is gone) succeeded. Support will mop up the auth row.
+  }
 
   return ok({ redirect: '/?deleted=1' });
 }

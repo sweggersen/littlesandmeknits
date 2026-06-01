@@ -948,9 +948,23 @@ All Stripe SDK calls mocked. Tests assert numeric values (fee amounts, deadlines
 
 ---
 
-### ☐ R2-7 — Audit cascade-delete on `profiles.id` foreign keys  **(P2)**
+### ☑ R2-7 — Audit cascade-delete on `profiles.id` foreign keys  **(P2 → done 2026-06-02)**
 
-**Goal:** when a user deletes their account, every dependent row should either cascade or be intentionally preserved. Today's `deleteAccount` manually wipes 3 tables and relies on the schema for the rest. Verify the schema actually cascades.
+**Completed.** Audit of all `references public.profiles(id)` FKs found 7 without an explicit `ON DELETE` clause:
+
+| Table | Column | New rule | Reason |
+|-------|--------|----------|--------|
+| `listing_promotions` | seller_id | cascade | promotion data is owned by seller |
+| `listings` | buyer_id | set null | sold listing is seller's record; buyer deletion shouldn't erase it |
+| `stores` | created_by | set null | stores outlive their founder |
+| `stores` | reviewed_by | set null | moderation history outlives the moderator |
+| `store_members` | invited_by | set null | invitation history is the store's record |
+| `store_invitations` | invited_by | set null | historical record |
+| `store_invitations` | accepted_by | set null | historical record |
+
+Without these, `deleteAccount` would silently fail with a constraint violation as soon as any of these tables had a referencing row. Migration `0074_profile_fk_cascade_audit.sql` swaps every FK in a single transaction.
+
+**Original goal:** when a user deletes their account, every dependent row should either cascade or be intentionally preserved. Today's `deleteAccount` manually wipes 3 tables and relies on the schema for the rest. Verify the schema actually cascades.
 
 **Files:**
 - Audit migrations for `references public.profiles(id)` without `on delete cascade`.
@@ -969,9 +983,13 @@ All Stripe SDK calls mocked. Tests assert numeric values (fee amounts, deadlines
 
 ---
 
-### ☐ R2-8 — `deleteAccount` halts on first error  **(P2)**
+### ☑ R2-8 — `deleteAccount` halts on first error  **(P2 → done 2026-06-02)**
 
-**Goal:** if any step of the deletion fails, the whole operation should abort and the user's profile should not be marked deleted. Today the sequential `await`s ignore errors silently, leaving partial state.
+**Completed.** `deleteAccount` now checks every step's `{ error }` and returns early with a dead-letter record + `server_error` on the first failure. The order also matters: the profile anonymisation runs **last** so an earlier-step failure leaves the user's account recognisably intact. Auth-user delete failure is the one exception — at that point the user-visible data is already gone, so the function returns ok and records the orphan in `dead_letter_events` for support cleanup.
+
+10 new tests in `profile-delete.test.ts` cover: confirmation guards, pre-flight blockers (active sales / purchases / threads), fail-fast at each step verifying the profile is NOT anonymised, the happy path, and the auth-delete-failure recoverable path.
+
+**Original goal:** if any step of the deletion fails, the whole operation should abort and the user's profile should not be marked deleted. Today the sequential `await`s ignore errors silently, leaving partial state.
 
 **Files:**
 - `src/lib/services/profile.ts:236–245`
