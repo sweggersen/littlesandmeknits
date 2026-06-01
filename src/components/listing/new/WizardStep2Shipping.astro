@@ -1,0 +1,61 @@
+---
+// Step 2 of the new-listing wizard: price, shipping option, escrow
+// toggle, optional shipping memo. Extracted from
+// src/pages/market/listing/new.astro.
+
+interface ShippingTier {
+  id: string;
+  label: string;
+  description: string;
+  priceNok: number;
+}
+
+interface Props {
+  shippingTiers: ShippingTier[];
+}
+const { shippingTiers } = Astro.props;
+---
+
+<section data-step="2" class="space-y-6 hidden">
+  <div>
+    <label for="price_nok" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Pris (NOK) *</label>
+    <input id="price_nok" name="price_nok" type="number" min="0" step="1" required placeholder="350"
+      class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+    <p class="text-[11px] text-charcoal/45 mt-1.5" data-tb-hint>
+      Med trygg betaling betaler kjøper en liten avgift (9–29 kr avhengig av pris). Du som selger betaler ingenting.
+    </p>
+  </div>
+
+  <fieldset class="space-y-2">
+    <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fraktalternativ *</legend>
+    {shippingTiers.map((t, i) => (
+      <label class="flex items-start gap-3 bg-linen rounded-xl p-3 cursor-pointer border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/40 transition-colors">
+        <input type="radio" name="shipping_option" value={t.id} required checked={i === 0} class="mt-1 shrink-0" />
+        <span class="flex-1 min-w-0">
+          <span class="flex items-baseline justify-between gap-2">
+            <span class="text-sm font-medium">{t.label}</span>
+            <span class="text-sm font-mono text-charcoal/65 shrink-0">{t.priceNok > 0 ? `${t.priceNok} kr` : 'Gratis'}</span>
+          </span>
+          <span class="block text-xs text-charcoal/55 mt-0.5">{t.description}</span>
+        </span>
+      </label>
+    ))}
+    <p class="text-[11px] text-charcoal/45 mt-1.5">Kjøperen ser kostnaden tydelig før kjøp. Du får fraktbeløpet utbetalt sammen med varen.</p>
+  </fieldset>
+
+  <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
+    <input type="checkbox" name="escrow_enabled" value="true" checked class="mt-1 shrink-0" />
+    <span class="flex-1">
+      <span class="block text-sm font-medium">🛡️ Aktiver trygg betaling (anbefalt)</span>
+      <span class="block text-xs text-charcoal/55 mt-1">
+        Kjøper betaler trygt via Strikketorget. Pengene holdes til kjøper bekrefter mottak,
+        ellers automatisk frigjøring 14 dager etter sending. Du som selger betaler ingenting, kjøperen dekker en liten avgift.
+      </span>
+    </span>
+  </label>
+
+  <div>
+    <label for="shipping_info" class="block text-xs text-charcoal/55 mb-1">Frakt-merknad (valgfritt)</label>
+    <input id="shipping_info" name="shipping_info" type="text" maxlength="200" placeholder="Pakker mandag–onsdag, kan hentes i Oslo…" class="w-full bg-linen rounded-xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+  </div>
+</section>
