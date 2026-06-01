@@ -1,10 +1,13 @@
 # Refactor plan — Strikketorget hardening
 
-**Status:** ☑ closed 2026-06-02 — 15 ☑ done · 1 ⊘ wontfix
+**Round 1 (items 1–16):** ☑ closed 2026-06-02 — 15 ☑ done · 1 ⊘ wontfix
+**Round 2 (items R2-1+):** started 2026-06-02 — operational hardening from the post-refactor staff-engineer review.
 **Owner:** Sam + Claude
 **Started:** 2026-05-31
 
-This document was the single source of truth for the staff-engineer-review refactor. It's complete. Items below are kept as the historical record. New refactor work goes into its own document.
+Round 1 fixed structural rot — service layer, RLS plumbing, typecheck, god components, client controllers. Round 2 addresses operational risk that survived the refactor. Same working rules: one item per PR, tick the box, no new features that bypass the rules below.
+
+Jump to [Round 2 items](#round-2--operational-hardening-2026-06-02) at the bottom.
 
 This is the single source of truth for the refactor. We march top-to-bottom. Each item has a `Goal`, `Why`, `Files`, `Steps`, `Acceptance`, and `Effort`. Tick the box when done.
 
@@ -756,3 +759,290 @@ The "physical page rename to canonical English dirs" step from the original entr
 ## Definition of "done" for the whole refactor
 
 When every checkbox is ticked AND CLAUDE.md has been updated to prevent regression on each item AND CI enforces the rules. Then we close this file out.
+
+---
+
+## Round 2 — Operational hardening (2026-06-02)
+
+Triggered by a fresh staff-engineer review after Round 1 closed. Round 1 was *structural*: it left operational gaps. This round is small, focused, and bounded — no new features, just close the holes.
+
+Severity: **P0** = fix this week. **P1** = fix before 1k real users. **P2** = on the roadmap. **P3** = nice-to-have.
+
+### Phase order
+
+| Priority | Items |
+|---|---|
+| **P0** | R2-1, R2-2, R2-3 |
+| **P1** | R2-4, R2-5, R2-6 |
+| **P2** | R2-7, R2-8, R2-9, R2-10 |
+| **P3** | R2-11, R2-12, R2-13, R2-14 |
+
+---
+
+### ☑ R2-1 — RLS tests for the three new profile-split tables  **(P0 → done 2026-06-02)**
+
+**Completed.** 9 new RLS test cases added across `seller_profiles` (owner-read, third-party-deny, staff-read), `buyer_preferences` (owner-read, third-party-deny), and `auth_identities` (owner-read, third-party-deny, staff-read, unique-constraint enforcement).
+
+**Real bug surfaced and fixed as a bonus.** While writing the tests, the harness caught that `commission_requests` had **two overlapping SELECT policies** OR'd together — the broader one (`status IN ('open', 'awaiting_payment', ...)`) ignored `target_knitter_id`, so "private targeted" commissions were visible to every authenticated user. The private-commission feature wasn't actually private since migration 0024 (months ago).
+
+Fix shipped in `0073_fix_private_commission_visibility.sql`: replaced both policies with a single one that respects target/buyer/accepted-knitter access via a `security definer` helper (`is_accepted_knitter`) to avoid RLS recursion through `commission_offers`.
+
+Also fixed the test harness: `.env.local` had a stale `192.168.68.67` URL, and the RLS test couldn't read `PUBLIC_*` vars via `import.meta.env` because Vitest doesn't auto-expose them — now falls back to `process.env`.
+
+**Original goal:** verify that `seller_profiles`, `buyer_preferences`, `auth_identities` enforce owner-only reads and staff-only moderation reads. Migration 0072 shipped yesterday with no test coverage on these RLS policies, and the data is sensitive (kontonummer, address, phone number, OIDC sub).
+
+**Files:**
+- Extend `src/lib/__tests__/rls.test.ts` with three describe blocks.
+
+**Steps:**
+1. `seller_profiles`: owner reads own; third party gets empty; staff (admin role) reads any.
+2. `buyer_preferences`: owner reads own; third party gets empty.
+3. `auth_identities`: owner reads own rows; staff reads any; third party reads none. Verify the `unique(provider, sub)` and `unique(user_id, provider)` constraints reject duplicate inserts.
+
+**Acceptance:**
+- Six new test cases (two per table covering positive + negative).
+- `npm run test:rls` is green when local Supabase is up.
+
+**Effort:** 1–2 hours.
+
+---
+
+### ☐ R2-2 — Stripe webhook records dead-letters on failure  **(P0)**
+
+**Goal:** any DB failure in a Stripe-driven money operation lands in `dead_letter_events` instead of `console.error`-and-forget. This is the whole point of the dead-letter table built in Item 16.
+
+**Why:** the webhook handles 4 flows (listing fee, escrow upgrade, promotion start, listing purchase). All four currently swallow DB errors with `console.error()` and a 500 response. Stripe retries 3× and gives up. If the third retry fails, the buyer paid but the listing is never marked `reserved` — and there's no audit trail.
+
+**Files:**
+- `src/pages/api/stripe/webhook.ts`
+
+**Steps:**
+1. Identify every `if (error) { console.error(...); return 500 }` in the webhook.
+2. Wrap each with `recordDeadLetter(synthCtx, { service, context, error })` before the 500. The webhook doesn't have a `ctx.user`, so build a synthetic context with the relevant user_id pulled from the Stripe event metadata.
+3. Add a regression test: deliberately fail one update, assert a `dead_letter_events` row is created.
+
+**Acceptance:**
+- Zero `console.error` followed by a bare 500 in the webhook.
+- One test in `src/pages/api/stripe/webhook.test.ts` (new file) covering the dead-letter path on a forced DB failure.
+
+**Effort:** 2–3 hours.
+
+---
+
+### ☐ R2-3 — Sanitize user IDs in `.or()` filter strings  **(P0)**
+
+**Goal:** stop concatenating user IDs into PostgREST filter DSL strings. Today's risk is low (UUIDs from Supabase auth are strict), but the pattern is a foot-gun — the next dev who needs to query "conversations involving this user" will copy it without checking whether their ID is user-controlled and strictly-typed.
+
+**Why:** PostgREST `.or()` takes a filter string. Concatenating raw values violates defense-in-depth. The right pattern is `.in()` on an array of IDs, or two chained queries merged in JS.
+
+**Files:**
+- `src/lib/services/profile.ts:59`
+- `src/lib/moderation.ts:293–294`
+- `src/pages/inbox.astro:24`
+- `src/pages/market/my-listings.astro:26`
+
+**Steps:**
+1. Refactor each to: two separate `.eq()` queries, results merged client-side.
+2. Where this would be a heavy double-query, document the safety contract: "userId is `ctx.user.id` from middleware-verified auth, guaranteed UUID."
+3. Add a tiny helper `assertUuid(s: string)` and use it at any service boundary where IDs come from request input (not from `ctx.user`).
+
+**Acceptance:**
+- No `.or(\`...${variable}...\`)` patterns remain in `src/`.
+- `grep -rn "\.or(.*\${" src/` returns zero hits.
+
+**Effort:** 1–2 hours.
+
+---
+
+### ☐ R2-4 — Unit tests for high-risk commerce services  **(P1)**
+
+**Goal:** cover the five highest-blast-radius services with vitest unit tests. A typo in `payCommission()` refunding the wrong amount won't be caught by build, typecheck, or e2e visual review — it surfaces as a support ticket.
+
+**Files (each gets `*.test.ts`):**
+- `src/lib/services/commissions.ts` (acceptOffer, payCommission, markCompleted, confirmDelivery)
+- `src/lib/services/listings.ts` (publishListing, purchaseListing, shipListing, confirmListingDelivery)
+- `src/lib/services/disputes.ts`
+- `src/lib/services/refunds.ts`
+- `src/lib/services/payouts.ts`
+
+**Steps:**
+1. Use the `mockCtx(...)` pattern from existing tests (`favorites.test.ts`, `notifications.test.ts`). Each service test mocks the supabase client + the Stripe SDK and asserts business logic.
+2. Focus on state transitions and money math; don't re-test Supabase.
+3. Bug-fix tests: if a test fails on first run, that's a bug — capture it.
+
+**Acceptance:**
+- ≥ 30 new unit tests across the five files.
+- All money math (fee calc, refund amounts, payout splits) covered by at least one test with an exact numeric assertion.
+
+**Effort:** 2–3 days.
+
+---
+
+### ☐ R2-5 — Bound the GDPR export queries  **(P1)**
+
+**Goal:** the GDPR Art. 15 / Art. 20 export in `exportPersonalData` runs 18 `select('*')` queries without `.limit()`. Supabase's default cap is 1000 rows per query but behaviour is implicit. At 5k+ rows the export truncates silently — that's a regulatory issue, not just a UX bug.
+
+**Files:**
+- `src/lib/services/profile.ts:42–105`
+
+**Steps:**
+1. Add `.limit(1000)` to each query.
+2. After each result, check whether the query hit the cap. If so, include a `truncated: true` flag + count in the export payload so the user can request the rest.
+3. Add a note in the export response: "Data above limited to most recent 1000 rows per category."
+
+**Acceptance:**
+- Every query in `exportPersonalData` has an explicit `.limit()`.
+- Export payload signals when truncation happened.
+
+**Effort:** 1 hour.
+
+---
+
+### ☐ R2-6 — Paginate `listUsers` lookups  **(P1)**
+
+**Goal:** `admin.auth.admin.listUsers({ perPage: 1000 })` silently truncates at 1000 users. The Vipps email-link flow uses this to find an existing account; at user #1001+ it would create a duplicate.
+
+**Files:**
+- `src/lib/vipps-session.ts:46–58`
+- `src/pages/api/dev/test-exec.ts:158` (dev tooling — document the limit, don't paginate)
+- `src/pages/api/dev/test-login.ts:28` (same)
+
+**Steps:**
+1. For `vipps-session.ts`, replace the single `listUsers` call with a `getUserByEmail` helper. Supabase has `admin.auth.admin.listUsers({ email: target })` filter or `admin.auth.admin.getUserById` — confirm the right API and use it.
+2. If no email-filtered lookup exists, write a pagination loop that early-exits on the first hit.
+3. For dev tooling, add a comment marking the 1000-user limit explicitly.
+
+**Acceptance:**
+- No `listUsers({ perPage: 1000 })` calls in production code paths.
+- Vipps email-linking is deterministic regardless of user count.
+
+**Effort:** 1–2 hours.
+
+---
+
+### ☐ R2-7 — Audit cascade-delete on `profiles.id` foreign keys  **(P2)**
+
+**Goal:** when a user deletes their account, every dependent row should either cascade or be intentionally preserved. Today's `deleteAccount` manually wipes 3 tables and relies on the schema for the rest. Verify the schema actually cascades.
+
+**Files:**
+- Audit migrations for `references public.profiles(id)` without `on delete cascade`.
+- `src/lib/services/profile.ts:236–245` (deletion flow).
+
+**Steps:**
+1. `grep -rn "references public.profiles(id)" supabase/migrations/*.sql`.
+2. For each, check whether `on delete cascade`, `on delete set null`, or no clause is set.
+3. Write a follow-up migration (`0073_profile_delete_cascade.sql`) that adds `on delete cascade` (or explicitly `set null`) for every FK. Document the choice in a one-line comment.
+
+**Acceptance:**
+- Every FK to `profiles(id)` has an explicit `on delete` clause.
+- Migration includes a test that deletes a user and verifies dependent rows are correctly handled.
+
+**Effort:** 2–3 hours.
+
+---
+
+### ☐ R2-8 — `deleteAccount` halts on first error  **(P2)**
+
+**Goal:** if any step of the deletion fails, the whole operation should abort and the user's profile should not be marked deleted. Today the sequential `await`s ignore errors silently, leaving partial state.
+
+**Files:**
+- `src/lib/services/profile.ts:236–245`
+
+**Steps:**
+1. Capture each `{ error }` from the delete calls.
+2. On first error, log + dead-letter + return `fail('server_error', ...)`.
+3. The profile-update step (marking deleted_at) is last and only runs if everything else succeeded.
+
+**Acceptance:**
+- Function returns failure cleanly if any step errors.
+- Test: mock the favorites delete to fail, assert profile is NOT marked deleted.
+
+**Effort:** 1–2 hours.
+
+---
+
+### ☐ R2-9 — Rate-limit / quota commerce operations  **(P2)**
+
+**Goal:** prevent bots or grievers from flooding `createRequest`, `makeOffer`, `sendMessage`. No quotas exist today; a single user could create unlimited rows.
+
+**Files:**
+- `src/lib/services/commissions.ts` (createRequest, makeOffer)
+- `src/lib/services/conversations.ts`
+
+**Steps:**
+1. Add a `user_action_counts` table keyed on `(user_id, action, day)` with a count.
+2. Service helper `assertWithinQuota(ctx, action, dailyLimit)` increments and checks.
+3. Sensible defaults: 5 requests/day, 20 offers/day, 100 messages/day per user. Tunable per trust tier later.
+
+**Acceptance:**
+- Quota check on the 3 highest-volume write paths.
+- Returns `fail('conflict', 'daily_limit_reached')` cleanly.
+
+**Effort:** 4–6 hours.
+
+---
+
+### ☐ R2-10 — Soft-delete enforcement helper  **(P2)**
+
+**Goal:** every query against a table with `deleted_at` should filter out soft-deleted rows. Today it's "remember to add `.is('deleted_at', null)`" at every call site, which is exactly the kind of thing nobody remembers.
+
+**Files:**
+- New: `src/lib/db/soft-delete.ts` (helper)
+- All readers of `profiles`, `listings`, `commission_requests`, `stores` (tables with `deleted_at`).
+
+**Steps:**
+1. Add a `notDeleted<T>(q: T): T` helper that adds the filter.
+2. Sweep readers; wrap each chain with `notDeleted(...)`.
+3. Or: create a database view `public.live_profiles` (etc.) and use that in reads. Document the choice.
+
+**Acceptance:**
+- No "forgot the soft-delete filter" bugs possible in new code.
+- Existing readers documented as either using the helper or explicitly opting out.
+
+**Effort:** 4–6 hours.
+
+---
+
+### ☐ R2-11 — Structured logging  **(P3)**
+
+**Goal:** replace 58+ `console.error`/`console.log` calls with structured log lines that can be filtered and alerted on. Today they're just noise in the worker log.
+
+**Files:** all services + page modules.
+
+**Steps:**
+1. Add a `src/lib/log.ts` with `log.info`, `log.warn`, `log.error` that output structured JSON.
+2. Sweep call sites. Especially payment-path errors should carry `event_type`, `user_id`, `resource_id`.
+3. Document the convention in CLAUDE.md.
+
+**Acceptance:**
+- `grep -rn "console\.\(log\|error\|warn\)" src/lib src/pages | wc -l` < 10.
+
+**Effort:** 4–8 hours.
+
+---
+
+### ☐ R2-12 — Rate-limit on Vipps sign-in  **(P3)**
+
+**Goal:** an attacker can spam the OIDC callback. Add IP-based rate-limiting at the edge.
+
+**Files:**
+- `src/pages/auth/vipps/start.ts`
+- `src/pages/auth/vipps/callback.ts`
+
+**Effort:** 3–4 hours.
+
+---
+
+### ☐ R2-13 — Curate `exportPersonalData` payload shape  **(P3)**
+
+**Goal:** today the export returns raw Supabase rows including internal flags + timestamps. A GDPR export should be user-friendly.
+
+**Effort:** 2–3 hours.
+
+---
+
+### ☐ R2-14 — Scope `dead_letter_events` reads to event domain  **(P3)**
+
+**Goal:** today any admin/moderator reads any dead-letter event. Fine while single-tenant. If the platform ever divides moderation by domain (Strikketorget vs LMK Studio), readability needs scoping.
+
+**Effort:** 1–2 hours.
