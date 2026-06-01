@@ -323,7 +323,17 @@ Run with `npm run test:rls` (auto-fetches local supabase keys via `supabase stat
 
 Build green throughout. Browser smoke test passed (Kjøp/Gi-et-bud modals open, lightbox triggers, page renders for owner and buyer perspectives).
 
-**Phase 2** — other pages still above 600 lines. Apply the same per-state-component pattern. Each gets its own PR.
+**Phase 2 partial 2026-06-01.** Continued through the next-largest pages:
+
+| Page | Before → After | Components extracted |
+|------|----------------|----------------------|
+| `studio/projects/[id].astro` | 848 → 528 | `project/ProgressSection`, `project/YarnSection`, `project/LogsSection`, `project/ShareSection` |
+| `market/commissions/[id].astro` | 760 → 395 | `commission/OffersList`, `commission/Timeline` |
+| `admin/moderation/[id].astro` | 615 → 387 | `moderation/ItemDetailsPanel` |
+
+All user-facing pages now well under 600 lines. Build green at every step.
+
+**Still over 600**: only the dev pages (`/dev/test-tower` 1722, `/dev/ui-flows` 966) and `studio/tools` (528 — close to ceiling, but the bulk is a ~270-line inline calculator script that belongs to Item 9 not Item 6). `profile/index` (556) and a few others are under 600 but multi-section card layouts that would benefit from per-section components — leaving as follow-ups since they are not over the ceiling.
 
 
 
