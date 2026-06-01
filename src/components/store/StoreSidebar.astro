@@ -1,0 +1,74 @@
+---
+import StarRating from '../StarRating.astro';
+
+// Sidebar on the public store page: rating summary + contact links +
+// legal registration + report link. Extracted from
+// market/store/[slug]/index.astro.
+
+interface Store {
+  id: string;
+  legal_name: string | null;
+  legal_address: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
+  etsy_url: string | null;
+  pinterest_url: string | null;
+  tiktok_url: string | null;
+}
+
+interface Props {
+  store: Store;
+  reviewCount: number;
+  avgRating: string | null;
+}
+const { store, reviewCount, avgRating } = Astro.props;
+---
+
+<aside class="space-y-6">
+  {reviewCount > 0 && avgRating && (
+    <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+      <div class="flex items-center gap-3">
+        <div class="text-3xl font-serif">{avgRating}</div>
+        <div>
+          <StarRating rating={parseFloat(avgRating)} />
+          <p class="text-xs text-charcoal/55 mt-0.5">{reviewCount} vurderinger</p>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+    <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-3">Kontakt</h3>
+    <dl class="space-y-2 text-sm">
+      {store.contact_email && (
+        <div><dt class="text-charcoal/55 text-xs">E-post</dt><dd><a href={`mailto:${store.contact_email}`} class="text-terracotta-500 hover:underline">{store.contact_email}</a></dd></div>
+      )}
+      {store.contact_phone && (
+        <div><dt class="text-charcoal/55 text-xs">Telefon</dt><dd>{store.contact_phone}</dd></div>
+      )}
+      {store.website_url && (
+        <div><dt class="text-charcoal/55 text-xs">Nettside</dt><dd><a href={store.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{store.website_url}</a></dd></div>
+      )}
+      <div class="pt-3 mt-2 border-t border-sage-500/10 flex flex-wrap gap-3">
+        {store.instagram_url && <a href={store.instagram_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Instagram</a>}
+        {store.etsy_url && <a href={store.etsy_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Etsy</a>}
+        {store.pinterest_url && <a href={store.pinterest_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Pinterest</a>}
+        {store.tiktok_url && <a href={store.tiktok_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">TikTok</a>}
+      </div>
+    </dl>
+  </section>
+
+  <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+    <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Registrert virksomhet</h3>
+    <p class="text-sm font-medium">{store.legal_name}</p>
+    {store.legal_address && <p class="text-xs text-charcoal/55">{store.legal_address}</p>}
+  </section>
+
+  <section>
+    <a href={`/report?type=store&id=${store.id}`} class="block text-center text-xs text-charcoal/45 hover:text-red-700 transition-colors">
+      Rapporter denne butikken
+    </a>
+  </section>
+</aside>

@@ -3,7 +3,8 @@ import Layout from '../../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../../components/MarketplaceShell.astro';
 import ListingCard from '../../../../components/ListingCard.astro';
 import EmptyState from '../../../../components/EmptyState.astro';
-import StarRating from '../../../../components/StarRating.astro';
+import StoreHeader from '../../../../components/store/StoreHeader.astro';
+import StoreSidebar from '../../../../components/store/StoreSidebar.astro';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/services/stores';
 import { getMyRole } from '../../../../lib/services/store-members';
@@ -143,49 +144,7 @@ if (previewBanner === 'suspended' && user) {
           )}
         </div>
       )}
-      <!-- Banner + brand head -->
-      <div>
-        <!-- Banner -->
-        <div class="aspect-[16/5] sm:aspect-[16/4] w-full overflow-hidden rounded-3xl border border-sage-500/10 bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
-          {store.banner_path && (
-            <img src={projectPhotoUrl(store.banner_path)} alt="" class="w-full h-full object-cover" />
-          )}
-        </div>
-
-        <!-- Logo overlapping the banner's bottom-left edge -->
-        <div class="relative z-10 px-4 sm:px-6 -mt-10 sm:-mt-14 mb-3 sm:mb-4">
-          <div
-            class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md overflow-hidden box-border"
-            style="border: 3px solid var(--store-accent);"
-          >
-            {store.logo_path ? (
-              <img src={projectPhotoUrl(store.logo_path)} alt={store.name} class="w-full h-full object-cover" />
-            ) : (
-              <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-charcoal/40">
-                {store.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <!-- Name + verified badge + tagline + location -->
-        <div class="px-4 sm:px-6">
-          <div class="flex items-center gap-2 flex-wrap">
-            <h1 class="font-serif text-2xl sm:text-4xl">{store.name}</h1>
-            {store.verified && (
-              <span class="text-[10px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-2 py-0.5 rounded-full">Verifisert</span>
-            )}
-          </div>
-          {/* Decorative accent underline */}
-          <div class="h-0.5 rounded-full mt-2 w-12" style="background: var(--store-accent);"></div>
-          {store.tagline && (
-            <p class="text-sm sm:text-base text-charcoal/65 mt-3">{store.tagline}</p>
-          )}
-          {store.location_city && (
-            <p class="text-xs text-charcoal/45 mt-1.5">📍 {store.location_city}</p>
-          )}
-        </div>
-      </div>
+      <StoreHeader store={store} />
 
       <!-- Body grid: listings + sidebar -->
       <div class="mt-8 sm:mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
@@ -246,53 +205,7 @@ if (previewBanner === 'suspended' && user) {
           )}
         </div>
 
-        <!-- Sidebar -->
-        <aside class="space-y-6">
-          {reviewCount > 0 && (
-            <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
-              <div class="flex items-center gap-3">
-                <div class="text-3xl font-serif">{avgRating}</div>
-                <div>
-                  <StarRating rating={parseFloat(avgRating!)} />
-                  <p class="text-xs text-charcoal/55 mt-0.5">{reviewCount} vurderinger</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
-            <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-3">Kontakt</h3>
-            <dl class="space-y-2 text-sm">
-              {store.contact_email && (
-                <div><dt class="text-charcoal/55 text-xs">E-post</dt><dd><a href={`mailto:${store.contact_email}`} class="text-terracotta-500 hover:underline">{store.contact_email}</a></dd></div>
-              )}
-              {store.contact_phone && (
-                <div><dt class="text-charcoal/55 text-xs">Telefon</dt><dd>{store.contact_phone}</dd></div>
-              )}
-              {store.website_url && (
-                <div><dt class="text-charcoal/55 text-xs">Nettside</dt><dd><a href={store.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{store.website_url}</a></dd></div>
-              )}
-              <div class="pt-3 mt-2 border-t border-sage-500/10 flex flex-wrap gap-3">
-                {store.instagram_url && <a href={store.instagram_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Instagram</a>}
-                {store.etsy_url && <a href={store.etsy_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Etsy</a>}
-                {store.pinterest_url && <a href={store.pinterest_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">Pinterest</a>}
-                {store.tiktok_url && <a href={store.tiktok_url} class="text-xs text-charcoal/55 hover:text-charcoal" target="_blank" rel="noopener">TikTok</a>}
-              </div>
-            </dl>
-          </section>
-
-          <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
-            <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Registrert virksomhet</h3>
-            <p class="text-sm font-medium">{store.legal_name}</p>
-            {store.legal_address && <p class="text-xs text-charcoal/55">{store.legal_address}</p>}
-          </section>
-
-          <section>
-            <a href={`/report?type=store&id=${store.id}`} class="block text-center text-xs text-charcoal/45 hover:text-red-700 transition-colors">
-              Rapporter denne butikken
-            </a>
-          </section>
-        </aside>
+        <StoreSidebar store={store} reviewCount={reviewCount} avgRating={avgRating} />
       </div>
     </div>
   </MarketplaceShell>

@@ -1,0 +1,59 @@
+---
+import { projectPhotoUrl } from '../../lib/storage';
+
+// Public store header: banner + logo overlap + name + verified badge
+// + tagline + location. Extracted from market/store/[slug]/index.astro.
+
+interface Store {
+  name: string;
+  banner_path: string | null;
+  logo_path: string | null;
+  tagline: string | null;
+  location_city: string | null;
+  verified: boolean | null;
+}
+
+interface Props {
+  store: Store;
+}
+const { store } = Astro.props;
+---
+
+<div>
+  <div class="aspect-[16/5] sm:aspect-[16/4] w-full overflow-hidden rounded-3xl border border-sage-500/10 bg-gradient-to-br from-oatmeal/60 to-sage-100/60">
+    {store.banner_path && (
+      <img src={projectPhotoUrl(store.banner_path)} alt="" class="w-full h-full object-cover" />
+    )}
+  </div>
+
+  <div class="relative z-10 px-4 sm:px-6 -mt-10 sm:-mt-14 mb-3 sm:mb-4">
+    <div
+      class="w-20 h-20 sm:w-28 sm:h-28 rounded-2xl bg-white shadow-md overflow-hidden box-border"
+      style="border: 3px solid var(--store-accent);"
+    >
+      {store.logo_path ? (
+        <img src={projectPhotoUrl(store.logo_path)} alt={store.name} class="w-full h-full object-cover" />
+      ) : (
+        <div class="w-full h-full flex items-center justify-center font-serif text-3xl text-charcoal/40">
+          {store.name?.[0]?.toUpperCase() ?? '?'}
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div class="px-4 sm:px-6">
+    <div class="flex items-center gap-2 flex-wrap">
+      <h1 class="font-serif text-2xl sm:text-4xl">{store.name}</h1>
+      {store.verified && (
+        <span class="text-[10px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-2 py-0.5 rounded-full">Verifisert</span>
+      )}
+    </div>
+    <div class="h-0.5 rounded-full mt-2 w-12" style="background: var(--store-accent);"></div>
+    {store.tagline && (
+      <p class="text-sm sm:text-base text-charcoal/65 mt-3">{store.tagline}</p>
+    )}
+    {store.location_city && (
+      <p class="text-xs text-charcoal/45 mt-1.5">📍 {store.location_city}</p>
+    )}
+  </div>
+</div>
