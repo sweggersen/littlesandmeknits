@@ -9,6 +9,7 @@ import CommissionTimeline from '../../../components/commission/Timeline.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
+import { commissionShareMeta } from '../../../lib/seo';
 import { env } from '../../../lib/env';
 import { CATEGORY_LABEL, COMMISSION_STATUS, PROJECT_STATUS } from '../../../lib/labels';
 
@@ -138,9 +139,15 @@ if (isBuyer && req.status === 'frozen') {
     .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();
   frozenThreadId = t?.id ?? null;
 }
+
+const commissionShare = commissionShareMeta({
+  title: req.title,
+  budgetMin: req.budget_nok_min,
+  budgetMax: req.budget_nok_max,
+});
 ---
 
-<Layout title={`${req.title} · Oppdrag`} lang="nb">
+<Layout title={`${req.title} · Oppdrag`} description={commissionShare.description} lang="nb">
   <MarketplaceShell current="oppdrag">
 
       {isStaff && !isBuyer && (req.status === 'pending_review' || req.status === 'rejected') && (

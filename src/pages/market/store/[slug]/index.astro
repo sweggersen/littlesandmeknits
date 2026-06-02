@@ -9,6 +9,7 @@ import { buildServiceContext } from '../../../../lib/services/context';
 import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/services/stores';
 import { getMyRole } from '../../../../lib/services/store-members';
 import { projectPhotoUrl } from '../../../../lib/storage';
+import { storeShareMeta } from '../../../../lib/seo';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
 import { env } from '../../../../lib/env';
 
@@ -130,9 +131,15 @@ if (previewBanner === 'suspended' && ctx) {
     .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();
   frozenThreadId = t?.id ?? null;
 }
+
+const storeShare = storeShareMeta({
+  name: store.name,
+  tagline: store.tagline,
+  logoUrl: store.logo_path ? projectPhotoUrl(store.logo_path) : null,
+});
 ---
 
-<Layout title={`${store.name} — Strikketorget`} description={store.tagline ?? ''} lang="nb">
+<Layout title={`${store.name} — Strikketorget`} description={storeShare.description} ogImage={storeShare.ogImage} lang="nb">
   <MarketplaceShell>
     <div style={accentStyle}>
       {previewBanner && (

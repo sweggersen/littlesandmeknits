@@ -8,6 +8,7 @@ import StarRating from '../../../components/StarRating.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
+import { sellerShareMeta } from '../../../lib/seo';
 import { KIND_LABEL } from '../../../lib/labels';
 import { getUserAchievements, ACHIEVEMENT_MAP, ACHIEVEMENTS } from '../../../lib/achievements';
 
@@ -84,9 +85,11 @@ const avatarUrl = seller.avatar_path ? projectPhotoUrl(seller.avatar_path) : nul
 const earnedKeys = await getUserAchievements(supabase, sellerId);
 const earnedSet = new Set(earnedKeys);
 const earnedAchievements = ACHIEVEMENTS.filter(a => earnedSet.has(a.key) && a.category !== 'moderering');
+
+const share = sellerShareMeta({ displayName: seller.display_name, location: seller.location, avatarUrl });
 ---
 
-<Layout title={`${seller.display_name ?? 'Selger'} — Strikketorget`} lang="nb">
+<Layout title={`${seller.display_name ?? 'Selger'} — Strikketorget`} description={share.description} ogImage={share.ogImage} lang="nb">
   <MarketplaceShell>
 
       <!-- Profile header -->
