@@ -85,9 +85,18 @@
   html {
     font-family: var(--font-sans);
     color: var(--color-charcoal);
+    /* Overscroll bounce: linen at the top (matches the header) and charcoal at
+       the bottom (matches the footer). The 2-stop gradient is fixed to the
+       viewport, so it only shows in the rubber-band areas — body's opaque
+       linen covers the actual content. */
     background-color: var(--color-linen);
+    background-image: linear-gradient(to bottom, var(--color-linen) 0 50%, var(--color-charcoal) 50% 100%);
+    background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: var(--color-linen);
   }
 
   h1, h2, h3, h4 {
