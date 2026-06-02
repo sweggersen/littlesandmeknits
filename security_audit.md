@@ -51,6 +51,23 @@ Also confirmed solid (no action): Stripe webhook signature verification (`constr
 
 ---
 
+## 2b. IDOR / broken-access-control sweep (round 2 — all ~80 API routes)
+
+Audited every route under `src/pages/api/**` (commerce, profile, stores, admin, cron, download, checkout, invitations, studio CRUD, tracking, push, notifications) by tracing the auth chain into the service layer and verifying ownership/role guards. **No exploitable IDOR or privilege-escalation found.** Highlights verified:
+
+- **Commerce** (listings/commissions/conversations): every `[id]` action checks `seller_id`/`buyer_id`/`knitter_id` ownership + state machine in the service; no cross-user actions, no buyer↔seller role confusion, no self-purchase/self-bid.
+- **download/[id]**: verifies `purchase.user_id === ctx.user.id` before issuing the signed PDF URL — no paid-content theft.
+- **checkout**: price is read server-side from pattern data, never trusted from the client.
+- **cron/run**: `x-cron-secret` compared with `crypto.subtle.timingSafeEqual` — not triggerable without the secret.
+- **invitations/[token]/accept**: token is single-use, time-limited, and email-bound.
+- **admin/***: every route gated by `requireAdmin`/`requireModerator` / `requireRole([...])` before side effects; role value allowlisted; `users/role` is admin-only (no mod→admin escalation).
+- **auth/callback**: `next` redirect validated (`/` and not `//`); provider metadata whitelisted (no role/email injection).
+- **studio CRUD + nested deletes** (`log/[logId]`, `yarn/[linkId]`): owner-scoped by RLS on the parent; tracking endpoints validate + bound batch size.
+
+**Two defense-in-depth hardenings applied** (both were RLS-protected, so not exploitable — verified the live policies — but the project rule is "services authorize, not RLS alone"):
+- [x] `notifications.deleteNotification` — added `.eq('user_id', ctx.user.id)` (notifications DELETE RLS already scopes to owner; now explicit, matches `markRead`).
+- [x] `conversations.reply` — added an explicit participant check returning `forbidden` (the `marketplace_messages` INSERT RLS already requires sender be a participant; now a clean 403 instead of relying on the insert to fail).
+
 ## 3. Out of scope / coverage gaps (honest)
 
 - Did **not** verify the **hosted** Supabase project's live RLS matches these migration files (read migrations, not prod DB).

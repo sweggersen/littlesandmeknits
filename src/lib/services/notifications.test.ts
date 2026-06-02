@@ -7,9 +7,16 @@ function mockCtx(opts?: { upsertError?: { message: string } | null }) {
   const client = {
     from: () => ({
       delete: () => ({
-        eq: async (col: string, val: unknown) => {
-          ops.push({ op: 'delete', eqs: { [col]: val } });
-          return { error: null };
+        eq: (col: string, val: unknown) => {
+          const eqs: Record<string, unknown> = { [col]: val };
+          const node = {
+            eq: (c2: string, v2: unknown) => { eqs[c2] = v2; return node; },
+            then: (res: (r: { error: null }) => unknown) => {
+              ops.push({ op: 'delete', eqs });
+              return Promise.resolve({ error: null }).then(res);
+            },
+          };
+          return node;
         },
       }),
       upsert: async (row: unknown) => {
@@ -49,7 +56,8 @@ describe('deleteNotification', () => {
     const r = await deleteNotification(ctx, { notificationId: 'n1' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.data.redirect).toBe('/notifications');
-    expect(ops[0]).toEqual({ op: 'delete', eqs: { id: 'n1' } });
+    // Scopes the delete to both the id AND the owner (defense-in-depth).
+    expect(ops[0]).toEqual({ op: 'delete', eqs: { id: 'n1', user_id: 'u1' } });
   });
 });
 

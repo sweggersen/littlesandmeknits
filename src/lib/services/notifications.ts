@@ -6,7 +6,13 @@ export async function deleteNotification(
   input: { notificationId: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.notificationId) return fail('bad_input', 'Missing id');
-  await ctx.supabase.from('notifications').delete().eq('id', input.notificationId);
+  // Scope to the owner explicitly (defense-in-depth; the notifications DELETE
+  // RLS policy also enforces auth.uid() = user_id). Matches markRead().
+  await ctx.supabase
+    .from('notifications')
+    .delete()
+    .eq('id', input.notificationId)
+    .eq('user_id', ctx.user.id);
   return ok({ redirect: '/notifications' });
 }
 

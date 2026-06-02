@@ -115,6 +115,11 @@ export async function reply(
     .from('marketplace_conversations').select('id, buyer_id, seller_id')
     .eq('id', input.conversationId).maybeSingle();
   if (!conv) return fail('not_found', 'Not found');
+  // Explicit participant check (defense-in-depth; the marketplace_messages
+  // INSERT RLS policy also requires sender be buyer/seller of the conversation).
+  if (conv.buyer_id !== ctx.user.id && conv.seller_id !== ctx.user.id) {
+    return fail('forbidden', 'Ikke deltaker i samtalen');
+  }
 
   // Daily quota — 100 messages/day is generous for any genuine user.
   const quotaFail = await assertWithinQuota(ctx, 'marketplace_message_send');
