@@ -1,13 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { purchaseListing, confirmListingDelivery } from './listings';
 import { createNotification } from '../notify';
-import { createMockSupabase, type MockSupabase } from './__test_helpers__/mock-supabase';
+import { tbFeeForPrice } from '../shipping';
+import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
 
-// R2-15 — rigorous money-math + side-effect coverage for the listing buy
-// flow. Unlike the older loose mockCtx, createMockSupabase records exact
-// filters and payloads, so these tests assert the real numbers Stripe is
-// told to charge, not just "a checkout happened".
+// R2-15+ — money-math + side-effect coverage for the listing buy flow,
+// backed by the in-memory fake (fake-db.ts). Because the fake actually
+// applies eq/is/in filters against seeded rows, a service that queried the
+// wrong row would get null and fail these tests automatically — the
+// assertions below verify the real numbers Stripe is told to charge.
 
 vi.mock('../notify', () => ({
   createNotification: vi.fn(),
@@ -17,7 +19,7 @@ vi.mock('../notify', () => ({
 vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 
 const checkoutCreate = vi.fn(async (_args?: any) => ({ url: 'https://checkout.stripe.com/c/test_123' }));
-const piCapture = vi.fn(async () => ({}));
+const piCapture = vi.fn(async (_id?: any) => ({}));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     checkout: { sessions: { create: checkoutCreate } },
@@ -31,38 +33,39 @@ beforeEach(() => {
   vi.mocked(createNotification).mockClear();
 });
 
-function ctxFor(mock: MockSupabase, userId = 'buyer-1', email = 'buyer@x.io'): ServiceContext {
+function ctxFor(db: FakeDb, userId = 'buyer-1', email = 'buyer@x.io'): ServiceContext {
   return {
-    supabase: mock.client as any,
-    admin: mock.client as any,
+    supabase: db.client as any,
+    admin: db.client as any,
     user: { id: userId, email },
     env: { STRIPE_SECRET_KEY: 'sk_test', PUBLIC_SITE_URL: 'https://test.site' } as any,
   };
 }
 
-/** The args the service passed to Stripe Checkout, for money assertions. */
 function checkoutArgs(): any {
   expect(checkoutCreate).toHaveBeenCalledTimes(1);
   return checkoutCreate.mock.calls[0][0];
 }
 
-const baseListing = {
-  id: 'l1', seller_id: 'seller-1', store_id: null,
-  title: 'Babygenser', price_nok: 500, status: 'active',
-  hero_photo_path: null, escrow_enabled: true,
-  shipping_option: 'small_parcel', shipping_price_nok: 76,
-};
+/** Seed a personal-seller listing + the seller's profile rows. */
+function seedPersonal(listingOverrides: Record<string, unknown> = {}, role = 'user') {
+  return createFakeDb({
+    listings: [{
+      id: 'l1', seller_id: 'seller-1', store_id: null,
+      title: 'Babygenser', price_nok: 500, status: 'active',
+      hero_photo_path: null, escrow_enabled: true,
+      shipping_option: 'small_parcel', shipping_price_nok: 76,
+      ...listingOverrides,
+    }],
+    profiles: [{ id: 'seller-1', role }],
+    seller_profiles: [{ id: 'seller-1', stripe_account_id: 'acct_seller', stripe_connect_status: 'verified' }],
+  });
+}
 
 describe('purchaseListing — personal seller money math', () => {
   it('charges item + shipping + TB fee, application fee = 13% of item + TB fee', async () => {
-    const mock = createMockSupabase({
-      read: {
-        listings: baseListing,
-        profiles: { role: 'user' },
-        seller_profiles: { stripe_account_id: 'acct_seller', stripe_connect_status: 'verified' },
-      },
-    });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal();
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(true);
 
     const args = checkoutArgs();
@@ -76,123 +79,154 @@ describe('purchaseListing — personal seller money math', () => {
   });
 
   it('ambassador seller pays 8% commission, free shipping omits the shipping line', async () => {
-    const mock = createMockSupabase({
-      read: {
-        listings: { ...baseListing, price_nok: 1000, shipping_option: 'free', shipping_price_nok: 0 },
-        profiles: { role: 'ambassador' },
-        seller_profiles: { stripe_account_id: 'acct_amb', stripe_connect_status: 'verified' },
-      },
-    });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal({ price_nok: 1000, shipping_option: 'free', shipping_price_nok: 0 }, 'ambassador');
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(true);
 
     const args = checkoutArgs();
-    // 1000 -> 100000 ore item; TB fee for 1000 = 29 -> 2900; no shipping line.
     const amounts = args.line_items.map((li: any) => li.price_data.unit_amount);
-    expect(amounts).toEqual([100000, 2900]);
-    // 8% of 100000 = 8000, + TB 2900 = 10900.
-    expect(args.payment_intent_data.application_fee_amount).toBe(10900);
+    expect(amounts).toEqual([100000, 2900]); // item + TB only
+    expect(args.payment_intent_data.application_fee_amount).toBe(10900); // 8000 + 2900
   });
 
   it('stamps metadata with buyer, seller, TB and shipping amounts', async () => {
-    const mock = createMockSupabase({
-      read: {
-        listings: baseListing,
-        profiles: { role: 'user' },
-        seller_profiles: { stripe_account_id: 'acct_seller', stripe_connect_status: 'verified' },
-      },
-    });
-    await purchaseListing(ctxFor(mock, 'buyer-9'), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal();
+    await purchaseListing(ctxFor(db, 'buyer-9'), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     const args = checkoutArgs();
     expect(args.metadata).toMatchObject({
-      type: 'listing_purchase',
-      listing_id: 'l1',
-      buyer_id: 'buyer-9',
-      seller_id: 'seller-1',
-      tb_fee_nok: '19',
-      shipping_nok: '76',
-      store_id: '',
+      type: 'listing_purchase', listing_id: 'l1', buyer_id: 'buyer-9',
+      seller_id: 'seller-1', tb_fee_nok: '19', shipping_nok: '76', store_id: '',
     });
     expect(args.client_reference_id).toBe('buyer-9');
   });
 });
 
+describe('purchaseListing — escrow split reconciles (money conservation)', () => {
+  // The invariant that ties it all together: what the buyer pays, minus what
+  // the platform keeps (application fee), must equal what the seller nets
+  // (item + shipping passthrough - commission). If shipping were ever
+  // double-counted into the fee, or the TB fee leaked to the seller, this
+  // breaks even when the individual-number tests pass.
+  it.each([
+    ['small_parcel', 76, 'user', 13],
+    ['free', 0, 'user', 13],
+    ['parcel', 140, 'ambassador', 8],
+  ])('shipping=%s seller=%s', async (shipping_option, shippingNok, role, pct) => {
+    const db = seedPersonal({ price_nok: 800, shipping_option, shipping_price_nok: shippingNok }, role);
+    await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const args = checkoutArgs();
+
+    const itemOre = 800 * 100;
+    const shipOre = shippingNok * 100;
+    const tbOre = tbFeeForPrice(800) * 100;
+    const commission = Math.round(itemOre * pct / 100);
+
+    const buyerTotal = args.line_items.reduce((s: number, li: any) => s + li.price_data.unit_amount * li.quantity, 0);
+    const appFee = args.payment_intent_data.application_fee_amount;
+
+    // Buyer pays item + shipping + TB.
+    expect(buyerTotal).toBe(itemOre + shipOre + tbOre);
+    // Platform keeps commission + TB fee.
+    expect(appFee).toBe(commission + tbOre);
+    // Seller nets item + shipping - commission (no TB leakage).
+    expect(buyerTotal - appFee).toBe(itemOre + shipOre - commission);
+    // Sanity: the platform never takes more than the buyer pays.
+    expect(appFee).toBeLessThan(buyerTotal);
+  });
+
+  // Price sweep — rounding bugs hide at boundaries the hand-picked cases miss.
+  it.each([1, 50, 199, 200, 201, 499, 500, 501, 999, 1000, 4999, 5000])(
+    'fee math holds at price %d kr (personal, 13%%, free shipping)',
+    async (price) => {
+      const db = seedPersonal({ price_nok: price, shipping_option: 'free', shipping_price_nok: 0 });
+      await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+      const args = checkoutArgs();
+
+      const itemOre = price * 100;
+      const tbOre = tbFeeForPrice(price) * 100;
+      const expectedFee = Math.round(itemOre * 13 / 100) + tbOre;
+
+      expect(args.payment_intent_data.application_fee_amount).toBe(expectedFee);
+      const buyerTotal = args.line_items.reduce((s: number, li: any) => s + li.price_data.unit_amount, 0);
+      expect(buyerTotal).toBe(itemOre + tbOre);
+      expect(expectedFee).toBeLessThanOrEqual(buyerTotal);
+    },
+  );
+});
+
 describe('purchaseListing — store-owned tier fees', () => {
-  const storeListing = { ...baseListing, store_id: 'store-1', price_nok: 600, shipping_option: 'free', shipping_price_nok: 0 };
+  function seedStore(tier: string | undefined) {
+    return createFakeDb({
+      listings: [{
+        id: 'l1', seller_id: 'seller-1', store_id: 'store-1',
+        title: 'Genser', price_nok: 600, status: 'active', hero_photo_path: null,
+        escrow_enabled: true, shipping_option: 'free', shipping_price_nok: 0,
+      }],
+      stores: [{ id: 'store-1', stripe_account_id: 'acct_store', stripe_onboarded: true, tier, status: 'active' }],
+    });
+  }
 
   it.each([
-    ['starter', 15], // 13 + 2
-    ['pro', 14],     // 13 + 1
-    ['elite', 13],   // 13 + 0
-    [undefined, 15], // unknown tier -> +2 default
+    ['starter', 15], ['pro', 14], ['elite', 13], [undefined, 15],
   ])('tier=%s applies %d%% commission', async (tier, pct) => {
-    const mock = createMockSupabase({
-      read: {
-        listings: storeListing,
-        stores: { stripe_account_id: 'acct_store', stripe_onboarded: true, tier, status: 'active' },
-      },
-    });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedStore(tier);
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(true);
     const args = checkoutArgs();
-    // item 600 -> 60000 ore; fee = pct% of 60000; TB for 600 = 29 -> 2900.
-    const expectedFee = Math.round(60000 * pct / 100) + 2900;
+    const expectedFee = Math.round(60000 * pct / 100) + 2900; // TB for 600 = 29
     expect(args.payment_intent_data.application_fee_amount).toBe(expectedFee);
     expect(args.payment_intent_data.transfer_data.destination).toBe('acct_store');
   });
 });
 
 describe('purchaseListing — guards', () => {
-  const okSeller = {
-    profiles: { role: 'user' },
-    seller_profiles: { stripe_account_id: 'acct', stripe_connect_status: 'verified' },
-  };
-
   it('rejects empty listing id', async () => {
-    const mock = createMockSupabase({});
-    const r = await purchaseListing(ctxFor(mock), { listingId: '', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal();
+    const r = await purchaseListing(ctxFor(db), { listingId: '', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('bad_input');
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
   it('not_found when listing missing', async () => {
-    const mock = createMockSupabase({ read: { listings: null } });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = createFakeDb({ listings: [] });
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('not_found');
   });
 
   it('conflict when listing not active', async () => {
-    const mock = createMockSupabase({ read: { listings: { ...baseListing, status: 'sold' }, ...okSeller } });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal({ status: 'sold' });
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
   it('rejects buying your own listing', async () => {
-    const mock = createMockSupabase({ read: { listings: baseListing, ...okSeller } });
-    const r = await purchaseListing(ctxFor(mock, 'seller-1'), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal();
+    const r = await purchaseListing(ctxFor(db, 'seller-1'), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('bad_input');
   });
 
   it('conflict when escrow not enabled', async () => {
-    const mock = createMockSupabase({ read: { listings: { ...baseListing, escrow_enabled: false }, ...okSeller } });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const db = seedPersonal({ escrow_enabled: false });
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
   it('conflict when seller not onboarded to Stripe', async () => {
-    const mock = createMockSupabase({
-      read: {
-        listings: baseListing,
-        profiles: { role: 'user' },
-        seller_profiles: { stripe_account_id: null, stripe_connect_status: 'pending' },
-      },
+    const db = createFakeDb({
+      listings: [{
+        id: 'l1', seller_id: 'seller-1', store_id: null, title: 'X', price_nok: 500,
+        status: 'active', hero_photo_path: null, escrow_enabled: true,
+        shipping_option: 'free', shipping_price_nok: 0,
+      }],
+      profiles: [{ id: 'seller-1', role: 'user' }],
+      seller_profiles: [{ id: 'seller-1', stripe_account_id: null, stripe_connect_status: 'pending' }],
     });
-    const r = await purchaseListing(ctxFor(mock), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('conflict');
     expect(checkoutCreate).not.toHaveBeenCalled();
@@ -200,61 +234,62 @@ describe('purchaseListing — guards', () => {
 });
 
 describe('confirmListingDelivery', () => {
-  const reservedListing = {
-    id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1',
-    title: 'Babygenser', status: 'shipped', stripe_payment_intent_id: 'pi_abc',
-  };
+  function seedShipped(overrides: Record<string, unknown> = {}) {
+    return createFakeDb({
+      listings: [{
+        id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1',
+        title: 'Babygenser', status: 'shipped', stripe_payment_intent_id: 'pi_abc',
+        ...overrides,
+      }],
+    });
+  }
 
-  it('captures the same PI the buy created, marks sold + delivered', async () => {
-    const mock = createMockSupabase({ read: { listings: reservedListing } });
-    const r = await confirmListingDelivery(ctxFor(mock, 'buyer-1'), { listingId: 'l1' });
+  it('captures the same PI the buy created, marks sold + delivered (real row state)', async () => {
+    const db = seedShipped();
+    const r = await confirmListingDelivery(ctxFor(db, 'buyer-1'), { listingId: 'l1' });
     expect(r.ok).toBe(true);
     expect(piCapture).toHaveBeenCalledWith('pi_abc');
 
-    const upd = mock.updates('listings');
-    expect(upd).toHaveLength(1);
-    expect(upd[0].payload).toMatchObject({ status: 'sold', auto_release_at: null });
-    expect((upd[0].payload as any).sold_at).toBe((upd[0].payload as any).delivered_at);
-    // Updated the right row.
-    expect(upd[0].filters).toContainEqual({ type: 'eq', col: 'id', val: 'l1' });
+    // Assert the actual mutated row, not just a recorded payload.
+    const row = db.find('listings', { id: 'l1' }) as any;
+    expect(row.status).toBe('sold');
+    expect(row.auto_release_at).toBeNull();
+    expect(row.sold_at).toBe(row.delivered_at);
+    expect(typeof row.sold_at).toBe('string');
   });
 
   it('notifies the seller with the delivery-confirmed message', async () => {
-    const mock = createMockSupabase({ read: { listings: reservedListing } });
-    await confirmListingDelivery(ctxFor(mock, 'buyer-1'), { listingId: 'l1' });
+    const db = seedShipped();
+    await confirmListingDelivery(ctxFor(db, 'buyer-1'), { listingId: 'l1' });
     expect(createNotification).toHaveBeenCalledTimes(1);
     const [, payload] = vi.mocked(createNotification).mock.calls[0];
     expect(payload).toMatchObject({
-      userId: 'seller-1',
-      type: 'listing_delivered',
-      title: 'Levering bekreftet!',
-      url: '/market/listing/l1',
-      actorId: 'buyer-1',
-      referenceId: 'l1',
+      userId: 'seller-1', type: 'listing_delivered', title: 'Levering bekreftet!',
+      url: '/market/listing/l1', actorId: 'buyer-1', referenceId: 'l1',
     });
   });
 
-  it('forbids a non-buyer confirming delivery', async () => {
-    const mock = createMockSupabase({ read: { listings: reservedListing } });
-    const r = await confirmListingDelivery(ctxFor(mock, 'someone-else'), { listingId: 'l1' });
+  it('forbids a non-buyer confirming delivery (row untouched)', async () => {
+    const db = seedShipped();
+    const r = await confirmListingDelivery(ctxFor(db, 'someone-else'), { listingId: 'l1' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('not_found');
     expect(piCapture).not.toHaveBeenCalled();
-    expect(mock.updates('listings')).toHaveLength(0);
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
   });
 
   it('rejects confirming in a non-shipped/reserved state', async () => {
-    const mock = createMockSupabase({ read: { listings: { ...reservedListing, status: 'sold' } } });
-    const r = await confirmListingDelivery(ctxFor(mock, 'buyer-1'), { listingId: 'l1' });
+    const db = seedShipped({ status: 'sold' });
+    const r = await confirmListingDelivery(ctxFor(db, 'buyer-1'), { listingId: 'l1' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
-  it('skips capture when there is no payment intent (free/legacy)', async () => {
-    const mock = createMockSupabase({ read: { listings: { ...reservedListing, stripe_payment_intent_id: null } } });
-    const r = await confirmListingDelivery(ctxFor(mock, 'buyer-1'), { listingId: 'l1' });
+  it('skips capture when there is no payment intent (free/legacy) but still marks sold', async () => {
+    const db = seedShipped({ stripe_payment_intent_id: null });
+    const r = await confirmListingDelivery(ctxFor(db, 'buyer-1'), { listingId: 'l1' });
     expect(r.ok).toBe(true);
     expect(piCapture).not.toHaveBeenCalled();
-    expect(mock.updates('listings')).toHaveLength(1);
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('sold');
   });
 });
