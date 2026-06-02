@@ -46,6 +46,14 @@ const navLinks = isStudio
       { href: '/market/stores', label: 'Butikker' },
     ];
 
+// Active section-pill colour per category, matching the home cards + icons.
+const PILL_ACTIVE: Record<string, string> = {
+  '/market/used': 'bg-[#a06b43]/12 text-[#a06b43]',
+  '/market/new': 'bg-sage-700/12 text-sage-700',
+  '/market/commissions': 'bg-[#8b6db0]/15 text-[#8b6db0]',
+};
+const pillActive = (href: string) => PILL_ACTIVE[href] ?? 'bg-terracotta-500/10 text-terracotta-500';
+
 const externalLinks = isStudio
   ? [
       { href: 'https://littlesandmeknits.com', label: 'Til hovedsiden' },
@@ -113,7 +121,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
             class:list={[
               'text-sm font-medium px-3 py-1.5 rounded-full transition-colors',
               isActive
-                ? 'bg-terracotta-500/10 text-terracotta-500'
+                ? pillActive(l.href)
                 : 'text-charcoal/70 hover:text-charcoal hover:bg-sage-100/60',
             ]}
           >
