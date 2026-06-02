@@ -27,6 +27,7 @@ export async function getMyRoleBySlug(
     .from('stores')
     .select('id')
     .eq('slug', slug)
+    .is('deleted_at', null)
     .maybeSingle();
   if (!store) return { role: null, storeId: null };
   const role = await getMyRole(ctx, store.id);

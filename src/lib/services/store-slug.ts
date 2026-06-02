@@ -43,6 +43,10 @@ export async function ensureUniqueSlug(
   if (!base) return null;
   if (isReserved(base)) return null;
 
+  // SOFT_DELETE_EXCEPTION_NOTE: include soft-deleted slugs — the unique
+  // constraint on stores.slug ignores deleted_at, so a deleted-but-not-purged
+  // store still owns its slug. Excluding deleted rows here would let us
+  // hand out the same slug twice and get a constraint violation on insert.
   const { data: existing } = await admin
     .from('stores')
     .select('slug')

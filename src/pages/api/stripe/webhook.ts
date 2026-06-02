@@ -5,6 +5,7 @@ import { createStripe } from '../../../lib/stripe';
 import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
+import { log } from '../../../lib/log';
 
 /** Minimal context for recordDeadLetter from inside the Stripe
  *  webhook. The webhook has no user session, so the actor (if any)
@@ -31,7 +32,7 @@ export const POST: APIRoute = async ({ request }) => {
   try {
     event = await stripe.webhooks.constructEventAsync(body, sig, env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
-    console.error('Webhook signature verification failed', err);
+    log.error('webhook.signature_verification_failed', { error: err });
     return new Response('Invalid signature', { status: 400 });
   }
 
@@ -115,7 +116,7 @@ export const POST: APIRoute = async ({ request }) => {
       const sellerId = session.metadata.seller_id;
       const tier = session.metadata.tier;
       if (!promoListingId || !sellerId || !tier) {
-        console.error('Promotion webhook missing metadata', session.metadata);
+        log.error('webhook.promotion_missing_metadata', { metadata: session.metadata });
         return new Response('Missing metadata', { status: 400 });
       }
 
@@ -169,7 +170,7 @@ export const POST: APIRoute = async ({ request }) => {
       const purchaseListingId = session.metadata.listing_id;
       const buyerId = session.metadata.buyer_id;
       if (!purchaseListingId || !buyerId) {
-        console.error('Listing purchase webhook missing metadata', session.metadata);
+        log.error('webhook.purchase_missing_metadata', { metadata: session.metadata });
         return new Response('Missing metadata', { status: 400 });
       }
 
@@ -251,7 +252,7 @@ export const POST: APIRoute = async ({ request }) => {
     const userId = session.client_reference_id ?? session.metadata?.user_id;
     const slug = session.metadata?.pattern_slug;
     if (!userId || !slug) {
-      console.error('Webhook missing metadata', { userId, slug, sessionId: session.id });
+      log.error('webhook.pattern_missing_metadata', { userId, slug, sessionId: session.id });
       return new Response('Missing metadata', { status: 400 });
     }
     const { error } = await supabase

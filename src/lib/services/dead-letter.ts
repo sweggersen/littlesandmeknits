@@ -1,5 +1,21 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
+import { log } from '../log';
+
+export type DeadLetterDomain = 'marketplace' | 'studio' | 'platform';
+
+/** Derive the routing domain from a service identifier. Conventional prefixes
+ *  (`listings.*`, `commissions.*`, `webhook.*`, ...) go to 'marketplace';
+ *  `patterns.*` / `projects.*` go to 'studio'; everything else is 'platform'.
+ *  See supabase/migrations/0076_dead_letter_domain.sql for the canonical list. */
+export function domainFromService(service: string): DeadLetterDomain {
+  const prefix = service.split('.', 1)[0];
+  if (['listings', 'commissions', 'conversations', 'refunds', 'disputes', 'payouts', 'webhook', 'stores'].includes(prefix)) {
+    return 'marketplace';
+  }
+  if (['patterns', 'projects'].includes(prefix)) return 'studio';
+  return 'platform';
+}
 
 export interface DeadLetterInput {
   /** Where the failure originated. Convention: `<service-file>.<function>`. */
@@ -34,12 +50,13 @@ export async function recordDeadLetter(
       user_id: ctx.user?.id ?? null,
       context: (input.context ?? {}) as Record<string, unknown> as never,
       error: message.slice(0, 2000),
-    });
+      domain: domainFromService(input.service),
+    } as never);
   } catch (e) {
-    console.error('[dead-letter] insert failed (giving up)', {
+    log.error('dead_letter.insert_failed', {
       service: input.service,
       original_error: message,
-      insert_error: e instanceof Error ? e.message : e,
+      error: e,
     });
   }
 }

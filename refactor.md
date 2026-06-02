@@ -1038,7 +1038,7 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 ---
 
-### ☐ R2-10 — Soft-delete enforcement helper  **(P2)**
+### ☑ R2-10 — Soft-delete enforcement helper  **(P2 → done 2026-06-02)**
 
 **Goal:** every query against a table with `deleted_at` should filter out soft-deleted rows. Today it's "remember to add `.is('deleted_at', null)`" at every call site, which is exactly the kind of thing nobody remembers.
 
@@ -1059,7 +1059,7 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 ---
 
-### ☐ R2-11 — Structured logging  **(P3)**
+### ☑ R2-11 — Structured logging  **(P3 → done 2026-06-02)**
 
 **Goal:** replace 58+ `console.error`/`console.log` calls with structured log lines that can be filtered and alerted on. Today they're just noise in the worker log.
 
@@ -1077,7 +1077,7 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 ---
 
-### ☐ R2-12 — Rate-limit on Vipps sign-in  **(P3)**
+### ☑ R2-12 — Rate-limit on Vipps sign-in  **(P3 → done 2026-06-02)**
 
 **Goal:** an attacker can spam the OIDC callback. Add IP-based rate-limiting at the edge.
 
@@ -1089,7 +1089,7 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 ---
 
-### ☐ R2-13 — Curate `exportPersonalData` payload shape  **(P3)**
+### ☑ R2-13 — Curate `exportPersonalData` payload shape  **(P3 → done 2026-06-02)**
 
 **Goal:** today the export returns raw Supabase rows including internal flags + timestamps. A GDPR export should be user-friendly.
 
@@ -1097,8 +1097,38 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 ---
 
-### ☐ R2-14 — Scope `dead_letter_events` reads to event domain  **(P3)**
+### ☑ R2-14 — Scope `dead_letter_events` reads to event domain  **(P3 → done 2026-06-02)**
 
 **Goal:** today any admin/moderator reads any dead-letter event. Fine while single-tenant. If the platform ever divides moderation by domain (Strikketorget vs LMK Studio), readability needs scoping.
 
 **Effort:** 1–2 hours.
+
+---
+
+### ☐ R2-15 — Tighten test rigor (the "B-" tests get to A-)  **(P2)**
+
+**Goal:** rewrite the loosest commerce tests so they verify business logic, not just "an operation happened." Today's `mockCtx` returns `rows[table]` for every `.select().eq()` regardless of which column was filtered or which value was passed — a regression that swaps `eq('id', input.offerId)` for `eq('id', 'literal-string')` would still pass.
+
+**Why:** the post-R2-4 audit found that ~40% of the new tests are guards that catch removal of authorization checks (real value, low cost), ~30% are state transitions (medium value), and only ~20% verify Stripe SDK calls (high value). The money math and the exact shape of side effects are largely untested. "332 passing" overstates the safety margin — a subtle business-logic bug could slip past.
+
+**Files:**
+- New: `src/lib/services/__test_helpers__/mock-supabase.ts` (rigorous mock)
+- Rewrite the loosest tests in `commissions.test.ts` and `listings.test.ts`
+- New tests: `payCommission` fee math, `purchaseListing` escrow split, `createListing` input handler, notification body/title/url shape
+
+**Steps:**
+1. **Tighter mock.** Record every `from(X).insert(row)` / `update(row).eq(col, val).eq(col2, val2)` etc. as a structured operation log. Tests assert specifics: "an update on `listings` where `id='l1'` set `status='shipped'` and `tracking_code='TRK'`" — not just "an update happened with status='shipped'".
+2. **Money math tests.**
+   - `payCommission(price=1000 NOK, knitter is ambassador)` → application_fee_amount = 8000 ore (8%, not 13%).
+   - `purchaseListing(price=500, shipping=49, escrow=true)` → Stripe Checkout line_items unit_amount = 49900 (price), application_fee_amount = match the platform cut.
+   - `confirmListingDelivery` captures the same PI ID the buy created.
+3. **Notification shape tests.** Stop asserting `createNotification was called`; assert it was called with `userId: <buyer>`, `type: 'listing_purchased'`, `title: 'Varen din er solgt!'`, `url: /market/listing/<id>`. Catch the "I swapped buyer and seller in the notify call" regression.
+4. **`purchaseListing` full coverage.** It's the most complex flow and has zero tests. Build with the tight mock from step 1.
+5. **`createListing` input handler.** 9 validations, 0 tests. Each gets one test.
+
+**Acceptance:**
+- The loose `mockCtx` pattern is gone from commerce-service tests; everything uses `mock-supabase.ts`.
+- `payCommission` and `purchaseListing` each have ≥ 5 explicit money-math tests.
+- Notification call assertions verify body content, not just call count.
+
+**Effort:** 1–2 days. The mock-supabase infrastructure is the biggest piece (~3 hours); rewriting the tests on top is mostly mechanical.

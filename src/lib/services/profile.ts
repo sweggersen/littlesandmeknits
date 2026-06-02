@@ -49,6 +49,25 @@ export async function exportPersonalData(
   // the worker. If the cap is hit we flag `truncated: true` in the
   // response so the user can request the rest via support.
   const EXPORT_LIMIT = 1000;
+
+  // Explicit column allowlists per table so we never accidentally leak
+  // moderator-only / internal fields (e.g. shadow_status, moderator notes,
+  // internal scoring) into a GDPR export. Add columns deliberately.
+  const COLS_PROFILE = 'id, display_name, bio, avatar_path, location_city, website, role, created_at, updated_at, deleted_at';
+  const COLS_LISTING = 'id, title, description, price_nok, kind, status, hero_photo_path, location_city, created_at, sold_at, shipping_price_nok, tracking_code';
+  const COLS_FAVORITE = 'user_id, listing_id, created_at';
+  const COLS_CONVERSATION = 'id, listing_id, commission_request_id, buyer_id, seller_id, created_at, updated_at';
+  const COLS_MESSAGE = 'id, conversation_id, sender_id, body, created_at, read_at';
+  const COLS_NOTIFICATION = 'id, type, title, body, url, created_at, read_at';
+  const COLS_REVIEW = 'id, seller_id, reviewer_id, listing_id, rating, comment, created_at';
+  const COLS_STORE_MEMBER = 'store_id, user_id, role, created_at';
+  const COLS_COMMISSION = 'id, title, description, category, status, budget_min_nok, budget_max_nok, needed_by, created_at';
+  const COLS_OFFER = 'id, commission_request_id, knitter_id, price_nok, status, message, created_at';
+  // Exclude moderator-only columns from reports: status, resolver_id, resolution_notes.
+  const COLS_REPORT = 'id, target_type, target_id, reason, description, created_at';
+  // Exclude moderator-only columns from moderation_threads: priority, internal_status.
+  const COLS_MOD_THREAD = 'id, target_type, target_id, status, created_at, updated_at';
+
   const [
     profileRes, sellerProfileRes, buyerPrefsRes, authIdentitiesRes,
     listingsRes, purchasesRes, favoritesRes, conversationsRes,
@@ -56,23 +75,23 @@ export async function exportPersonalData(
     storeMembersRes, commissionsRes, offersRes, reportsFiledRes, modThreadsRes,
     authUserRes,
   ] = await Promise.all([
-    ctx.supabase.from('profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
+    ctx.supabase.from('profiles').select(COLS_PROFILE).eq('id', ctx.user.id).maybeSingle(),
     ctx.admin.from('seller_profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
     ctx.admin.from('buyer_preferences').select('*').eq('id', ctx.user.id).maybeSingle(),
     ctx.admin.from('auth_identities').select('provider, sub, phone, created_at').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('listings').select('*').eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('listings').select('*').eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('favorites').select('*').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('marketplace_conversations').select('*').or(orEither('buyer_id', 'seller_id', ctx.user.id)).limit(EXPORT_LIMIT),
-    ctx.supabase.from('marketplace_messages').select('*').eq('sender_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('notifications').select('*').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('seller_reviews').select('*').eq('reviewer_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('seller_reviews').select('*').eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('store_members').select('*').eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('commission_requests').select('*').eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('commission_offers').select('*').eq('knitter_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('reports').select('*').eq('reporter_id', ctx.user.id).limit(EXPORT_LIMIT),
-    ctx.supabase.from('moderation_threads').select('*').eq('recipient_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('listings').select(COLS_LISTING).eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('listings').select(COLS_LISTING).eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('favorites').select(COLS_FAVORITE).eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('marketplace_conversations').select(COLS_CONVERSATION).or(orEither('buyer_id', 'seller_id', ctx.user.id)).limit(EXPORT_LIMIT),
+    ctx.supabase.from('marketplace_messages').select(COLS_MESSAGE).eq('sender_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('notifications').select(COLS_NOTIFICATION).eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('seller_reviews').select(COLS_REVIEW).eq('reviewer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('seller_reviews').select(COLS_REVIEW).eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('store_members').select(COLS_STORE_MEMBER).eq('user_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('commission_requests').select(COLS_COMMISSION).eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('commission_offers').select(COLS_OFFER).eq('knitter_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('reports').select(COLS_REPORT).eq('reporter_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.supabase.from('moderation_threads').select(COLS_MOD_THREAD).eq('recipient_id', ctx.user.id).limit(EXPORT_LIMIT),
     // auth.users isn't RLS-readable by end users; admin client is the right tool.
     ctx.admin.auth.admin.getUserById(ctx.user.id),
   ]);

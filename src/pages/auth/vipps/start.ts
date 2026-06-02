@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { vippsConfig, randomToken, pkceChallenge, authorizationUrl } from '../../../lib/vipps';
+import { checkRateLimit, clientIp } from '../../../lib/rate-limit';
+import { log } from '../../../lib/log';
 
 // Cookie names — short-lived, signed by being random + httpOnly.
 const STATE_COOKIE = 'vipps_oidc_state';
@@ -8,6 +10,18 @@ const VERIFIER_COOKIE = 'vipps_oidc_verifier';
 const NEXT_COOKIE = 'vipps_oidc_next';
 
 export const GET: APIRoute = async ({ url, cookies, request }) => {
+  // Per-IP rate limit. Each Vipps start spins up a session at Vipps' side
+  // and consumes a tiny bit of credential. 10 attempts/minute is plenty
+  // for any real user (an accidental refresh loop won't reach it).
+  const ip = clientIp(request);
+  if (!checkRateLimit('vipps.start', ip, { limit: 10, windowSeconds: 60 })) {
+    log.warn('vipps.start_rate_limited', { ip });
+    return new Response('Too many attempts. Please try again in a minute.', {
+      status: 429,
+      headers: { 'Retry-After': '60' },
+    });
+  }
+
   // Public signup is gated — must have the invite cookie set by visiting
   // /login?invite=<key>. Without it, bounce to the interest form.
   if (cookies.get('login_invite')?.value !== '1') {

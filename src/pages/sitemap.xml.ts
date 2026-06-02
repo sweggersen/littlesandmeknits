@@ -51,7 +51,8 @@ export const GET: APIRoute = async () => {
   const { data: stores } = await admin
     .from('stores')
     .select('slug, created_at')
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .is('deleted_at', null);
 
   const entries: string[] = [];
 

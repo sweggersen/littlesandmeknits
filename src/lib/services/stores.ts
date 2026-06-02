@@ -393,6 +393,9 @@ export async function getStoreBySlugAdmin(
   ctx: ServiceContext,
   slug: string,
 ): Promise<Store | null> {
+  // SOFT_DELETE_EXCEPTION_NOTE: admin lookups intentionally surface
+  // soft-deleted stores so support can investigate them before the 90-day
+  // purge. Public storefront resolution uses getStoreBySlug (which filters).
   const { data } = await ctx.admin.from('stores').select(STORE_SELECT).eq('slug', slug).maybeSingle<Store>();
   return data;
 }

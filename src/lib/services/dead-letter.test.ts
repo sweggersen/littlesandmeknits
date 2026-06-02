@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { recordDeadLetter, resolveDeadLetter } from './dead-letter';
+import { recordDeadLetter, resolveDeadLetter, domainFromService } from './dead-letter';
 import type { ServiceContext } from './types';
 
 function mockCtx(insertImpl?: (row: unknown) => Promise<{ error: { message: string } | null }>): { ctx: ServiceContext; inserts: unknown[]; updates: unknown[] } {
@@ -77,6 +77,46 @@ describe('recordDeadLetter', () => {
     (ctx as any).user = undefined;
     await recordDeadLetter(ctx, { service: 'svc', error: 'err' });
     expect((inserts[0] as any).user_id).toBeNull();
+  });
+});
+
+describe('domainFromService', () => {
+  it('routes marketplace-prefix services to marketplace', () => {
+    expect(domainFromService('listings.purchase')).toBe('marketplace');
+    expect(domainFromService('commissions.acceptOffer')).toBe('marketplace');
+    expect(domainFromService('webhook.checkout.completed')).toBe('marketplace');
+    expect(domainFromService('payouts.startOnboarding')).toBe('marketplace');
+  });
+
+  it('routes patterns/projects to studio', () => {
+    expect(domainFromService('patterns.publish')).toBe('studio');
+    expect(domainFromService('projects.share')).toBe('studio');
+  });
+
+  it('defaults unknown services to platform', () => {
+    expect(domainFromService('profile.deleteAccount')).toBe('platform');
+    expect(domainFromService('notify.broadcast')).toBe('platform');
+    expect(domainFromService('')).toBe('platform');
+  });
+});
+
+describe('recordDeadLetter — domain tagging', () => {
+  it('inserts the derived domain into the row', async () => {
+    const { ctx, inserts } = mockCtx();
+    await recordDeadLetter(ctx, {
+      service: 'webhook.purchase_failed',
+      error: new Error('x'),
+    });
+    expect((inserts[0] as any).domain).toBe('marketplace');
+  });
+
+  it('defaults to platform for non-marketplace services', async () => {
+    const { ctx, inserts } = mockCtx();
+    await recordDeadLetter(ctx, {
+      service: 'profile.deleteAccount',
+      error: new Error('x'),
+    });
+    expect((inserts[0] as any).domain).toBe('platform');
   });
 });
 

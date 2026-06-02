@@ -3,6 +3,8 @@ import { env } from '../../../lib/env';
 import { vippsConfig, exchangeCode, fetchUserinfo } from '../../../lib/vipps';
 import { signInWithVippsUserinfo } from '../../../lib/vipps-session';
 import { createAdminSupabase } from '../../../lib/supabase';
+import { checkRateLimit, clientIp } from '../../../lib/rate-limit';
+import { log } from '../../../lib/log';
 
 const STATE_COOKIE = 'vipps_oidc_state';
 const VERIFIER_COOKIE = 'vipps_oidc_verifier';
@@ -27,6 +29,17 @@ function fail(reason: string, detail?: string): Response {
 }
 
 export const GET: APIRoute = async ({ url, cookies, request }) => {
+  // Same per-IP guard as /start, with a slightly tighter window — every
+  // callback hit triggers a Stripe-style token exchange + userinfo fetch.
+  const ip = clientIp(request);
+  if (!checkRateLimit('vipps.callback', ip, { limit: 20, windowSeconds: 60 })) {
+    log.warn('vipps.callback_rate_limited', { ip });
+    return new Response('Too many attempts. Please try again in a minute.', {
+      status: 429,
+      headers: { 'Retry-After': '60' },
+    });
+  }
+
   const code = url.searchParams.get('code');
   const returnedState = url.searchParams.get('state');
   const errorParam = url.searchParams.get('error');
@@ -50,7 +63,7 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
     const tokens = await exchangeCode(cfg, { code, redirectUri, codeVerifier: verifier });
     userinfo = await fetchUserinfo(cfg, tokens.access_token);
   } catch (err) {
-    console.error('Vipps token/userinfo error', err);
+    log.error('vipps.exchange_failed', { error: err });
     return fail('exchange');
   }
 
