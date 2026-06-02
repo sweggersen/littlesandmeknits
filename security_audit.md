@@ -68,6 +68,23 @@ Audited every route under `src/pages/api/**` (commerce, profile, stores, admin, 
 - [x] `notifications.deleteNotification` — added `.eq('user_id', ctx.user.id)` (notifications DELETE RLS already scopes to owner; now explicit, matches `markRead`).
 - [x] `conversations.reply` — added an explicit participant check returning `forbidden` (the `marketplace_messages` INSERT RLS already requires sender be a participant; now a clean 403 instead of relying on the insert to fail).
 
+## 2c. Prod-vs-migrations verification — REAL DRIFT FOUND (F6, MEDIUM)
+
+Ran `supabase db diff --linked` (read-only) to check whether the hosted DB matches the migration files. **It does not.** Cross-checked the direction against the local DB's actual policies (ground truth) to be certain.
+
+**Finding F6 — `0038_security_hardening` only partially applied to prod.** §1 (profiles self-escalation WITH CHECK) landed, but **§2–6 did not**: prod still has the pre-0038 commission UPDATE policies, the old `handle_new_report()`, and the old `increment_moderator_stats` overload. Classic dashboard-SQL partial failure (a statement errored mid-script; the rest never ran). The CLI migration-history table is unreliable here — it lists 0038 as "applied" even though it only partially ran.
+
+**Why it's exploitable (MEDIUM):** prod's old policies are loose — `"Buyer updates own requests"` is `USING (auth.uid() = buyer_id)` with **no status check and no WITH CHECK**, and `"Knitter updates own offers"` is `USING (auth.uid() = knitter_id)` with no WITH CHECK. A logged-in user holds a real PostgREST JWT, so they can **directly PATCH their own commission rows** (set `status`, `awarded_offer_id`, `platform_fee_nok`, `stripe_payment_intent_id`, offer status) bypassing the service-layer state machine. Also, prod's old `handle_new_report()` counts **all** reports toward auto-hide (not just trusted-tier), so a few low-trust accounts can suppress any listing. These are exactly the gaps 0038 was written to close.
+
+**Fix:** `0079_reapply_0038_hardening.sql` — re-applies 0038 §2–6 idempotently (`DROP … IF EXISTS` / `CREATE OR REPLACE`). 0038 §1 is deliberately **omitted** (it's already correct on prod, and `0072_split_profiles` superseded it by moving `stripe_account_id`/`stripe_onboarded` to `seller_profiles`; re-applying the old §1 would reference dropped columns and break the live policy — verified: it errored on local and had to be restored).
+
+- [x] `0079` written + validated on local (idempotent no-op there).
+- [ ] **User: apply `0079` to prod** (dashboard SQL editor).
+- [ ] Then re-run `supabase db diff --linked` → expect empty.
+- [ ] Then baseline history: `supabase migration repair --status applied 0058 … 0079`.
+
+Caveat: applying `0079` §2 to prod assumes the `commission_requests` columns it pins (e.g. `stripe_transfer_id`, `review_deadline_at`) exist on prod. They should (added by 0037 / Stripe migrations that aren't drifted), but the migration is idempotent — if a column is missing, the dashboard will name it and it's safe to re-run after.
+
 ## 3. Out of scope / coverage gaps (honest)
 
 - Did **not** verify the **hosted** Supabase project's live RLS matches these migration files (read migrations, not prod DB).
