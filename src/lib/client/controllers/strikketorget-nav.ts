@@ -18,6 +18,16 @@
 
 import { bindOnce } from '../dom';
 
+// Per-category section-pill colours (active = `on`, inactive hover = `hov`).
+// Mirrors PILL_ACTIVE/PILL_HOVER in StrikketorgetNav.astro. Keep class strings
+// literal — Tailwind only generates classes it can see in source.
+const PILL_COLORS: Record<string, { on: string[]; hov: string[] }> = {
+  '/market/used': { on: ['bg-[#a06b43]/12', 'text-[#a06b43]'], hov: ['hover:text-[#a06b43]', 'hover:bg-[#a06b43]/10'] },
+  '/market/new': { on: ['bg-sage-700/12', 'text-sage-700'], hov: ['hover:text-sage-700', 'hover:bg-sage-700/10'] },
+  '/market/commissions': { on: ['bg-[#8b6db0]/15', 'text-[#8b6db0]'], hov: ['hover:text-[#8b6db0]', 'hover:bg-[#8b6db0]/10'] },
+  default: { on: ['bg-terracotta-500/10', 'text-terracotta-500'], hov: ['hover:text-charcoal', 'hover:bg-sage-100/60'] },
+};
+
 declare global {
   interface Window {
     applyAuthUI: (loggedIn: boolean) => void;
@@ -33,11 +43,12 @@ function syncRouteState() {
     const href = el.dataset.navLink!;
     const exact = el.dataset.navLinkExact === '1';
     const active = exact ? path === href : path.startsWith(href);
-    el.classList.toggle('bg-terracotta-500/10', active);
-    el.classList.toggle('text-terracotta-500', active);
+    // Per-category active + hover colours, matching the home cards/icons.
+    // Class strings must stay literal so Tailwind generates them.
+    const cfg = PILL_COLORS[href] ?? PILL_COLORS.default;
+    cfg.on.forEach((c) => el.classList.toggle(c, active));
+    cfg.hov.forEach((c) => el.classList.toggle(c, !active));
     el.classList.toggle('text-charcoal/70', !active);
-    el.classList.toggle('hover:text-charcoal', !active);
-    el.classList.toggle('hover:bg-sage-100/60', !active);
   });
   document.querySelectorAll<HTMLAnchorElement>('[data-mobile-nav-link]').forEach((el) => {
     const href = el.dataset.mobileNavLink!;

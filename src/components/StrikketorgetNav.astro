@@ -53,6 +53,12 @@ const PILL_ACTIVE: Record<string, string> = {
   '/market/commissions': 'bg-[#8b6db0]/15 text-[#8b6db0]',
 };
 const pillActive = (href: string) => PILL_ACTIVE[href] ?? 'bg-terracotta-500/10 text-terracotta-500';
+const PILL_HOVER: Record<string, string> = {
+  '/market/used': 'hover:text-[#a06b43] hover:bg-[#a06b43]/10',
+  '/market/new': 'hover:text-sage-700 hover:bg-sage-700/10',
+  '/market/commissions': 'hover:text-[#8b6db0] hover:bg-[#8b6db0]/10',
+};
+const pillInactive = (href: string) => 'text-charcoal/70 ' + (PILL_HOVER[href] ?? 'hover:text-charcoal hover:bg-sage-100/60');
 
 const externalLinks = isStudio
   ? [
@@ -122,7 +128,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
               'text-sm font-medium px-3 py-1.5 rounded-full transition-colors',
               isActive
                 ? pillActive(l.href)
-                : 'text-charcoal/70 hover:text-charcoal hover:bg-sage-100/60',
+                : pillInactive(l.href),
             ]}
           >
             {l.label}
