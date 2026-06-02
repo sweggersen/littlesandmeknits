@@ -1,14 +1,12 @@
 import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
+import { devToolsBlocked } from '../../../lib/dev-guard';
 
 // Returns the daily HMAC admin token used to authenticate /api/dev/test-exec
-// from Playwright tests. Localhost-only.
+// from Playwright tests. Localhost-only (or DEV_TOOLS=enabled preview).
 export const GET: APIRoute = async ({ request }) => {
-  if (import.meta.env.PROD) return new Response('Not available', { status: 403 });
-  const host = new URL(request.url).hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-    return new Response('Not available', { status: 403 });
-  }
+  const blocked = devToolsBlocked(request);
+  if (blocked) return blocked;
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return new Response('Service role key not configured', { status: 503 });
   }

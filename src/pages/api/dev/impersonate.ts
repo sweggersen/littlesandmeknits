@@ -1,16 +1,13 @@
 import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { createAdminSupabase, createServerSupabase } from '../../../lib/supabase';
+import { devToolsBlocked } from '../../../lib/dev-guard';
 
 const EMAIL_DOMAIN = '@test.strikketorget.no';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
-  if (import.meta.env.PROD) return new Response('Not available', { status: 403 });
-
-  const host = new URL(request.url).hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-    return new Response('Not available in production', { status: 403 });
-  }
+  const blocked = devToolsBlocked(request);
+  if (blocked) return blocked;
 
   const form = await request.formData();
   const email = form.get('email')?.toString();

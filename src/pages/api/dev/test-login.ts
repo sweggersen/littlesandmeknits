@@ -1,18 +1,14 @@
 import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { devToolsBlocked } from '../../../lib/dev-guard';
 
 // Dev-only endpoint. Signs in as a @test.strikketorget.no user by setting a
 // known password and calling signInWithPassword (which sets the auth cookies).
-// Refuses anywhere that isn't localhost / *.workers.dev preview.
+// Refuses on prod builds and on non-localhost hosts unless DEV_TOOLS=enabled.
 export const POST: APIRoute = async ({ request, cookies }) => {
-  if (import.meta.env.PROD) {
-    return new Response('Not available', { status: 403 });
-  }
-  const host = new URL(request.url).hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-    return new Response('Not available', { status: 403 });
-  }
+  const blocked = devToolsBlocked(request);
+  if (blocked) return blocked;
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return new Response('Service role key not configured', { status: 503 });
   }

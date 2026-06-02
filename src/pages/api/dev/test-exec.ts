@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
+import { devToolsBlocked } from '../../../lib/dev-guard';
 import type { ServiceContext } from '../../../lib/services/types';
 import {
   createRequest as svcCreateRequest,
@@ -129,12 +130,8 @@ async function verifyAdminToken(token: string): Promise<boolean> {
 }
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  if (import.meta.env.PROD) return json({ ok: false, error: 'Not available' }, 403);
-
-  const host = new URL(request.url).hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-    return json({ ok: false, error: 'Not available in production' }, 403);
-  }
+  const blocked = devToolsBlocked(request);
+  if (blocked) return blocked;
 
   const adminToken = request.headers.get('X-Admin-Token');
   if (adminToken) {

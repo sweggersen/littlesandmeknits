@@ -4,6 +4,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
+import { devToolsBlocked } from '../../../lib/dev-guard';
 
 const ADMINS = ['ammon.weggersen@gmail.com', 'sam.mathias.weggersen@gmail.com'];
 
@@ -25,11 +26,8 @@ async function verifyAdminToken(token: string, secret: string): Promise<boolean>
 }
 
 export const POST: APIRoute = async ({ request, cookies }) => {
-  if (import.meta.env.PROD) return new Response('Not available', { status: 403 });
-  const host = new URL(request.url).hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-    return new Response('Not available', { status: 403 });
-  }
+  const blocked = devToolsBlocked(request);
+  if (blocked) return blocked;
   if (!env.SUPABASE_SERVICE_ROLE_KEY) {
     return new Response('Service role key missing', { status: 503 });
   }
