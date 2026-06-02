@@ -1105,9 +1105,22 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 ---
 
-### ☐ R2-15 — Tighten test rigor (the "B-" tests get to A-)  **(P2)**
+### ☑ R2-15 — Tighten test rigor (the "B-" tests get to A-)  **(P2 → done 2026-06-02)**
 
 **Goal:** rewrite the loosest commerce tests so they verify business logic, not just "an operation happened." Today's `mockCtx` returns `rows[table]` for every `.select().eq()` regardless of which column was filtered or which value was passed — a regression that swaps `eq('id', input.offerId)` for `eq('id', 'literal-string')` would still pass.
+
+**Done.** Built `src/lib/services/__test_helpers__/mock-supabase.ts` — a query-builder mock that records every op (`op`, `table`, `filters`, `cols`, `payload`) and lets fixtures be functions of the recorded filters. 52 new tests on top of it:
+
+- `listings-money.test.ts` (18) — `purchaseListing` line-item amounts + `application_fee_amount` in ore for personal/ambassador/store-tier sellers, metadata shape, all 6 guards; `confirmListingDelivery` captures the same PI and emits the correct `listing_delivered` notification (userId=seller, title, url).
+- `commissions-money.test.ts` (11) — `payCommission` 13%/8% fee math, odd-amount rounding (999 @ 13% = 12987 ore → 130 kr), PI confirm, yarn/Stripe-less paths, guards, `payment_received` notification body.
+- `create-listing.test.ts` (14) — all 9 input validations, store-membership + inactive-store guards, escrow-forced-on-for-stores, trimmed-field persistence, insert-failure path.
+- `mock-supabase.test.ts` (9) — meta-tests pinning the mock's own recording behaviour.
+
+**Mutation-verified:** flipping `AMBASSADOR_FEE_PERCENT` 8→9 fails `listings-money.test.ts` — exactly the regression the old loose mock would have waved through.
+
+Suite: 368 → 420 passing. The legacy loose `mockCtx` in `commissions.test.ts` / `listings.test.ts` is retained (still-valuable guard coverage) but the money-critical assertions now live in the rigorous suites. Future commerce tests use `mock-supabase.ts`.
+
+<details><summary>Original plan (kept for the record)</summary>
 
 **Why:** the post-R2-4 audit found that ~40% of the new tests are guards that catch removal of authorization checks (real value, low cost), ~30% are state transitions (medium value), and only ~20% verify Stripe SDK calls (high value). The money math and the exact shape of side effects are largely untested. "332 passing" overstates the safety margin — a subtle business-logic bug could slip past.
 
@@ -1132,3 +1145,5 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 - Notification call assertions verify body content, not just call count.
 
 **Effort:** 1–2 days. The mock-supabase infrastructure is the biggest piece (~3 hours); rewriting the tests on top is mostly mechanical.
+
+</details>

@@ -1,6 +1,8 @@
 # CLAUDE.md — Littles and Me Knits
 
-> **Hardening refactor closed 2026-06-02.** See [`refactor.md`](./refactor.md) for the historical record (15 ☑ done, 1 ⊘ wontfix). The rules below are derived from that work and remain in force.
+> **Hardening refactor closed 2026-06-02.** See [`refactor.md`](./refactor.md) for the historical record (Round 1: 15 ☑ done, 1 ⊘ wontfix; Round 2: 15 ☑ done). The rules below are derived from that work and remain in force.
+>
+> **Commerce-service tests use `src/lib/services/__test_helpers__/mock-supabase.ts`** — a query-builder mock that records exact filters + payloads. Assert specific values (`application_fee_amount` in ore, the row a query filtered on, notification body), not just "an op happened". The older loose `mockCtx` in some test files is legacy; don't copy it for new money-touching tests.
 
 ## Project overview
 
