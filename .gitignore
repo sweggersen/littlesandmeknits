@@ -41,3 +41,6 @@ supabase/.temp/
 # Mutation testing
 .stryker-tmp/
 reports/
+
+# local env backups (contain prod secrets)
+*.prodbak

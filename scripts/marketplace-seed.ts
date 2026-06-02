@@ -16,6 +16,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { deflateSync } from 'node:zlib';
 
 // ─── Env loading ──────────────────────────────────────────────
 
@@ -260,7 +261,6 @@ function makePlaceholderPng(hexColor: string, size = 400): Buffer {
   const rawData = Buffer.alloc(rawRow.length * size);
   for (let y = 0; y < size; y++) rawRow.copy(rawData, y * rawRow.length);
 
-  const { deflateSync } = require('zlib') as typeof import('zlib');
   const compressed = deflateSync(rawData);
 
   function crc32(buf: Buffer): number {
