@@ -19,6 +19,15 @@ const authLinks = [
   { href: '/market/commissions/my-listings', key: 'mine-oppdrag', label: 'Mine oppdrag' },
   { href: '/profile/stores', key: 'butikker', label: 'Mine butikker' },
 ];
+
+// Active-tab colour per category, matching the home category cards + icons.
+// Anything not listed falls back to the brand terracotta.
+const ACTIVE_COLOR: Record<string, string> = {
+  brukt: 'border-[#a06b43] text-[#a06b43]',
+  nytt: 'border-sage-700 text-sage-700',
+  oppdrag: 'border-[#8b6db0] text-[#8b6db0]',
+};
+const activeClass = (key: string) => ACTIVE_COLOR[key] ?? 'border-terracotta-500 text-terracotta-500';
 ---
 
 <nav class="sticky top-[72px] z-40 sm:static sm:top-auto bg-linen/95 backdrop-blur-md sm:backdrop-blur-none sm:bg-linen border-b border-sage-500/10 transition-transform duration-300 ease-out" data-hide-on-scroll transition:animate="none">
@@ -30,7 +39,7 @@ const authLinks = [
           class:list={[
             'shrink-0 px-3 py-3 text-sm font-medium border-b-2 transition-colors',
             current === l.key
-              ? 'border-terracotta-500 text-terracotta-500'
+              ? activeClass(l.key)
               : 'border-transparent text-charcoal/55 hover:text-charcoal hover:border-charcoal/20',
           ]}
         >
@@ -46,7 +55,7 @@ const authLinks = [
           class:list={[
             'shrink-0 px-3 py-3 text-sm font-medium border-b-2 transition-colors hidden',
             current === l.key
-              ? 'border-terracotta-500 text-terracotta-500'
+              ? activeClass(l.key)
               : 'border-transparent text-charcoal/55 hover:text-charcoal hover:border-charcoal/20',
           ]}
           data-marketplace-auth
