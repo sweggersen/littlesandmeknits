@@ -1118,7 +1118,17 @@ Limits tunable later via trust tier. 9 new tests in `quota.test.ts` cover bounda
 
 **Mutation-verified:** flipping `AMBASSADOR_FEE_PERCENT` 8→9 fails `listings-money.test.ts` — exactly the regression the old loose mock would have waved through.
 
-Suite: 368 → 420 passing. The legacy loose `mockCtx` in `commissions.test.ts` / `listings.test.ts` is retained (still-valuable guard coverage) but the money-critical assertions now live in the rigorous suites. Future commerce tests use `mock-supabase.ts`.
+Suite: 368 → 420 passing. The legacy loose `mockCtx` in `commissions.test.ts` / `listings.test.ts` is retained (still-valuable guard coverage) but the money-critical assertions now live in the rigorous suites.
+
+**Beyond A- (follow-up, same day).** The recording stub still returned fixtures regardless of filters, so wrong-row queries were only caught if a test opted in. Closed that:
+
+- **`fake-db.ts`** — a true in-memory fake that *applies* eq/in/is/neq/gte/lte/ilike/or filters against seeded rows and mutates state on insert/update/delete. Wrong-row queries (`eq('id','literal')`) now return null and fail tests automatically. The money suites were rewritten onto it (seeded rows, real post-mutation row assertions). Mutation-verified: pointing `purchaseListing`'s seller lookup at a wrong id fails the whole suite under the fake (passed under the stub).
+- **Money-conservation invariants** — buyer total − application fee == item + shipping − commission; fee == commission + TB; fee < buyer total. Catches shipping double-counting / TB leakage that per-number tests miss.
+- **Price sweeps** across rounding boundaries for both `purchaseListing` (13%/8%/store tiers) and `payCommission`.
+- **`completeListingPurchase` extracted** from the Stripe webhook into `listings.ts` (aligns with the service-layer rule) and made idempotent via `.eq('status','active').select()` — a Stripe retry now returns `updated:false` so the webhook skips the duplicate "your item sold" notification (latent double-notify bug, fixed).
+- **Real-Postgres integration test** (`complete-purchase.integration.test.ts`) — seeds a listing in local Supabase, runs the transition, asserts the actual row against real column constraints + the `listing_status` enum, and proves idempotency + the active-guard. Runs in CI/local when Supabase is up (verified passing against local Postgres); skips cleanly otherwise.
+
+Suite: 420 → 453 unit (483 with local Postgres up: integration + RLS suites execute). Future commerce tests use `fake-db.ts`; integration tests follow the `*.integration.test.ts` + `skipIf(!HAS_LOCAL)` convention.
 
 <details><summary>Original plan (kept for the record)</summary>
 

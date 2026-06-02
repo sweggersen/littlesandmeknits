@@ -5,6 +5,7 @@ import { createStripe } from '../../../lib/stripe';
 import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
+import { completeListingPurchase } from '../../../lib/services/listings';
 import { log } from '../../../lib/log';
 
 /** Minimal context for recordDeadLetter from inside the Stripe
@@ -178,34 +179,25 @@ export const POST: APIRoute = async ({ request }) => {
         ? session.payment_intent
         : session.payment_intent?.id;
 
-      // Fallback deadline if the seller never ships (or doesn't mark
-      // shipped). On `shipListing` we recompute this to shipped_at + 14d.
-      const autoReleaseAt = new Date(Date.now() + 21 * 86400_000).toISOString();
-      const now = new Date().toISOString();
-      const feeNok = session.amount_total ? Math.round((session.amount_total * 0.13) / 100) : 0;
-
       // Stripe's TS types lag on Checkout Session shipping_details
       // (the field is present in API responses for sessions created
       // with shipping_address_collection enabled).
       const shipping = (session as unknown as { shipping_details?: { name?: string | null; address?: { line1?: string | null; postal_code?: string | null; city?: string | null } | null } }).shipping_details;
-      const { error } = await supabase
-        .from('listings')
-        .update({
-          status: 'reserved',
-          buyer_id: buyerId,
-          stripe_payment_intent_id: piId ?? null,
-          platform_fee_nok: feeNok,
-          reserved_at: now,
-          auto_release_at: autoReleaseAt,
-          buyer_name: shipping?.name ?? null,
-          buyer_address: shipping?.address?.line1 ?? null,
-          buyer_postal_code: shipping?.address?.postal_code ?? null,
-          buyer_city: shipping?.address?.city ?? null,
-        })
-        .eq('id', purchaseListingId)
-        .eq('status', 'active');
 
-      if (error) {
+      const result = await completeListingPurchase(supabase, {
+        listingId: purchaseListingId,
+        buyerId,
+        paymentIntentId: piId ?? null,
+        amountTotalOre: session.amount_total ?? null,
+        shipping: {
+          name: shipping?.name ?? null,
+          line1: shipping?.address?.line1 ?? null,
+          postalCode: shipping?.address?.postal_code ?? null,
+          city: shipping?.address?.city ?? null,
+        },
+      });
+
+      if (result.error) {
         await recordDeadLetter(dlCtx(supabase, buyerId), {
           service: 'stripe.webhook:listing_purchase',
           context: {
@@ -214,7 +206,7 @@ export const POST: APIRoute = async ({ request }) => {
             buyer_id: buyerId,
             payment_intent_id: piId ?? null,
           },
-          error,
+          error: result.error,
         });
         // CRITICAL: buyer has paid. Stripe will retry; if final retry
         // fails, the dead-letter row tells support which listing is
@@ -222,18 +214,15 @@ export const POST: APIRoute = async ({ request }) => {
         return new Response('DB error', { status: 500 });
       }
 
-      const { data: listingData } = await supabase
-        .from('listings')
-        .select('seller_id, title')
-        .eq('id', purchaseListingId)
-        .maybeSingle();
-
-      if (listingData) {
+      // Only notify on the transition that actually happened. A Stripe retry
+      // after a successful first delivery returns updated=false (status no
+      // longer 'active'), so we don't fire a duplicate "sold" notification.
+      if (result.updated && result.listing) {
         await createNotification(supabase, {
-          userId: listingData.seller_id,
+          userId: result.listing.seller_id,
           type: 'listing_purchased',
           title: 'Varen din er solgt!',
-          body: `Noen har kjøpt «${listingData.title}». Send varen og legg inn sporingskode.`,
+          body: `Noen har kjøpt «${result.listing.title}». Send varen og legg inn sporingskode.`,
           url: `/market/listing/${purchaseListingId}`,
           actorId: buyerId,
           referenceId: purchaseListingId,

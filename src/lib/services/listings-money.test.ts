@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { purchaseListing, confirmListingDelivery } from './listings';
+import { purchaseListing, confirmListingDelivery, completeListingPurchase } from './listings';
 import { createNotification } from '../notify';
 import { tbFeeForPrice } from '../shipping';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
@@ -230,6 +230,78 @@ describe('purchaseListing — guards', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('conflict');
     expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('completeListingPurchase (webhook transition)', () => {
+  const FIXED = new Date('2026-06-02T12:00:00.000Z');
+  function seedActive(overrides: Record<string, unknown> = {}) {
+    return createFakeDb({
+      listings: [{
+        id: 'l1', seller_id: 'seller-1', buyer_id: null, status: 'active',
+        title: 'Babygenser', stripe_payment_intent_id: null, platform_fee_nok: null,
+        reserved_at: null, auto_release_at: null,
+        buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null,
+        ...overrides,
+      }],
+    });
+  }
+
+  it('transitions active -> reserved and records buyer, PI, fee, shipping', async () => {
+    const db = seedActive();
+    const res = await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi_xyz',
+      amountTotalOre: 56900, // 569 kr total -> fee round(56900*0.13/100) = 74
+      shipping: { name: 'Kari', line1: 'Storgata 1', postalCode: '0001', city: 'Oslo' },
+      now: FIXED,
+    });
+    expect(res.updated).toBe(true);
+    expect(res.listing).toMatchObject({ seller_id: 'seller-1', title: 'Babygenser' });
+
+    const row = db.find('listings', { id: 'l1' }) as any;
+    expect(row.status).toBe('reserved');
+    expect(row.buyer_id).toBe('buyer-1');
+    expect(row.stripe_payment_intent_id).toBe('pi_xyz');
+    expect(row.platform_fee_nok).toBe(74);
+    expect(row.reserved_at).toBe(FIXED.toISOString());
+    // auto-release defaults to +21 days.
+    expect(row.auto_release_at).toBe(new Date(FIXED.getTime() + 21 * 86400_000).toISOString());
+    expect(row).toMatchObject({
+      buyer_name: 'Kari', buyer_address: 'Storgata 1',
+      buyer_postal_code: '0001', buyer_city: 'Oslo',
+    });
+  });
+
+  it('is idempotent: a duplicate delivery does not re-transition or re-notify', async () => {
+    const db = seedActive();
+    const first = await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi_xyz', amountTotalOre: 56900, now: FIXED,
+    });
+    expect(first.updated).toBe(true);
+
+    // Second Stripe delivery of the same event — status is no longer active.
+    const second = await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi_xyz', amountTotalOre: 56900, now: FIXED,
+    });
+    expect(second.updated).toBe(false);
+    expect(second.listing).toBeNull(); // caller skips the duplicate notification
+  });
+
+  it('does not touch a listing that is not active', async () => {
+    const db = seedActive({ status: 'sold', buyer_id: 'old-buyer' });
+    const res = await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'attacker', paymentIntentId: 'pi_x', amountTotalOre: 10000, now: FIXED,
+    });
+    expect(res.updated).toBe(false);
+    expect((db.find('listings', { id: 'l1' }) as any).buyer_id).toBe('old-buyer');
+  });
+
+  it('zero amount_total yields a zero fee', async () => {
+    const db = seedActive();
+    await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: null, amountTotalOre: null, now: FIXED,
+    });
+    expect((db.find('listings', { id: 'l1' }) as any).platform_fee_nok).toBe(0);
   });
 });
 

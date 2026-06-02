@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type { TypedSupabaseClient } from '../supabase';
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
@@ -331,6 +332,78 @@ export async function uploadListingPhotos(
 
 const PLATFORM_FEE_PERCENT = 13;
 const AMBASSADOR_FEE_PERCENT = 8;
+
+export interface CompletePurchaseParams {
+  listingId: string;
+  buyerId: string;
+  /** PaymentIntent id from the completed Checkout session, if any. */
+  paymentIntentId: string | null;
+  /** session.amount_total in ore (what the buyer paid, all line items). */
+  amountTotalOre: number | null;
+  /** Shipping address collected at Checkout. */
+  shipping?: {
+    name?: string | null;
+    line1?: string | null;
+    postalCode?: string | null;
+    city?: string | null;
+  } | null;
+  /** Injectable clock for deterministic tests. Defaults to now. */
+  now?: Date;
+}
+
+export interface CompletePurchaseResult {
+  /** True only if a row actually transitioned active -> reserved. False on a
+   *  duplicate Stripe delivery (status already moved) or a missing listing. */
+  updated: boolean;
+  error: unknown;
+  /** The reserved listing (seller_id, title) for notification, when updated. */
+  listing: { seller_id: string; title: string } | null;
+}
+
+/** Apply the escrow purchase transition: active -> reserved, recording the
+ *  buyer, PaymentIntent, platform fee and shipping address. Extracted from the
+ *  Stripe webhook so the money-state transition is independently testable
+ *  (against real Postgres) and goes through the service layer like every other
+ *  write.
+ *
+ *  Idempotent by construction: the update is guarded on `status = 'active'`,
+ *  and `.select()` tells us whether a row matched. A Stripe retry that arrives
+ *  after the first delivery finds status already 'reserved', matches nothing,
+ *  and returns `updated: false` — so the caller skips the duplicate
+ *  "your item sold" notification. */
+export async function completeListingPurchase(
+  admin: TypedSupabaseClient,
+  p: CompletePurchaseParams,
+): Promise<CompletePurchaseResult> {
+  const now = (p.now ?? new Date());
+  const nowIso = now.toISOString();
+  // Fallback deadline if the seller never ships. shipListing recomputes this
+  // to shipped_at + 14d.
+  const autoReleaseAt = new Date(now.getTime() + 21 * 86400_000).toISOString();
+  const feeNok = p.amountTotalOre ? Math.round((p.amountTotalOre * 0.13) / 100) : 0;
+
+  const { data: rows, error } = await admin
+    .from('listings')
+    .update({
+      status: 'reserved',
+      buyer_id: p.buyerId,
+      stripe_payment_intent_id: p.paymentIntentId ?? null,
+      platform_fee_nok: feeNok,
+      reserved_at: nowIso,
+      auto_release_at: autoReleaseAt,
+      buyer_name: p.shipping?.name ?? null,
+      buyer_address: p.shipping?.line1 ?? null,
+      buyer_postal_code: p.shipping?.postalCode ?? null,
+      buyer_city: p.shipping?.city ?? null,
+    })
+    .eq('id', p.listingId)
+    .eq('status', 'active')
+    .select('seller_id, title');
+
+  if (error) return { updated: false, error, listing: null };
+  const listing = (rows?.[0] as { seller_id: string; title: string } | undefined) ?? null;
+  return { updated: !!listing, error: null, listing };
+}
 
 export async function purchaseListing(
   ctx: ServiceContext,

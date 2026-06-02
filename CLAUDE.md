@@ -2,7 +2,13 @@
 
 > **Hardening refactor closed 2026-06-02.** See [`refactor.md`](./refactor.md) for the historical record (Round 1: 15 ☑ done, 1 ⊘ wontfix; Round 2: 15 ☑ done). The rules below are derived from that work and remain in force.
 >
-> **Commerce-service tests use `src/lib/services/__test_helpers__/mock-supabase.ts`** — a query-builder mock that records exact filters + payloads. Assert specific values (`application_fee_amount` in ore, the row a query filtered on, notification body), not just "an op happened". The older loose `mockCtx` in some test files is legacy; don't copy it for new money-touching tests.
+> **Commerce-service tests — two helpers in `src/lib/services/__test_helpers__/`:**
+> - **`fake-db.ts`** (preferred for flows): an in-memory fake that *applies* eq/in/is/neq/gte/lte/ilike/or filters against seeded rows and mutates state on insert/update/delete. Seed rows, run the service, assert the real post-mutation row (`db.find('listings',{id}).status`). Because filters are applied, a wrong-row query (`eq('id','literal')`) returns null and fails the test automatically.
+> - **`mock-supabase.ts`** (recording stub): returns the fixture regardless of filters but records exact filters + payloads. Use for input-validation / error-injection tests where you don't need state.
+>
+> Assert specific values (`application_fee_amount` in ore, money-conservation invariants, notification body), not just "an op happened". Money paths additionally get a **price-sweep** across rounding boundaries. The older loose `mockCtx` in some files is legacy; don't copy it.
+>
+> **Integration tests** (`*.integration.test.ts`) run against **real local Postgres** via `describe.skipIf(!HAS_LOCAL)` — set `PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (e.g. `eval "$(supabase status -o env | sed 's/^/export SB_/')"` then map `SB_API_URL`/`SB_SERVICE_ROLE_KEY`). They exercise real column constraints, enums, and RLS. Skipped cleanly when Supabase is down.
 
 ## Project overview
 
