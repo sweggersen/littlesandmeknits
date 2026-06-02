@@ -5,6 +5,11 @@ import { tbFeeForPrice } from '../shipping';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
 
+// Projection on: reads return only selected columns, so a dropped/blanked
+// `.select(...)` surfaces as a missing field (kills column-list mutants).
+const fakeDb = (seed: Record<string, Record<string, unknown>[]>) =>
+  createFakeDb(seed, { projectColumns: true });
+
 // R2-15+ — money-math + side-effect coverage for the listing buy flow,
 // backed by the in-memory fake (fake-db.ts). Because the fake actually
 // applies eq/is/in filters against seeded rows, a service that queried the
@@ -49,7 +54,7 @@ function checkoutArgs(): any {
 
 /** Seed a personal-seller listing + the seller's profile rows. */
 function seedPersonal(listingOverrides: Record<string, unknown> = {}, role = 'user') {
-  return createFakeDb({
+  return fakeDb({
     listings: [{
       id: 'l1', seller_id: 'seller-1', store_id: null,
       title: 'Babygenser', price_nok: 500, status: 'active',
@@ -76,6 +81,8 @@ describe('purchaseListing — personal seller money math', () => {
     expect(args.payment_intent_data.application_fee_amount).toBe(8400);
     expect(args.payment_intent_data.transfer_data.destination).toBe('acct_seller');
     expect(args.payment_intent_data.capture_method).toBe('manual');
+    // The Stripe-hosted Checkout URL is handed back to the caller.
+    if (r.ok) expect(r.data.checkoutUrl).toBe('https://checkout.stripe.com/c/test_123');
   });
 
   it('ambassador seller pays 8% commission, free shipping omits the shipping line', async () => {
@@ -130,6 +137,59 @@ describe('purchaseListing — personal seller money math', () => {
     // Only the item line; no shipping, no TB.
     expect(args.line_items).toHaveLength(1);
     expect(args.payment_intent_data.application_fee_amount).toBe(0);
+  });
+
+  it('falls back to the canonical site URL when PUBLIC_SITE_URL is unset', async () => {
+    const db = seedPersonal();
+    const ctx = ctxFor(db);
+    (ctx.env as any).PUBLIC_SITE_URL = undefined;
+    await purchaseListing(ctx, { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const args = checkoutArgs();
+    expect(args.success_url).toBe('https://www.littlesandmeknits.com/market/listing/l1?purchased=1');
+    expect(args.cancel_url).toBe('https://www.littlesandmeknits.com/market/listing/l1');
+  });
+
+  it('labels the shipping line "sending" when the tier is unknown', async () => {
+    // Legacy row: a shipping_option not in the current tier table, with a
+    // locked-in price. The line still shows, with the generic fallback label.
+    const db = seedPersonal({ shipping_option: 'legacy_tier', shipping_price_nok: 60 });
+    await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const args = checkoutArgs();
+    const shippingLine = args.line_items[1];
+    expect(shippingLine.price_data.unit_amount).toBe(6000);
+    expect(shippingLine.price_data.product_data.name).toBe('Frakt (sending)');
+  });
+
+  it('falls back to the tier default price when shipping_price_nok is null', async () => {
+    // Legacy row with no locked price; falls back to the tier table (small_parcel = 76).
+    const db = seedPersonal({ shipping_option: 'small_parcel', shipping_price_nok: null });
+    await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const args = checkoutArgs();
+    expect(args.line_items[1].price_data.unit_amount).toBe(7600);
+  });
+
+  it('uses zero shipping when price is unset and the tier is unknown', async () => {
+    // Both fallbacks empty: no locked price AND an unknown tier -> 0, no line.
+    const db = seedPersonal({ shipping_option: 'legacy', shipping_price_nok: null });
+    await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    const amounts = checkoutArgs().line_items.map((li: any) => li.price_data.unit_amount);
+    expect(amounts).toEqual([50000, 1900]); // item 500 + TB 19, no shipping line
+  });
+
+  it('not_found when the seller profile is missing', async () => {
+    const db = fakeDb({
+      listings: [{
+        id: 'l1', seller_id: 'seller-1', store_id: null, title: 'X', price_nok: 500,
+        status: 'active', hero_photo_path: null, escrow_enabled: true,
+        shipping_option: 'free', shipping_price_nok: 0,
+      }],
+      // No profiles row for seller-1.
+      seller_profiles: [{ id: 'seller-1', stripe_account_id: 'acct', stripe_connect_status: 'verified' }],
+    });
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
+    expect(checkoutCreate).not.toHaveBeenCalled();
   });
 });
 
@@ -188,7 +248,7 @@ describe('purchaseListing — escrow split reconciles (money conservation)', () 
 
 describe('purchaseListing — store-owned tier fees', () => {
   function seedStore(tier: string | undefined) {
-    return createFakeDb({
+    return fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', store_id: 'store-1',
         title: 'Genser', price_nok: 600, status: 'active', hero_photo_path: null,
@@ -216,40 +276,72 @@ describe('purchaseListing — guards', () => {
     const db = seedPersonal();
     const r = await purchaseListing(ctxFor(db), { listingId: '', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('bad_input');
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toBeTruthy(); }
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it('server_error when no Stripe secret key is supplied', async () => {
+    const db = seedPersonal();
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: '' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('server_error'); expect(r.message).toBeTruthy(); }
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
+  it('server_error when Stripe returns a session without a URL', async () => {
+    checkoutCreate.mockResolvedValueOnce({ url: null } as any);
+    const db = seedPersonal();
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('server_error'); expect(r.message).toBeTruthy(); }
+  });
+
+  it('conflict when the seller payout-connect row is missing entirely', async () => {
+    const db = fakeDb({
+      listings: [{
+        id: 'l1', seller_id: 'seller-1', store_id: null, title: 'X', price_nok: 500,
+        status: 'active', hero_photo_path: null, escrow_enabled: true,
+        shipping_option: 'free', shipping_price_nok: 0,
+      }],
+      profiles: [{ id: 'seller-1', role: 'user' }],
+      // No seller_profiles row -> sellerConnect is null.
+    });
+    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
   it('not_found when listing missing', async () => {
-    const db = createFakeDb({ listings: [] });
+    const db = fakeDb({ listings: [] });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('not_found');
+    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
   });
 
   it('conflict when listing not active', async () => {
     const db = seedPersonal({ status: 'sold' });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
   });
 
   it('rejects buying your own listing', async () => {
     const db = seedPersonal();
     const r = await purchaseListing(ctxFor(db, 'seller-1'), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('bad_input');
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toBeTruthy(); }
   });
 
   it('conflict when escrow not enabled', async () => {
     const db = seedPersonal({ escrow_enabled: false });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
   });
 
   it('conflict when seller not onboarded to Stripe (status not verified)', async () => {
-    const db = createFakeDb({
+    const db = fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', store_id: null, title: 'X', price_nok: 500,
         status: 'active', hero_photo_path: null, escrow_enabled: true,
@@ -260,12 +352,12 @@ describe('purchaseListing — guards', () => {
     });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
   it('conflict when seller is verified but has no payout account id', async () => {
-    const db = createFakeDb({
+    const db = fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', store_id: null, title: 'X', price_nok: 500,
         status: 'active', hero_photo_path: null, escrow_enabled: true,
@@ -276,12 +368,12 @@ describe('purchaseListing — guards', () => {
     });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
   it('conflict when the store is not active', async () => {
-    const db = createFakeDb({
+    const db = fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', store_id: 'store-1', title: 'X', price_nok: 500,
         status: 'active', hero_photo_path: null, escrow_enabled: true,
@@ -291,12 +383,12 @@ describe('purchaseListing — guards', () => {
     });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
   it('conflict when the store has not finished Stripe onboarding', async () => {
-    const db = createFakeDb({
+    const db = fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', store_id: 'store-1', title: 'X', price_nok: 500,
         status: 'active', hero_photo_path: null, escrow_enabled: true,
@@ -306,7 +398,7 @@ describe('purchaseListing — guards', () => {
     });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 });
@@ -314,7 +406,7 @@ describe('purchaseListing — guards', () => {
 describe('completeListingPurchase (webhook transition)', () => {
   const FIXED = new Date('2026-06-02T12:00:00.000Z');
   function seedActive(overrides: Record<string, unknown> = {}) {
-    return createFakeDb({
+    return fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', buyer_id: null, status: 'active',
         title: 'Babygenser', stripe_payment_intent_id: null, platform_fee_nok: null,
@@ -381,11 +473,24 @@ describe('completeListingPurchase (webhook transition)', () => {
     });
     expect((db.find('listings', { id: 'l1' }) as any).platform_fee_nok).toBe(0);
   });
+
+  it('surfaces a DB error (no transition, no listing) so the webhook can dead-letter', async () => {
+    const db = createFakeDb(
+      { listings: [{ id: 'l1', seller_id: 'seller-1', status: 'active', title: 'X' }] },
+      { projectColumns: true, updateError: { listings: { message: 'deadlock' } } },
+    );
+    const res = await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi', amountTotalOre: 10000, now: FIXED,
+    });
+    expect(res.updated).toBe(false);
+    expect(res.listing).toBeNull();
+    expect(res.error).toMatchObject({ message: 'deadlock' });
+  });
 });
 
 describe('confirmListingDelivery', () => {
   function seedShipped(overrides: Record<string, unknown> = {}) {
-    return createFakeDb({
+    return fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1',
         title: 'Babygenser', status: 'shipped', stripe_payment_intent_id: 'pi_abc',
@@ -426,7 +531,7 @@ describe('confirmListingDelivery', () => {
     const db = seedShipped();
     const r = await confirmListingDelivery(ctxFor(db, 'someone-else'), { listingId: 'l1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('not_found');
+    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
     expect(piCapture).not.toHaveBeenCalled();
     expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
   });
@@ -435,7 +540,7 @@ describe('confirmListingDelivery', () => {
     const db = seedShipped({ status: 'sold' });
     const r = await confirmListingDelivery(ctxFor(db, 'buyer-1'), { listingId: 'l1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
   });
 
   it('also confirms from the reserved state (buyer never waited for shipping)', async () => {

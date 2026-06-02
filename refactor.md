@@ -1138,6 +1138,14 @@ Suite: 420 → 453 unit (483 with local Postgres up: integration + RLS suites ex
 
 Final: 453 unit / 497 with local Postgres (0 skipped); money-path mutation score 84%.
 
+**Pushed to ~99% (high-signal, no metric-gaming).** Followed up to take the money-path mutation score from 84% to **99.05%** without resorting to copy-string assertions or `// Stryker disable` bookkeeping:
+- **`fake-db` column projection** (`createFakeDb(seed, { projectColumns: true })`) — reads now return only the selected columns, so a blanked `.select(...)` yields an empty row and the test fails. Killed the whole class of `.select()` column-list mutants.
+- **`fake-db` update-error injection** (`updateError` option) — exercises `completeListingPurchase`'s DB-failure branch.
+- **Coverage + non-brittle assertions** — full Checkout-session shape, `checkoutUrl` return, line-item names, missing-profile / missing-connect-row / unknown-tier / null-price / no-secret / checkout-url-null edges, project activation, and `expect(r.message).toBeTruthy()` on guards (asserts a message *exists*, not its copy).
+- Break threshold raised 80 -> **92** (≈7-pt refactor buffer). The 3 remaining survivors are two `fail()`/label copy strings and one equivalent initializer (`let onboarded = false`, always overwritten) — chasing them would mean brittle copy assertions or disable-comments, so they're left documented.
+
+Final final: money-path mutation score **99.05%** (break 92); 481 unit / 509 with local Postgres.
+
 <details><summary>Original plan (kept for the record)</summary>
 
 **Why:** the post-R2-4 audit found that ~40% of the new tests are guards that catch removal of authorization checks (real value, low cost), ~30% are state transitions (medium value), and only ~20% verify Stripe SDK calls (high value). The money math and the exact shape of side effects are largely untested. "332 passing" overstates the safety margin — a subtle business-logic bug could slip past.

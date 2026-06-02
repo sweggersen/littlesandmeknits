@@ -42,6 +42,22 @@ function ilikeMatch(value: unknown, pattern: string): boolean {
   return re.test(value);
 }
 
+// Project a row down to the selected columns, mimicking PostgREST's column
+// projection. Returns the row unchanged for `*`, embedded relations
+// (`table(...)`), or count/empty selects — we only project plain column lists,
+// which is what the commerce services use. With projection on, a service that
+// reads a column it didn't select gets `undefined` (a real bug), and a
+// `.select('a,b')` -> `.select('')` mutation yields an empty row -> test fails.
+function projectRow(row: Row, cols: string | undefined): Row {
+  // undefined = `.select()` with no column list = all columns. An explicit
+  // empty string (`.select('')`, e.g. a blanked-out mutant) projects to {}.
+  if (cols === undefined || cols.includes('*') || cols.includes('(')) return row;
+  const wanted = cols.split(',').map((c) => c.trim()).filter(Boolean);
+  const out: Row = {};
+  for (const c of wanted) out[c] = row[c];
+  return out;
+}
+
 function matchesFilter(row: Row, f: Filter): boolean {
   if (f.type === 'or') {
     // Parse PostgREST-style "colA.eq.val,colB.eq.val" — row matches if ANY clause does.
@@ -77,6 +93,8 @@ class FakeQuery {
     private readonly store: Map<string, Row[]>,
     private readonly ops: FakeOp[],
     private readonly seq: { n: number },
+    private readonly project: boolean,
+    private readonly updateError: Record<string, { message: string }>,
   ) {}
 
   private tableRows(): Row[] {
@@ -124,6 +142,8 @@ class FakeQuery {
   private run(mode: 'single' | 'maybe' | 'list'):
     { data: unknown; error: { message: string } | null; count?: number } {
     this.record();
+    // Projection only shapes the RETURNED data; stored rows keep every field.
+    const proj = (r: Row): Row => (this.project ? projectRow(r, this.cols) : r);
 
     if (this.opType === 'insert') {
       const rows = Array.isArray(this.payload) ? this.payload as Row[] : [this.payload as Row];
@@ -133,15 +153,17 @@ class FakeQuery {
         this.tableRows().push(row);
         return row;
       });
-      const data = mode === 'list' ? inserted : (inserted[0] ?? null);
+      const data = mode === 'list' ? inserted.map(proj) : (inserted[0] ? proj(inserted[0]) : null);
       return { data, error: null };
     }
 
     if (this.opType === 'update') {
+      const injected = this.updateError[this.table];
+      if (injected) return { data: null, error: injected };
       const hits = this.matching();
       for (const row of hits) Object.assign(row, this.payload as Row);
       // update().select() returns the updated rows; otherwise data is null.
-      const data = this.hasSelect ? hits : null;
+      const data = this.hasSelect ? hits.map(proj) : null;
       return { data, error: null };
     }
 
@@ -155,10 +177,10 @@ class FakeQuery {
     // select
     if (this.isCount) return { data: null, count: this.matching().length, error: null };
     const hits = this.matching();
-    if (mode === 'list') return { data: hits, error: null };
-    if (mode === 'maybe') return { data: hits[0] ?? null, error: null };
+    if (mode === 'list') return { data: hits.map(proj), error: null };
+    if (mode === 'maybe') return { data: hits[0] ? proj(hits[0]) : null, error: null };
     // single: real PostgREST errors when row count != 1.
-    if (hits.length === 1) return { data: hits[0], error: null };
+    if (hits.length === 1) return { data: proj(hits[0]), error: null };
     return { data: null, error: { message: hits.length === 0 ? 'no rows' : 'multiple rows' } };
   }
 
@@ -182,15 +204,28 @@ export interface FakeDb {
   find(table: string, where: Row): Row | undefined;
 }
 
-export function createFakeDb(seed: Record<string, Row[]> = {}): FakeDb {
+export interface FakeDbOptions {
+  /** When true, reads return only the columns named in `.select(...)` — so a
+   *  service reading an unselected column gets undefined, and a `.select('a,b')`
+   *  -> `.select('')` mutation produces an empty row. Off by default to keep
+   *  simple tests terse; on for the money suites where projection matters. */
+  projectColumns?: boolean;
+  /** Tables whose update() should return this error (simulates a DB write
+   *  failure) so the service's error branch can be exercised. */
+  updateError?: Record<string, { message: string }>;
+}
+
+export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptions = {}): FakeDb {
   const store = new Map<string, Row[]>();
   for (const [table, rows] of Object.entries(seed)) {
     store.set(table, rows.map((r) => ({ ...r })));
   }
   const ops: FakeOp[] = [];
   const seq = { n: 0 };
+  const project = !!opts.projectColumns;
+  const updateError = opts.updateError ?? {};
   return {
-    client: { from: (table: string) => new FakeQuery(table, store, ops, seq) },
+    client: { from: (table: string) => new FakeQuery(table, store, ops, seq, project, updateError) },
     ops,
     rows: (table) => store.get(table) ?? [],
     find: (table, where) =>
