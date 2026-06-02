@@ -85,11 +85,12 @@
   html {
     font-family: var(--font-sans);
     color: var(--color-charcoal);
-    /* Overscroll bounce: linen at the top (matches the header) and charcoal at
-       the bottom (matches the footer). The 2-stop gradient is fixed to the
-       viewport, so it only shows in the rubber-band areas — body's opaque
-       linen covers the actual content. */
-    background-color: var(--color-linen);
+    /* Overscroll bounce should read as the footer, not white. The body's
+       opaque linen covers the real content, so this canvas colour only shows
+       in the rubber-band areas. Chrome paints the solid background-color into
+       the overscroll (charcoal, matching the footer); Safari additionally
+       honours the fixed gradient, keeping the TOP overscroll linen. */
+    background-color: var(--color-charcoal);
     background-image: linear-gradient(to bottom, var(--color-linen) 0 50%, var(--color-charcoal) 50% 100%);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
