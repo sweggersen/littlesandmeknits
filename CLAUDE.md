@@ -8,7 +8,9 @@
 >
 > Assert specific values (`application_fee_amount` in ore, money-conservation invariants, notification body), not just "an op happened". Money paths additionally get a **price-sweep** across rounding boundaries. The older loose `mockCtx` in some files is legacy; don't copy it.
 >
-> **Integration tests** (`*.integration.test.ts`) run against **real local Postgres** via `describe.skipIf(!HAS_LOCAL)` — set `PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (e.g. `eval "$(supabase status -o env | sed 's/^/export SB_/')"` then map `SB_API_URL`/`SB_SERVICE_ROLE_KEY`). They exercise real column constraints, enums, and RLS. Skipped cleanly when Supabase is down.
+> **Integration tests** (`*.integration.test.ts`) run against **real local Postgres** via `describe.skipIf(!HAS_LOCAL)` — set `PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` (e.g. `eval "$(supabase status -o env | sed 's/^/export SB_/')"` then map `SB_API_URL`/`SB_SERVICE_ROLE_KEY`). They exercise real column constraints, enums, and RLS, including a **Stripe-signed `checkout.session.completed` -> webhook -> real DB** round trip (`webhook-purchase.integration.test.ts`). Skipped cleanly when Supabase is down.
+>
+> **Mutation gate:** `npm run test:mutation` runs Stryker over the money-critical functions (`completeListingPurchase`, `purchaseListing`, `confirmListingDelivery`, `payCommission`) and **breaks below 80% mutation score** (currently ~84%). Run it after changing fee math, escrow, or payment logic — a new branch with no test that kills its mutants drops the score and fails. Residual survivors are display-string / `.select()` column-list mutants the in-memory fake can't kill (no column projection); the real-Postgres integration tests cover those. Config: `stryker.config.json`.
 
 ## Project overview
 

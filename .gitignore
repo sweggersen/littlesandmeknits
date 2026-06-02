@@ -37,3 +37,7 @@ playwright-report/
 
 # supabase cli local cache
 supabase/.temp/
+
+# Mutation testing
+.stryker-tmp/
+reports/

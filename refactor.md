@@ -1130,6 +1130,14 @@ Suite: 368 → 420 passing. The legacy loose `mockCtx` in `commissions.test.ts` 
 
 Suite: 420 → 453 unit (483 with local Postgres up: integration + RLS suites execute). Future commerce tests use `fake-db.ts`; integration tests follow the `*.integration.test.ts` + `skipIf(!HAS_LOCAL)` convention.
 
+**A+ (follow-up).** Two artifacts closed the gap from "A" to "objectively measured":
+
+1. **Standing mutation-testing gate** — `npm run test:mutation` (Stryker, `stryker.config.json`) mutates the money-critical functions (`completeListingPurchase`, `purchaseListing`, `confirmListingDelivery`, `payCommission`) and breaks the build below 80% mutation score. Started at 70.16% (81 survivors) → strengthened the money tests (full Checkout-session shape, line-item names, price-0 / verified-no-account / store-inactive edges, notification bodies, PI confirm params, project activation) → **84.13%**, both files >80. Replaces the one-off hand-run mutations with a repeatable measure. Residual survivors are `.select()` column-list / display-string mutants the in-memory fake can't kill (no projection); the real-Postgres integration tests cover those.
+
+2. **Stripe-signed webhook -> real-Postgres round trip** — `webhook-purchase.integration.test.ts` POSTs a genuinely Stripe-signed `checkout.session.completed` event to the real webhook handler (env mocked for keys, `createAdminSupabase` pointed at local Postgres, Stripe real so signature verification actually runs). Asserts: bad signature -> 400 + row untouched; valid event -> listing reserved with buyer/PI/fee/shipping + seller notified; duplicate delivery -> still 200 but no second notification. Closes the last untested seam (signature verification + event routing + the parse-into-`completeListingPurchase` glue).
+
+Final: 453 unit / 497 with local Postgres (0 skipped); money-path mutation score 84%.
+
 <details><summary>Original plan (kept for the record)</summary>
 
 **Why:** the post-R2-4 audit found that ~40% of the new tests are guards that catch removal of authorization checks (real value, low cost), ~30% are state transitions (medium value), and only ~20% verify Stripe SDK calls (high value). The money math and the exact shape of side effects are largely untested. "332 passing" overstates the safety margin — a subtle business-logic bug could slip past.

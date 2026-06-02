@@ -48,6 +48,7 @@ function seed(o: SeedOpts = {}): FakeDb {
     commission_offers: [{ id: 'offer-1', knitter_id: 'knitter-1', price_nok: 1000, project_id: 'proj-1', ...o.offer }],
     profiles: [{ id: 'knitter-1', role: o.role ?? 'user' }],
     seller_profiles: [{ id: 'knitter-1', stripe_account_id: 'acct_knitter', stripe_connect_status: 'verified', ...o.connect }],
+    projects: [{ id: 'proj-1', status: 'planning', started_at: null }],
   });
 }
 
@@ -78,11 +79,15 @@ describe('payCommission — money math', () => {
     expect((db.find('commission_requests', { id: 'req-1' }) as any).platform_fee_nok).toBe(80);
   });
 
-  it('confirms the created PaymentIntent with metadata', async () => {
+  it('confirms the created PaymentIntent with the right method + return URL', async () => {
     const db = seed({ req: { buyer_id: 'buyer-7' } });
     await payCommission(ctxFor(db, 'buyer-7'), { requestId: 'req-1' });
     expect(piConfirm).toHaveBeenCalledTimes(1);
     expect(piConfirm.mock.calls[0][0]).toBe('pi_new');
+    expect(piConfirm.mock.calls[0][1]).toMatchObject({
+      payment_method: 'pm_card_visa',
+      return_url: 'https://test.site/market/commissions/req-1',
+    });
     expect((piCreate.mock.calls[0][0] as any).metadata).toMatchObject({
       commission_request_id: 'req-1', buyer_id: 'buyer-7',
     });
@@ -126,6 +131,29 @@ describe('payCommission — yarn + Stripe-less paths', () => {
     expect(row.stripe_payment_intent_id).toBeNull();
     expect(row.platform_fee_nok).toBe(130);
   });
+
+  it('skips Stripe when knitter is verified but has no payout account id', async () => {
+    const db = seed({ connect: { stripe_account_id: null, stripe_connect_status: 'verified' } });
+    const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
+    expect(r.ok).toBe(true);
+    expect(piCreate).not.toHaveBeenCalled();
+    expect((db.find('commission_requests', { id: 'req-1' }) as any).stripe_payment_intent_id).toBeNull();
+  });
+
+  it('returns the redirect to the commission page', async () => {
+    const db = seed();
+    const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.redirect).toBe('/market/commissions/req-1');
+  });
+
+  it('activates the linked project once payment commits', async () => {
+    const db = seed();
+    await payCommission(ctxFor(db), { requestId: 'req-1' });
+    const project = db.find('projects', { id: 'proj-1' }) as any;
+    expect(project.status).toBe('active');
+    expect(typeof project.started_at).toBe('string');
+  });
 });
 
 describe('payCommission — guards + notification', () => {
@@ -151,14 +179,23 @@ describe('payCommission — guards + notification', () => {
     if (!r.ok) expect(r.code).toBe('bad_input');
   });
 
-  it('notifies the knitter that payment was received', async () => {
+  it('notifies the knitter that payment was received (start-knitting body)', async () => {
     const db = seed();
     await payCommission(ctxFor(db), { requestId: 'req-1' });
     expect(createNotification).toHaveBeenCalledTimes(1);
     const [, payload] = vi.mocked(createNotification).mock.calls[0];
     expect(payload).toMatchObject({
       userId: 'knitter-1', type: 'payment_received', title: 'Betaling mottatt!',
-      url: '/market/commissions/req-1', referenceId: 'req-1',
+      url: '/market/commissions/req-1', referenceId: 'req-1', actorId: 'buyer-1',
     });
+    expect((payload as any).body).toContain('Strikket teppe');
+    expect((payload as any).body).toContain('begynne å strikke');
+  });
+
+  it('notifies with the awaiting-yarn body when buyer provides yarn', async () => {
+    const db = seed({ req: { yarn_provided_by_buyer: true } });
+    await payCommission(ctxFor(db), { requestId: 'req-1' });
+    const [, payload] = vi.mocked(createNotification).mock.calls[0];
+    expect((payload as any).body).toContain('Venter på at kjøper sender garnet');
   });
 });
