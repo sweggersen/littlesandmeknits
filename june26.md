@@ -99,9 +99,13 @@ Two distinct bars. Don't blur them.
 **Work:** Sentry (Workers SDK, PII-scrubbed, dead-letter breadcrumbs) · Web Vitals (LCP/CLS/INP) → Sentry perf · privacy-respecting product analytics (self-hosted Plausible/Umami — GDPR-clean) on the onboarding + checkout funnel.
 **Acceptance:** a thrown error, a slow page, and a checkout drop-off all show up. **Effort:** M (1 day).
 
-### 1.8 Apply 0080 + verify prod RLS == migrations (carryover)
-- [ ] Apply `0080_fix_anon_profile_policy_reads.sql` to prod (fixes anon-browse 403 from 0077). Then `supabase db diff --linked` empty. (Folds into §1.3's drift gate going forward.)
-**Effort:** XS.
+### 1.8 Apply pending migrations to prod + verify RLS == migrations (carryover) — OWNER ACTION
+Both migrations are validated against local Postgres (idempotent, objects present, RLS on). Applying to **prod** is an owner action (dashboard/linked CLI):
+- [ ] Apply `0080_fix_anon_profile_policy_reads.sql` (fixes anon-browse 403 from 0077).
+- [ ] Apply `0081_stripe_failure_events.sql` (§1.2 dedup ledger + dispute correlation + enum values).
+- [ ] Enable the 5 §1.2 event types on the Stripe webhook endpoint (Dashboard → Developers → Webhooks): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`.
+- [ ] Then `supabase db diff --linked` must be empty. (Folds into §1.3's drift gate going forward.)
+**Effort:** XS. **Note:** until 0081 is on prod the webhook still works (dedup degrades to a no-op via the existing idempotent guards); the new failure-mode handlers need the table + columns to persist state.
 
 ---
 
