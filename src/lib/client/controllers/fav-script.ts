@@ -6,17 +6,36 @@
 //
 // Extracted from src/components/FavScript.astro inline script as
 // part of refactor item 9.
+//
+// registerController re-runs init() on every astro:page-load (initial load +
+// each view-transition navigation). Without a per-element guard the click
+// listener stacked on every navigation, so one click fired N toggles —
+// insert-then-delete netting to "un-favorited", which read as the button
+// removing items / being unresponsive / favorites never persisting. bindOnce
+// attaches the listener exactly once per button element.
+
+import { bindOnce } from '../dom';
 
 export function init(): void {
   document.querySelectorAll('[data-fav-btn]').forEach((btn) => {
+    if (!bindOnce('fav-script', btn)) return;
     btn.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
       const el = btn as HTMLElement;
-      const body = new FormData();
-      body.set('item_type', el.dataset.favType!);
-      body.set('item_id', el.dataset.favBtn!);
-      const res = await fetch('/api/favorites/toggle', { method: 'POST', body, credentials: 'same-origin' });
+      // Guard against a second click before the first resolves — overlapping
+      // insert/delete requests would race to a nondeterministic state.
+      if (el.dataset.favBusy) return;
+      el.dataset.favBusy = '1';
+      let res: Response;
+      try {
+        const body = new FormData();
+        body.set('item_type', el.dataset.favType!);
+        body.set('item_id', el.dataset.favBtn!);
+        res = await fetch('/api/favorites/toggle', { method: 'POST', body, credentials: 'same-origin' });
+      } finally {
+        delete el.dataset.favBusy;
+      }
       if (!res.ok) return;
       const { favorited } = await res.json();
       const svg = btn.querySelector('svg');

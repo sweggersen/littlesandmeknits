@@ -74,7 +74,7 @@ export function buildEnvelope(dsn: ParsedDsn, error: unknown, meta: CaptureMeta)
 async function runtimeDsn(): Promise<string | undefined> {
   try {
     const { env } = await import('cloudflare:workers');
-    return (env as Record<string, string | undefined>).SENTRY_DSN;
+    return (env as unknown as Record<string, string | undefined>).SENTRY_DSN;
   } catch {
     return undefined;
   }
