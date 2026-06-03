@@ -116,6 +116,11 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
       await admin.from('listings').delete().in('id', createdListingIds);
       createdListingIds.length = 0;
     }
+    // The webhook now records processed event ids in stripe_webhook_events for
+    // idempotency (june26 §1.2). That ledger persists in real Postgres, so a
+    // fixed test event id would be skipped as "already processed" on the next
+    // test/run. Clear the test events so each case starts fresh.
+    await admin.from('stripe_webhook_events').delete().eq('event_id', 'evt_test_1');
   });
 
   it('rejects a bad signature with 400', async () => {
