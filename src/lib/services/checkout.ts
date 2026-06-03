@@ -1,6 +1,7 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
+import { killGuard } from '../flags';
 
 export async function createPatternCheckout(
   ctx: ServiceContext,
@@ -15,6 +16,8 @@ export async function createPatternCheckout(
 ): Promise<ServiceResult<{ checkoutUrl: string }>> {
   if (!input.slug) return fail('bad_input', 'Missing pattern');
   if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
+  const blocked = await killGuard(['purchases'], ctx.env);
+  if (blocked) return blocked;
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const patternPath = input.lang === 'nb' ? `/patterns/${input.slug}` : `/en/patterns/${input.slug}`;

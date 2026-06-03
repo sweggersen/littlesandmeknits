@@ -7,6 +7,7 @@ import { VALID_CATEGORIES } from '../labels';
 import { bookShipment, getTracking as bringGetTracking } from '../bring';
 import { recordDeadLetter } from './dead-letter';
 import { assertWithinQuota } from './quota';
+import { killGuard } from '../flags';
 
 const toIntOrNull = (v: string | undefined): number | null => {
   if (!v) return null;
@@ -336,6 +337,8 @@ export async function payCommission(
   input: { requestId: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.requestId) return fail('bad_input', 'Missing request ID');
+  const blocked = await killGuard(['purchases', 'commissions'], ctx.env);
+  if (blocked) return blocked;
 
   const { data: req } = await ctx.supabase
     .from('commission_requests')
@@ -577,6 +580,9 @@ export async function confirmDelivery(
 
   if (!req || req.buyer_id !== ctx.user.id) return fail('forbidden', 'Not your request');
   if (req.status !== 'completed') return fail('bad_input', 'Commission not marked as completed');
+  // Releases escrow to the knitter — bail before any state change if paused.
+  const payoutsBlocked = await killGuard(['payouts'], ctx.env);
+  if (payoutsBlocked) return payoutsBlocked;
 
   if (req.stripe_payment_intent_id) {
     const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);

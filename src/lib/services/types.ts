@@ -13,7 +13,7 @@ export type ServiceResult<T = void> =
 
 export type ServiceErrorCode =
   | 'unauthorized' | 'forbidden' | 'not_found' | 'bad_input'
-  | 'conflict' | 'server_error';
+  | 'conflict' | 'server_error' | 'service_unavailable';
 
 export const ok = <T>(data: T): ServiceResult<T> => ({ ok: true, data });
 

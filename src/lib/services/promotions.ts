@@ -1,6 +1,7 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
+import { killGuard } from '../flags';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const PROMOTION_DAYS = 7;
@@ -26,6 +27,8 @@ export async function promoteListing(
 ): Promise<ServiceResult<{ redirect: string }>> {
   const tier = input.tier;
   if (!TIER_PRICE[tier]) return fail('bad_input', 'Ugyldig promoteringstier');
+  const blocked = await killGuard(['purchases'], ctx.env);
+  if (blocked) return blocked;
 
   const { data: listing } = await ctx.supabase
     .from('listings')

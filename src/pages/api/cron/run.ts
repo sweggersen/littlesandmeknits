@@ -7,6 +7,7 @@ import { recalculateTrust } from '../../../lib/trust';
 import { checkAndGrantAchievements } from '../../../lib/achievements';
 import { sendEmail } from '../../../lib/email';
 import { renderDraftNudgeEmail } from '../../../lib/email-templates';
+import { isKilled } from '../../../lib/flags';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -158,9 +159,15 @@ export const POST: APIRoute = async ({ request }) => {
     }
   }
 
-  // 2. Auto-release completed commissions after 14 days
+  // Escrow auto-release moves money to sellers. While payouts are paused
+  // (kill-switch), skip both release passes entirely — the rows keep their
+  // past-due auto_release_at and are picked up on the next tick once resumed.
   const now = new Date().toISOString();
-  const { data: releasable } = await admin
+  const payoutsPaused = await isKilled('payouts', cfEnv as unknown as Record<string, string>);
+  if (payoutsPaused) results.payoutsPaused = 1;
+
+  // 2. Auto-release completed commissions after 14 days
+  const { data: releasable } = payoutsPaused ? { data: [] } : await admin
     .from('commission_requests')
     .select('id, buyer_id, title, awarded_offer_id, stripe_payment_intent_id')
     .eq('status', 'completed')
@@ -203,7 +210,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // 3. Auto-release listing purchases after 14 days
-  const { data: releasableListings } = await admin
+  const { data: releasableListings } = payoutsPaused ? { data: [] } : await admin
     .from('listings')
     .select('id, seller_id, title, stripe_payment_intent_id')
     .in('status', ['reserved', 'shipped'])

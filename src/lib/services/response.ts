@@ -7,6 +7,7 @@ const STATUS: Record<ServiceErrorCode, number> = {
   bad_input: 400,
   conflict: 409,
   server_error: 500,
+  service_unavailable: 503,
 };
 
 // Astro's typed RedirectFn restricts `status` to the 3xx literal union.

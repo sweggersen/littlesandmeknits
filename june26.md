@@ -72,14 +72,15 @@ Two distinct bars. Don't blur them.
 **Acceptance:** a migration reaches prod only via CI; drift check is green; PRs are gated.
 **Effort:** M (1–2 days, partly account setup).
 
-### 1.4 Incident response: payments kill-switch + rollback + flags (NEW)
+### 1.4 Incident response: payments kill-switch + rollback + flags (NEW) — ☑ DONE 2026-06-03
 **Why:** no staging + manual deploy + no off-switch = a bad release has no recovery path. Confirmed: no feature flags, no kill-switch.
 **Work:**
-- [ ] Runtime **kill-switch** env flags: disable new purchases / payouts / commissions independently (services check before charging).
-- [ ] Minimal feature-flag mechanism (env-backed) for risky launches.
-- [ ] Rollback runbook (revert deploy, revert migration via down-SQL where safe) + a one-page incident checklist.
-**Acceptance:** flipping a flag stops new charges within one request cycle; documented rollback steps.
-**Effort:** S–M (1 day).
+- [x] Runtime **kill-switch** env flags: disable new purchases / payouts / commissions independently → `src/lib/flags.ts` (`killGuard`/`isKilled`), read live from the Cloudflare runtime binding so a dashboard flip takes effect next request. Guards in `listings.ts` (purchase, ship-capture skip, confirm-delivery), `commissions.ts` (payCommission, confirmDelivery), `promotions.ts`, `checkout.ts`, and both `cron/run.ts` auto-release passes. New `service_unavailable`→503 code.
+- [x] Minimal feature-flag mechanism (env-backed) → `isFeatureOn('name')` reads `FLAG_<NAME>`.
+- [x] Rollback runbook (deploy revert, migration revert, incident checklist) → `docs/INCIDENT_RUNBOOK.md`.
+- [x] Tests: `src/lib/flags.test.ts` (9 cases); full suite 507 green; build clean.
+**Acceptance:** ✅ flipping a switch returns 503 + a Norwegian pause message on the next request; escrow stays held under `KILL_PAYOUTS`; documented rollback steps.
+**Effort:** S–M (done in ~½ day).
 
 ### 1.5 Seller onboarding wizard + first-listing template
 **Why:** sellers hit a bare Stripe Connect wall; biggest supply-side friction. Fully in our control.

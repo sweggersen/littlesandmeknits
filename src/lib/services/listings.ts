@@ -7,6 +7,7 @@ import { createNotification } from '../notify';
 import { VALID_CATEGORIES } from '../labels';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
 import { recordDeadLetter } from './dead-letter';
+import { killGuard, isKilled } from '../flags';
 
 const VALID_KIND = new Set(['pre_loved', 'ready_made']);
 const VALID_CONDITION = new Set(['som_ny', 'lite_brukt', 'brukt', 'slitt']);
@@ -411,6 +412,8 @@ export async function purchaseListing(
 ): Promise<ServiceResult<{ checkoutUrl: string }>> {
   if (!input.listingId) return fail('bad_input', 'Missing listing ID');
   if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
+  const blocked = await killGuard(['purchases'], ctx.env);
+  if (blocked) return blocked;
 
   const { data: listing } = await ctx.supabase
     .from('listings')
@@ -545,7 +548,10 @@ export async function shipListing(
     .select('stripe_payment_intent_id')
     .eq('id', input.listingId)
     .maybeSingle();
-  if (listingForCapture?.stripe_payment_intent_id) {
+  // Skip the capture entirely while payouts are paused — marking shipped is
+  // fine, and the day-14 auto-release cron (which also honours the switch)
+  // captures once payouts resume.
+  if (listingForCapture?.stripe_payment_intent_id && !(await isKilled('payouts', ctx.env))) {
     try {
       const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
       await stripe.paymentIntents.capture(listingForCapture.stripe_payment_intent_id);
@@ -604,6 +610,11 @@ export async function confirmListingDelivery(
   if (listing.status !== 'reserved' && listing.status !== 'shipped') {
     return fail('conflict', 'Cannot confirm delivery in this state');
   }
+  // Capturing here releases escrow to the seller. If payouts are paused, bail
+  // BEFORE touching listing state so the buyer can confirm again later — never
+  // mark sold without having captured.
+  const payoutsBlocked = await killGuard(['payouts'], ctx.env);
+  if (payoutsBlocked) return payoutsBlocked;
 
   if (listing.stripe_payment_intent_id) {
     const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);

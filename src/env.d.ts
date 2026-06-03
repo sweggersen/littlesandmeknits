@@ -29,6 +29,16 @@ interface Env {
   VIPPS_SUBSCRIPTION_KEY: string;
   VIPPS_MSN: string;
   LOGIN_INVITE_KEY: string;
+  // Runtime kill-switches (june26.md §1.4) — engaged when set to a truthy
+  // string ('on'/'1'/'true'/'yes'). Flip in the Cloudflare dashboard to halt
+  // a class of money movement without a redeploy. See docs/INCIDENT_RUNBOOK.md.
+  KILL_PURCHASES?: string;   // block new buyer charges (listings, commissions, promotions, patterns)
+  KILL_PAYOUTS?: string;     // block escrow capture/release to sellers (incl. cron auto-release)
+  KILL_COMMISSIONS?: string; // block commission ("Strikk for meg") payments specifically
+  // Generic feature flags are read as FLAG_<NAME>; add explicit keys here as
+  // they stabilise. Indexer keeps ad-hoc flag reads typechecking.
+  [key: `KILL_${string}`]: string | undefined;
+  [key: `FLAG_${string}`]: string | undefined;
 }
 
 declare namespace App {
