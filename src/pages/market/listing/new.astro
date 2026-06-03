@@ -3,6 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import WizardStep1Details from '../../../components/listing/new/WizardStep1Details.astro';
 import WizardStep2Shipping from '../../../components/listing/new/WizardStep2Shipping.astro';
+import Alert from '../../../components/Alert.astro';
 import { requireUser } from '../../../lib/auth';
 import { buildServiceContext } from '../../../lib/services/context';
 import { listMyStores } from '../../../lib/services/stores';
@@ -16,6 +17,22 @@ const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 const myStoresRes = ctx ? await listMyStores(ctx) : null;
 const myStores = myStoresRes?.ok ? myStoresRes.data.filter((s: any) => s.status === 'active') : [];
 const preselectedStoreId = Astro.url.searchParams.get('store') ?? '';
+
+// Payout readiness. A seller gets paid via their own verified Connect account
+// or through an active store. If neither is set up, listing still works as a
+// draft — we just guide them to set up payouts so there's no dead-end at
+// publish/sale time (june26 §1.5). Pending = verification in flight.
+let sellerStatus: string | null = null;
+if (ctx) {
+  const { data } = await ctx.supabase
+    .from('seller_profiles')
+    .select('stripe_connect_status')
+    .eq('id', user.id)
+    .maybeSingle();
+  sellerStatus = data?.stripe_connect_status ?? null;
+}
+const canGetPaid = sellerStatus === 'verified' || myStores.length > 0;
+const payoutPending = sellerStatus === 'pending' || sellerStatus === 'restricted';
 
 const STEPS = [
   { id: 1, label: 'Detaljer' },
@@ -31,6 +48,20 @@ const STEPS = [
       <p class="text-sm text-charcoal/55 mb-6">
         Detaljer, pris og bilder. Tre korte steg, lagres som utkast underveis.
       </p>
+
+      {!canGetPaid && (
+        <div class="mb-6">
+          {payoutPending ? (
+            <Alert type="info">
+              Vi verifiserer deg som selger i bakgrunnen. Du kan lage annonsen nå, så er den klar til salg så snart verifiseringen er ferdig.
+            </Alert>
+          ) : (
+            <Alert type="warning">
+              For å få betalt må du sette opp utbetaling. Du kan lage annonsen nå og <a href="/profile/become-seller" class="underline font-medium">sette opp utbetaling</a> før du publiserer.
+            </Alert>
+          )}
+        </div>
+      )}
 
       <!-- Step progress -->
       <ol class="flex items-center gap-1 mb-8 text-xs" data-wizard-progress>

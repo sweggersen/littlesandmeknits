@@ -85,10 +85,13 @@ Two distinct bars. Don't blur them.
 **Acceptance:** ✅ flipping a switch returns 503 + a Norwegian pause message on the next request; escrow stays held under `KILL_PAYOUTS`; documented rollback steps.
 **Effort:** S–M (done in ~½ day).
 
-### 1.5 Seller onboarding wizard + first-listing template
-**Why:** sellers hit a bare Stripe Connect wall; biggest supply-side friction. Fully in our control.
-**Work:** guided `/market/selg/start`: intent → Connect onboarding (plain copy) → prefilled first listing (kind+category) → photo guidance. Entry points: become-seller success, empty my-listings, post-Vipps welcome. e2e test the walk-through.
-**Acceptance:** new user → seller → first active listing, no dead-ends. **Effort:** M (2 days).
+### 1.5 Seller onboarding — dead-ends fixed ☑; visual wizard/template deferred (design check)
+**Finding (2026-06-03):** the original "bare Stripe Connect wall" premise was **overstated**. It's Stripe **Custom** Connect — all KYC is collected in our own `/profile/become-seller` form (no hosted-onboarding redirect), and `/market/my-listings` already CTAs to new-listing. The genuine gaps were two **dead-ends**, now fixed:
+- [x] Post-submit no longer dumps the seller back on the form: `?submitted=1` shows a success state with "Lag din første annonse" + photo-tips link (`become-seller.astro`). Verification continues async via the `account.updated` webhook.
+- [x] `listing/new.astro` now guides a non-verified seller (warning + link to set up payouts; soft "verifying in background" note when pending) instead of a silent dead-end at sale time.
+- [ ] **Deferred, needs your design input** (UI/copy-heavy, you're particular here): a polished multi-step wizard shell, a **prefilled first-listing template** (kind+category from common patterns), and inline photo-capture guidance. Scope these once we agree on the look.
+**Acceptance:** ✅ signup → seller → first listing has no dead-ends. Template/wizard polish pending design.
+**Effort:** dead-ends done (~½ day); wizard/template TBD after design.
 
 ### 1.6 Welcome emails + deliverability
 **Why:** no `welcome` template; and email is useless in spam.

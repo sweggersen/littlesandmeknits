@@ -24,6 +24,12 @@ if (seller?.stripe_connect_status === 'verified') {
   return Astro.redirect('/profile?seller=verified');
 }
 
+// becomeSeller redirects here with ?submitted=1. Verification runs async via
+// the Stripe account.updated webhook, so right after submitting the status is
+// 'pending' — show a clear next step (create your first listing) instead of
+// bouncing the user back onto the form they just filled (june26 §1.5).
+const submitted = Astro.url.searchParams.get('submitted') === '1';
+
 const error = Astro.url.searchParams.get('error');
 const errorMessages: Record<string, string> = {
   bad_kontonummer: 'Kontonummeret ser ikke ut til å være gyldig. Sjekk at det er 11 siffer.',
@@ -50,6 +56,24 @@ const defaultName = seller?.legal_name
         Vi setter pengene rett i kontoen din 1–5 virkedager etter at kjøper har mottatt plagget.
       </p>
 
+      {submitted && (
+        <div class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10">
+          <div class="mb-5">
+            <Alert type="success">
+              Takk! Vi verifiserer deg som selger i bakgrunnen, det tar vanligvis noen minutter. Du trenger ikke vente, du kan lage din første annonse nå.
+            </Alert>
+          </div>
+          <a href="/market/listing/new" class="btn-primary block w-full text-center rounded-full py-3 px-5 text-sm font-semibold">
+            Lag din første annonse
+          </a>
+          <a href="/hjelp/selge" class="block text-center text-sm text-charcoal/55 hover:text-terracotta-500 transition-colors mt-3">
+            Tips til gode bilder og beskrivelse
+          </a>
+        </div>
+      )}
+
+      {!submitted && (
+        <Fragment>
       {error && errorMessages[error] && (
         <div class="mb-6">
           <Alert type="error">{errorMessages[error]}</Alert>
@@ -182,6 +206,8 @@ const defaultName = seller?.legal_name
           Maks salgspris er 5 000 kr per plagg. Strikketorget tar 10 % av salgssummen.
         </p>
       </form>
+        </Fragment>
+      )}
     </div>
   </div>
 </Layout>
