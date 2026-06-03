@@ -19,7 +19,7 @@ export function init(): void {
   const submit = document.querySelector<HTMLButtonElement>('[data-wizard-submit]')!;
   let current = 1;
 
-  function show(n: number) {
+  function show(n: number, scroll = true) {
     current = n;
     steps.forEach((s) => s.classList.toggle('hidden', s.dataset.step !== String(n)));
     pills.forEach((p) => {
@@ -33,7 +33,9 @@ export function init(): void {
     back.classList.toggle('hidden', n === 1);
     next.classList.toggle('hidden', n === steps.length);
     submit.classList.toggle('hidden', n !== steps.length);
-    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Only scroll when the user advances/goes back between steps — not on the
+    // initial render, where it would jump past the page header + step bar.
+    if (scroll) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function validateStep(n: number): boolean {
@@ -84,5 +86,5 @@ export function init(): void {
     });
   });
 
-  show(1);
+  show(1, false);
 }
