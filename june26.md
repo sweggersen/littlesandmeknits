@@ -93,10 +93,14 @@ Two distinct bars. Don't blur them.
 **Acceptance:** ✅ signup → seller → first listing has no dead-ends. Template/wizard polish pending design.
 **Effort:** dead-ends done (~½ day); wizard/template TBD after design.
 
-### 1.6 Welcome emails + deliverability
-**Why:** no `welcome` template; and email is useless in spam.
-**Work:** Resend templates (welcome / seller-activated / first-sale), triggered from `auth/callback` first-login (consent-gated), unit-tested builders. **Set SPF + DKIM + DMARC** on the sending domain; verify inbox placement.
-**Acceptance:** welcome email arrives in inbox (not spam); templates tested. **Effort:** S (1 day).
+### 1.6 Welcome emails + deliverability — ☑ DONE 2026-06-03
+**Finding:** the welcome email was **already built** (`renderWelcomeEmail`, wired into `auth/callback` first-login, idempotent via `welcomed_at`) — the doc was stale. Remaining gaps closed:
+- [x] **Seller-activated** email + in-app notification when Connect verification completes — fired on the *transition* to verified in the `account.updated` webhook (reads prior status so it doesn't re-fire). New `seller_activated` notification type (migration `0082`) + `email-templates.ts` entry.
+- [x] **payout_failed** email template (the §1.2 handler now has matching email copy). Added `payout_failed`/`payment_failed`/`seller_activated` to the `NotificationType` union + `EMAIL_PREF_COL`, and **regenerated `database.types.ts`** from local (the proper fix vs `as any` — also surfaced + fixed latent type errors `astro build` had missed but `astro check` catches).
+- [x] Tests: `src/lib/email-templates.test.ts` (6 cases; first tests this module ever had). Suite 525 green; typecheck 0 errors; integration/RLS 29 green.
+- [ ] **Owner action:** SPF + DKIM + DMARC on `littlesandme.no` → `docs/EMAIL_DELIVERABILITY.md`. (first-sale celebratory email skipped — the sold notification already emails the seller.)
+**Acceptance:** ✅ templates built + tested + wired; inbox placement pending DNS.
+**Effort:** S (done in ~½ day).
 
 ### 1.7 Observability: errors + perf + product analytics
 **Why:** flying blind. No Sentry, no Web Vitals, no funnel analytics.
@@ -107,6 +111,7 @@ Two distinct bars. Don't blur them.
 Both migrations are validated against local Postgres (idempotent, objects present, RLS on). Applying to **prod** is an owner action (dashboard/linked CLI):
 - [ ] Apply `0080_fix_anon_profile_policy_reads.sql` (fixes anon-browse 403 from 0077).
 - [ ] Apply `0081_stripe_failure_events.sql` (§1.2 dedup ledger + dispute correlation + enum values).
+- [ ] Apply `0082_seller_activated_notification.sql` (§1.6 seller-activated enum value).
 - [ ] Enable the 5 §1.2 event types on the Stripe webhook endpoint (Dashboard → Developers → Webhooks): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`.
 - [ ] Then `supabase db diff --linked` must be empty. (Folds into §1.3's drift gate going forward.)
 **Effort:** XS. **Note:** until 0081 is on prod the webhook still works (dedup degrades to a no-op via the existing idempotent guards); the new failure-mode handlers need the table + columns to persist state.

@@ -167,42 +167,53 @@ export async function handleChargebackClosed(
   const outcome = dispute.status; // 'won' | 'lost' | 'warning_closed' | ...
   const now = new Date().toISOString();
 
-  for (const table of ['listings', 'commission_requests'] as const) {
-    const { data: rows, error } = await admin
-      .from(table)
-      .update({ dispute_resolution: `stripe_chargeback_${outcome}`, dispute_resolved_at: now })
-      .eq('stripe_dispute_id', dispute.id)
-      .is('dispute_resolved_at', null)
-      .select('id, title, seller_id, buyer_id, awarded_offer_id');
-    if (error) {
-      await recordDeadLetter(dlCtx(admin), {
-        service: 'stripe.webhook:chargeback_closed',
-        context: { dispute_id: dispute.id, table, outcome },
-        error,
-      });
-      return dbError();
-    }
-    const row = rows?.[0] as { id: string; title: string; seller_id?: string; buyer_id?: string; awarded_offer_id?: string } | undefined;
-    if (!row) continue;
+  const resolution = `stripe_chargeback_${outcome}`;
+  const won = outcome === 'won';
+  const notify = async (sellerId: string | null, title: string, kind: 'listing' | 'commission', id: string) => {
+    if (!sellerId) return;
+    await createNotification(admin, {
+      userId: sellerId,
+      type: 'dispute_resolved',
+      title: won ? 'Innsigelsen ble avgjort i din favør' : 'Innsigelsen ble tapt',
+      body: won
+        ? `Betalingsinnsigelsen for «${title}» er avgjort i din favør. Beløpet frigis som normalt.`
+        : `Betalingsinnsigelsen for «${title}» ble tapt, og beløpet er trukket tilbake av banken.`,
+      url: kind === 'listing' ? `/market/listing/${id}` : `/market/commissions/${id}`,
+      referenceId: id,
+    }, env);
+  };
 
-    const sellerId = table === 'listings'
-      ? row.seller_id ?? null
-      : await knitterIdForOffer(admin, row.awarded_offer_id ?? null);
-    if (sellerId) {
-      const won = outcome === 'won';
-      await createNotification(admin, {
-        userId: sellerId,
-        type: 'dispute_resolved',
-        title: won ? 'Innsigelsen ble avgjort i din favør' : 'Innsigelsen ble tapt',
-        body: won
-          ? `Betalingsinnsigelsen for «${row.title}» er avgjort i din favør. Beløpet frigis som normalt.`
-          : `Betalingsinnsigelsen for «${row.title}» ble tapt, og beløpet er trukket tilbake av banken.`,
-        url: table === 'listings' ? `/market/listing/${row.id}` : `/market/commissions/${row.id}`,
-        referenceId: row.id,
-      }, env);
-    }
+  // Explicit per-table calls (a dynamic .from(union) defeats the typed client).
+  const { data: lrows, error: lerr } = await admin
+    .from('listings')
+    .update({ dispute_resolution: resolution, dispute_resolved_at: now })
+    .eq('stripe_dispute_id', dispute.id)
+    .is('dispute_resolved_at', null)
+    .select('id, title, seller_id');
+  if (lerr) {
+    await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'listings', outcome }, error: lerr });
+    return dbError();
+  }
+  if (lrows?.length) {
+    await notify(lrows[0].seller_id, lrows[0].title, 'listing', lrows[0].id);
     return ok();
   }
+
+  const { data: crows, error: cerr } = await admin
+    .from('commission_requests')
+    .update({ dispute_resolution: resolution, dispute_resolved_at: now })
+    .eq('stripe_dispute_id', dispute.id)
+    .is('dispute_resolved_at', null)
+    .select('id, title, awarded_offer_id');
+  if (cerr) {
+    await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'commission_requests', outcome }, error: cerr });
+    return dbError();
+  }
+  if (crows?.length) {
+    await notify(await knitterIdForOffer(admin, crows[0].awarded_offer_id), crows[0].title, 'commission', crows[0].id);
+    return ok();
+  }
+
   return ok(); // dispute id matched nothing we track
 }
 

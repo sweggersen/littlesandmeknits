@@ -63,7 +63,7 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response('ok (already processed)', { status: 200 });
   }
 
-  const response = await handleEvent(event, stripe, supabase);
+  const response = await handleEvent(event, supabase);
 
   // Only a clean 200 is recorded as processed. A 500 (DB error) is left
   // unrecorded so Stripe retries and we get another shot.
@@ -75,7 +75,6 @@ export const POST: APIRoute = async ({ request }) => {
 
 async function handleEvent(
   event: Stripe.Event,
-  stripe: Stripe,
   supabase: TypedSupabaseClient,
 ): Promise<Response> {
   if (event.type === 'checkout.session.completed') {
@@ -309,6 +308,15 @@ async function handleEvent(
     const account = event.data.object as Stripe.Account;
     const { statusFromAccount } = await import('../../../lib/services/stripe-connect');
     const status = statusFromAccount(account);
+
+    // Read the prior status so we can fire the "you're activated" email only on
+    // the transition into verified (not on every later account.updated).
+    const { data: prior } = await supabase
+      .from('seller_profiles')
+      .select('id, stripe_connect_status')
+      .eq('stripe_account_id', account.id)
+      .maybeSingle();
+
     const update: {
       stripe_connect_status: string;
       stripe_connect_requirements: Stripe.Account.Requirements | null;
@@ -331,6 +339,17 @@ async function handleEvent(
         error: connectErr,
       });
       return new Response('DB error', { status: 500 });
+    }
+
+    if (status === 'verified' && prior && prior.stripe_connect_status !== 'verified') {
+      await createNotification(supabase, {
+        userId: prior.id,
+        type: 'seller_activated',
+        title: 'Du er godkjent som selger',
+        body: 'Verifiseringen er fullført. Nå kan du legge ut annonser og få betalingene rett i kontoen din.',
+        url: '/market/listing/new',
+        referenceId: prior.id,
+      }, notifyEnv);
     }
     return new Response('ok', { status: 200 });
   }

@@ -97,6 +97,14 @@ const templates: Partial<Record<NotificationType, (p: { title: string; body?: st
     subject: 'Levering bekreftet',
     html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:${EMAIL.textBody};line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + (p.url ?? ''), 'Se annonsen')}`),
   }),
+  seller_activated: (p) => ({
+    subject: 'Du er klar til å få betalt!',
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:${EMAIL.textBody};line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + '/market/listing/new', 'Legg ut en annonse')}`),
+  }),
+  payout_failed: (p) => ({
+    subject: 'Utbetaling feilet',
+    html: wrap(`<h2 style="font-size:20px;margin:0 0 12px">${p.title}</h2><p style="font-size:15px;color:${EMAIL.textBody};line-height:1.5">${p.body ?? ''}</p>${btn(p.siteUrl + (p.url ?? '/market/selger/innstillinger'), 'Sjekk betalingsinnstillinger')}`),
+  }),
 };
 
 export function renderWelcomeEmail(opts: { name?: string | null; siteUrl: string }): { subject: string; html: string } {

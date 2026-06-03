@@ -30,7 +30,10 @@ export type NotificationType =
   | 'dispute_resolved'
   | 'achievement_unlocked'
   | 'moderation_message'
-  | 'seller_new_listing';
+  | 'seller_new_listing'
+  | 'payout_failed'
+  | 'payment_failed'
+  | 'seller_activated';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -60,6 +63,9 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   achievement_unlocked: 'email_item_approved',
   moderation_message: 'email_item_approved',
   seller_new_listing: 'email_item_approved',
+  payout_failed: 'email_payment_received',
+  payment_failed: 'email_payment_received',
+  seller_activated: 'email_item_approved',
 };
 
 interface NotifyEnv {

@@ -198,6 +198,7 @@ export type Database = {
           size_age_months_min: number | null
           size_label: string
           status: Database["public"]["Enums"]["commission_request_status"]
+          stripe_dispute_id: string | null
           stripe_payment_intent_id: string | null
           stripe_transfer_id: string | null
           target_knitter_id: string | null
@@ -248,6 +249,7 @@ export type Database = {
           size_age_months_min?: number | null
           size_label: string
           status?: Database["public"]["Enums"]["commission_request_status"]
+          stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
           target_knitter_id?: string | null
@@ -298,6 +300,7 @@ export type Database = {
           size_age_months_min?: number | null
           size_label?: string
           status?: Database["public"]["Enums"]["commission_request_status"]
+          stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
           target_knitter_id?: string | null
@@ -658,6 +661,7 @@ export type Database = {
           sold_at: string | null
           status: Database["public"]["Enums"]["listing_status"]
           store_id: string | null
+          stripe_dispute_id: string | null
           stripe_payment_intent_id: string | null
           title: string
           tracking_code: string | null
@@ -733,6 +737,7 @@ export type Database = {
           sold_at?: string | null
           status?: Database["public"]["Enums"]["listing_status"]
           store_id?: string | null
+          stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           title: string
           tracking_code?: string | null
@@ -808,6 +813,7 @@ export type Database = {
           sold_at?: string | null
           status?: Database["public"]["Enums"]["listing_status"]
           store_id?: string | null
+          stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           title?: string
           tracking_code?: string | null
@@ -2254,6 +2260,27 @@ export type Database = {
           },
         ]
       }
+      stripe_webhook_events: {
+        Row: {
+          event_id: string
+          processed_at: string | null
+          received_at: string
+          type: string
+        }
+        Insert: {
+          event_id: string
+          processed_at?: string | null
+          received_at?: string
+          type: string
+        }
+        Update: {
+          event_id?: string
+          processed_at?: string | null
+          received_at?: string
+          type?: string
+        }
+        Relationships: []
+      }
       transaction_reviews: {
         Row: {
           comment: string | null
@@ -2538,6 +2565,9 @@ export type Database = {
         | "moderation_shadow_pending"
         | "achievement_unlocked"
         | "seller_new_listing"
+        | "payout_failed"
+        | "payment_failed"
+        | "seller_activated"
       project_status: "planning" | "active" | "finished" | "frogged"
       purchase_status: "pending" | "completed" | "refunded"
       report_reason:
@@ -2753,6 +2783,9 @@ export const Constants = {
         "moderation_shadow_pending",
         "achievement_unlocked",
         "seller_new_listing",
+        "payout_failed",
+        "payment_failed",
+        "seller_activated",
       ],
       project_status: ["planning", "active", "finished", "frogged"],
       purchase_status: ["pending", "completed", "refunded"],
