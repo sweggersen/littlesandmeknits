@@ -19,7 +19,7 @@ export interface ListingTemplate {
   price_nok: string;
 }
 
-export const LISTING_TEMPLATES: Record<'preloved' | 'new', ListingTemplate> = {
+export const LISTING_TEMPLATES: Record<string, ListingTemplate> = {
   preloved: {
     kind: 'pre_loved',
     title: 'Mariusgenser str. 92, naturhvit',
@@ -46,5 +46,43 @@ export const LISTING_TEMPLATES: Record<'preloved' | 'new', ListingTemplate> = {
     location: 'Bergen',
     description: 'Nystrikket i 100 % merinoull (superwash), aldri brukt. Røykfritt og dyrefritt hjem.\n\nHåndvask eller ullprogram anbefales.',
     price_nok: '420',
+  },
+  cardigan: {
+    kind: 'pre_loved',
+    title: 'Strikkejakke str. 80, eplegrønn',
+    category: 'cardigan',
+    size_label: '80',
+    condition: 'lite_brukt',
+    size_age_months_min: '9',
+    size_age_months_max: '12',
+    colorway: 'Eplegrønn',
+    pattern_external_title: 'Bregnekofta',
+    knitted_by: 'Mormor (privat)',
+    location: 'Oslo',
+    description: 'Strikkejakke med trekuler som knapper. Lite brukt, ingen nupper eller hull.\n\nUllvask, lufttørket. Røykfritt hjem.',
+    price_nok: '320',
+  },
+  blanket: {
+    kind: 'pre_loved',
+    title: 'Håndstrikket babyteppe i ullmiks',
+    category: 'teppe',
+    size_label: '70 x 90 cm',
+    condition: 'som_ny',
+    colorway: 'Lys grå',
+    knitted_by: 'Tante (privat)',
+    location: 'Trondheim',
+    description: 'Mykt babyteppe i ullmiks, brukt i vogna en sesong og vasket. Som nytt.\n\nUllvask, lufttørket.',
+    price_nok: '450',
+  },
+  accessories: {
+    kind: 'ready_made',
+    title: 'Nystrikkede votter i merinoull',
+    category: 'votter',
+    size_label: '1-2 år',
+    colorway: 'Koksgrå',
+    knitted_by: 'Meg',
+    location: 'Stavanger',
+    description: 'Nystrikkede votter i 100 % merinoull, aldri brukt. Tovet tupp for ekstra varme.\n\nHåndvask anbefales.',
+    price_nok: '180',
   },
 };

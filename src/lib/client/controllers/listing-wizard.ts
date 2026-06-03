@@ -69,7 +69,7 @@ export function init(): void {
   // ../../listing-templates (pure + unit-tested against valid categories/kinds).
   document.querySelectorAll<HTMLButtonElement>('[data-fill-template]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const tpl = LISTING_TEMPLATES[btn.dataset.fillTemplate as 'preloved' | 'new'];
+      const tpl = LISTING_TEMPLATES[btn.dataset.fillTemplate ?? ''];
       if (tpl) {
         for (const [name, value] of Object.entries(tpl)) {
           const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;

@@ -8,8 +8,17 @@ import { VALID_CATEGORIES, CONDITION_LABEL } from './labels';
 describe('LISTING_TEMPLATES', () => {
   const entries = Object.entries(LISTING_TEMPLATES);
 
-  it('offers the preloved + new starter templates', () => {
-    expect(Object.keys(LISTING_TEMPLATES).sort()).toEqual(['new', 'preloved']);
+  it('offers a spread of starter templates incl. preloved + new', () => {
+    const keys = Object.keys(LISTING_TEMPLATES);
+    expect(keys).toEqual(expect.arrayContaining(['preloved', 'new', 'cardigan', 'blanket', 'accessories']));
+    expect(keys.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('covers more than one category and both kinds', () => {
+    const cats = new Set(entries.map(([, t]) => t.category));
+    const kinds = new Set(entries.map(([, t]) => t.kind));
+    expect(cats.size).toBeGreaterThanOrEqual(4);
+    expect(kinds).toEqual(new Set(['pre_loved', 'ready_made']));
   });
 
   it.each(entries)('%s template uses a valid category and kind', (_key, tpl) => {
