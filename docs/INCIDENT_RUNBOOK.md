@@ -57,7 +57,9 @@ paths locally. Unit tests inject via `ctx.env` — see `src/lib/flags.test.ts`.
 
 ## 2. Deploy rollback
 
-We deploy with `wrangler deploy` from local (GitHub auto-deploy is june26 §1.3, not yet wired).
+Deploys run via the `deploy` job in `.github/workflows/ci.yml` on every push to
+`master` (after the `quality` + `database` gates pass): `supabase db push` then
+`wrangler deploy`. Manual `wrangler deploy` from local still works as a fallback.
 
 - **Fastest:** Cloudflare dashboard → Workers & Pages → **littlesandmeknits** →
   Deployments → find the last-good deployment → **Rollback**. Instant, no build.
@@ -78,7 +80,7 @@ Migrations are applied via the Supabase SQL editor / CLI. They are **not auto-tr
 3. **If a true reversal is needed** and the migration has no down-SQL: write the inverse DDL by hand, test it against **local** first (`supabase db reset` then apply through the suspect migration, then your reversal), and only then run on prod.
 4. **Always** re-run the RLS test suite (`src/lib/__tests__/rls.test.ts`, integration specs) before declaring resolved.
 
-> Until june26 §1.3 lands (CI `db push` + a `db diff` gate), apply prod migrations deliberately and verify `db diff` is empty afterward.
+> Migrations now reach prod via `supabase db push` in the CI `deploy` job, and the `database` gate applies every migration from scratch on each PR — so a broken migration fails CI, not prod. The `db diff --linked` step logs prod-vs-repo drift before each push.
 
 ---
 

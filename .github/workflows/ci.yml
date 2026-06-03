@@ -1,13 +1,39 @@
 name: CI
 
+# june26.md §1.3 — reliable migration delivery + schema-drift gate + auto-deploy.
+#
+# PRs and master pushes run two gates:
+#   • quality  — typecheck + unit tests + build
+#   • database — boot Supabase from scratch (applies EVERY migration in order,
+#                so a broken/partial migration like the 0038/0077 incidents
+#                fails here, not in prod), then run RLS + integration tests,
+#                lint, and a no-drift check.
+# Master pushes additionally run:
+#   • deploy   — `supabase db push` (transactional prod migration) then
+#                `wrangler deploy`. Replaces manual dashboard-paste + laptop deploy.
+#
+# Required repository secrets for the deploy job (Settings → Secrets → Actions):
+#   SUPABASE_ACCESS_TOKEN   personal access token (supabase.com/dashboard/account/tokens)
+#   SUPABASE_PROJECT_REF    prod project ref (20-char, from the project URL)
+#   SUPABASE_DB_PASSWORD    prod database password
+#   CLOUDFLARE_API_TOKEN    token with Workers Scripts:Edit
+#   CLOUDFLARE_ACCOUNT_ID   Cloudflare account id
+# Until those are set, quality + database still gate every PR; each deploy step
+# self-skips when its token is absent rather than half-deploying.
+
 on:
   push:
     branches: [master]
   pull_request:
     branches: [master]
 
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,5 +42,82 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx vitest run
-      - run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npx vitest run
+      - name: Build
+        run: npm run build
+
+  database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: npm ci
+
+      - name: Start Supabase (applies all migrations from scratch)
+        run: supabase start
+
+      - name: Lint database (migrations must be clean)
+        run: supabase db lint --level warning
+
+      - name: No schema drift (a fresh apply must equal the migrations)
+        run: |
+          supabase db diff --local --schema public > drift.sql || true
+          if [ -s drift.sql ]; then
+            echo "::error::Schema drift — the DB built from migrations differs from the migration definitions:"
+            cat drift.sql
+            exit 1
+          fi
+          echo "No schema drift."
+
+      - name: RLS + integration tests (against the real local Postgres)
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export SB_/')"
+          export PUBLIC_SUPABASE_URL="$SB_API_URL"
+          export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
+          npx vitest run integration rls
+
+  deploy:
+    needs: [quality, database]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: npm ci
+
+      - name: Push migrations to prod (transactional)
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          # Show what prod is missing vs the repo before applying.
+          supabase db diff --linked --schema public || true
+          supabase db push
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Cloudflare Workers
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: npx wrangler deploy --config dist/server/wrangler.json

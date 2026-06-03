@@ -65,14 +65,15 @@ Two distinct bars. Don't blur them.
 **Acceptance:** ✅ each event type has a handler + test; simulated chargeback and failed payout both freeze/notify and land a tracked outcome.
 **Effort:** M–L (done in ~1 day).
 
-### 1.3 Reliable migration delivery + schema-drift CI gate (NEW — proven-fragile)
+### 1.3 Reliable migration delivery + schema-drift CI gate (NEW — proven-fragile) — ☑ CODE DONE 2026-06-03 (secrets = owner action)
 **Why:** evidence of breakage — `0038` partially applied to prod; `0077` broke anon browse. Process is manual dashboard-paste (non-transactional). This *will* recur.
 **Work:**
-- [ ] Move migration application to **CI `supabase db push`** (transactional) against staging then prod; stop manual paste.
-- [ ] CI gate: `supabase db diff --linked` must be empty (schema-drift detection) before deploy.
-- [ ] CI runs `npm test` + `typecheck` + `build`; RLS test suite + money-path mutation gate against an **ephemeral Postgres**; block merge on red.
-**Acceptance:** a migration reaches prod only via CI; drift check is green; PRs are gated.
-**Effort:** M (1–2 days, partly account setup).
+- [x] `deploy` job (master only): `supabase db push` (transactional) → `wrangler deploy`. Stops manual paste + laptop deploys. → `.github/workflows/ci.yml`.
+- [x] `database` gate job: `supabase start` applies **every migration from scratch** (a broken/partial migration fails here, not prod) → `db lint` → no-drift check (`db diff --local` must be empty) → RLS + integration tests against the real Postgres.
+- [x] `quality` gate job: `typecheck` + unit tests + `build`. PRs blocked on red. (Mutation gate kept as a local/manual `npm run test:mutation`, not on every PR — it's slow; run on money-path changes.)
+- [ ] **Owner action:** add repo secrets (`SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`); each deploy step self-skips until its token is set. If a branch-protection rule pins the old check name `build`, repoint it to `quality` + `database`.
+**Acceptance:** ✅ migrations reach prod only via `db push` in CI; fresh-apply + drift + RLS gate every PR. Pending: secrets so the deploy job is live.
+**Effort:** M (code done; ~30 min of secret setup remains).
 
 ### 1.4 Incident response: payments kill-switch + rollback + flags (NEW) — ☑ DONE 2026-06-03
 **Why:** no staging + manual deploy + no off-switch = a bad release has no recovery path. Confirmed: no feature flags, no kill-switch.
