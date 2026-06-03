@@ -65,10 +65,10 @@ export function init(): void {
   kindEl?.addEventListener('change', syncKind);
   syncKind();
 
-  // First-listing templates — prefill the form from a realistic preset so a
-  // new seller sees what good copy looks like (june26 §1.5). "Tomt ark" just
-  // dismisses the row. They edit everything afterwards. Presets live in
-  // ../../listing-templates (pure + unit-tested against valid categories/kinds).
+  // First-listing chips — set ONLY the type + category as a quick start
+  // (june26 §1.5). Everything else stays the seller's own. "Tomt ark" just
+  // dismisses the row. Presets live in ../../listing-templates (pure +
+  // unit-tested against valid categories/kinds).
   document.querySelectorAll<HTMLButtonElement>('[data-fill-template]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const tpl = LISTING_TEMPLATES[btn.dataset.fillTemplate ?? ''];
@@ -77,9 +77,8 @@ export function init(): void {
           const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
           if (el && 'value' in el) el.value = String(value);
         }
-        // Reflect the new kind/condition and reveal "Flere detaljer".
+        // Reflect the new kind (toggles the condition field's visibility).
         kindEl?.dispatchEvent(new Event('change'));
-        document.querySelectorAll('details').forEach((d) => { d.open = true; });
       }
       // The row has served its purpose (whichever chip was clicked).
       document.querySelector<HTMLElement>('[data-example-row]')?.remove();
