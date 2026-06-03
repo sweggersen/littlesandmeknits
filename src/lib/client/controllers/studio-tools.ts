@@ -6,6 +6,8 @@
 // inline <script> block in src/pages/studio/tools.astro as part of
 // refactor item 9.
 
+import { bindOnce } from '../dom';
+
 const VERKTOY_TOOLS = ['gauge', 'yardage', 'evenly', 'ruler', 'needles'] as const;
 type VerktoyTool = (typeof VERKTOY_TOOLS)[number];
 
@@ -15,6 +17,10 @@ export function init(): void {
   );
   const sections = document.querySelectorAll<HTMLElement>('[data-verktoy-tool]');
   if (!tabLinks.length && !sections.length) return;
+  // registerController re-runs init() (incl. on the initial hard load); bind
+  // once per page instance so the calculators' input/click handlers don't
+  // double-fire. (The handlers are idempotent, but doubling is still wrong.)
+  if (sections[0] && !bindOnce('studio-tools', sections[0])) return;
 
   function setActiveTool(tool: VerktoyTool) {
     sections.forEach((s) => {

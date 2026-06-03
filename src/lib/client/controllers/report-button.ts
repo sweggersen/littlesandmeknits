@@ -1,8 +1,13 @@
 // Report-button dropdown with reason form. Closes when clicking
 // outside the wrapper. Extracted from src/components/ReportButton.astro.
 
+import { bindOnce } from '../dom';
+
 export function init(): void {
   document.querySelectorAll('[data-report-wrapper]').forEach((wrapper) => {
+    // registerController re-runs init() (incl. on initial load); without this
+    // each wrapper stacked a duplicate submit + an extra document click listener.
+    if (!bindOnce('report-button', wrapper)) return;
     const toggle = wrapper.querySelector('[data-report-toggle]') as HTMLButtonElement;
     const dropdown = wrapper.querySelector('[data-report-dropdown]') as HTMLElement;
     const form = wrapper.querySelector('[data-report-form]') as HTMLFormElement;

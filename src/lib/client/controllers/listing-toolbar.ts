@@ -2,10 +2,16 @@
 // view switcher with localStorage persistence.
 // Extracted from src/components/ListingToolbar.astro.
 
+import { bindOnce } from '../dom';
+
 export function init(): void {
   const filterPanel = document.querySelector('[data-filter-panel]') as HTMLElement;
   const searchInput = document.querySelector('[data-search-input]') as HTMLInputElement;
   const syncQ = filterPanel?.querySelector('[data-sync-q]') as HTMLInputElement;
+  // registerController re-runs init() (incl. on the initial hard load); bind
+  // once per toolbar instance (anchored on the search input) so search/filter
+  // toggles don't fire twice. New element after a view transition rebinds.
+  if (searchInput && !bindOnce('listing-toolbar', searchInput)) return;
 
   document.querySelector('[data-toggle-filter]')?.addEventListener('click', () => {
     filterPanel?.classList.toggle('hidden');

@@ -2,6 +2,8 @@
 // auto-fill from legal name, and form submit with redirect handling.
 // Extracted from inline script as part of refactor item 9.
 
+import { bindOnce } from '../dom';
+
 interface BrregData {
   legalName: string;
   address: string;
@@ -21,6 +23,9 @@ export function init(): void {
   const errorEl = document.getElementById('error-message');
   const form = document.getElementById('store-form') as HTMLFormElement | null;
   if (!orgnrInput || !lookupBtn || !form) return;
+  // registerController re-runs init() (incl. on the initial hard load); bind
+  // once or store creation + the orgnr lookup fire twice.
+  if (!bindOnce('store-create', form)) return;
 
   function slugify(s: string): string {
     return s.toLowerCase()

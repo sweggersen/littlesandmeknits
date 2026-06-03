@@ -9,7 +9,14 @@
 // Extracted from src/pages/studio/projects/[id].astro inline script
 // as part of refactor item 9.
 
+import { bindOnce } from '../dom';
+
 export function init(): void {
+  // registerController re-runs init() (incl. on the initial hard load); bind
+  // once per share panel so copy-link / caption-copy don't fire twice.
+  const guardRoot = document.querySelector<HTMLElement>('[data-share-root]');
+  if (!guardRoot || !bindOnce('project-share', guardRoot)) return;
+
   document.querySelector<HTMLElement>('[data-copy-share]')?.addEventListener('click', () => {
     const input = document.querySelector<HTMLInputElement>('[data-share-url]');
     if (!input) return;

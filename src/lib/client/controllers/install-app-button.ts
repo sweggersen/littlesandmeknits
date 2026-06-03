@@ -6,6 +6,8 @@
 // Extracted from src/components/InstallAppButton.astro as part of
 // refactor item 9.
 
+import { bindOnce } from '../dom';
+
 type BeforeInstallPromptEvent = Event & {
   prompt(): Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -29,6 +31,10 @@ export function init(): void {
   const helpGeneric = document.querySelector<HTMLElement>('[data-install-help-generic]');
 
   if (!root || !trigger || !help || !helpClose) return;
+  // registerController re-runs init() (incl. on initial load), and this lives
+  // on persistent chrome — without this the window/document/click listeners
+  // stacked on every navigation.
+  if (!bindOnce('install-app-button', root)) return;
 
   const isStandalone =
     window.matchMedia('(display-mode: standalone)').matches ||

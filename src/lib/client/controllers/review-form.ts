@@ -1,8 +1,13 @@
 // Review submission form: clickable star rating, AJAX submit with
 // success/error status. Extracted from src/components/ReviewForm.astro.
 
+import { bindOnce } from '../dom';
+
 export function init(): void {
   document.querySelectorAll('[data-review-form-wrapper]').forEach((wrapper) => {
+    // registerController re-runs init() (incl. on initial load); bind once or a
+    // hard load double-submits the review.
+    if (!bindOnce('review-form', wrapper)) return;
     const form = wrapper.querySelector('[data-review-form]') as HTMLFormElement;
     const starGroup = wrapper.querySelector('[data-star-group]') as HTMLElement;
     const ratingInput = wrapper.querySelector('[data-rating-input]') as HTMLInputElement;
