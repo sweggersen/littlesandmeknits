@@ -1,8 +1,13 @@
 # Littles and Me Knits — Business plan & roadmap
 
-> Last updated: 2026-05-24. Living doc. The earlier
+> Last updated: 2026-06-03. Living doc. The earlier
 > `docs/marketplace/*` files describe the *original* MVP plan from
 > exploration days. This file is the current ground truth.
+>
+> **Launch execution plan lives in [`june26.md`](../june26.md)** — that file
+> has the prioritized P0/P1/P2 work, go/no-go gates, and the risk register.
+> §3.2 below is the feature *inventory* (status), not the work plan; the two
+> were reconciled on 2026-06-03 (several May "must-haves" had already shipped).
 
 ---
 
@@ -57,9 +62,9 @@ a pattern shop — all under one roof, Norwegian-first.
 #### Cross-cutting infrastructure
 - Astro 6 SSR + Cloudflare Workers + Supabase (auth + DB + storage). Local dev via OrbStack + Supabase CLI.
 - Email via Resend, web push via VAPID, mobile PWA install prompt.
-- 52 SQL migrations, RLS on every table.
-- Vitest unit tests for moderation helpers + store permissions. Playwright skeleton.
-- Three deploys per day during active dev. `wrangler deploy` from local; GitHub auto-deploy not yet hooked up.
+- 80 SQL migrations, RLS on every table.
+- ~500 tests: Vitest unit + service-layer fakes, a 99% mutation-score gate over the money-critical functions (`npm run test:mutation`), and real-local-Postgres integration tests including a Stripe-signed webhook→DB round trip. Playwright e2e specs across the main flows.
+- Three deploys per day during active dev. `wrangler deploy` from local; GitHub auto-deploy not yet hooked up (see june26.md §1.3).
 
 ### 1.3 Numbers (current, dev DB seed)
 
@@ -215,40 +220,48 @@ Four revenue streams:
 
 ---
 
-### 3.2 Pre-launch must-haves (🔴 → before public launch)
+### 3.2 Pre-launch must-haves — reconciled 2026-06-03
+
+> Status legend: ✅ shipped · ◐ partial · 🔴 real gap. Many May "must-haves"
+> had already shipped by June. The **work plan** (with priorities, gates, and
+> the items this inventory understated) is [`june26.md`](../june26.md);
+> cross-references below point to its sections.
 
 #### Legal + compliance
-- 🔴 **Real Personvern (Privacy)** page — currently a stub
-- 🔴 **Real Vilkår (Terms of Service)** page — currently a stub
-- 🔴 **MVA (Norwegian VAT)** handling — currently no VAT collection. Need: VAT-inclusive prices for buyers, output VAT on platform fees, Skatteetaten reporting
-- 🔴 **Bokføring export** for sellers — CSV/PDF transactions per quarter
-- 🔴 **GDPR data export** + **right-to-be-forgotten** flow
-- 🔴 **Aldersgrense**: brukerkonto-vilkår for 13+ (NO Datatilsynet)
-- 🔴 **Cookie banner** + cookie policy (only essential cookies currently)
+- ◐ **Personvern (Privacy)** page — real Norwegian content exists at `/privacy`. **Gate is lawyer review** against the actual escrow/fee/data-processing flows, not existence (june26 §1.1).
+- ◐ **Vilkår (Terms)** page — real content at `/terms`; same lawyer-review gate.
+- 🔴 **MVA (Norwegian VAT)** — still the launch gate, and bigger than first scoped: destination charges make the platform merchant-of-record (deemed-supplier VAT risk on C2C). Needs accountant + possible charge-model change (june26 §1.1).
+- ✅ **Bokføring export** — `/api/profile/bookkeeping`.
+- ✅ **GDPR data export + right-to-be-forgotten** — `/profile/data` + `exportPersonalData`/`deleteAccount`.
+- ◐ **Aldersgrense (13+)** — `age_confirmed_at` + `/onboarding/birthday`; surface in terms/signup copy.
+- ✅ **Cookie banner** + policy — `CookieBanner.astro`, wired in `Layout`.
 
 #### Onboarding
-- 🔴 **Seller onboarding wizard** — currently new sellers hit a wall at "Stripe Connect onboarding". Step-by-step: bank info → first listing template → photo guidance
-- 🔴 **First-listing template** — pre-fill kind+category from common patterns, photo capture guide
-- 🔴 **Phone number / SMS verification** — Vipps will need it eventually
-- 🔴 **Welcome email** sequence (Resend)
+- 🔴 **Seller onboarding wizard** — still a bare Stripe Connect wall; biggest supply-side friction (june26 §1.5).
+- 🔴 **First-listing template** — part of the wizard work.
+- ◐ **Phone / SMS verification** — Vipps OIDC already returns a verified phone; surface it, decide if non-Vipps signups need an SMS step.
+- 🔴 **Welcome email** sequence + deliverability (SPF/DKIM/DMARC) (june26 §1.6).
 
 #### Payments
-- 🔴 **Vipps payment** — Norwegian-first audience expects it
-- 🔴 **Klarna installments** — for higher-value items (commission)
-- 🔴 **Refund workflow polish** — partial refunds, refund reason picker
-- 🔴 **Receipts** with proper NO format
+- ✅ **Vipps** — login (OIDC) live + Vipps as a Stripe Checkout method.
+- ✅ **Receipts** — NO-format `kvittering` pages (listings + commissions). VAT line lands with §1.1.
+- 🔴 **Money-flow failure handling** (NEW, was missing entirely) — webhook ignores chargebacks / payout failures / failed captures; auto-release silently drops failed captures (june26 §1.2). **Highest-risk gap.**
+- 🟡 **Klarna installments** — post-launch, commissions only.
+- 🟡 **Refund polish** — partial refunds + reason picker (june26 §2.3).
 
 #### Support
-- 🔴 **Help center / FAQ** at `/market/help`
-- 🔴 **Contact form / support inbox** routed to a moderator
-- 🔴 **Error reporting** (Sentry or similar)
-- 🔴 **Performance monitoring** (Web Vitals + RUM)
+- ✅ **Help center / FAQ** — `/hjelp` + `kjope` / `selge` / `trygg-betaling`.
+- ◐ **Contact form / support inbox** — currently `mailto:`; route into a moderator thread (june26 §2.3).
+- 🔴 **Error reporting** (Sentry) (june26 §1.7).
+- 🔴 **Performance monitoring** (Web Vitals + RUM) + privacy-respecting product analytics (june26 §1.7).
 
 #### Operational
-- 🔴 **GitHub auto-deploy** wired to Cloudflare Workers Builds (currently manual `wrangler deploy`)
-- 🔴 **Database backups** schedule + restore drill (Supabase Pro feature; we're free tier)
-- 🔴 **Staging environment** — currently dev is local-only, prod is cloud. Need a staging for E2E before each release
-- 🔴 **Admin observability dashboard** — daily volumes, revenue, reports, disputes, signups
+- 🔴 **GitHub auto-deploy** + **reliable migration delivery** — manual paste is proven-fragile (0038 partial, 0077 anon-browse incident); move to CI `db push` + schema-drift gate (june26 §1.3).
+- 🔴 **Incident response** (NEW) — no payments kill-switch, no rollback runbook, no feature flags (june26 §1.4).
+- 🔴 **Database backups** schedule + restore drill (Supabase Pro).
+- 🔴 **Staging environment** for E2E before each release (june26 §1.3).
+- ◐ **Admin observability** — `/admin` shows pending/reports/disputes counts; needs revenue/volume/signup trends (june26 §2.3).
+- 🔴 **Accessibility (WCAG AA) pass** (NEW) (june26 §2.2).
 
 ---
 
@@ -318,12 +331,12 @@ Four revenue streams:
 
 ### 4.1 Next 30 days (June 2026) — launch readiness
 
-| Week | Theme | Deliverables |
-|---|---|---|
-| 1 | Legal + compliance | Personvern + Vilkår real content. Cookie banner. GDPR export endpoint. Age check at signup. |
-| 2 | Payments | Vipps live. Refund workflow polish. NO receipt format. Bokføring CSV export. |
-| 3 | Onboarding | Seller wizard. First-listing template. Welcome email sequence. Help center skeleton. |
-| 4 | Operations | Sentry. Web Vitals. GitHub auto-deploy. Staging env. Admin observability dashboard. End-to-end test pass. |
+The May week-by-week plan is superseded: most of its legal/payments/onboarding
+deliverables already shipped (see §3.2). The current, reconciled June plan —
+with go/no-go gates and the higher-risk gaps it surfaced (money-flow failure
+handling, migration delivery, payments kill-switch) — is **[`june26.md`](../june26.md)**.
+Headline P0s: VAT/merchant-of-record, payments failure-mode hardening, reliable
+migration delivery + CI, incident kill-switch, seller onboarding wizard.
 
 ### 4.2 60 days (July–August) — soft launch
 
@@ -365,15 +378,15 @@ Four revenue streams:
 
 ### 5.2 Technical debt
 
-- **No GitHub auto-deploy.** Every deploy is `wrangler deploy` from a laptop. Risky.
+- **No GitHub auto-deploy + fragile migration delivery.** Every deploy is `wrangler deploy` from a laptop and migrations are pasted into the dashboard (non-transactional). This has already bitten us — `0038` applied only partially to prod and `0077` broke anon browsing. Move to CI `supabase db push` + a `db diff` schema-drift gate (june26 §1.3).
 - **No staging environment.** We test against local Supabase + Cloudflare prod. Need an isolated staging.
-- **Mocked legal pages** (`/privacy`, `/terms`, `/om`) need real content reviewed by a lawyer.
-- **Test coverage** is shallow — only `moderation-helpers` + `store-permissions` + `brreg` have unit tests. Playwright skeleton exists but no scenarios. Add: payment happy-path, freeze→thread→close, store creation, commission award.
-- **No Sentry / error tracking.** Cloudflare observability is on but not integrated with alerts.
+- **Legal pages** (`/privacy`, `/terms`) now have real Norwegian content but are **not lawyer-reviewed**; `/om` is still a 9-line stub. Review is the gate (june26 §1.1).
+- **Test coverage** — substantially improved: ~500 tests, service-layer fakes, a 99% mutation-score gate over the money paths, and real-Postgres integration incl. a signed Stripe webhook→DB round trip. Remaining gap: the *failure-mode* paths (chargeback/payout-failure) aren't handled yet, so they aren't tested either (june26 §1.2).
+- **No Sentry / error tracking.** Cloudflare observability is on but not integrated with alerts (june26 §1.7).
 - **`gitignore` polish**: `node_modules/.vite` survives between builds and occasionally needs manual clearing (`scripts/dev-up.sh` could do this).
 - **`._*` AppleDouble files** keep regenerating on the T5 external drive — build strips them but they live in source tree too. Consider moving the working copy off exFAT.
 - **Two cloud DBs in one project** — the wipe earlier could be cleaner if we had a separate staging Supabase project. Pro tier unlocks branching.
-- **Recommendation algorithm** is rudimentary (favorites→categories). No view tracking. Should add a lightweight pixel later.
+- **Recommendation algorithm** is rudimentary (favorites→categories). View/impression tracking now exists (`track/impression`) but recs don't use it yet — wire the signal in (june26 §3).
 
 ---
 

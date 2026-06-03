@@ -3,6 +3,16 @@
 **Date:** 2026-05-13
 **Scope:** Gap analysis vs. Finn.no, Tise, Etsy, and Ravelry
 
+> **⚠️ HISTORICAL — superseded 2026-06-03.** This was the *early* competitive
+> gap analysis. All six "Critical Gaps" below have since shipped (listing
+> purchase + escrow, dispute/auto-release cron, full-text search + price filter
+> + pagination, favorites, tracking numbers, request-expiration cron), as have
+> most "Important Gaps" (follow-seller, OG/share meta, Vipps). The one
+> still-open carryover is **image optimization** (#10) → tracked as june26.md
+> §2.4. For the current launch plan and real remaining gaps, see
+> **[`june26.md`](./june26.md)** and **`docs/BUSINESS_PLAN.md` §3.2**. Kept for
+> historical context; do not treat the gaps below as open.
+
 ---
 
 ## What We Have (strong foundation)
