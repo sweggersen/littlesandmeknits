@@ -11,6 +11,12 @@ import { getLangFromUrl, type Lang } from '../lib/i18n';
 
 const isStrikketorget = Astro.locals.isStrikketorget ?? false;
 
+// Privacy-respecting product analytics (june26.md §1.7). Absent env =
+// no script injected, and the Web Vitals reporter no-ops (it only fires when
+// window.plausible exists).
+const analyticsSrc = import.meta.env.PUBLIC_ANALYTICS_SRC;
+const analyticsDomain = import.meta.env.PUBLIC_ANALYTICS_DOMAIN;
+
 // Pre-launch lock: on strikketorget.no, render every page but blur the
 // content and overlay the interest form so the public can SEE what's
 // coming without being able to interact yet. Bypass when the visitor
@@ -110,6 +116,9 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
     <meta name="twitter:description" content={metaDescription} />
     <meta name="twitter:image" content={ogImageUrl} />
     <ClientRouter />
+    {analyticsSrc && (
+      <script is:inline defer data-domain={analyticsDomain} src={analyticsSrc}></script>
+    )}
     <style is:inline>
       ::view-transition-group(*) { animation-duration: 150ms; }
 
@@ -236,6 +245,11 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
     </a>
 
     <script>
+      // Web Vitals reporting (no-op unless product analytics is enabled).
+      // Runs once per hard load, which is the correct granularity for vitals.
+      import { init as initWebVitals } from '../lib/client/controllers/web-vitals';
+      initWebVitals();
+
       // Register the PWA service worker on supported browsers.
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

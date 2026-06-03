@@ -101,10 +101,15 @@ Two distinct bars. Don't blur them.
 **Acceptance:** ✅ templates built + tested + wired; inbox placement pending DNS.
 **Effort:** S (done in ~½ day).
 
-### 1.7 Observability: errors + perf + product analytics
+### 1.7 Observability: errors + perf + product analytics — ☑ DONE 2026-06-03 (gated on env)
 **Why:** flying blind. No Sentry, no Web Vitals, no funnel analytics.
-**Work:** Sentry (Workers SDK, PII-scrubbed, dead-letter breadcrumbs) · Web Vitals (LCP/CLS/INP) → Sentry perf · privacy-respecting product analytics (self-hosted Plausible/Umami — GDPR-clean) on the onboarding + checkout funnel.
-**Acceptance:** a thrown error, a slow page, and a checkout drop-off all show up. **Effort:** M (1 day).
+**Work:**
+- [x] **Error tracking** → `src/lib/observability.ts`: Sentry envelope HTTP API via fetch (no SDK dep, Workers-native), gated on `SENTRY_DSN` read from the live runtime binding. Wired into `recordDeadLetter`, so every money-path failure (§1.2) also pages Sentry. Pure DSN-parse + envelope-build unit-tested.
+- [x] **Product analytics** → privacy-respecting script (Plausible/Umami) injected in `Layout` head, gated on `PUBLIC_ANALYTICS_SRC`/`PUBLIC_ANALYTICS_DOMAIN`. No cookies → GDPR-clean.
+- [x] **Web Vitals** → `controllers/web-vitals.ts`: native PerformanceObserver for LCP/CLS/INP, reported as Plausible custom events (no-ops without analytics). Once per hard load.
+- [ ] **Owner action:** set `SENTRY_DSN` (secret) + `PUBLIC_ANALYTICS_SRC`/`PUBLIC_ANALYTICS_DOMAIN` (e.g. a self-hosted Plausible). Until then everything no-ops.
+**Acceptance:** ✅ error→Sentry (via dead-letter), slow page→Web Vitals event, funnel→analytics — all activate on env. Tests green (535); typecheck 0; build clean.
+**Effort:** M (done in ~1 day).
 
 ### 1.8 Apply pending migrations to prod + verify RLS == migrations (carryover) — OWNER ACTION
 Both migrations are validated against local Postgres (idempotent, objects present, RLS on). Applying to **prod** is an owner action (dashboard/linked CLI):

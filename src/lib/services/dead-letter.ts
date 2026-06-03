@@ -1,6 +1,7 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { log } from '../log';
+import { captureException } from '../observability';
 
 export type DeadLetterDomain = 'marketplace' | 'studio' | 'platform';
 
@@ -59,6 +60,14 @@ export async function recordDeadLetter(
       error: e,
     });
   }
+
+  // Mirror to Sentry (no-op unless SENTRY_DSN is set). Best-effort: every
+  // dead-letter is, by definition, something support needs to see — so it
+  // should also page our error tracker, not just sit in a table.
+  await captureException(input.error, {
+    service: input.service,
+    extra: input.context as Record<string, unknown> | undefined,
+  });
 }
 
 /** Admin-only: mark a dead-letter event resolved with an optional note.

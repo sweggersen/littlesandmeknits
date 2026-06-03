@@ -29,6 +29,8 @@ interface Env {
   VIPPS_SUBSCRIPTION_KEY: string;
   VIPPS_MSN: string;
   LOGIN_INVITE_KEY: string;
+  // Observability (june26.md §1.7) — optional; absent = telemetry no-ops.
+  SENTRY_DSN?: string;
   // Runtime kill-switches (june26.md §1.4) — engaged when set to a truthy
   // string ('on'/'1'/'true'/'yes'). Flip in the Cloudflare dashboard to halt
   // a class of money movement without a redeploy. See docs/INCIDENT_RUNBOOK.md.
@@ -59,6 +61,10 @@ interface ImportMetaEnv {
   readonly PUBLIC_STRIPE_PUBLISHABLE_KEY: string;
   readonly PUBLIC_SITE_URL: string;
   readonly PUBLIC_VAPID_KEY: string;
+  // Privacy-respecting product analytics (june26.md §1.7) — e.g. Plausible.
+  // Absent = no analytics script + Web Vitals reporting no-ops.
+  readonly PUBLIC_ANALYTICS_SRC?: string;
+  readonly PUBLIC_ANALYTICS_DOMAIN?: string;
 }
 
 interface ImportMeta {
