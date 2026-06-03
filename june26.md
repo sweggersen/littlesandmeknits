@@ -136,6 +136,19 @@ Contact/support form that opens a moderator thread (reuse `moderation_threads`) 
 ### 2.4 Image delivery (cost + perf)
 Photo-heavy app serves full-size images straight from Supabase storage → egress cost + poor LCP. Route through Cloudflare Images / a transform (thumbnails on cards, full on detail). Ties to the §A LCP gate.
 
+### 2.5 DECISION NEEDED — seller reimbursement / clawback on post-payout refunds
+**Why now:** §1.2 added `charge.refunded`-after-payout reconciliation that currently only **dead-letters** (flags for support) when a refund lands after escrow was released — because a Stripe refund post-payout can drive the connected account negative, and we have no policy to recover it. We need to decide the actual policy before public launch.
+
+**Verified competitor model (Tise, 2026-06-03):** Tise decides disputes **unilaterally** (seller submits evidence, but *"our support team… will make a determination on the outcome"* — no arbitration/appeal), and **claws the money back from the seller**: *"If Tise determines that a buyer is entitled to a refund and issues a refund to the buyer on the seller's behalf, Tise may seek reimbursement from the seller by invoice, or by collecting the amount… If reimbursement is unsuccessful, we reserve the right to seek reimbursement through other means."* Payout timing is per-sale, ~1–5 business days after the buyer receives (not weekly batching). Sources: tise.com/terms/tise-payment, tise.com/policies/buyer-protection.
+
+**Options to decide:**
+- **(a) Avoid the problem (default today):** our 7-day Stripe payout delay (`delay_days: 7`) + 14-day escrow auto-release mean most disputes resolve *before* funds leave the platform, so a true post-payout refund is rare. Keep escrow as the primary protection; only the long-tail (refund after release) needs a policy.
+- **(b) Tise-style clawback:** add terms allowing reimbursement-by-invoice / balance-collection from the seller for refunds issued after payout, + the mechanism (Stripe negative balance, or a `seller_debts` ledger). Needs the Terms/Vilkår update (ties to §1.1 legal review) and likely a tax-lawyer check.
+- **(c) Platform-absorbs:** eat the rare post-payout refund as a cost; cap exposure via the price ceiling (5 000 kr) + trust gating. Simplest, but unbounded if abused.
+
+**Recommendation:** (a)+(c) for launch (escrow already covers the common case; absorb the rare tail under the 5 000 kr cap), revisit (b) if post-payout refunds become non-trivial in the dead-letter data. Decide with the accountant during §1.1.
+**Also:** align the become-seller payout copy with reality — it says "1–5 virkedager" but the Connect config delays payouts 7 days (`stripe-connect.ts`). Fix copy or config.
+
 ---
 
 ## 3. Polish / post-launch (P2)
