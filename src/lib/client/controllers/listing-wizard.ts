@@ -4,6 +4,7 @@
 // refactor item 9.
 
 import { bindOnce } from '../dom';
+import { LISTING_TEMPLATES } from '../../listing-templates';
 
 export function init(): void {
   const formEl = document.querySelector<HTMLFormElement>('[data-wizard]');
@@ -62,35 +63,25 @@ export function init(): void {
   kindEl?.addEventListener('change', syncKind);
   syncKind();
 
-  // "Fyll inn et eksempel" — pre-fills the form with a realistic
-  // sample so new sellers see what good copy looks like.
-  const fillBtn = document.querySelector<HTMLButtonElement>('[data-fill-example]');
-  fillBtn?.addEventListener('click', () => {
-    const example: Record<string, string | number> = {
-      kind: 'pre_loved',
-      title: 'Mariusgenser str. 92, naturhvit',
-      category: 'genser',
-      size_label: '92',
-      condition: 'som_ny',
-      size_age_months_min: '18',
-      size_age_months_max: '24',
-      colorway: 'Naturhvit med blå border',
-      pattern_external_title: 'Mariusgenser – Sandnes Garn',
-      knitted_by: 'Mormor (privat)',
-      location: 'Oslo',
-      description: 'Strikket i Sandnes Smart Superwash. Brukt et par ganger på hytta, som ny.\n\nVasket forsiktig på ullprogram, lufttørket. Røykfritt hjem.',
-      price_nok: '350',
-    };
-    for (const [name, value] of Object.entries(example)) {
-      const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
-      if (el && 'value' in el) el.value = String(value);
-    }
-    // Make sure dependent UI reflects the new kind/condition.
-    kindEl?.dispatchEvent(new Event('change'));
-    // Open the "Flere detaljer" expander so the seller can see what got filled.
-    document.querySelectorAll('details').forEach((d) => { d.open = true; });
-    // Hide the helper row — it has served its purpose.
-    document.querySelector<HTMLElement>('[data-example-row]')?.remove();
+  // First-listing templates — prefill the form from a realistic preset so a
+  // new seller sees what good copy looks like (june26 §1.5). "Tomt ark" just
+  // dismisses the row. They edit everything afterwards. Presets live in
+  // ../../listing-templates (pure + unit-tested against valid categories/kinds).
+  document.querySelectorAll<HTMLButtonElement>('[data-fill-template]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tpl = LISTING_TEMPLATES[btn.dataset.fillTemplate as 'preloved' | 'new'];
+      if (tpl) {
+        for (const [name, value] of Object.entries(tpl)) {
+          const el = form.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+          if (el && 'value' in el) el.value = String(value);
+        }
+        // Reflect the new kind/condition and reveal "Flere detaljer".
+        kindEl?.dispatchEvent(new Event('change'));
+        document.querySelectorAll('details').forEach((d) => { d.open = true; });
+      }
+      // The row has served its purpose (whichever chip was clicked).
+      document.querySelector<HTMLElement>('[data-example-row]')?.remove();
+    });
   });
 
   show(1);

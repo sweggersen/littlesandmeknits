@@ -20,10 +20,13 @@ const { userEmail, myStores, preselectedStoreId } = Astro.props;
 ---
 
 <section data-step="1" class="space-y-6">
-  <div class="bg-sage-100/40 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 text-sm" data-example-row>
-    <p class="text-charcoal/70">
-      Førstegang? <button type="button" data-fill-example class="text-terracotta-500 font-medium hover:underline">Fyll inn et eksempel</button> for å se hvordan en god annonse ser ut.
-    </p>
+  <div class="bg-sage-100/40 rounded-2xl px-4 py-3 text-sm" data-example-row>
+    <p class="text-charcoal/70 mb-2">Førstegang? Start fra en mal, så ser du hvordan en god annonse ser ut. Du endrer alt etterpå.</p>
+    <div class="flex flex-wrap gap-2">
+      <button type="button" data-fill-template="preloved" class="rounded-full border border-sage-500/30 bg-white px-3 py-1.5 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Brukt barneplagg</button>
+      <button type="button" data-fill-template="new" class="rounded-full border border-sage-500/30 bg-white px-3 py-1.5 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Nystrikket plagg</button>
+      <button type="button" data-fill-template="blank" class="rounded-full px-3 py-1.5 text-xs font-medium text-charcoal/50 hover:text-charcoal transition-colors">Tomt ark</button>
+    </div>
   </div>
 
   {myStores.length > 0 && (

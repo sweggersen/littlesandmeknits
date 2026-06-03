@@ -89,9 +89,8 @@ Two distinct bars. Don't blur them.
 **Finding (2026-06-03):** the original "bare Stripe Connect wall" premise was **overstated**. It's Stripe **Custom** Connect — all KYC is collected in our own `/profile/become-seller` form (no hosted-onboarding redirect), and `/market/my-listings` already CTAs to new-listing. The genuine gaps were two **dead-ends**, now fixed:
 - [x] Post-submit no longer dumps the seller back on the form: `?submitted=1` shows a success state with "Lag din første annonse" + photo-tips link (`become-seller.astro`). Verification continues async via the `account.updated` webhook.
 - [x] `listing/new.astro` now guides a non-verified seller (warning + link to set up payouts; soft "verifying in background" note when pending) instead of a silent dead-end at sale time.
-- [ ] **Deferred, needs your design input** (UI/copy-heavy, you're particular here): a polished multi-step wizard shell, a **prefilled first-listing template** (kind+category from common patterns), and inline photo-capture guidance. Scope these once we agree on the look.
-**Acceptance:** ✅ signup → seller → first listing has no dead-ends. Template/wizard polish pending design.
-**Effort:** dead-ends done (~½ day); wizard/template TBD after design.
+- [x] **First-listing templates** (design-approved 2026-06-03): the wizard's single "Fyll inn et eksempel" became three chips — **Brukt barneplagg / Nystrikket plagg / Tomt ark** — that prefill the form. Presets extracted to a pure, unit-tested `src/lib/listing-templates.ts` (guards category/kind/condition against server validation). Photo-tips upgraded to a 3-point callout on the `/foto` step.
+**Acceptance:** ✅ signup → seller → first listing has no dead-ends; first-timers get a guided start with valid prefilled data. **Effort:** done (~1 day total).
 
 ### 1.6 Welcome emails + deliverability — ☑ DONE 2026-06-03
 **Finding:** the welcome email was **already built** (`renderWelcomeEmail`, wired into `auth/callback` first-login, idempotent via `welcomed_at`) — the doc was stale. Remaining gaps closed:

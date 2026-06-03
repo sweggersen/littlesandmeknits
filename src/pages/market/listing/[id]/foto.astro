@@ -83,9 +83,15 @@ const STEPS = [
               </button>
             </div>
           </label>
-          <p class="text-[11px] text-charcoal/45">
-            Tips: hovedbilde først. Naturlig lys og rene flater fungerer best. Bilder modereres før publisering.
-          </p>
+          <div class="rounded-2xl bg-sage-100/40 px-4 py-3 text-[12px] text-charcoal/70 leading-relaxed">
+            <p class="font-medium text-charcoal/80 mb-1">📷 Tips til gode bilder</p>
+            <ul class="space-y-0.5 list-disc list-inside marker:text-sage-500">
+              <li>Dagslys og et flatt, rolig underlag</li>
+              <li>Hovedbildet først, gjerne tre eller flere</li>
+              <li>Vis detaljer og eventuell slitasje ærlig</li>
+            </ul>
+            <p class="mt-1.5 text-charcoal/45">Bilder modereres før publisering.</p>
+          </div>
         </form>
 
         {photos.length > 0 && (
