@@ -8,6 +8,7 @@ import { checkAndGrantAchievements } from '../../../lib/achievements';
 import { sendEmail } from '../../../lib/email';
 import { renderDraftNudgeEmail } from '../../../lib/email-templates';
 import { isKilled } from '../../../lib/flags';
+import { recordDeadLetter } from '../../../lib/services/dead-letter';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -176,13 +177,23 @@ export const POST: APIRoute = async ({ request }) => {
   if (releasable?.length) {
     const stripe = createStripe(env.STRIPE_SECRET_KEY);
     for (const req of releasable) {
+      let commissionCaptured = true;
       if (req.stripe_payment_intent_id) {
         try {
           await stripe.paymentIntents.capture(req.stripe_payment_intent_id);
         } catch (e) {
-          console.error(`Stripe capture failed for PI ${req.stripe_payment_intent_id}`, e);
+          // Don't mark delivered if we couldn't capture — leave auto_release_at
+          // in the past so the next tick retries, and dead-letter so support
+          // sees the stuck escrow rather than it being silently dropped.
+          commissionCaptured = false;
+          await recordDeadLetter({ admin, user: req.buyer_id ? { id: req.buyer_id } : undefined }, {
+            service: 'cron.auto_release:commission_capture',
+            context: { commission_request_id: req.id, payment_intent_id: req.stripe_payment_intent_id },
+            error: e,
+          });
         }
       }
+      if (!commissionCaptured) continue;
 
       await admin
         .from('commission_requests')
@@ -219,13 +230,22 @@ export const POST: APIRoute = async ({ request }) => {
   if (releasableListings?.length) {
     const stripe = createStripe(env.STRIPE_SECRET_KEY);
     for (const listing of releasableListings) {
+      let listingCaptured = true;
       if (listing.stripe_payment_intent_id) {
         try {
           await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
         } catch (e) {
-          console.error(`Stripe capture failed for listing PI ${listing.stripe_payment_intent_id}`, e);
+          // Leave the row releasable (auto_release_at untouched) for the next
+          // tick and dead-letter so a failed capture isn't silently dropped.
+          listingCaptured = false;
+          await recordDeadLetter({ admin, user: listing.seller_id ? { id: listing.seller_id } : undefined }, {
+            service: 'cron.auto_release:listing_capture',
+            context: { listing_id: listing.id, payment_intent_id: listing.stripe_payment_intent_id },
+            error: e,
+          });
         }
       }
+      if (!listingCaptured) continue;
       await admin.from('listings').update({
         status: 'sold', sold_at: now, delivered_at: now, auto_release_at: null,
       }).eq('id', listing.id);

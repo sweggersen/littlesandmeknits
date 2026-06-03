@@ -51,17 +51,19 @@ Two distinct bars. Don't blur them.
 **Acceptance:** accountant signs off; a purchase produces a compliant receipt with correct VAT; charge model documented per transaction shape.
 **Effort:** L+ (legal loop is the long pole — start week 1). **Owner-action:** book accountant now.
 
-### 1.2 Payments money-flow failure-mode hardening (NEW — highest-risk subsystem)
+### 1.2 Payments money-flow failure-mode hardening (NEW — highest-risk subsystem) — ☑ DONE 2026-06-03
 **Why:** webhook handles only `checkout.session.completed` + `account.updated`. **No** handlers for chargebacks/refunds/payout-failures/failed-payments. Chargeback after payout = silent loss; failed payout = seller silently unpaid; day-14 auto-release `capture()` only `try/catch`-logs — failed capture means the seller is never paid with no recovery.
 **Work:**
-- [ ] Handle `charge.dispute.created` / `.closed` → freeze item, open dispute, notify, reconcile against payout.
-- [ ] Handle `payout.failed` / `payout.paid` → notify seller, retry/flag.
-- [ ] Handle `payment_intent.payment_failed` / capture failures → mark order, dead-letter, recovery job.
-- [ ] Auto-release cron: on capture failure, retry with backoff + dead-letter + alert (don't silently drop).
-- [ ] Refund-after-payout reconciliation (negative balance handling).
-- [ ] Webhook idempotency at scale (dedupe by event id) + extend the signed-webhook integration test to cover these events.
-**Acceptance:** each event type has a handler + test; a simulated chargeback and a failed payout both produce a tracked, notified outcome.
-**Effort:** M–L (2–3 days).
+- [x] Handle `charge.dispute.created` → freeze item to `disputed` (auto-surfaces in `/admin/disputes`), notify seller; `.closed` → record won/lost + notify. → `handleChargebackOpened`/`handleChargebackClosed` in `src/lib/services/stripe-events.ts`.
+- [x] Handle `payout.failed` → dead-letter + notify mapped seller. → `handlePayoutFailed`. (`payout.paid` left as no-op; nothing actionable.)
+- [x] Handle `payment_intent.payment_failed` → dead-letter with matched escrow. → `handlePaymentIntentFailed`.
+- [x] Auto-release cron: on capture failure, **don't mark delivered/sold** (leave `auto_release_at` past-due so next tick retries) + dead-letter. → `cron/run.ts` both passes.
+- [x] Refund-after-payout reconciliation: `charge.refunded` flags a dead-letter when the row was already released (`status='sold'`), records refund outcome, notifies buyer. → `handleChargeRefunded`.
+- [x] Webhook idempotency by event id → `stripe_webhook_events` ledger; recorded only after a 200 so a post-500 retry still reprocesses. Webhook refactored into `handleEvent` with dedup wrapper.
+- [x] Tests: `src/lib/services/stripe-events.test.ts` (12 cases, fake-db). Full suite 519 green; build clean.
+- [ ] **Owner action:** enable these events on the Stripe webhook endpoint (Dashboard → Developers → Webhooks): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`. And apply migration `0081` (see §1.8 batch).
+**Acceptance:** ✅ each event type has a handler + test; simulated chargeback and failed payout both freeze/notify and land a tracked outcome.
+**Effort:** M–L (done in ~1 day).
 
 ### 1.3 Reliable migration delivery + schema-drift CI gate (NEW — proven-fragile)
 **Why:** evidence of breakage — `0038` partially applied to prod; `0077` broke anon browse. Process is manual dashboard-paste (non-transactional). This *will* recur.

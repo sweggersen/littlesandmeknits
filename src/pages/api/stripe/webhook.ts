@@ -6,6 +6,15 @@ import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supa
 import { createNotification } from '../../../lib/notify';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { completeListingPurchase } from '../../../lib/services/listings';
+import {
+  isEventProcessed,
+  markEventProcessed,
+  handleChargebackOpened,
+  handleChargebackClosed,
+  handlePayoutFailed,
+  handlePaymentIntentFailed,
+  handleChargeRefunded,
+} from '../../../lib/services/stripe-events';
 import { log } from '../../../lib/log';
 
 /** Minimal context for recordDeadLetter from inside the Stripe
@@ -17,6 +26,14 @@ function dlCtx(admin: TypedSupabaseClient, userId?: string | null) {
     user: userId ? { id: userId } : undefined,
   };
 }
+
+/** Env passed to createNotification (email + push). Built once. */
+const notifyEnv = {
+  RESEND_API_KEY: env.RESEND_API_KEY,
+  PUBLIC_SITE_URL: import.meta.env.PUBLIC_SITE_URL,
+  PUBLIC_VAPID_KEY: import.meta.env.PUBLIC_VAPID_KEY,
+  VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY,
+};
 
 export const POST: APIRoute = async ({ request }) => {
   if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET || !env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -37,9 +54,32 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response('Invalid signature', { status: 400 });
   }
 
+  const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+
+  // Idempotency: a re-delivery of an already-processed event is a no-op. We
+  // record processed AFTER a 200 below (not before), so a retry following a
+  // 500 still reprocesses.
+  if (await isEventProcessed(supabase, event.id)) {
+    return new Response('ok (already processed)', { status: 200 });
+  }
+
+  const response = await handleEvent(event, stripe, supabase);
+
+  // Only a clean 200 is recorded as processed. A 500 (DB error) is left
+  // unrecorded so Stripe retries and we get another shot.
+  if (response.status === 200) {
+    await markEventProcessed(supabase, event.id, event.type);
+  }
+  return response;
+};
+
+async function handleEvent(
+  event: Stripe.Event,
+  stripe: Stripe,
+  supabase: TypedSupabaseClient,
+): Promise<Response> {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-    const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
     // ── Marketplace listing fee ──────────────────────────────────
     const listingId = session.metadata?.listing_id;
@@ -226,12 +266,7 @@ export const POST: APIRoute = async ({ request }) => {
           url: `/market/listing/${purchaseListingId}`,
           actorId: buyerId,
           referenceId: purchaseListingId,
-        }, {
-          RESEND_API_KEY: env.RESEND_API_KEY,
-          PUBLIC_SITE_URL: import.meta.env.PUBLIC_SITE_URL,
-          PUBLIC_VAPID_KEY: import.meta.env.PUBLIC_VAPID_KEY,
-          VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY,
-        });
+        }, notifyEnv);
       }
 
       return new Response('ok', { status: 200 });
@@ -267,13 +302,13 @@ export const POST: APIRoute = async ({ request }) => {
       });
       return new Response('DB error', { status: 500 });
     }
+    return new Response('ok', { status: 200 });
   }
 
   if (event.type === 'account.updated') {
     const account = event.data.object as Stripe.Account;
     const { statusFromAccount } = await import('../../../lib/services/stripe-connect');
     const status = statusFromAccount(account);
-    const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
     const update: {
       stripe_connect_status: string;
       stripe_connect_requirements: Stripe.Account.Requirements | null;
@@ -297,7 +332,26 @@ export const POST: APIRoute = async ({ request }) => {
       });
       return new Response('DB error', { status: 500 });
     }
+    return new Response('ok', { status: 200 });
   }
 
+  // ── Money-flow failure modes (june26 §1.2) ───────────────────────
+  if (event.type === 'charge.dispute.created') {
+    return handleChargebackOpened(supabase, event.data.object as Stripe.Dispute, notifyEnv);
+  }
+  if (event.type === 'charge.dispute.closed') {
+    return handleChargebackClosed(supabase, event.data.object as Stripe.Dispute, notifyEnv);
+  }
+  if (event.type === 'payout.failed') {
+    return handlePayoutFailed(supabase, event.data.object as Stripe.Payout, event.account ?? null, notifyEnv);
+  }
+  if (event.type === 'payment_intent.payment_failed') {
+    return handlePaymentIntentFailed(supabase, event.data.object as Stripe.PaymentIntent);
+  }
+  if (event.type === 'charge.refunded') {
+    return handleChargeRefunded(supabase, event.data.object as Stripe.Charge, notifyEnv);
+  }
+
+  // Unhandled event type — ack so Stripe stops retrying.
   return new Response('ok', { status: 200 });
-};
+}

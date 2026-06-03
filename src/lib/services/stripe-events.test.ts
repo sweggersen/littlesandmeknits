@@ -1,0 +1,184 @@
+import { describe, it, expect } from 'vitest';
+import type Stripe from 'stripe';
+import { createFakeDb } from './__test_helpers__/fake-db';
+import {
+  isEventProcessed,
+  handleChargebackOpened,
+  handleChargebackClosed,
+  handlePayoutFailed,
+  handlePaymentIntentFailed,
+  handleChargeRefunded,
+} from './stripe-events';
+
+// Minimal Stripe object builders — only the fields the handlers read.
+const dispute = (o: Partial<Stripe.Dispute>) => o as unknown as Stripe.Dispute;
+const payout = (o: Partial<Stripe.Payout>) => o as unknown as Stripe.Payout;
+const charge = (o: Partial<Stripe.Charge>) => o as unknown as Stripe.Charge;
+const intent = (o: Partial<Stripe.PaymentIntent>) => o as unknown as Stripe.PaymentIntent;
+
+const env = {} as never; // no Resend/VAPID -> createNotification only inserts the row
+
+const baseSeed = () => ({ notifications: [], dead_letter_events: [] });
+
+describe('handleChargebackOpened (listing)', () => {
+  it('freezes the listing to disputed and notifies the seller', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'reserved', stripe_dispute_id: null, seller_id: 'S1', buyer_id: 'B1', title: 'Marius-genser' }],
+    });
+    const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_1', payment_intent: 'pi_1', reason: 'fraudulent' }), env);
+
+    expect(res.status).toBe(200);
+    const row = db.find('listings', { id: 'L1' })!;
+    expect(row.status).toBe('disputed');
+    expect(row.disputed_at).toBeTruthy();
+    expect(row.dispute_reason).toBe('stripe_chargeback:fraudulent');
+    expect(row.stripe_dispute_id).toBe('dp_1');
+
+    const notif = db.find('notifications', { user_id: 'S1', type: 'dispute_opened' });
+    expect(notif).toBeTruthy();
+  });
+
+  it('is idempotent: a second delivery does not re-notify', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'disputed', stripe_dispute_id: 'dp_1', seller_id: 'S1', buyer_id: 'B1', title: 'Genser' }],
+    });
+    const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_1', payment_intent: 'pi_1', reason: 'fraudulent' }), env);
+    expect(res.status).toBe(200);
+    expect(db.rows('notifications').length).toBe(0); // guard matched 0 rows
+  });
+
+  it('dead-letters an unmatched payment intent (no row silently dropped)', async () => {
+    const db = createFakeDb({ ...baseSeed(), listings: [], commission_requests: [] });
+    const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_x', payment_intent: 'pi_unknown', reason: 'general' }), env);
+    expect(res.status).toBe(200);
+    const dl = db.find('dead_letter_events', { service: 'stripe.webhook:chargeback_unmatched' });
+    expect(dl).toBeTruthy();
+  });
+});
+
+describe('handleChargebackOpened (commission)', () => {
+  it('freezes the commission and notifies the knitter', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [],
+      commission_requests: [{ id: 'C1', stripe_payment_intent_id: 'pi_2', status: 'completed', stripe_dispute_id: null, buyer_id: 'B1', title: 'Lue', awarded_offer_id: 'O1' }],
+      commission_offers: [{ id: 'O1', knitter_id: 'K1' }],
+    });
+    const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_2', payment_intent: 'pi_2', reason: 'product_not_received' }), env);
+    expect(res.status).toBe(200);
+    expect(db.find('commission_requests', { id: 'C1' })!.status).toBe('disputed');
+    expect(db.find('notifications', { user_id: 'K1', type: 'dispute_opened' })).toBeTruthy();
+  });
+});
+
+describe('handleChargebackClosed', () => {
+  it('records a won outcome and tells the seller it was in their favour', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_dispute_id: 'dp_1', dispute_resolved_at: null, seller_id: 'S1', buyer_id: 'B1', title: 'Genser', awarded_offer_id: null }],
+      commission_requests: [],
+    });
+    const res = await handleChargebackClosed(db.client as never, dispute({ id: 'dp_1', status: 'won' }), env);
+    expect(res.status).toBe(200);
+    const row = db.find('listings', { id: 'L1' })!;
+    expect(row.dispute_resolution).toBe('stripe_chargeback_won');
+    expect(row.dispute_resolved_at).toBeTruthy();
+    const notif = db.find('notifications', { user_id: 'S1', type: 'dispute_resolved' })!;
+    expect(notif.title).toMatch(/favør/);
+  });
+
+  it('records a lost outcome', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_dispute_id: 'dp_9', dispute_resolved_at: null, seller_id: 'S1', title: 'Genser', awarded_offer_id: null }],
+      commission_requests: [],
+    });
+    await handleChargebackClosed(db.client as never, dispute({ id: 'dp_9', status: 'lost' }), env);
+    expect(db.find('listings', { id: 'L1' })!.dispute_resolution).toBe('stripe_chargeback_lost');
+    expect(db.find('notifications', { user_id: 'S1' })!.title).toMatch(/tapt/i);
+  });
+});
+
+describe('handlePayoutFailed', () => {
+  it('dead-letters and notifies the mapped seller', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      seller_profiles: [{ id: 'S1', stripe_account_id: 'acct_1' }],
+    });
+    const res = await handlePayoutFailed(
+      db.client as never,
+      payout({ id: 'po_1', amount: 50000, currency: 'nok', failure_code: 'account_closed', failure_message: 'Konto stengt' }),
+      'acct_1',
+      env,
+    );
+    expect(res.status).toBe(200);
+    expect(db.find('dead_letter_events', { service: 'stripe.webhook:payout_failed' })).toBeTruthy();
+    expect(db.find('notifications', { user_id: 'S1', type: 'payout_failed' })).toBeTruthy();
+  });
+
+  it('still dead-letters when the account maps to no known seller', async () => {
+    const db = createFakeDb({ ...baseSeed(), seller_profiles: [] });
+    const res = await handlePayoutFailed(db.client as never, payout({ id: 'po_2', amount: 100, currency: 'nok' }), 'acct_unknown', env);
+    expect(res.status).toBe(200);
+    expect(db.find('dead_letter_events', { service: 'stripe.webhook:payout_failed' })).toBeTruthy();
+    expect(db.rows('notifications').length).toBe(0);
+  });
+});
+
+describe('handlePaymentIntentFailed', () => {
+  it('audits the failure with the matched escrow row', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_3', status: 'reserved', buyer_id: 'B1', seller_id: 'S1', title: 'X' }],
+      commission_requests: [],
+    });
+    const res = await handlePaymentIntentFailed(db.client as never, intent({ id: 'pi_3', status: 'requires_payment_method', last_payment_error: { message: 'card_declined' } as Stripe.PaymentIntent['last_payment_error'] }));
+    expect(res.status).toBe(200);
+    const dl = db.find('dead_letter_events', { service: 'stripe.webhook:payment_intent_failed' })!;
+    expect(dl).toBeTruthy();
+  });
+});
+
+describe('handleChargeRefunded', () => {
+  it('reconciles a refund issued AFTER payout (status sold) and notifies the buyer', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_4', status: 'sold', buyer_id: 'B1', seller_id: 'S1', title: 'Sokker', refund_resolved_at: null }],
+      commission_requests: [],
+    });
+    const res = await handleChargeRefunded(db.client as never, charge({ id: 'ch_1', payment_intent: 'pi_4', amount_refunded: 29400 }), env);
+    expect(res.status).toBe(200);
+    const row = db.find('listings', { id: 'L1' })!;
+    expect(row.refund_resolved_at).toBeTruthy();
+    expect(row.refund_outcome).toBe('accepted');
+    // Refund-after-payout must be flagged for balance reconciliation.
+    expect(db.find('dead_letter_events', { service: 'stripe.webhook:refund_after_payout' })).toBeTruthy();
+    expect(db.find('notifications', { user_id: 'B1' })).toBeTruthy();
+  });
+
+  it('does not flag reconciliation when the listing was not yet released', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_5', status: 'reserved', buyer_id: 'B1', seller_id: 'S1', title: 'Sokker', refund_resolved_at: null }],
+      commission_requests: [],
+    });
+    await handleChargeRefunded(db.client as never, charge({ id: 'ch_2', payment_intent: 'pi_5', amount_refunded: 29400 }), env);
+    expect(db.find('dead_letter_events', { service: 'stripe.webhook:refund_after_payout' })).toBeUndefined();
+  });
+});
+
+describe('isEventProcessed', () => {
+  it('is true only when processed_at is set', async () => {
+    const db = createFakeDb({
+      stripe_webhook_events: [
+        { event_id: 'evt_done', type: 'charge.refunded', processed_at: '2026-06-03T00:00:00Z' },
+        { event_id: 'evt_pending', type: 'charge.refunded', processed_at: null },
+      ],
+    });
+    expect(await isEventProcessed(db.client as never, 'evt_done')).toBe(true);
+    expect(await isEventProcessed(db.client as never, 'evt_pending')).toBe(false);
+    expect(await isEventProcessed(db.client as never, 'evt_absent')).toBe(false);
+  });
+});
