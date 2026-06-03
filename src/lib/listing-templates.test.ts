@@ -24,8 +24,13 @@ describe('LISTING_TEMPLATES', () => {
   it.each(entries)('%s template uses a valid category and kind', (_key, tpl) => {
     expect(VALID_CATEGORIES.has(tpl.category)).toBe(true);
     expect(['pre_loved', 'ready_made']).toContain(tpl.kind);
-    expect(tpl.title.length).toBeGreaterThan(0);
     expect(Number(tpl.price_nok)).toBeGreaterThan(0);
+  });
+
+  it('does not template the title (sellers write their own)', () => {
+    for (const [, tpl] of entries) {
+      expect('title' in tpl).toBe(false);
+    }
   });
 
   it('preloved template carries a valid condition; new omits it', () => {
@@ -37,7 +42,6 @@ describe('LISTING_TEMPLATES', () => {
   it('keeps copy free of em-dashes', () => {
     for (const [, tpl] of entries) {
       expect(tpl.description).not.toContain('—');
-      expect(tpl.title).not.toContain('—');
     }
   });
 });

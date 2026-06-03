@@ -5,7 +5,8 @@
 
 export interface ListingTemplate {
   kind: 'pre_loved' | 'ready_made';
-  title: string;
+  // Title is intentionally NOT templated — sellers write their own so we don't
+  // seed generic/duplicate titles across the marketplace.
   category: string;
   size_label: string;
   condition?: string;
@@ -22,7 +23,6 @@ export interface ListingTemplate {
 export const LISTING_TEMPLATES: Record<string, ListingTemplate> = {
   preloved: {
     kind: 'pre_loved',
-    title: 'Mariusgenser str. 92, naturhvit',
     category: 'genser',
     size_label: '92',
     condition: 'som_ny',
@@ -37,7 +37,6 @@ export const LISTING_TEMPLATES: Record<string, ListingTemplate> = {
   },
   new: {
     kind: 'ready_made',
-    title: 'Nystrikket babylue i merinoull',
     category: 'lue',
     size_label: '0-3 mnd',
     colorway: 'Støvet rosa',
@@ -49,7 +48,6 @@ export const LISTING_TEMPLATES: Record<string, ListingTemplate> = {
   },
   cardigan: {
     kind: 'pre_loved',
-    title: 'Strikkejakke str. 80, eplegrønn',
     category: 'cardigan',
     size_label: '80',
     condition: 'lite_brukt',
@@ -64,7 +62,6 @@ export const LISTING_TEMPLATES: Record<string, ListingTemplate> = {
   },
   blanket: {
     kind: 'pre_loved',
-    title: 'Håndstrikket babyteppe i ullmiks',
     category: 'teppe',
     size_label: '70 x 90 cm',
     condition: 'som_ny',
@@ -76,7 +73,6 @@ export const LISTING_TEMPLATES: Record<string, ListingTemplate> = {
   },
   accessories: {
     kind: 'ready_made',
-    title: 'Nystrikkede votter i merinoull',
     category: 'votter',
     size_label: '1-2 år',
     colorway: 'Koksgrå',

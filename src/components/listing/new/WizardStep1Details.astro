@@ -15,8 +15,9 @@ interface Props {
   userEmail: string | null | undefined;
   myStores: Store[];
   preselectedStoreId: string | null;
+  preselectedKind?: 'pre_loved' | 'ready_made';
 }
-const { userEmail, myStores, preselectedStoreId } = Astro.props;
+const { userEmail, myStores, preselectedStoreId, preselectedKind = 'pre_loved' } = Astro.props;
 ---
 
 <section data-step="1" class="space-y-6">
@@ -47,8 +48,8 @@ const { userEmail, myStores, preselectedStoreId } = Astro.props;
   <div>
     <label for="kind" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type *</label>
     <select id="kind" name="kind" required class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
-      <option value="pre_loved">Brukt</option>
-      <option value="ready_made">Nytt, aldri brukt</option>
+      <option value="pre_loved" selected={preselectedKind === 'pre_loved'}>Brukt</option>
+      <option value="ready_made" selected={preselectedKind === 'ready_made'}>Nytt, aldri brukt</option>
     </select>
   </div>
 

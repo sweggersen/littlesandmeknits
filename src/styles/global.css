@@ -100,6 +100,20 @@
     background-color: var(--color-linen);
   }
 
+  /* Native <select> carets sit flush against the (often rounded) right edge.
+     Replace with a custom chevron inset from the border, applied site-wide so
+     every dropdown reads the same. Selects keep their own px/py utilities;
+     this only governs the caret. */
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%232C2A26' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 0.85rem;
+    padding-right: 2.4rem;
+  }
+
   h1, h2, h3, h4 {
     font-family: var(--font-serif);
     font-weight: 500;
