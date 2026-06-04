@@ -209,18 +209,26 @@ function initListingGallery() {
   const lbCounter = document.getElementById('lb-counter');
   const lbThumbs = document.getElementById('lb-thumbs');
 
+  // Remember what was focused before opening so we can restore it on close
+  // (WCAG 2.4.3 focus order) and move focus into the dialog on open.
+  let lastFocused = null;
+
   function openLightbox(idx) {
     current = idx;
+    lastFocused = document.activeElement;
     lb.classList.remove('hidden');
     lb.classList.add('flex');
     document.body.style.overflow = 'hidden';
     showLightbox(idx);
+    document.querySelector('[data-lb-close]')?.focus();
   }
 
   function closeLightbox() {
     lb.classList.add('hidden');
     lb.classList.remove('flex');
     document.body.style.overflow = '';
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+    lastFocused = null;
   }
 
   function showLightbox(idx) {
