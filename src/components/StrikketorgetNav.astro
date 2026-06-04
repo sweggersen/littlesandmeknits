@@ -48,15 +48,15 @@ const navLinks = isStudio
 
 // Active section-pill colour per category, matching the home cards + icons.
 const PILL_ACTIVE: Record<string, string> = {
-  '/market/used': 'bg-[#a06b43]/12 text-[#a06b43]',
-  '/market/new': 'bg-sage-700/12 text-sage-700',
-  '/market/commissions': 'bg-[#8b6db0]/15 text-[#8b6db0]',
+  '/market/used': 'bg-[#915f3a]/12 text-[#915f3a]',
+  '/market/new': 'bg-[#5d6f4b]/12 text-[#5d6f4b]',
+  '/market/commissions': 'bg-[#6f5494]/15 text-[#6f5494]',
 };
 const pillActive = (href: string) => PILL_ACTIVE[href] ?? 'bg-terracotta-500/10 text-terracotta-500';
 const PILL_HOVER: Record<string, string> = {
-  '/market/used': 'hover:text-[#a06b43] hover:bg-[#a06b43]/10',
-  '/market/new': 'hover:text-sage-700 hover:bg-sage-700/10',
-  '/market/commissions': 'hover:text-[#8b6db0] hover:bg-[#8b6db0]/10',
+  '/market/used': 'hover:text-[#915f3a] hover:bg-[#915f3a]/10',
+  '/market/new': 'hover:text-[#5d6f4b] hover:bg-[#5d6f4b]/10',
+  '/market/commissions': 'hover:text-[#6f5494] hover:bg-[#6f5494]/10',
 };
 const pillInactive = (href: string) => 'text-charcoal/70 ' + (PILL_HOVER[href] ?? 'hover:text-charcoal hover:bg-sage-100/60');
 

@@ -22,9 +22,9 @@ import { bindOnce } from '../dom';
 // Mirrors PILL_ACTIVE/PILL_HOVER in StrikketorgetNav.astro. Keep class strings
 // literal — Tailwind only generates classes it can see in source.
 const PILL_COLORS: Record<string, { on: string[]; hov: string[] }> = {
-  '/market/used': { on: ['bg-[#a06b43]/12', 'text-[#a06b43]'], hov: ['hover:text-[#a06b43]', 'hover:bg-[#a06b43]/10'] },
-  '/market/new': { on: ['bg-sage-700/12', 'text-sage-700'], hov: ['hover:text-sage-700', 'hover:bg-sage-700/10'] },
-  '/market/commissions': { on: ['bg-[#8b6db0]/15', 'text-[#8b6db0]'], hov: ['hover:text-[#8b6db0]', 'hover:bg-[#8b6db0]/10'] },
+  '/market/used': { on: ['bg-[#915f3a]/12', 'text-[#915f3a]'], hov: ['hover:text-[#915f3a]', 'hover:bg-[#915f3a]/10'] },
+  '/market/new': { on: ['bg-[#5d6f4b]/12', 'text-[#5d6f4b]'], hov: ['hover:text-[#5d6f4b]', 'hover:bg-[#5d6f4b]/10'] },
+  '/market/commissions': { on: ['bg-[#6f5494]/15', 'text-[#6f5494]'], hov: ['hover:text-[#6f5494]', 'hover:bg-[#6f5494]/10'] },
   default: { on: ['bg-terracotta-500/10', 'text-terracotta-500'], hov: ['hover:text-charcoal', 'hover:bg-sage-100/60'] },
 };
 
