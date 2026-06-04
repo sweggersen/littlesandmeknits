@@ -2,11 +2,21 @@
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../lib/admin-auth';
 import { createServerSupabase } from '../../lib/supabase';
+import { buildServiceContext } from '../../lib/services/context';
+import { getDashboardTrends } from '../../lib/services/admin-stats';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+// Business-health trends (GMV / revenue / signups + 7-day sparkline). Spans all
+// users, so it runs through a service on the admin client behind a role check.
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+const trendsRes = ctx ? await getDashboardTrends(ctx) : null;
+const trends = trendsRes?.ok ? trendsRes.data : null;
+const kr = (n: number) => n.toLocaleString('nb-NO');
+const sparkMax = trends ? Math.max(1, ...trends.dailySold) : 1;
 
 const { count: pendingCount } = await supabase
   .from('moderation_queue')
@@ -57,6 +67,50 @@ const TEMPLATES = [
 <AdminLayout title="Admin — Oversikt" current="dashboard">
   <h1 class="font-serif text-2xl mb-6">Oversikt</h1>
 
+  {trends && (
+    <section class="mb-8">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Omsetning · 7d</p>
+          <p class="font-mono text-2xl tabular-nums">{kr(trends.gmv7)} <span class="text-sm text-charcoal/45">kr</span></p>
+          <p class="text-[11px] text-charcoal/40 mt-1">30d: {kr(trends.gmv30)} kr</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Inntekt · 7d</p>
+          <p class="font-mono text-2xl tabular-nums">{kr(trends.revenue7)} <span class="text-sm text-charcoal/45">kr</span></p>
+          <p class="text-[11px] text-charcoal/40 mt-1">30d: {kr(trends.revenue30)} kr</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Solgt · 7d</p>
+          <p class="font-mono text-2xl tabular-nums">{trends.sold7}</p>
+          <p class="text-[11px] text-charcoal/40 mt-1">30d: {trends.sold30}</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Nye brukere · 7d</p>
+          <p class="font-mono text-2xl tabular-nums">{trends.signups7}</p>
+          <p class="text-[11px] text-charcoal/40 mt-1">30d: {trends.signups30}</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-sage-500/10 p-4 flex items-center gap-5">
+        <div class="shrink-0">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Salg siste 7 dager</p>
+          <div class="flex items-end gap-1.5 h-12" role="img" aria-label={`Salg per dag siste uke: ${trends.dailySold.join(', ')}`}>
+            {trends.dailySold.map((v) => (
+              <div class="w-5 rounded-t bg-sage-500/70" style={`height:${Math.round((v / sparkMax) * 100)}%;min-height:2px`} title={`${v}`}></div>
+            ))}
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-4 text-sm border-l border-sage-500/10 pl-5">
+          <a href="/market" class="hover:text-terracotta-500 transition-colors"><span class="font-mono tabular-nums text-lg">{trends.activeListings}</span> <span class="text-charcoal/55">aktive annonser</span></a>
+          <a href="/admin/disputes" class:list={['hover:text-terracotta-500 transition-colors', trends.openDisputes > 0 && 'text-terracotta-600']}><span class="font-mono tabular-nums text-lg">{trends.openDisputes}</span> <span class="text-charcoal/55">åpne tvister</span></a>
+          <span class:list={[trends.openDeadLetters > 0 ? 'text-red-600 font-medium' : 'text-charcoal/55']} title="Uløste feil i betalingsflyten (dead_letter_events)"><span class="font-mono tabular-nums text-lg">{trends.openDeadLetters}</span> uløste feil</span>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <h2 class="font-serif text-lg mb-3">Moderering</h2>
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     {stats.map(s => (
       <a href={s.href} class="bg-white rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
