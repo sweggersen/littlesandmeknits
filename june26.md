@@ -117,6 +117,7 @@ Both migrations are validated against local Postgres (idempotent, objects presen
 - [x] Apply `0081_stripe_failure_events.sql` (§1.2 dedup ledger + dispute correlation + enum values). ✅ 2026-06-04
 - [x] Apply `0082_seller_activated_notification.sql` (§1.6 seller-activated enum value). ✅ 2026-06-04
 - [ ] Apply `0083_support_requests.sql` (§2.3 contact-form table + RLS). Validated locally 2026-06-04.
+- [ ] Apply `0084_delivery_modes.sql` (listings.can_meet; Kan sendes/Kan møtes). Validated locally 2026-06-05.
 - [ ] **STILL OPEN — enable the 5 §1.2 event types on the Stripe webhook endpoint** (Dashboard → Developers → Webhooks → your endpoint → "Select events"): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`. Until this is done the new handlers are deployed but Stripe never delivers those events to them.
 - [ ] Verify `supabase db diff --linked` is empty (confirms prod schema == migrations).
 **Effort:** XS. **Note:** until 0081 is on prod the webhook still works (dedup degrades to a no-op via the existing idempotent guards); the new failure-mode handlers need the table + columns to persist state.
