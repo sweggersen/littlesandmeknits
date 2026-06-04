@@ -138,7 +138,7 @@ A public payments marketplace can't open without: chargeback/fraud handling (tie
 - [x] **Admin observability → trends** ✅ 2026-06-04 — `/admin` now shows 7d/30d GMV, platform revenue, items sold, new signups, a 7-day sales sparkline, and a snapshot (active listings, open disputes, unresolved dead-letters). Service `admin-stats.ts` + tests.
 - [ ] Contact/support form that opens a moderator thread (reuse `moderation_threads`) instead of `mailto:`.
 - [ ] Partial refunds + reason picker.
-- [ ] `/om` real content (byline: Weggersen Design).
+- [◐] `/om` — NOT a stub after all: `AboutContent.astro` already has polished nb+en founder copy. Only gap: the `[navn]`/`[name]` placeholder in the intro (founder's first name to fill; the *designer byline* stays "Weggersen Design"). Owner input.
 - [ ] Phone surfacing (Vipps already returns verified phone).
 
 ### 2.4 Image delivery (cost + perf)
