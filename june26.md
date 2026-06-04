@@ -113,11 +113,11 @@ Two distinct bars. Don't blur them.
 
 ### 1.8 Apply pending migrations to prod + verify RLS == migrations (carryover) — OWNER ACTION
 Both migrations are validated against local Postgres (idempotent, objects present, RLS on). Applying to **prod** is an owner action (dashboard/linked CLI):
-- [ ] Apply `0080_fix_anon_profile_policy_reads.sql` (fixes anon-browse 403 from 0077).
-- [ ] Apply `0081_stripe_failure_events.sql` (§1.2 dedup ledger + dispute correlation + enum values).
-- [ ] Apply `0082_seller_activated_notification.sql` (§1.6 seller-activated enum value).
-- [ ] Enable the 5 §1.2 event types on the Stripe webhook endpoint (Dashboard → Developers → Webhooks): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`.
-- [ ] Then `supabase db diff --linked` must be empty. (Folds into §1.3's drift gate going forward.)
+- [x] Apply `0080_fix_anon_profile_policy_reads.sql` (fixes anon-browse 403 from 0077). ✅ 2026-06-04
+- [x] Apply `0081_stripe_failure_events.sql` (§1.2 dedup ledger + dispute correlation + enum values). ✅ 2026-06-04
+- [x] Apply `0082_seller_activated_notification.sql` (§1.6 seller-activated enum value). ✅ 2026-06-04
+- [ ] **STILL OPEN — enable the 5 §1.2 event types on the Stripe webhook endpoint** (Dashboard → Developers → Webhooks → your endpoint → "Select events"): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`. Until this is done the new handlers are deployed but Stripe never delivers those events to them.
+- [ ] Verify `supabase db diff --linked` is empty (confirms prod schema == migrations).
 **Effort:** XS. **Note:** until 0081 is on prod the webhook still works (dedup degrades to a no-op via the existing idempotent guards); the new failure-mode handlers need the table + columns to persist state.
 
 ---
