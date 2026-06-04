@@ -127,8 +127,12 @@ Both migrations are validated against local Postgres (idempotent, objects presen
 ### 2.1 Trust & Safety minimum (pulled forward from P2)
 A public payments marketplace can't open without: chargeback/fraud handling (ties to §1.2) · seller-payout velocity/anomaly caps (extend the existing quota system) · prohibited-items policy + enforcement · **Norwegian illegal-content reporting obligation** · buyer/seller block list · a 1-page moderator T&S runbook.
 
-### 2.2 Accessibility pass (WCAG AA)
-Contrast audit on the new colored pills/cards · keyboard nav + visible focus · focus trap + ESC + restore on the photo lightbox & modals · image alt text · form labels/aria · prefers-reduced-motion for view transitions.
+### 2.2 Accessibility pass (WCAG AA) — ◐ first pass done 2026-06-04
+- [x] **prefers-reduced-motion** — global `@media` kills View Transition animations + transitions + smooth scroll; wizard JS scroll honours it too (WCAG 2.3.3).
+- [x] **Contrast** — the small BRUKT/NYTT/OPPDRAG labels were ~3.6–3.8:1 (AA-large-only); darkened each category colour to clear 4.5:1 (Brukt #915f3a, Nytt #5d6f4b, Oppdrag #6f5494), applied to cards + headers + nav pills. Titles/body already pass.
+- [x] **Lightbox focus** — focus moves to close button on open, restores to the trigger on close (already had role=dialog/aria-modal/ESC/arrows/scroll-lock).
+- [x] **Icon buttons** — favourite heart got aria-label + aria-pressed (+ kept in sync on toggle); toolbar/search/gallery buttons were already labelled. Images already carry alt (decorative = `alt=""`).
+- [ ] **Remaining (needs a browser + axe):** full keyboard-nav sweep + visible-focus-ring audit, focus-trap on the remaining modals/menus, and an automated axe scan across the main flows. Best done in CI/browser, not by static reasoning.
 
 ### 2.3 Others
 Contact/support form that opens a moderator thread (reuse `moderation_threads`) instead of `mailto:` · admin observability → trends (GMV/revenue/signups/open reports, 7-day sparkline) · partial refunds + reason picker · `/om` real content (byline: Weggersen Design) · phone surfacing (Vipps already returns verified phone).
