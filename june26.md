@@ -135,7 +135,11 @@ A public payments marketplace can't open without: chargeback/fraud handling (tie
 - [ ] **Remaining (needs a browser + axe):** full keyboard-nav sweep + visible-focus-ring audit, focus-trap on the remaining modals/menus, and an automated axe scan across the main flows. Best done in CI/browser, not by static reasoning.
 
 ### 2.3 Others
-Contact/support form that opens a moderator thread (reuse `moderation_threads`) instead of `mailto:` · admin observability → trends (GMV/revenue/signups/open reports, 7-day sparkline) · partial refunds + reason picker · `/om` real content (byline: Weggersen Design) · phone surfacing (Vipps already returns verified phone).
+- [x] **Admin observability → trends** ✅ 2026-06-04 — `/admin` now shows 7d/30d GMV, platform revenue, items sold, new signups, a 7-day sales sparkline, and a snapshot (active listings, open disputes, unresolved dead-letters). Service `admin-stats.ts` + tests.
+- [ ] Contact/support form that opens a moderator thread (reuse `moderation_threads`) instead of `mailto:`.
+- [ ] Partial refunds + reason picker.
+- [ ] `/om` real content (byline: Weggersen Design).
+- [ ] Phone surfacing (Vipps already returns verified phone).
 
 ### 2.4 Image delivery (cost + perf)
 Photo-heavy app serves full-size images straight from Supabase storage → egress cost + poor LCP. Route through Cloudflare Images / a transform (thumbnails on cards, full on detail). Ties to the §A LCP gate.
