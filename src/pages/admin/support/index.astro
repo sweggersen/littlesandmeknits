@@ -1,0 +1,67 @@
+---
+import AdminLayout from '../../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../../lib/admin-auth';
+import { buildServiceContext } from '../../../lib/services/context';
+import { listSupportRequests, SUPPORT_CATEGORY_LABEL, type SupportCategory } from '../../../lib/services/support';
+import { timeAgo } from '../../../lib/time';
+
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth) return Astro.redirect('/market');
+
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+const res = ctx ? await listSupportRequests(ctx) : null;
+const open = res?.ok ? res.data.open : [];
+const resolved = res?.ok ? res.data.resolved : [];
+const justResolved = Astro.url.searchParams.get('resolved') === '1';
+const catLabel = (c: string) => SUPPORT_CATEGORY_LABEL[c as SupportCategory] ?? c;
+---
+
+<AdminLayout title="Admin — Henvendelser" current="support">
+  <h1 class="font-serif text-2xl mb-6">Henvendelser</h1>
+
+  {justResolved && (
+    <p class="text-sm text-sage-700 mb-4">✓ Markert som løst.</p>
+  )}
+
+  <h2 class="font-serif text-lg mb-3">Åpne ({open.length})</h2>
+  {open.length === 0 ? (
+    <p class="text-sm text-charcoal/55 mb-10">Ingen åpne henvendelser. 🎉</p>
+  ) : (
+    <div class="space-y-3 mb-10">
+      {open.map((r) => (
+        <div class="bg-white rounded-2xl border border-sage-500/10 p-4">
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{catLabel(r.category)}</span>
+            <span class="text-[11px] text-charcoal/40">· {timeAgo(r.created_at)}</span>
+          </div>
+          {r.subject && <p class="text-sm font-medium">{r.subject}</p>}
+          <p class="text-sm text-charcoal/75 mt-1 whitespace-pre-line">{r.body}</p>
+          <p class="text-[11px] text-charcoal/45 mt-2">Fra: {r.email ?? r.user_id ?? 'ukjent'}</p>
+          <form method="post" action="/api/admin/support/resolve" class="mt-3 flex items-center gap-2">
+            <input type="hidden" name="id" value={r.id} />
+            <input type="text" name="note" placeholder="Notat (valgfritt)" maxlength="1000"
+              class="flex-1 min-w-0 bg-linen rounded-lg px-3 py-1.5 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <button type="submit" class="shrink-0 bg-primary text-primary-fg px-3 py-1.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
+              Marker som løst
+            </button>
+          </form>
+        </div>
+      ))}
+    </div>
+  )}
+
+  {resolved.length > 0 && (
+    <>
+      <h2 class="font-serif text-lg mb-3">Nylig løst</h2>
+      <div class="space-y-2">
+        {resolved.map((r) => (
+          <div class="bg-white/60 rounded-xl border border-sage-500/10 p-3 text-sm">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mr-2">{catLabel(r.category)}</span>
+            <span class="text-charcoal/65">{r.subject ?? r.body.slice(0, 80)}</span>
+            {r.handled_note && <span class="text-charcoal/45"> — {r.handled_note}</span>}
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+</AdminLayout>

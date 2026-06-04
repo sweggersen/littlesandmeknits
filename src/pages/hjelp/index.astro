@@ -75,8 +75,46 @@ const faqs = [
       ))}
     </div>
 
-    <p class="text-sm text-charcoal/55 mt-12">
-      Trenger du mer hjelp? <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">Kontakt oss</a>.
-    </p>
+    <section id="kontakt" class="mt-14 pt-10 border-t border-sage-500/10">
+      <h2 class="font-serif text-2xl mb-2">Kontakt oss</h2>
+      <p class="text-sm text-charcoal/55 mb-5">
+        Fant du ikke svaret? Send oss en melding, så svarer vi så fort vi kan. Du må være innlogget for å bruke skjemaet, eller send en
+        <a href="mailto:hei@littlesandmeknits.com" class="text-terracotta-500 hover:underline">e-post</a>.
+      </p>
+
+      <div data-support-sent class="hidden mb-5 rounded-2xl bg-sage-100/60 border border-sage-500/20 p-4 text-sm text-sage-900">
+        Takk! Meldingen er sendt. Vi tar kontakt så snart vi kan.
+      </div>
+
+      <form method="post" action="/api/support/submit" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
+        <div>
+          <label for="support-category" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tema</label>
+          <select id="support-category" name="category" class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+            <option value="kjop">Kjøp</option>
+            <option value="salg">Salg</option>
+            <option value="betaling">Betaling og utbetaling</option>
+            <option value="konto">Konto</option>
+            <option value="annet" selected>Annet</option>
+          </select>
+        </div>
+        <div>
+          <label for="support-subject" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Emne (valgfritt)</label>
+          <input id="support-subject" name="subject" type="text" maxlength="200" class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        </div>
+        <div>
+          <label for="support-body" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Melding</label>
+          <textarea id="support-body" name="body" required minlength="5" maxlength="4000" rows="5" placeholder="Hva kan vi hjelpe deg med?"
+            class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+        </div>
+        <button type="submit" class="btn-primary rounded-full py-2.5 px-5 text-sm font-semibold">Send melding</button>
+      </form>
+    </section>
   </div>
+
+  <script is:inline>
+    if (new URLSearchParams(location.search).get('sent') === '1') {
+      document.querySelector('[data-support-sent]')?.classList.remove('hidden');
+      document.getElementById('kontakt')?.scrollIntoView({ block: 'start' });
+    }
+  </script>
 </Layout>

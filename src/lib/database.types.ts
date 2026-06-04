@@ -2281,6 +2281,63 @@ export type Database = {
         }
         Relationships: []
       }
+      support_requests: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          email: string | null
+          handled_note: string | null
+          id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          subject: string | null
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          category?: string
+          created_at?: string
+          email?: string | null
+          handled_note?: string | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          email?: string | null
+          handled_note?: string | null
+          id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_requests_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_reviews: {
         Row: {
           comment: string | null

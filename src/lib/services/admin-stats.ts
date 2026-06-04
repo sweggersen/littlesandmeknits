@@ -16,6 +16,7 @@ export interface DashboardTrends {
   activeListings: number;
   openDisputes: number;     // listings + commissions in 'disputed'
   openDeadLetters: number;  // unresolved money-path failures (§1.2)
+  openSupport: number;      // open support_requests (§2.3)
   dailySold: number[];      // items sold per day, last 7 days, oldest -> newest (today)
 }
 
@@ -58,13 +59,14 @@ export async function getDashboardTrends(ctx: ServiceContext): Promise<ServiceRe
     }
   }
 
-  const [signups7, signups30, activeListings, listingDisputes, commissionDisputes, deadLetters] = await Promise.all([
+  const [signups7, signups30, activeListings, listingDisputes, commissionDisputes, deadLetters, openSupport] = await Promise.all([
     ctx.admin.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', since7),
     ctx.admin.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', since30),
     ctx.admin.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'active'),
     ctx.admin.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'disputed'),
     ctx.admin.from('commission_requests').select('id', { count: 'exact', head: true }).eq('status', 'disputed'),
     ctx.admin.from('dead_letter_events').select('id', { count: 'exact', head: true }).is('resolved_at', null),
+    ctx.admin.from('support_requests').select('id', { count: 'exact', head: true }).eq('status', 'open'),
   ]);
 
   return ok({
@@ -74,6 +76,7 @@ export async function getDashboardTrends(ctx: ServiceContext): Promise<ServiceRe
     activeListings: activeListings.count ?? 0,
     openDisputes: (listingDisputes.count ?? 0) + (commissionDisputes.count ?? 0),
     openDeadLetters: deadLetters.count ?? 0,
+    openSupport: openSupport.count ?? 0,
     dailySold,
   });
 }

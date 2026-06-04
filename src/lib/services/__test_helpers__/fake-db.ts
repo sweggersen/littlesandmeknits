@@ -27,7 +27,7 @@ type FilterType = 'eq' | 'in' | 'is' | 'neq' | 'gte' | 'lte' | 'ilike' | 'or';
 interface Filter { type: FilterType; col: string; val: unknown }
 
 export interface FakeOp {
-  op: 'select' | 'insert' | 'update' | 'delete';
+  op: 'select' | 'insert' | 'update' | 'delete' | 'upsert';
   table: string;
   filters: Filter[];
   payload?: unknown;
@@ -87,6 +87,7 @@ class FakeQuery {
   private cols?: string;
   private hasSelect = false;
   private isCount = false;
+  private conflict?: string;
 
   constructor(
     private readonly table: string,
@@ -112,6 +113,7 @@ class FakeQuery {
   }
   insert(row: unknown) { this.opType = 'insert'; this.payload = row; return this; }
   update(row: unknown) { this.opType = 'update'; this.payload = row; return this; }
+  upsert(row: unknown, opts?: { onConflict?: string }) { this.opType = 'upsert'; this.payload = row; this.conflict = opts?.onConflict; return this; }
   delete() { this.opType = 'delete'; return this; }
 
   eq(col: string, val: unknown) { this.filters.push({ type: 'eq', col, val }); return this; }
@@ -154,6 +156,22 @@ class FakeQuery {
         return row;
       });
       const data = mode === 'list' ? inserted.map(proj) : (inserted[0] ? proj(inserted[0]) : null);
+      return { data, error: null };
+    }
+
+    if (this.opType === 'upsert') {
+      // Insert, or update the row matching the onConflict key(s) (defaults to id).
+      const rows = Array.isArray(this.payload) ? this.payload as Row[] : [this.payload as Row];
+      const keys = (this.conflict ?? 'id').split(',').map((s) => s.trim());
+      const out = rows.map((r) => {
+        const existing = this.tableRows().find((row) => keys.every((k) => row[k] === (r as Row)[k]));
+        if (existing) { Object.assign(existing, r); return existing; }
+        const row: Row = { ...(r as Row) };
+        if (row.id === undefined) row.id = this.genId();
+        this.tableRows().push(row);
+        return row;
+      });
+      const data = this.hasSelect ? (mode === 'list' ? out.map(proj) : (out[0] ? proj(out[0]) : null)) : null;
       return { data, error: null };
     }
 

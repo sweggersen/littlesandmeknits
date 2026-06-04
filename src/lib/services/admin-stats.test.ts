@@ -29,6 +29,10 @@ function seed(role = 'admin') {
       { id: 'dl1', resolved_at: null },
       { id: 'dl2', resolved_at: ago(3) },
     ],
+    support_requests: [
+      { id: 'sr1', status: 'open' },
+      { id: 'sr2', status: 'resolved' },
+    ],
   });
 }
 
@@ -64,6 +68,7 @@ describe('getDashboardTrends', () => {
     expect(d.activeListings).toBe(1);
     expect(d.openDisputes).toBe(2); // 1 listing + 1 commission
     expect(d.openDeadLetters).toBe(1); // only the unresolved one
+    expect(d.openSupport).toBe(1); // only the open one
   });
 
   it('buckets the 7-day sparkline (sum equals sold7)', async () => {

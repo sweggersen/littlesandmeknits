@@ -11,12 +11,14 @@ import { fail } from './types';
 export type QuotaAction =
   | 'commission_request_create'
   | 'commission_offer_make'
-  | 'marketplace_message_send';
+  | 'marketplace_message_send'
+  | 'support_request_create';
 
 const DAILY_LIMITS: Record<QuotaAction, number> = {
   commission_request_create: 5,
   commission_offer_make: 20,
   marketplace_message_send: 100,
+  support_request_create: 10,
 };
 
 function today(): string {
