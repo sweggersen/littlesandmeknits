@@ -35,7 +35,10 @@ export function init(): void {
     submit.classList.toggle('hidden', n !== steps.length);
     // Only scroll when the user advances/goes back between steps — not on the
     // initial render, where it would jump past the page header + step bar.
-    if (scroll) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (scroll) {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      form.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+    }
   }
 
   function validateStep(n: number): boolean {

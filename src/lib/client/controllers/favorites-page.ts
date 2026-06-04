@@ -35,6 +35,8 @@ export function init(): void {
       // Reflect the heart state in place (no layout change).
       const svg = btn.querySelector('svg');
       if (svg) svg.setAttribute('fill', favorited ? 'currentColor' : 'none');
+      el.setAttribute('aria-pressed', favorited ? 'true' : 'false');
+      el.setAttribute('aria-label', favorited ? 'Fjern fra favoritter' : 'Lagre som favoritt');
       if (favorited) {
         el.classList.remove('text-charcoal/30');
         el.style.color = 'var(--color-primary)';

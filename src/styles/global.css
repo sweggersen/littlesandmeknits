@@ -125,6 +125,24 @@
   }
 }
 
+/* Accessibility: honour the OS "reduce motion" setting (WCAG 2.3.3). Kills the
+   View Transition animations, hover/transition motion, and smooth scrolling so
+   nothing animates for users who opt out. Lives outside @layer so the
+   !important reliably wins over component animations. */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Bottom tab bar styling (rendered by StudioTabBar.astro). Lives here
    instead of inside the component because Astro's component <style>
    blocks are scoped, and the tab-sheet backdrop / card need to reach

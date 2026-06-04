@@ -40,6 +40,9 @@ export function init(): void {
       const { favorited } = await res.json();
       const svg = btn.querySelector('svg');
       if (svg) svg.setAttribute('fill', favorited ? 'currentColor' : 'none');
+      // Keep the button's accessible state in sync for screen readers.
+      el.setAttribute('aria-pressed', favorited ? 'true' : 'false');
+      el.setAttribute('aria-label', favorited ? 'Fjern fra favoritter' : 'Lagre som favoritt');
       // Toggle the unfavorited utility class AND the inline color so
       // the visual state matches regardless of cascade quirks. Uses
       // the brand --color-primary token so a re-skin updates the
