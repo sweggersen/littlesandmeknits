@@ -600,6 +600,7 @@ export type Database = {
           buyer_name: string | null
           buyer_postal_code: string | null
           buyer_tb_fee_nok: number | null
+          can_meet: boolean
           category: Database["public"]["Enums"]["listing_category"]
           colorway: string | null
           condition: Database["public"]["Enums"]["listing_condition"] | null
@@ -676,6 +677,7 @@ export type Database = {
           buyer_name?: string | null
           buyer_postal_code?: string | null
           buyer_tb_fee_nok?: number | null
+          can_meet?: boolean
           category: Database["public"]["Enums"]["listing_category"]
           colorway?: string | null
           condition?: Database["public"]["Enums"]["listing_condition"] | null
@@ -752,6 +754,7 @@ export type Database = {
           buyer_name?: string | null
           buyer_postal_code?: string | null
           buyer_tb_fee_nok?: number | null
+          can_meet?: boolean
           category?: Database["public"]["Enums"]["listing_category"]
           colorway?: string | null
           condition?: Database["public"]["Enums"]["listing_condition"] | null

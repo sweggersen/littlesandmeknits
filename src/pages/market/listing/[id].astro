@@ -32,14 +32,14 @@ const user = Astro.locals.user;
 
 let { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
+  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
   .eq('id', id)
   .maybeSingle();
 
 if (!listing) {
   const { data: fallback } = await supabase
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id')
     .eq('id', id)
     .maybeSingle();
   if (fallback) listing = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null, buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null } as any;
@@ -52,13 +52,13 @@ if (!listing && isStaff) {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
   let { data } = await admin
     .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
+    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
     .eq('id', id)
     .maybeSingle();
   if (!data) {
     const { data: fallback } = await admin
       .from('listings')
-      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, shipping_option, shipping_price_nok, store_id')
+      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id')
       .eq('id', id)
       .maybeSingle();
     if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
@@ -402,6 +402,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
 
 
               {/* ── Buyer CTAs (active listings, viewer is not owner/buyer) ── */}
+              {/* Kan sendes → buy through the app with trygg betaling. */}
               {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && sellerOnboarded && (
                 <BuyActions
                   listingId={listing.id}
@@ -413,17 +414,33 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                 />
               )}
 
-
-              {/* ── No escrow / no Stripe — keep simple message + meet-up ── */}
-              {!isOwner && !isBuyer && listing.status === 'active' && !(listing.escrow_enabled && sellerOnboarded) && (
+              {/* Shipping offered, but seller is still finishing payout setup. */}
+              {!isOwner && !isBuyer && listing.status === 'active' && listing.escrow_enabled && !sellerOnboarded && (
                 <section class="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 text-sm">
-                  <p class="font-medium text-amber-900 mb-1">⚠️ <TryggBetaling /> er ikke tilgjengelig</p>
+                  <p class="font-medium text-amber-900 mb-1">Kjøp blir tilgjengelig snart</p>
                   <p class="text-charcoal/65">
-                    {listing.escrow_enabled
-                      ? 'Selger har ikke fullført Stripe-onboarding ennå.'
-                      : <>Selger har ikke aktivert <TryggBetaling />.</>}
-                    {' '}Du kan fortsatt sende melding og avtale møte eller Vipps, men Strikketorget gir
-                    ingen kjøperbeskyttelse på dette salget.
+                    Selger fullfører oppsett av <TryggBetaling />. Kjøp i appen blir tilgjengelig så snart det er klart.
+                    {listing.can_meet ? ' Du kan avtale henting lokalt nå.' : ''}
+                  </p>
+                </section>
+              )}
+
+              {/* Kan møtes → local handover, paid off-platform via the melding below. */}
+              {!isOwner && !isBuyer && listing.status === 'active' && listing.can_meet && (
+                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 text-sm">
+                  <p class="font-medium mb-1">🤝 Kan møtes</p>
+                  <p class="text-charcoal/65">
+                    Avtal henting og betaling lokalt (Vipps eller kontant) via meldingen under.
+                    Merk: Strikketorget gir ingen kjøperbeskyttelse ved møte.
+                  </p>
+                </section>
+              )}
+
+              {/* Legacy fallback: neither shipping-with-escrow nor meet available. */}
+              {!isOwner && !isBuyer && listing.status === 'active' && !listing.escrow_enabled && !listing.can_meet && (
+                <section class="bg-amber-50/60 border border-amber-200 rounded-3xl p-5 text-sm">
+                  <p class="text-charcoal/65">
+                    Selger har ikke aktivert kjøp i appen. Send en melding under for å avtale.
                   </p>
                 </section>
               )}

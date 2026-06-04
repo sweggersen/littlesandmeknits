@@ -26,33 +26,51 @@ const { shippingTiers } = Astro.props;
     </p>
   </div>
 
-  <fieldset class="space-y-2">
-    <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fraktalternativ *</legend>
-    {shippingTiers.map((t, i) => (
-      <label class="flex items-start gap-3 bg-linen rounded-xl p-3 cursor-pointer border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/40 transition-colors">
-        <input type="radio" name="shipping_option" value={t.id} required checked={i === 0} class="mt-1 shrink-0" />
-        <span class="flex-1 min-w-0">
-          <span class="flex items-baseline justify-between gap-2">
-            <span class="text-sm font-medium">{t.label}</span>
-            <span class="text-sm font-mono text-charcoal/65 shrink-0">{t.priceNok > 0 ? `${t.priceNok} kr` : 'Gratis'}</span>
-          </span>
-          <span class="block text-xs text-charcoal/55 mt-0.5">{t.description}</span>
-        </span>
-      </label>
-    ))}
-    <p class="text-[11px] text-charcoal/45 mt-1.5">Kjøperen ser kostnaden tydelig før kjøp. Du får fraktbeløpet utbetalt sammen med varen.</p>
-  </fieldset>
+  <fieldset class="space-y-3" data-delivery>
+    <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Levering *</legend>
 
-  <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
-    <input type="checkbox" name="escrow_enabled" value="true" checked class="mt-1 shrink-0" />
-    <span class="flex-1">
-      <span class="block text-sm font-medium">🛡️ Aktiver trygg betaling (anbefalt)</span>
-      <span class="block text-xs text-charcoal/55 mt-1">
-        Kjøper betaler trygt via Strikketorget. Pengene holdes til kjøper bekrefter mottak,
-        ellers automatisk frigjøring 14 dager etter sending. Du som selger betaler ingenting, kjøperen dekker en liten avgift.
+    <!-- Kan sendes — the only in-app buy path; always trygg betaling. -->
+    <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
+      <input type="checkbox" name="can_ship" value="true" checked data-can-ship class="mt-1 shrink-0" />
+      <span class="flex-1">
+        <span class="block text-sm font-medium">📦 Kan sendes</span>
+        <span class="block text-xs text-charcoal/55 mt-1">
+          Kjøp i appen skjer med 🛡️ trygg betaling: pengene holdes trygt til levering er bekreftet.
+          Du som selger betaler ingenting, kjøperen dekker en liten avgift.
+        </span>
       </span>
-    </span>
-  </label>
+    </label>
+
+    <!-- Shipping tier — only relevant when "kan sendes" is on. -->
+    <div data-ship-options class="pl-2 space-y-2">
+      {shippingTiers.map((t, i) => (
+        <label class="flex items-start gap-3 bg-linen rounded-xl p-3 cursor-pointer border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/40 transition-colors">
+          <input type="radio" name="shipping_option" value={t.id} required checked={i === 0} data-ship-tier class="mt-1 shrink-0" />
+          <span class="flex-1 min-w-0">
+            <span class="flex items-baseline justify-between gap-2">
+              <span class="text-sm font-medium">{t.label}</span>
+              <span class="text-sm font-mono text-charcoal/65 shrink-0">{t.priceNok > 0 ? `${t.priceNok} kr` : 'Gratis'}</span>
+            </span>
+            <span class="block text-xs text-charcoal/55 mt-0.5">{t.description}</span>
+          </span>
+        </label>
+      ))}
+      <p class="text-[11px] text-charcoal/45 mt-1.5">Kjøperen ser fraktkostnaden før kjøp. Du får fraktbeløpet utbetalt sammen med varen.</p>
+    </div>
+
+    <!-- Kan møtes — local handover, paid off-platform, no protection. -->
+    <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
+      <input type="checkbox" name="can_meet" value="true" data-can-meet class="mt-1 shrink-0" />
+      <span class="flex-1">
+        <span class="block text-sm font-medium">🤝 Kan møtes</span>
+        <span class="block text-xs text-charcoal/55 mt-1">
+          Avtal henting og betaling lokalt (Vipps eller kontant). Merk: ingen kjøperbeskyttelse ved møte.
+        </span>
+      </span>
+    </label>
+
+    <p data-delivery-error class="hidden text-xs font-medium text-terracotta-600">Velg minst ett leveringsalternativ.</p>
+  </fieldset>
 
   <div>
     <label for="shipping_info" class="block text-xs text-charcoal/55 mb-1">Frakt-merknad (valgfritt)</label>

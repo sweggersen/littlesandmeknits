@@ -27,7 +27,7 @@ export async function createListing(
     sizeAgeMonthsMin?: string; sizeAgeMonthsMax?: string;
     location?: string; shippingInfo?: string;
     storeId?: string;
-    shippingOption?: string; escrowEnabled?: string;
+    shippingOption?: string; canShip?: string; canMeet?: string;
     knittedBy?: string;
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
@@ -69,23 +69,34 @@ export async function createListing(
     storeId = input.storeId;
   }
 
-  // Trygg betaling is now free. Default ON for stores (their subscription
-  // covers it) and ON for personal sellers when they explicitly tick the
-  // box on step 2 of the wizard.
-  const escrowEnabled = !!storeId || input.escrowEnabled === 'true';
+  // Delivery: shipping and/or local meet, non-exclusive, at least one.
+  // Shipping is the only in-app buy path and ALWAYS uses trygg betaling
+  // (escrow) — there is no "ship without protection". Meet = off-platform.
+  const canShip = input.canShip === 'true';
+  const canMeet = input.canMeet === 'true';
+  if (!canShip && !canMeet) {
+    return fail('bad_input', 'Velg minst ett leveringsalternativ: sending eller henting.');
+  }
 
-  // Shipping option locked at listing time. Falls back to 'free' for
-  // anything weird so the schema CHECK constraint is satisfied.
-  const { SHIPPING_TIERS } = await import('../shipping');
-  const tier = SHIPPING_TIERS.find(t => t.id === input.shippingOption) ?? SHIPPING_TIERS[0];
+  let shippingOptionId: string | null = null;
+  let shippingPriceNok = 0;
+  if (canShip) {
+    const { SHIPPING_TIERS } = await import('../shipping');
+    const tier = SHIPPING_TIERS.find(t => t.id === input.shippingOption) ?? SHIPPING_TIERS[0];
+    shippingOptionId = tier.id;
+    shippingPriceNok = tier.priceNok;
+  }
+  // Shipping implies escrow; stores keep it on too (covered by subscription).
+  const escrowEnabled = canShip || !!storeId;
 
   const { data, error } = await ctx.supabase
     .from('listings')
     .insert({
       seller_id: ctx.user.id, store_id: storeId,
       escrow_enabled: escrowEnabled,
-      shipping_option: tier.id,
-      shipping_price_nok: tier.priceNok,
+      can_meet: canMeet,
+      shipping_option: shippingOptionId as 'free' | 'small_letter' | 'small_parcel' | 'parcel' | null,
+      shipping_price_nok: shippingPriceNok,
       // VALID_KIND / VALID_CATEGORIES / VALID_CONDITION above narrow
       // these to the enum values but TS can't carry the narrowing
       // across a Set.has() check. Cast at the insert site.

@@ -47,6 +47,12 @@ export function init(): void {
       if (el.offsetParent === null) continue;
       if (!el.checkValidity()) { el.reportValidity(); return false; }
     }
+    // Delivery: at least one of "kan sendes" / "kan møtes".
+    if (n === 2 && !canShipEl?.checked && !canMeetEl?.checked) {
+      deliveryError?.classList.remove('hidden');
+      canShipEl?.focus();
+      return false;
+    }
     return true;
   }
 
@@ -67,6 +73,23 @@ export function init(): void {
   }
   kindEl?.addEventListener('change', syncKind);
   syncKind();
+
+  // Delivery: "kan sendes" reveals the shipping-tier picker (and makes it
+  // required); a listing must offer shipping and/or "kan møtes".
+  const canShipEl = document.querySelector<HTMLInputElement>('[data-can-ship]');
+  const canMeetEl = document.querySelector<HTMLInputElement>('[data-can-meet]');
+  const shipOptions = document.querySelector<HTMLElement>('[data-ship-options]');
+  const shipTiers = Array.from(document.querySelectorAll<HTMLInputElement>('[data-ship-tier]'));
+  const deliveryError = document.querySelector<HTMLElement>('[data-delivery-error]');
+  function syncDelivery() {
+    const on = !!canShipEl?.checked;
+    if (shipOptions) shipOptions.style.display = on ? '' : 'none';
+    shipTiers.forEach((r) => { r.disabled = !on; });
+    if (deliveryError && (canShipEl?.checked || canMeetEl?.checked)) deliveryError.classList.add('hidden');
+  }
+  canShipEl?.addEventListener('change', syncDelivery);
+  canMeetEl?.addEventListener('change', syncDelivery);
+  syncDelivery();
 
   // First-listing chips — set ONLY the type + category as a quick start
   // (june26 §1.5). Everything else stays the seller's own. "Tomt ark" just

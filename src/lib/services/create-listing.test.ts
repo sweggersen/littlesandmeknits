@@ -33,7 +33,7 @@ const validInput = {
   condition: 'som_ny',
   description: 'Strikket i merinoull',
   shippingOption: 'small_parcel',
-  escrowEnabled: 'true',
+  canShip: 'true',
 };
 
 describe('createListing — validation', () => {
@@ -98,7 +98,7 @@ describe('createListing — validation', () => {
     const mock = createMockSupabase({ insert: { listings: { data: { id: 'new-1' } } } });
     const r = await createListing(ctxFor(mock), {
       kind: 'ready_made', title: 'Ny lue', category: 'lue',
-      sizeLabel: 'One size', priceNok: '300', shippingOption: 'small_letter',
+      sizeLabel: 'One size', priceNok: '300', shippingOption: 'small_letter', canShip: 'true',
     });
     expect(r.ok).toBe(true);
     expect(mock.inserts('listings')[0].payload).toMatchObject({ kind: 'ready_made', condition: null });
@@ -133,7 +133,9 @@ describe('createListing — store membership', () => {
       },
       insert: { listings: { data: { id: 'new-2' } } },
     });
-    const r = await createListing(ctxFor(mock), { ...validInput, storeId: 'store-1', escrowEnabled: 'false' });
+    // Even a meet-only store listing (no shipping) keeps escrow on, since the
+    // store subscription covers it.
+    const r = await createListing(ctxFor(mock), { ...validInput, storeId: 'store-1', canShip: undefined, canMeet: 'true' });
     expect(r.ok).toBe(true);
     expect(mock.inserts('listings')[0].payload).toMatchObject({ store_id: 'store-1', escrow_enabled: true });
   });
