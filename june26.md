@@ -116,6 +116,7 @@ Both migrations are validated against local Postgres (idempotent, objects presen
 - [x] Apply `0080_fix_anon_profile_policy_reads.sql` (fixes anon-browse 403 from 0077). ✅ 2026-06-04
 - [x] Apply `0081_stripe_failure_events.sql` (§1.2 dedup ledger + dispute correlation + enum values). ✅ 2026-06-04
 - [x] Apply `0082_seller_activated_notification.sql` (§1.6 seller-activated enum value). ✅ 2026-06-04
+- [ ] Apply `0083_support_requests.sql` (§2.3 contact-form table + RLS). Validated locally 2026-06-04.
 - [ ] **STILL OPEN — enable the 5 §1.2 event types on the Stripe webhook endpoint** (Dashboard → Developers → Webhooks → your endpoint → "Select events"): `charge.dispute.created`, `charge.dispute.closed`, `payout.failed`, `payment_intent.payment_failed`, `charge.refunded`. Until this is done the new handlers are deployed but Stripe never delivers those events to them.
 - [ ] Verify `supabase db diff --linked` is empty (confirms prod schema == migrations).
 **Effort:** XS. **Note:** until 0081 is on prod the webhook still works (dedup degrades to a no-op via the existing idempotent guards); the new failure-mode handlers need the table + columns to persist state.
@@ -136,7 +137,7 @@ A public payments marketplace can't open without: chargeback/fraud handling (tie
 
 ### 2.3 Others
 - [x] **Admin observability → trends** ✅ 2026-06-04 — `/admin` now shows 7d/30d GMV, platform revenue, items sold, new signups, a 7-day sales sparkline, and a snapshot (active listings, open disputes, unresolved dead-letters). Service `admin-stats.ts` + tests.
-- [ ] Contact/support form that opens a moderator thread (reuse `moderation_threads`) instead of `mailto:`.
+- [x] **Contact/support form** ✅ 2026-06-04 — chose a dedicated `support_requests` table (moderation_threads didn't fit a generic contact-us) + `/admin/support` staff inbox + open-count on the dashboard. Form on `/hjelp` (mailto fallback for logged-out). Migration `0083` (owner: apply to prod).
 - [ ] Partial refunds + reason picker.
 - [◐] `/om` — NOT a stub after all: `AboutContent.astro` already has polished nb+en founder copy. Only gap: the `[navn]`/`[name]` placeholder in the intro (founder's first name to fill; the *designer byline* stays "Weggersen Design"). Owner input.
 - [ ] Phone surfacing (Vipps already returns verified phone).
