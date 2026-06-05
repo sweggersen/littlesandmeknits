@@ -3,6 +3,8 @@
 // toggle, optional shipping memo. Extracted from
 // src/pages/market/listing/new.astro.
 
+import TryggBetaling from '../../TryggBetaling.astro';
+
 interface ShippingTier {
   id: string;
   label: string;
@@ -33,9 +35,9 @@ const { shippingTiers } = Astro.props;
     <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
       <input type="checkbox" name="can_ship" value="true" checked data-can-ship class="mt-1 shrink-0" />
       <span class="flex-1">
-        <span class="block text-sm font-medium">📦 Kan sendes</span>
+        <span class="block text-sm font-medium">Kan sendes</span>
         <span class="block text-xs text-charcoal/55 mt-1">
-          Kjøp i appen skjer med 🛡️ trygg betaling: pengene holdes trygt til levering er bekreftet.
+          Kjøp i appen skjer med <TryggBetaling />: pengene holdes trygt til levering er bekreftet.
           Du som selger betaler ingenting, kjøperen dekker en liten avgift.
         </span>
       </span>
@@ -62,7 +64,7 @@ const { shippingTiers } = Astro.props;
     <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
       <input type="checkbox" name="can_meet" value="true" data-can-meet class="mt-1 shrink-0" />
       <span class="flex-1">
-        <span class="block text-sm font-medium">🤝 Kan møtes</span>
+        <span class="block text-sm font-medium">Kan møtes</span>
         <span class="block text-xs text-charcoal/55 mt-1">
           Avtal henting og betaling lokalt (Vipps eller kontant). Merk: ingen kjøperbeskyttelse ved møte.
         </span>

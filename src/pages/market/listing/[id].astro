@@ -345,7 +345,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
               {isOwner && listing.status === 'active' && !listing.escrow_enabled && !listing.store_id && (
                 <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
                   <div class="flex items-start gap-3">
-                    <div class="text-2xl">🛡️</div>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sage-700 shrink-0 mt-0.5" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
                     <div class="flex-1">
                       <h3 class="font-serif text-lg mb-1">Aktiver trygg betaling</h3>
                       <p class="text-sm text-charcoal/65">
@@ -367,7 +367,6 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
               {isOwner && listing.escrow_enabled && (
                 <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center justify-between gap-3 flex-wrap">
                   <div class="flex items-center gap-2">
-                    <span>🛡️</span>
                     <span><TryggBetaling /> er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
                   </div>
                   <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`} class="shrink-0">
@@ -428,7 +427,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
               {/* Kan møtes → local handover, paid off-platform via the melding below. */}
               {!isOwner && !isBuyer && listing.status === 'active' && listing.can_meet && (
                 <section class="bg-white rounded-3xl p-5 border border-sage-500/10 text-sm">
-                  <p class="font-medium mb-1">🤝 Kan møtes</p>
+                  <p class="font-medium mb-1">Kan møtes</p>
                   <p class="text-charcoal/65">
                     Avtal henting og betaling lokalt (Vipps eller kontant) via meldingen under.
                     Merk: Strikketorget gir ingen kjøperbeskyttelse ved møte.
@@ -445,9 +444,11 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                 </section>
               )}
 
-              {/* ── Send melding (tertiary, secondary surface) ─────────── */}
+              {/* ── Send melding ── Open by default when there's no in-app
+                   buy (meet-only / seller still onboarding), so the buyer can
+                   act right away; collapsed when "Kjøp nå" is the primary CTA. */}
               {!isOwner && !isBuyer && listing.status === 'active' && (
-                <details class="bg-white rounded-3xl border border-sage-500/10 mt-3 group">
+                <details open={!(listing.escrow_enabled && sellerOnboarded)} class="bg-white rounded-3xl border border-sage-500/10 mt-3 group">
                   <summary class="cursor-pointer p-4 text-sm font-medium text-charcoal/70 hover:text-charcoal flex items-center justify-between">
                     <span>Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/30 group-open:rotate-180 transition-transform shrink-0">

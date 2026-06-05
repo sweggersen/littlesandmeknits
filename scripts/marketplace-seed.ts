@@ -412,6 +412,19 @@ async function main() {
 
   ok(`Deleted ${deletedListings ?? 0} listings, ${deletedConvos ?? 0} conversations, ${deletedMsgs ?? 0} messages`);
 
+  // Onboard sellers (local demo) so escrow/"Kan sendes" listings show "Kjøp nå".
+  const sellerIds = new Set(LISTINGS.map(l => personaMap.get(l.sellerSlug)).filter(Boolean) as string[]);
+  for (const sid of sellerIds) {
+    await admin.from('seller_profiles').upsert({
+      id: sid,
+      stripe_account_id: `acct_demo_${sid.replace(/-/g, '').slice(0, 12)}`,
+      stripe_connect_status: 'verified',
+      stripe_onboarded: true,
+      seller_verified_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+  }
+  ok(`Onboarded ${sellerIds.size} demo sellers`);
+
   // 3. Create listings
   heading('Creating listings...');
   const listingIdMap = new Map<string, string>(); // title → listing_id
@@ -433,6 +446,12 @@ async function main() {
       shipping_info: l.shipping_info,
       status: l.status === 'sold' ? 'active' : l.status, // set active first, mark sold later
     };
+    // Delivery modes: cheap items are meet-only (local), the rest ship with
+    // trygg betaling (escrow) and can also be met.
+    const cheap = l.price_nok < 150;
+    insertData.can_meet = true;
+    insertData.escrow_enabled = !cheap;
+    if (!cheap) { insertData.shipping_option = 'small_parcel'; insertData.shipping_price_nok = 76; }
     if (l.size_age_months_min != null) insertData.size_age_months_min = l.size_age_months_min;
     if (l.size_age_months_max != null) insertData.size_age_months_max = l.size_age_months_max;
     if (l.condition) insertData.condition = l.condition;
