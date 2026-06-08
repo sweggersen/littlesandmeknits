@@ -292,6 +292,8 @@ const {
             price={l.price_nok}
             imgUrl={projectPhotoUrl(l.hero_photo_path)}
             meta={KIND_LABEL[l.kind]}
+            escrowEnabled={l.escrow_enabled ?? false}
+            canMeet={l.can_meet ?? false}
           />
         ))}
       </ul>

@@ -29,7 +29,7 @@ const [
     .maybeSingle(),
   supabase
     .from('listings')
-    .select('id, title, price_nok, status, kind, hero_photo_path')
+    .select('id, title, price_nok, status, kind, hero_photo_path, escrow_enabled, can_meet')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false })
     .limit(6),

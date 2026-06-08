@@ -101,7 +101,7 @@ const PREVIEW_LABEL: Record<string, string> = {
 // Active listings
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, title, price_nok, hero_photo_path, status, kind, size_label, category')
+  .select('id, title, price_nok, hero_photo_path, status, kind, size_label, category, escrow_enabled, can_meet')
   .eq('store_id', store.id)
   .eq('status', 'active')
   .order('promoted_until', { ascending: false, nullsFirst: false })
@@ -182,6 +182,8 @@ const storeShare = storeShareMeta({
                     price={l.price_nok}
                     imgUrl={l.hero_photo_path ? projectPhotoUrl(l.hero_photo_path) : undefined}
                     meta={l.size_label}
+                    escrowEnabled={l.escrow_enabled ?? false}
+                    canMeet={l.can_meet ?? false}
                   />
                 ))}
               </ul>

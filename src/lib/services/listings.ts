@@ -239,30 +239,6 @@ export async function markListingSold(
   return ok({ redirect: `/market/listing/${input.listingId}?sold=1` });
 }
 
-/** Toggle Trygg betaling on/off for a listing.
- *  Now free for the seller — the buyer pays a small TB fee at checkout. */
-export async function toggleListingEscrow(
-  ctx: ServiceContext,
-  input: { listingId: string; enabled: boolean },
-): Promise<ServiceResult<{ redirect: string }>> {
-  if (!input.listingId) return fail('bad_input', 'Missing id');
-
-  const { data: listing } = await ctx.admin
-    .from('listings')
-    .select('id, seller_id, status')
-    .eq('id', input.listingId)
-    .maybeSingle();
-
-  if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
-
-  await ctx.admin
-    .from('listings')
-    .update({ escrow_enabled: !!input.enabled })
-    .eq('id', input.listingId);
-
-  return ok({ redirect: `/market/listing/${input.listingId}?tb=${input.enabled ? 'on' : 'off'}` });
-}
-
 async function syncHero(supabase: SupabaseClient, listingId: string) {
   const { data: first } = await supabase
     .from('listing_photos').select('path').eq('listing_id', listingId)

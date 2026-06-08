@@ -29,7 +29,7 @@ const user = Astro.locals.user;
 
 const { data: listings } = await supabase
   .from('listings')
-  .select('id, title, kind, price_nok, size_label, hero_photo_path, promoted_until, promotion_tier, category, favorite_count')
+  .select('id, title, kind, price_nok, size_label, hero_photo_path, promoted_until, promotion_tier, category, favorite_count, escrow_enabled, can_meet')
   .eq('status', 'active')
   .eq('kind', dbKind)
   .eq('category', categoryParam as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet')
@@ -91,6 +91,8 @@ const seoDescription = `${rows.length > 0 ? `${rows.length}+ annonser` : 'Annons
             meta={`${kindLabelNo} · str. ${l.size_label}`}
             showFav={!!user}
             isFav={favIds.includes(l.id)}
+            escrowEnabled={l.escrow_enabled ?? false}
+            canMeet={l.can_meet ?? false}
             promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
             promotionTier={l.promotion_tier as 'boost' | 'highlight' | null ?? null}
           />

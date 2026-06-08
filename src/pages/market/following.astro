@@ -27,7 +27,7 @@ let favIds: string[] = [];
 if (sellerIds.length > 0) {
   const { data } = await supabase
     .from('listings')
-    .select('id, title, kind, price_nok, size_label, hero_photo_path, category, promoted_until, promotion_tier, seller_id')
+    .select('id, title, kind, price_nok, size_label, hero_photo_path, category, promoted_until, promotion_tier, seller_id, escrow_enabled, can_meet')
     .eq('status', 'active')
     .in('seller_id', sellerIds)
     .order('published_at', { ascending: false })
@@ -77,6 +77,8 @@ if (sellerIds.length > 0) {
             meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
             showFav
             isFav={favIds.includes(l.id)}
+            escrowEnabled={l.escrow_enabled ?? false}
+            canMeet={l.can_meet ?? false}
             promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
             promotionTier={l.promotion_tier ?? null}
           />
