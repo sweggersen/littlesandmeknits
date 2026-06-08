@@ -23,6 +23,10 @@ interface Env {
   BRING_API_UID: string;
   BRING_API_KEY: string;
   BRING_CUSTOMER_NUMBER: string;
+  // Helthjem parcel API (june26.md §2.6) — optional; absent = integration dormant.
+  HELTHJEM_CLIENT_ID?: string;
+  HELTHJEM_CLIENT_SECRET?: string;
+  HELTHJEM_SHOP_ID?: string;
   VIPPS_ENV: 'test' | 'prod';
   VIPPS_CLIENT_ID: string;
   VIPPS_CLIENT_SECRET: string;

@@ -165,7 +165,8 @@ Evaluate adding **Helthjem** as a (cheaper, home-delivery) shipping carrier alon
 - **Pricing (researched):** marketplace/volume rate ≈ **38 kr** small parcel (Finn "Fiks ferdig" uses Helthjem; cheapest C2C option vs Posten 50 / PostNord 39–59); standard self-serve ≈ **80 kr** under 5 kg home delivery, ≈ **139 kr** if outside coverage → PostNord pickup. Free insurance to 2 500 kr. Flat within "mailbox size" (~35×25×12 cm, ≤5 kg) — fits baby knitwear; bulky blankets may bump to the pickup tier. Cheaper than our current 76 kr Norgespakke liten, with evening door delivery. **B2B rate is quote-only (no public list).**
 - **Access gate (not technical):** must be an existing Helthjem customer → sign up at helthjem.no/bli-kunde + email integrations@helthjem.no for credentials. **Quote requested 2026-06-08.**
 - [ ] **Awaiting:** quote + API credentials + sandbox availability (asked: sandbox? marketplace booking on behalf of sellers under one account? label format PDF/ZPL? weight/size limits).
-- [ ] When creds land: scaffold env-gated `src/lib/helthjem.ts` (mirror `bring.ts`, `HELTHJEM_*` env), add Helthjem `SHIPPING_TIERS` entry, wire into the mark-shipped flow (book → store label + tracking), test vs sandbox; decide replace-vs-augment Posten.
+- [x] Scaffolded env-gated `src/lib/helthjem.ts` (OAuth2 + book/label/track/service-points, field shapes TODO) + test, 2026-06-08.
+- [ ] When creds land: confirm field shapes vs API reference (mirror `bring.ts`, `HELTHJEM_*` env), add Helthjem `SHIPPING_TIERS` entry, wire into the mark-shipped flow (book → store label + tracking), test vs sandbox; decide replace-vs-augment Posten.
 
 ---
 
