@@ -159,6 +159,14 @@ Photo-heavy app serves full-size images straight from Supabase storage → egres
 **Recommendation:** (a)+(c) for launch (escrow already covers the common case; absorb the rare tail under the 5 000 kr cap), revisit (b) if post-payout refunds become non-trivial in the dead-letter data. Decide with the accountant during §1.1.
 **Also:** align the become-seller payout copy with reality — it says "1–5 virkedager" but the Connect config delays payouts 7 days (`stripe-connect.ts`). Fix copy or config.
 
+### 2.6 Helthjem shipping integration — RESEARCHED 2026-06-08, awaiting quote
+Evaluate adding **Helthjem** as a (cheaper, home-delivery) shipping carrier alongside/instead of the current Posten tiers (`SHIPPING_TIERS` in `src/lib/shipping.ts`).
+- **API:** yes — REST developer portal (developer.helthjem.no). OAuth2 client-credentials (`api.helthjem.no/auth/oauth2/v1/token`) → bookings (`/parcels/v1/bookings`) → label (PDF) → tracking (`/parcels/v1/tracking/fetch/`) + find-service-points + check-coverage. **Structurally identical to our `bring.ts`** (book → label → track), so the code is a mirror of that service.
+- **Pricing (researched):** marketplace/volume rate ≈ **38 kr** small parcel (Finn "Fiks ferdig" uses Helthjem; cheapest C2C option vs Posten 50 / PostNord 39–59); standard self-serve ≈ **80 kr** under 5 kg home delivery, ≈ **139 kr** if outside coverage → PostNord pickup. Free insurance to 2 500 kr. Flat within "mailbox size" (~35×25×12 cm, ≤5 kg) — fits baby knitwear; bulky blankets may bump to the pickup tier. Cheaper than our current 76 kr Norgespakke liten, with evening door delivery. **B2B rate is quote-only (no public list).**
+- **Access gate (not technical):** must be an existing Helthjem customer → sign up at helthjem.no/bli-kunde + email integrations@helthjem.no for credentials. **Quote requested 2026-06-08.**
+- [ ] **Awaiting:** quote + API credentials + sandbox availability (asked: sandbox? marketplace booking on behalf of sellers under one account? label format PDF/ZPL? weight/size limits).
+- [ ] When creds land: scaffold env-gated `src/lib/helthjem.ts` (mirror `bring.ts`, `HELTHJEM_*` env), add Helthjem `SHIPPING_TIERS` entry, wire into the mark-shipped flow (book → store label + tracking), test vs sandbox; decide replace-vs-augment Posten.
+
 ---
 
 ## 3. Polish / post-launch (P2)
