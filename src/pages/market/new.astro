@@ -26,7 +26,7 @@ const user = Astro.locals.user;
 
 let q = supabase
   .from('listings')
-  .select('id, title, price_nok, size_label, hero_photo_path, category, published_at, promoted_until, promotion_tier')
+  .select('id, title, price_nok, size_label, hero_photo_path, category, escrow_enabled, can_meet, published_at, promoted_until, promotion_tier')
   .eq('status', 'active')
   .eq('kind', 'ready_made')
   .order('promoted_until', { ascending: false, nullsFirst: false })
@@ -87,6 +87,8 @@ const nextPageParams = (() => {
             meta={`${CATEGORY_LABEL[l.category] ?? l.category} · str. ${l.size_label}`}
             showFav={!!user}
             isFav={favIds.includes(l.id)}
+            escrowEnabled={l.escrow_enabled ?? false}
+            canMeet={l.can_meet ?? false}
             promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date() && l.promotion_tier === 'highlight')}
           />
         ))}

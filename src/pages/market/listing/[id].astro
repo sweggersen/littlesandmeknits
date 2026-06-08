@@ -341,38 +341,23 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                 </div>
               )}
 
-              {/* Trygg betaling toggle — free for the seller (kjøper betaler ved kjøp). */}
-              {isOwner && listing.status === 'active' && !listing.escrow_enabled && !listing.store_id && (
-                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
-                  <div class="flex items-start gap-3">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-sage-700 shrink-0 mt-0.5" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
-                    <div class="flex-1">
-                      <h3 class="font-serif text-lg mb-1">Aktiver trygg betaling</h3>
-                      <p class="text-sm text-charcoal/65">
-                        Gratis for deg som selger. Kjøper betaler en liten beskyttelsesavgift
-                        (9–29 kr avhengig av varens pris) som dekker kjøperbeskyttelse.
-                        Pengene frigjøres når kjøper bekrefter mottak, ellers 14 dager
-                        etter sending. Du får flere kjøpere som tør å handle.
-                      </p>
-                    </div>
-                  </div>
-                  <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`}>
-                    <input type="hidden" name="enabled" value="true" />
-                    <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
-                      Aktiver trygg betaling (gratis)
-                    </button>
-                  </form>
-                </section>
-              )}
-              {isOwner && listing.escrow_enabled && (
-                <div class="bg-sage-100/60 rounded-2xl p-4 text-sm text-sage-900 flex items-center justify-between gap-3 flex-wrap">
-                  <div class="flex items-center gap-2">
-                    <span><TryggBetaling /> er aktivert. Kjøpere kan kjøpe trygt gjennom Strikketorget.</span>
-                  </div>
-                  <form method="post" action={`/api/marketplace/listings/${listing.id}/upgrade-escrow`} class="shrink-0">
-                    <input type="hidden" name="enabled" value="false" />
-                    <button type="submit" class="text-xs text-sage-900/60 hover:text-red-600 underline">Slå av</button>
-                  </form>
+              {/* Delivery summary (read-only). Escrow is now derived from
+                  "Kan sendes" chosen at listing time — no post-hoc toggle that
+                  could break the shipping⇒trygg-betaling invariant. */}
+              {isOwner && listing.status === 'active' && (
+                <div class="bg-sage-100/60 rounded-2xl p-4 text-sm">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Levering</p>
+                  <ul class="space-y-1.5 text-charcoal/75">
+                    {listing.escrow_enabled && (
+                      <li><TryggBetaling /> · Kan sendes — kjøp gjennom appen</li>
+                    )}
+                    {listing.can_meet && (
+                      <li>Kan møtes — henting og betaling lokalt</li>
+                    )}
+                    {!listing.escrow_enabled && !listing.can_meet && (
+                      <li class="text-amber-800">Ingen leveringsmåte er aktivert på denne annonsen.</li>
+                    )}
+                  </ul>
                 </div>
               )}
               {justPromoted && listing.status === 'active' && (
@@ -457,8 +442,13 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                   </summary>
                   <form method="post" action="/api/marketplace/conversations/create" class="px-4 pb-4 space-y-3">
                     <input type="hidden" name="listing_id" value={listing.id} />
-                    <textarea name="message" required rows="3" maxlength="1000"
-                      placeholder="Hei! Er denne fortsatt tilgjengelig?"
+                    <div class="flex flex-wrap gap-1.5" data-contact-suggestions>
+                      <button type="button" data-msg="Er denne fortsatt tilgjengelig?" class="rounded-full border border-sage-500/30 bg-white px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Fortsatt ledig?</button>
+                      <button type="button" data-msg="Kunne du tenke deg å selge til en lavere pris?" class="rounded-full border border-sage-500/30 bg-white px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Lavere pris?</button>
+                      <button type="button" data-msg="Når passer det å møtes?" class="rounded-full border border-sage-500/30 bg-white px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Når kan vi møtes?</button>
+                    </div>
+                    <textarea data-contact-message name="message" required rows="3" maxlength="1000"
+                      placeholder="Skriv en melding…"
                       class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
                     <button type="submit" class="w-full bg-charcoal/85 text-linen px-6 py-2.5 rounded-full text-sm font-medium hover:bg-charcoal transition-colors">
                       Send melding
@@ -552,8 +542,10 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
   <script>
     import { init as initFav } from "../../../lib/client/controllers/listing-fav-toggle";
     import { init as initStars } from "../../../lib/client/controllers/star-rating";
+    import { init as initContact } from "../../../lib/client/controllers/contact-suggestions";
     import { registerController } from "../../../lib/client/dom";
     registerController(initFav);
     registerController(initStars);
+    registerController(initContact);
   </script>
 </Layout>

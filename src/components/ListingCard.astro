@@ -17,6 +17,7 @@ interface Props {
   storeName?: string | null;
   storeSlug?: string | null;
   escrowEnabled?: boolean;
+  canMeet?: boolean;
 }
 const {
   id,
@@ -34,6 +35,7 @@ const {
   storeName,
   storeSlug,
   escrowEnabled = false,
+  canMeet = false,
 } = Astro.props;
 ---
 
@@ -60,14 +62,22 @@ const {
       {inactiveLabel ? (
         <p class="text-xs text-charcoal/45 mt-1">{inactiveLabel}</p>
       ) : (
-        <div class="flex items-center gap-1.5 mt-1">
-          <p class="font-mono tabular-nums text-sm">{price} NOK</p>
-          {escrowEnabled && (
-            <span title="Trygg betaling" aria-label="Trygg betaling" class="text-sage-700 inline-flex">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
-            </span>
+        <Fragment>
+          <p class="font-mono tabular-nums text-sm mt-1">{price} NOK</p>
+          {(escrowEnabled || canMeet) && (
+            <div class="flex flex-wrap items-center gap-1 mt-1.5">
+              {escrowEnabled && (
+                <span title="Kjøp med trygg betaling" class="inline-flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide bg-sage-100/70 text-sage-800 px-1.5 py-0.5 rounded-full">
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.5 9.3 8 11 4.5-1.7 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+                  Sendes
+                </span>
+              )}
+              {canMeet && (
+                <span class="text-[9px] font-semibold uppercase tracking-wide bg-oatmeal/60 text-charcoal/55 px-1.5 py-0.5 rounded-full">Kan møtes</span>
+              )}
+            </div>
           )}
-        </div>
+        </Fragment>
       )}
       {storeName && storeSlug && (
         <p class="text-[10px] text-charcoal/45 mt-1.5 truncate">

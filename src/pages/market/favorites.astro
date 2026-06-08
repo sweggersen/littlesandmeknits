@@ -31,7 +31,7 @@ const listingIds = favs.filter(f => f.item_type === 'listing').map(f => f.item_i
 const requestIds = favs.filter(f => f.item_type === 'commission_request').map(f => f.item_id);
 
 const { data: listings } = listingIds.length
-  ? await supabase.from('listings').select('id, title, price_nok, size_label, kind, hero_photo_path, category, condition, status').in('id', listingIds)
+  ? await supabase.from('listings').select('id, title, price_nok, size_label, kind, hero_photo_path, category, condition, status, escrow_enabled, can_meet').in('id', listingIds)
   : { data: [] };
 
 const { data: requests } = requestIds.length
@@ -88,6 +88,8 @@ const totalInactive = inactiveListings.length + closedRequests.length;
                       price={l.price_nok}
                       imgUrl={projectPhotoUrl(l.hero_photo_path)}
                       meta={`${KIND_LABEL[l.kind] ?? l.kind} · str. ${l.size_label}`}
+                      escrowEnabled={l.escrow_enabled ?? false}
+                      canMeet={l.can_meet ?? false}
                       showFav
                       isFav
                     />

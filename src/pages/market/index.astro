@@ -15,7 +15,7 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 const user = Astro.locals.user;
 
 const SLOTS = 8;
-const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_min, size_age_months_max, hero_photo_path, published_at, promoted_until, promoted_at, promotion_tier, category, favorite_count, seller_id, store_id';
+const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_min, size_age_months_max, hero_photo_path, published_at, promoted_until, promoted_at, promotion_tier, category, favorite_count, seller_id, store_id, escrow_enabled, can_meet';
 
 // 1) Active paid-promotion slots — we always surface a couple of these.
 //    Listings whose promoted_until is still in the future, regardless of
@@ -271,6 +271,8 @@ const orgJsonLd = {
                 isFav={favIds.includes(l.id)}
                 promoted={!!(l.promoted_until && new Date(l.promoted_until) > new Date())}
                 promotionTier={l.promotion_tier ?? null}
+                escrowEnabled={l.escrow_enabled ?? false}
+                canMeet={l.can_meet ?? false}
               />
             ))}
           </ul>
