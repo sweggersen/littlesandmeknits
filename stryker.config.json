@@ -6,8 +6,8 @@
   "coverageAnalysis": "perTest",
   "mutate": [
     "src/lib/services/listings.ts:374-518",
-    "src/lib/services/listings.ts:591-638",
-    "src/lib/services/commissions.ts:334-420"
+    "src/lib/services/listings.ts:584-651",
+    "src/lib/services/commissions.ts:335-466"
   ],
   "reporters": ["clear-text", "progress", "html"],
   "htmlReporter": { "fileName": "reports/mutation/index.html" },

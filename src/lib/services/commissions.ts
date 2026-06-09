@@ -351,7 +351,7 @@ export async function payCommission(
 
   const { data: offer } = await ctx.supabase
     .from('commission_offers')
-    .select('id, knitter_id, price_nok, project_id')
+    .select('id, knitter_id, price_nok')
     .eq('id', req.awarded_offer_id!)
     .single();
 
@@ -362,63 +362,107 @@ export async function payCommission(
     ctx.admin.from('seller_profiles').select('stripe_account_id, stripe_connect_status').eq('id', offer.knitter_id).maybeSingle(),
   ]);
 
+  // The knitter must be able to receive payouts before we collect money.
+  if (knitterSeller?.stripe_connect_status !== 'verified' || !knitterSeller.stripe_account_id) {
+    return fail('conflict', 'Strikkeren har ikke fullført oppsett av utbetaling ennå.');
+  }
+
   const feePercent = knitterProfile?.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   const amountOre = offer.price_nok * 100;
   const platformFee = Math.round(amountOre * feePercent / 100);
-  let paymentIntentId: string | undefined;
 
-  if (knitterSeller?.stripe_connect_status === 'verified' && knitterSeller.stripe_account_id) {
-    const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
-    const pi = await stripe.paymentIntents.create({
-      amount: amountOre, currency: 'nok', capture_method: 'manual',
+  const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
+  const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
+
+  // Real hosted Checkout — the buyer actually pays (Vipps/card). Escrow via
+  // manual capture; funds route to the knitter (destination charge) minus our
+  // platform fee. The post-payment side-effects (status, project activation,
+  // notify) run in the stripe webhook (type=commission_payment) once Stripe
+  // confirms payment — NOT here, so an abandoned checkout leaves the request
+  // untouched.
+  const session = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    line_items: [{
+      price_data: { currency: 'nok', unit_amount: amountOre, product_data: { name: `Strikk for meg: ${req.title}` } },
+      quantity: 1,
+    }],
+    payment_method_types: ['vipps' as 'card', 'card'],
+    payment_intent_data: {
+      capture_method: 'manual',
       application_fee_amount: platformFee,
       transfer_data: { destination: knitterSeller.stripe_account_id },
-      metadata: { commission_request_id: input.requestId, buyer_id: ctx.user.id },
-    });
-    paymentIntentId = pi.id;
-
-    await stripe.paymentIntents.confirm(pi.id, {
-      payment_method: 'pm_card_visa',
-      return_url: `${ctx.env.PUBLIC_SITE_URL}/market/commissions/${input.requestId}`,
-    });
-  }
-
-  const needsYarn = req.yarn_provided_by_buyer;
-
-  // Flip the linked project to 'active' now that money is committed.
-  // ensureCommissionProject is idempotent; if accept-time create failed
-  // (offer.project_id still null), this also acts as a safety-net insert.
-  await ensureCommissionProject(ctx, {
-    offer: {
-      id: offer.id,
-      knitter_id: offer.knitter_id,
-      project_id: (offer as any).project_id ?? null,
     },
-    req,
-    startActive: true,
-    serviceLabel: 'commissions.payCommission:project-activate',
+    success_url: `${siteUrl}/market/commissions/${input.requestId}?paid=1`,
+    cancel_url: `${siteUrl}/market/commissions/${input.requestId}`,
+    customer_email: ctx.user.email ?? undefined,
+    client_reference_id: ctx.user.id,
+    metadata: {
+      type: 'commission_payment',
+      commission_request_id: input.requestId,
+      buyer_id: ctx.user.id,
+      platform_fee_ore: String(platformFee),
+    },
+    locale: 'nb',
   });
 
-  await ctx.admin
+  if (!session.url) return fail('server_error', 'Checkout URL missing');
+  return ok({ redirect: session.url });
+}
+
+/** Finalize a commission payment after Stripe confirms the Checkout Session.
+ *  Called from the webhook (no user session). Idempotent: acts only while the
+ *  request is still awaiting_payment, so a Stripe retry is a safe no-op. */
+export async function finalizeCommissionPayment(
+  admin: ServiceContext['admin'],
+  env: Parameters<typeof createNotification>[2],
+  input: { requestId: string; paymentIntentId: string | null; platformFeeOre: number | null },
+): Promise<ServiceResult<{ updated: boolean }>> {
+  const { data: req } = await admin
+    .from('commission_requests')
+    .select('id, buyer_id, status, awarded_offer_id, title, description, size_label, yarn_preference, pattern_external_title, colorway, yarn_provided_by_buyer')
+    .eq('id', input.requestId)
+    .maybeSingle();
+  if (!req) return fail('not_found', 'Request not found');
+  if (req.status !== 'awaiting_payment') return ok({ updated: false }); // already finalized
+
+  const { data: offer } = await admin
+    .from('commission_offers')
+    .select('id, knitter_id, project_id')
+    .eq('id', req.awarded_offer_id!)
+    .maybeSingle();
+  if (!offer) return fail('not_found', 'Offer not found');
+
+  const needsYarn = req.yarn_provided_by_buyer;
+  // ensureCommissionProject + recordDeadLetter only use ctx.admin / ctx.user.id.
+  const ctx = { admin, user: { id: req.buyer_id as string } } as unknown as ServiceContext;
+
+  await ensureCommissionProject(ctx, {
+    offer: { id: offer.id, knitter_id: offer.knitter_id, project_id: offer.project_id ?? null },
+    req,
+    startActive: true,
+    serviceLabel: 'commissions.finalizeCommissionPayment:project-activate',
+  });
+
+  await admin
     .from('commission_requests')
     .update({
       status: needsYarn ? 'awaiting_yarn' : 'awarded',
-      stripe_payment_intent_id: paymentIntentId ?? null,
-      platform_fee_nok: Math.round(platformFee / 100),
+      stripe_payment_intent_id: input.paymentIntentId,
+      platform_fee_nok: input.platformFeeOre != null ? Math.round(input.platformFeeOre / 100) : null,
     })
     .eq('id', input.requestId);
 
-  await createNotification(ctx.admin, {
+  await createNotification(admin, {
     userId: offer.knitter_id, type: 'payment_received',
     title: 'Betaling mottatt!',
     body: needsYarn
       ? `Betaling for «${req.title}» er mottatt. Venter på at kjøper sender garnet.`
       : `Betaling for «${req.title}» er mottatt — du kan begynne å strikke!`,
     url: `/market/commissions/${input.requestId}`,
-    actorId: ctx.user.id, referenceId: input.requestId,
-  }, ctx.env);
+    referenceId: input.requestId,
+  }, env);
 
-  return ok({ redirect: `/market/commissions/${input.requestId}` });
+  return ok({ updated: true });
 }
 
 export async function linkProject(

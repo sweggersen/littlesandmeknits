@@ -6,6 +6,7 @@ import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supa
 import { createNotification } from '../../../lib/notify';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { completeListingPurchase } from '../../../lib/services/listings';
+import { finalizeCommissionPayment } from '../../../lib/services/commissions';
 import {
   isEventProcessed,
   markEventProcessed,
@@ -268,6 +269,36 @@ async function handleEvent(
         }, notifyEnv);
       }
 
+      return new Response('ok', { status: 200 });
+    }
+
+    // ── Commission payment (escrow via manual capture) ──────────
+    if (session.metadata?.type === 'commission_payment') {
+      const requestId = session.metadata.commission_request_id;
+      if (!requestId) {
+        log.error('webhook.commission_missing_metadata', { metadata: session.metadata });
+        return new Response('Missing metadata', { status: 400 });
+      }
+      const commPiId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id;
+      const feeOre = session.metadata.platform_fee_ore ? parseInt(session.metadata.platform_fee_ore, 10) : NaN;
+
+      const result = await finalizeCommissionPayment(supabase, notifyEnv, {
+        requestId,
+        paymentIntentId: commPiId ?? null,
+        platformFeeOre: Number.isFinite(feeOre) ? feeOre : null,
+      });
+      if (!result.ok) {
+        // Buyer has paid; finalize failed. Stripe retries; dead-letter so
+        // support sees the commission stuck in awaiting_payment with a paid PI.
+        await recordDeadLetter(dlCtx(supabase, session.metadata.buyer_id), {
+          service: 'stripe.webhook:commission_payment',
+          context: { commission_request_id: requestId, session_id: session.id, payment_intent_id: commPiId ?? null },
+          error: result.message,
+        });
+        return new Response('DB error', { status: 500 });
+      }
       return new Response('ok', { status: 200 });
     }
 
