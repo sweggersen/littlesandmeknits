@@ -15,9 +15,11 @@ vi.mock('../notify', () => ({
 vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 
 const stripeCapture = vi.fn();
+// Default: PI is still authorized so confirmListingDelivery captures it.
+const stripeRetrieve = vi.fn(async () => ({ status: 'requires_capture' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
-    paymentIntents: { capture: stripeCapture },
+    paymentIntents: { capture: stripeCapture, retrieve: stripeRetrieve },
   })),
 }));
 
@@ -329,6 +331,33 @@ describe('confirmListingDelivery', () => {
     const u = updates.find((x: any) => x.table === 'listings') as any;
     expect(u.row.status).toBe('sold');
     expect(typeof u.row.sold_at).toBe('string');
+  });
+
+  it('does NOT re-capture a PI already captured at ship (succeeded), still marks sold', async () => {
+    stripeCapture.mockClear();
+    stripeRetrieve.mockResolvedValueOnce({ status: 'succeeded' });
+    const { ctx, updates } = mockCtx({
+      actorId: 'buyer',
+      rows: { listings: { id: 'l1', seller_id: 's', buyer_id: 'buyer', title: 't', status: 'shipped', stripe_payment_intent_id: 'pi_real' } },
+    });
+    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
+    expect(r.ok).toBe(true);
+    expect(stripeCapture).not.toHaveBeenCalled();
+    expect((updates.find((x: any) => x.table === 'listings') as any).row.status).toBe('sold');
+  });
+
+  it('refuses to mark sold when the auth is no longer capturable (canceled/expired)', async () => {
+    stripeCapture.mockClear();
+    stripeRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    const { ctx, updates } = mockCtx({
+      actorId: 'buyer',
+      rows: { listings: { id: 'l1', seller_id: 's', buyer_id: 'buyer', title: 't', status: 'shipped', stripe_payment_intent_id: 'pi_real' } },
+    });
+    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    expect(stripeCapture).not.toHaveBeenCalled();
+    expect(updates.find((x: any) => x.table === 'listings')).toBeUndefined();
   });
 
   it('skips Stripe when no PaymentIntent (non-escrow flow)', async () => {

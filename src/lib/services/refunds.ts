@@ -71,10 +71,18 @@ export async function respondToRefund(
         // Cancel (manual capture not yet captured) or refund (captured).
         await stripe.paymentIntents.cancel(listing.stripe_payment_intent_id);
       } catch {
-        // If cancel fails, the payment may already be captured — try refund.
+        // Already captured — full refund of the DESTINATION charge.
+        // reverse_transfer pulls the funds back from the seller's connected
+        // account (without it the platform balance goes negative); and
+        // refund_application_fee returns our platform fee, so a full refund
+        // unwinds buyer, seller and platform to zero.
         try {
           const stripe2 = createStripe(ctx.env.STRIPE_SECRET_KEY);
-          await stripe2.refunds.create({ payment_intent: listing.stripe_payment_intent_id });
+          await stripe2.refunds.create({
+            payment_intent: listing.stripe_payment_intent_id,
+            reverse_transfer: true,
+            refund_application_fee: true,
+          });
         } catch (e) {
           console.error('Refund failed both paths', e);
           return fail('server_error', 'Kunne ikke refundere — prøv via admin/tvist');

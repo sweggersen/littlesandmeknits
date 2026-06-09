@@ -25,10 +25,11 @@ vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 
 const checkoutCreate = vi.fn(async (_args?: any) => ({ url: 'https://checkout.stripe.com/c/test_123' }));
 const piCapture = vi.fn(async (_id?: any) => ({}));
+const piRetrieve = vi.fn(async (_id?: any) => ({ status: 'requires_capture' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     checkout: { sessions: { create: checkoutCreate } },
-    paymentIntents: { capture: piCapture },
+    paymentIntents: { capture: piCapture, retrieve: piRetrieve },
   })),
 }));
 

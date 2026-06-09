@@ -3,10 +3,12 @@ import { requestRefund, respondToRefund } from './refunds';
 import type { ServiceContext } from './types';
 
 vi.mock('../notify', () => ({ createNotification: vi.fn() }));
+const piCancel = vi.fn().mockResolvedValue({});
+const refundCreate = vi.fn().mockResolvedValue({});
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
-    paymentIntents: { cancel: vi.fn().mockResolvedValue({}) },
-    refunds: { create: vi.fn().mockResolvedValue({}) },
+    paymentIntents: { cancel: piCancel },
+    refunds: { create: refundCreate },
   })),
 }));
 
@@ -182,6 +184,21 @@ describe('respondToRefund', () => {
     // Resets the purchase trail so the listing can be re-bought.
     expect(u.row.reserved_at).toBeNull();
     expect(u.row.stripe_payment_intent_id).toBeNull();
+  });
+
+  it('on accept of a CAPTURED charge: full refund reverses the transfer + app fee', async () => {
+    piCancel.mockClear();
+    refundCreate.mockClear();
+    // Captured PI → cancel throws → refund path runs.
+    piCancel.mockRejectedValueOnce(new Error('payment_intent_unexpected_state'));
+    const { ctx } = mockCtx({ actorId: 'seller', listing: pendingRefund });
+    const r = await respondToRefund(ctx, { listingId: 'l1', action: 'accept' });
+    expect(r.ok).toBe(true);
+    expect(refundCreate).toHaveBeenCalledWith({
+      payment_intent: 'pi_test',
+      reverse_transfer: true,
+      refund_application_fee: true,
+    });
   });
 
   it('on decline: flips status to disputed + records outcome', async () => {

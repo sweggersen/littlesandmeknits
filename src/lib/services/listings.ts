@@ -605,7 +605,23 @@ export async function confirmListingDelivery(
 
   if (listing.stripe_payment_intent_id) {
     const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
-    await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
+    // The PI is often already captured (we capture at ship time). Capturing an
+    // already-captured or canceled PI throws, so branch on its state:
+    //  - requires_capture → capture now (buyer confirmed before/without ship)
+    //  - succeeded        → already captured at ship; nothing to do
+    //  - anything else    → auth expired/canceled; money was never collected,
+    //                       so DON'T mark sold — dead-letter for support.
+    const pi = await stripe.paymentIntents.retrieve(listing.stripe_payment_intent_id);
+    if (pi.status === 'requires_capture') {
+      await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
+    } else if (pi.status !== 'succeeded') {
+      await recordDeadLetter(ctx, {
+        service: 'listings.confirmListingDelivery:not-capturable',
+        context: { listing_id: input.listingId, payment_intent_id: listing.stripe_payment_intent_id, pi_status: pi.status },
+        error: `PaymentIntent not capturable (status=${pi.status})`,
+      });
+      return fail('conflict', 'Betalingen kunne ikke fullføres. Ta kontakt med support.');
+    }
   }
 
   const now = new Date().toISOString();
