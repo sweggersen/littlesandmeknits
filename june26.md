@@ -213,3 +213,5 @@ Public-launch items (§1.1 finish, §2.1 T&S, §2.2 a11y) land after soft-launch
 - Added **product analytics + email deliverability** (§1.6–1.7).
 - Corrected the v1 error of marking legal pages "done" by line count — **legal review** is the gate.
 - Made the **timeline serial** for a solo founder and front-loaded the long poles.
+
+<!-- ci: verify auto-deploy pipeline (secrets wired 2026-06-10) -->
