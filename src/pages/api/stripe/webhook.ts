@@ -57,21 +57,40 @@ export const POST: APIRoute = async ({ request }) => {
 
   const supabase = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // Idempotency: a re-delivery of an already-processed event is a no-op. We
-  // record processed AFTER a 200 below (not before), so a retry following a
-  // 500 still reprocesses.
-  if (await isEventProcessed(supabase, event.id)) {
-    return new Response('ok (already processed)', { status: 200 });
-  }
+  try {
+    // Idempotency: a re-delivery of an already-processed event is a no-op. We
+    // record processed AFTER a 200 below (not before), so a retry following a
+    // 500 still reprocesses.
+    if (await isEventProcessed(supabase, event.id)) {
+      return new Response('ok (already processed)', { status: 200 });
+    }
 
-  const response = await handleEvent(event, supabase);
+    const response = await handleEvent(event, supabase);
 
-  // Only a clean 200 is recorded as processed. A 500 (DB error) is left
-  // unrecorded so Stripe retries and we get another shot.
-  if (response.status === 200) {
-    await markEventProcessed(supabase, event.id, event.type);
+    // Only a clean 200 is recorded as processed. A 500 (DB error) is left
+    // unrecorded so Stripe retries and we get another shot.
+    if (response.status === 200) {
+      await markEventProcessed(supabase, event.id, event.type);
+    }
+    return response;
+  } catch (e) {
+    // An unhandled throw here used to surface as an opaque 500 with no
+    // diagnostic — Stripe then retries forever and we never learn why. Capture
+    // it: log, best-effort dead-letter, and return the message in the body so
+    // the Stripe delivery detail is self-diagnosing. Still 500 so Stripe retries.
+    const msg = e instanceof Error ? (e.stack ?? e.message) : String(e);
+    log.error('webhook.unhandled_exception', { eventId: event.id, type: event.type, error: msg });
+    try {
+      await recordDeadLetter(dlCtx(supabase), {
+        service: `stripe.webhook:unhandled:${event.type}`,
+        context: { event_id: event.id, type: event.type },
+        error: e,
+      });
+    } catch {
+      // Dead-letter is best-effort; the response body still carries the error.
+    }
+    return new Response(`Webhook handler error: ${msg}`, { status: 500 });
   }
-  return response;
 };
 
 async function handleEvent(
