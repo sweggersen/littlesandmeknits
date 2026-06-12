@@ -423,6 +423,93 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  // ──────────────────────────────────────────────────────────────
+  // orders (migration 0088). The purchase entity carries buyer PII
+  // (shipping address) + money fields, so the posture is: parties +
+  // staff read, NOBODY writes via RLS (service-role only), zero anon.
+  // ──────────────────────────────────────────────────────────────
+
+  describe('orders', () => {
+    let orderListingId: string;
+    let orderId: string;
+
+    beforeAll(async () => {
+      const { data: l, error: lErr } = await admin.from('listings').insert({
+        seller_id: bobId,
+        title: 'rls-order-listing', description: 'x',
+        price_nok: 300, kind: 'ready_made', category: 'genser',
+        size_label: 'M', shipping_price_nok: 76,
+        status: 'reserved',
+      }).select('id').single();
+      if (lErr) throw new Error(`orders setup listing insert failed: ${lErr.message} | code=${lErr.code}`);
+      orderListingId = l!.id;
+
+      const { data: o, error: oErr } = await admin.from('orders').insert({
+        listing_id: orderListingId,
+        buyer_id: aliceId,
+        seller_id: bobId,
+        status: 'reserved',
+        item_price_nok: 300, shipping_nok: 76, tb_fee_nok: 19, platform_fee_nok: 19,
+        shipping_name: 'Alice Test', shipping_address: 'Hemmelig gate 1',
+        shipping_postal_code: '0001', shipping_city: 'Oslo',
+      }).select('id').single();
+      if (oErr) throw new Error(`orders setup insert failed: ${oErr.message} | code=${oErr.code} | details=${oErr.details}`);
+      orderId = o!.id;
+    });
+
+    it('buyer reads their own order (incl. the address they entered)', async () => {
+      const { data } = await aliceClient.from('orders')
+        .select('id, shipping_address').eq('id', orderId).maybeSingle();
+      expect(data?.id).toBe(orderId);
+      expect(data?.shipping_address).toBe('Hemmelig gate 1');
+    });
+
+    it('seller reads the order on their listing (they must ship to the address)', async () => {
+      const { data } = await bobClient.from('orders')
+        .select('id, shipping_address').eq('id', orderId).maybeSingle();
+      expect(data?.id).toBe(orderId);
+    });
+
+    it('third party CANNOT read the order', async () => {
+      const { data, error } = await charlieClient.from('orders')
+        .select('id').eq('id', orderId);
+      expect(error).toBeNull();
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('staff (admin role) reads any order', async () => {
+      await admin.from('profiles').update({ role: 'admin' }).eq('id', charlieId);
+      const staff = await userClient('rls-charlie@test.strikketorget.no');
+      const { data } = await staff.from('orders').select('id').eq('id', orderId);
+      expect(data ?? []).not.toHaveLength(0);
+      await admin.from('profiles').update({ role: null }).eq('id', charlieId);
+    });
+
+    it('authenticated users CANNOT insert orders (service-role only)', async () => {
+      const { error } = await charlieClient.from('orders').insert({
+        listing_id: orderListingId, buyer_id: charlieId, seller_id: bobId,
+        item_price_nok: 1,
+      });
+      expect(error).not.toBeNull(); // no insert policy -> RLS violation
+    });
+
+    it('even the buyer CANNOT update their own order via RLS', async () => {
+      const { data } = await aliceClient.from('orders')
+        .update({ status: 'delivered' })
+        .eq('id', orderId)
+        .select('id');
+      // No update policy: zero rows match for non-service-role writers.
+      expect(data ?? []).toHaveLength(0);
+      const { data: still } = await admin.from('orders').select('status').eq('id', orderId).maybeSingle();
+      expect(still?.status).toBe('reserved');
+    });
+
+    afterAll(async () => {
+      await admin.from('orders').delete().eq('id', orderId);
+      await admin.from('listings').delete().eq('id', orderListingId);
+    });
+  });
+
   describe('auth_identities', () => {
     let identityId: string;
 
