@@ -82,7 +82,7 @@ export const POST: APIRoute = async ({ request }) => {
     log.error('webhook.unhandled_exception', { eventId: event.id, type: event.type, error: msg });
     try {
       await recordDeadLetter(dlCtx(supabase), {
-        service: `stripe.webhook:unhandled:${event.type}`,
+        service: 'stripe.webhook:unhandled',
         context: { event_id: event.id, type: event.type },
         error: e,
       });
