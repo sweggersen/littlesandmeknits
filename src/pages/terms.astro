@@ -102,17 +102,21 @@ import Layout from '../layouts/Layout.astro';
       <p>Alle priser oppgis inkludert merverdiavgift der det er aktuelt.
         Plattformgebyret beregnes på salgssum eks. frakt.</p>
 
-      <h2 class="font-serif text-xl mt-10 mb-2">6. Betaling, escrow og utbetaling</h2>
-      <p>Betalinger håndteres av Stripe Payments Europe Ltd. Når trygg
-        betaling er aktivert holder vi pengene på sperret konto inntil:</p>
+      <h2 class="font-serif text-xl mt-10 mb-2">6. Betaling, reservasjon og utbetaling</h2>
+      <p>Betalinger håndteres av Stripe Payments Europe Ltd. Ved trygg betaling
+        reserveres kjøpesummen når kjøper bestiller, og belastes først når selger
+        markerer varen som sendt. Sender ikke selger innen 5 dager, oppheves
+        reservasjonen automatisk og kjøper belastes ikke.</p>
+      <p>Etter sending gjelder:</p>
       <ul class="list-disc pl-5 space-y-1">
-        <li>Kjøper bekrefter mottak (frigjøres umiddelbart), ELLER</li>
-        <li>14 dager har gått siden selger markerte varen som sendt, ELLER</li>
-        <li>En tvist er løst.</li>
+        <li>Kjøper bekrefter mottak, eller varen regnes som levert 14 dager etter
+          sending dersom ingen problemer er rapportert.</li>
+        <li>Utbetaling skjer til selgers Stripe-konto, normalt om lag en uke etter
+          sending (betalingspartneren Stripe holder beløpet i en kort periode før
+          det utbetales til kontonummeret).</li>
+        <li>Ved tvist fryses saken, og beløpet håndteres via
+          tvisteløsningsprosessen. Refusjon kan motregnes i selgers utbetaling.</li>
       </ul>
-      <p>Utbetaling skjer til selgers Stripe-konto, normalt innen om lag en uke
-        etter frigjøring (betalingspartneren Stripe holder beløpet i en kort
-        periode før det utbetales til kontonummeret).</p>
 
       <h2 class="font-serif text-xl mt-10 mb-2">7. Tvister</h2>
       <p>Vi håndterer tvister via plattformens

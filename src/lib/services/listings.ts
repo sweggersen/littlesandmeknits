@@ -338,6 +338,10 @@ export interface CompletePurchaseParams {
   paymentIntentId: string | null;
   /** session.amount_total in ore (what the buyer paid, all line items). */
   amountTotalOre: number | null;
+  /** Exact application_fee_amount in ore, echoed via session metadata
+   *  (platform_fee_ore). Null for sessions created before the metadata was
+   *  added — those fall back to the legacy 13%-of-total estimate. */
+  platformFeeOre?: number | null;
   /** Shipping address collected at Checkout. */
   shipping?: {
     name?: string | null;
@@ -380,7 +384,12 @@ export async function completeListingPurchase(
   // reservation (cancel hold + relist) instead of capturing. shipListing
   // recomputes this to shipped_at + DELIVERY_WINDOW_DAYS once shipped.
   const autoReleaseAt = new Date(now.getTime() + SHIP_DEADLINE_DAYS * 86400_000).toISOString();
-  const feeNok = p.amountTotalOre ? Math.round((p.amountTotalOre * 0.13) / 100) : 0;
+  // Prefer the exact fee Stripe charged (echoed through session metadata);
+  // the 13%-of-total fallback only covers sessions created before the
+  // metadata existed and is wrong for ambassador/store rates + the TB fee.
+  const feeNok = p.platformFeeOre != null
+    ? Math.round(p.platformFeeOre / 100)
+    : p.amountTotalOre ? Math.round((p.amountTotalOre * 0.13) / 100) : 0;
 
   const { data: rows, error } = await admin
     .from('listings')
@@ -509,6 +518,11 @@ export async function purchaseListing(
       seller_id: listing.seller_id,
       tb_fee_nok: String(tbFee),
       shipping_nok: String(shippingNok),
+      // Exact application fee, echoed back by the webhook so the recorded
+      // platform_fee_nok matches what Stripe actually charged (H3) — the
+      // percent varies (standard/ambassador/store tier) and the TB fee is
+      // 100% ours, so no recomputation from the session total can be right.
+      platform_fee_ore: String(applicationFeeOre),
       store_id: listing.store_id ?? '',
     },
     locale: 'nb',

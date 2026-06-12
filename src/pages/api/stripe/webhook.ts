@@ -244,11 +244,16 @@ async function handleEvent(
       // with shipping_address_collection enabled).
       const shipping = (session as unknown as { shipping_details?: { name?: string | null; address?: { line1?: string | null; postal_code?: string | null; city?: string | null } | null } }).shipping_details;
 
+      const listingFeeOre = session.metadata.platform_fee_ore
+        ? parseInt(session.metadata.platform_fee_ore, 10)
+        : NaN;
+
       const result = await completeListingPurchase(supabase, {
         listingId: purchaseListingId,
         buyerId,
         paymentIntentId: piId ?? null,
         amountTotalOre: session.amount_total ?? null,
+        platformFeeOre: Number.isFinite(listingFeeOre) ? listingFeeOre : null,
         shipping: {
           name: shipping?.name ?? null,
           line1: shipping?.address?.line1 ?? null,

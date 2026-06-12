@@ -119,14 +119,18 @@ describe('purchaseListing — personal seller money math', () => {
     expect(args.payment_intent_data.application_fee_amount).toBe(10900); // 8000 + 2900
   });
 
-  it('stamps metadata with buyer, seller, TB and shipping amounts', async () => {
+  it('stamps metadata with buyer, seller, TB, shipping and the EXACT fee', async () => {
     const db = seedPersonal();
     await purchaseListing(ctxFor(db, 'buyer-9'), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     const args = checkoutArgs();
     expect(args.metadata).toEqual({
       type: 'listing_purchase', listing_id: 'l1', buyer_id: 'buyer-9',
-      seller_id: 'seller-1', tb_fee_nok: '19', shipping_nok: '76', store_id: '',
+      seller_id: 'seller-1', tb_fee_nok: '19', shipping_nok: '76',
+      platform_fee_ore: '8400', store_id: '',
     });
+    // H3 invariant: the metadata fee IS the application fee, so the webhook
+    // records exactly what Stripe charged (no recomputation drift).
+    expect(args.metadata.platform_fee_ore).toBe(String(args.payment_intent_data.application_fee_amount));
     expect(args.client_reference_id).toBe('buyer-9');
   });
 
@@ -458,11 +462,23 @@ describe('completeListingPurchase (webhook transition)', () => {
     });
   }
 
+  it('records the EXACT fee from metadata when present (H3)', async () => {
+    const db = seedActive();
+    // 500 kr item @13% + 19 kr TB = 84 kr = 8400 ore. The 13%-of-total
+    // estimate on this session would be 74 — proving the exact path wins.
+    await completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi_xyz',
+      amountTotalOre: 56900, platformFeeOre: 8400,
+      now: FIXED,
+    });
+    expect((db.find('listings', { id: 'l1' }) as any).platform_fee_nok).toBe(84);
+  });
+
   it('transitions active -> reserved and records buyer, PI, fee, shipping', async () => {
     const db = seedActive();
     const res = await completeListingPurchase(db.client as any, {
       listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi_xyz',
-      amountTotalOre: 56900, // 569 kr total -> fee round(56900*0.13/100) = 74
+      amountTotalOre: 56900, // legacy estimate path: round(56900*0.13/100) = 74
       shipping: { name: 'Kari', line1: 'Storgata 1', postalCode: '0001', city: 'Oslo' },
       now: FIXED,
     });

@@ -8,27 +8,28 @@ import Layout from '../../layouts/Layout.astro';
     <a href="/hjelp" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-block">← Tilbake til hjelp</a>
     <h1 class="font-serif text-4xl sm:text-5xl mb-3">Trygg betaling forklart</h1>
     <p class="text-charcoal/55 text-base mb-10">
-      Pengene holdes i sikker forvaring til varen er mottatt. Slik fungerer det.
+      Du belastes ikke før varen faktisk sendes. Slik fungerer det.
     </p>
 
     <div class="prose prose-sm text-charcoal/80 space-y-6">
 
       <h2 class="font-serif text-2xl mt-0">Hva er trygg betaling?</h2>
       <p>
-        Når kjøper betaler, holdes pengene hos vår betalingspartner Stripe, ikke hos
-        selger eller hos oss. Pengene frigjøres til selger først når:
+        Når kjøper bestiller, reserveres beløpet hos vår betalingspartner Stripe.
+        Selger får ikke pengene med en gang:
       </p>
       <ul class="list-disc pl-5 space-y-2">
-        <li>Kjøper trykker <strong>Bekreft mottatt</strong>, eller</li>
-        <li>14 dager har gått etter at varen ble sendt og kjøper ikke har sagt fra om problemer.</li>
+        <li>Beløpet belastes først når selger markerer varen som <strong>sendt</strong>.</li>
+        <li>Sender ikke selger innen <strong>5 dager</strong>, oppheves reservasjonen automatisk og kjøper belastes ikke.</li>
+        <li>Utbetaling til selgers konto skjer normalt rundt en uke etter sending.</li>
       </ul>
       <p>
-        Hvis det oppstår tvist, holdes pengene i forvaring til saken er løst.
+        Hvis det oppstår tvist, fryses saken og beløpet håndteres via tvistesystemet til saken er løst.
       </p>
 
       <h2 class="font-serif text-2xl">Hvorfor bruke det?</h2>
-      <p><strong>For kjøper:</strong> du risikerer ikke å sende penger og aldri få varen, eller å motta noe helt annet enn det som ble lovet.</p>
-      <p><strong>For selger:</strong> du vet at pengene faktisk finnes. Stripe har trukket dem fra kjøperens kort, så du slipper å vente på Vipps eller undersøke om kjøper er seriøs.</p>
+      <p><strong>For kjøper:</strong> du belastes ikke for en vare som aldri sendes, og rapporterer du et problem innen 14 dager etter sending, fryses saken til den er løst.</p>
+      <p><strong>For selger:</strong> du vet at pengene faktisk finnes. Beløpet er reservert på kjøperens kort før du sender, så du slipper å vente på Vipps eller undersøke om kjøper er seriøs.</p>
 
       <h2 class="font-serif text-2xl">Hva koster det?</h2>
       <p>
@@ -46,11 +47,11 @@ import Layout from '../../layouts/Layout.astro';
 
       <h2 class="font-serif text-2xl">Tidslinje for et trygt kjøp</h2>
       <ol class="list-decimal pl-5 space-y-3">
-        <li><strong>Kjøp.</strong> Kjøper betaler. Pengene trekkes fra kortet og holdes hos Stripe.</li>
-        <li><strong>Pakk og send.</strong> Selger har vanligvis 1–3 virkedager på å sende. Selger markerer som «sendt» i annonsen, helst med sporingsnummer.</li>
+        <li><strong>Kjøp.</strong> Kjøper bestiller. Beløpet reserveres på kortet, men trekkes ikke ennå.</li>
+        <li><strong>Pakk og send.</strong> Selger har 5 dager på å sende og markerer som «sendt» i annonsen, helst med sporingsnummer. Først nå belastes kjøperen. Sendes ikke varen i tide, oppheves kjøpet automatisk og kjøper belastes ikke.</li>
         <li><strong>Levering.</strong> Posten leverer pakken. Brev og Norgespakke har sporing.</li>
-        <li><strong>Bekreft mottak.</strong> Kjøper bekrefter at varen er som forventet → pengene frigjøres til selger samme dag.</li>
-        <li><strong>Automatisk frigjøring.</strong> Hvis kjøper ikke svarer innen 14 dager etter sending, frigjøres pengene automatisk.</li>
+        <li><strong>Bekreft mottak.</strong> Kjøper bekrefter at varen er som forventet.</li>
+        <li><strong>Automatisk bekreftelse.</strong> Hvis kjøper ikke svarer innen 14 dager etter sending, regnes varen som levert. Utbetaling til selger skjer normalt rundt en uke etter sending.</li>
       </ol>
 
       <h2 class="font-serif text-2xl">Hvis noe ikke stemmer</h2>
@@ -62,10 +63,10 @@ import Layout from '../../layouts/Layout.astro';
       </ol>
       <p>Du har 14 dager etter sending på å rapportere problemer.</p>
 
-      <h2 class="font-serif text-2xl">Hva med Vipps?</h2>
+      <h2 class="font-serif text-2xl">Hvordan betaler jeg?</h2>
       <p>
-        Vi støtter ikke Vipps som betalingsmetode i dag, men <a href="/hjelp" class="text-terracotta-500 hover:underline">vurderer det fortløpende</a>.
-        Foreløpig kan kjøp gjennomføres med kort (Visa, Mastercard), Apple Pay og Google Pay via Stripe.
+        Kjøp gjennomføres i en sikker betalingsside fra Stripe. Der kan du velge
+        Vipps eller kort (Visa, Mastercard), inkludert Apple Pay og Google Pay.
       </p>
 
       <h2 class="font-serif text-2xl">Datasikkerhet</h2>
