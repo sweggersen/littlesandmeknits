@@ -11,6 +11,7 @@ import type Stripe from 'stripe';
 import type { TypedSupabaseClient } from '../supabase';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
+import { releaseExpiredReservation } from './listings';
 import { log } from '../log';
 
 type NotifyEnv = Parameters<typeof createNotification>[2];
@@ -278,6 +279,34 @@ export async function handlePaymentIntentFailed(
       matched: escrow ? `${escrow.kind}:${escrow.id}` : null,
     },
     error: pi.last_payment_error?.message ?? `PaymentIntent ${pi.status}`,
+  });
+  return ok();
+}
+
+// ── payment_intent.canceled (manual-capture auth expired or canceled) ─
+// Defense-in-depth for listing escrow: Stripe auto-cancels an uncaptured auth
+// ~7 days after the charge. If that happens to a still-'reserved' listing
+// before the cron's ship-by sweep relists it, revert it here too. Idempotent
+// with the cron via the 'reserved' status guard inside releaseExpiredReservation.
+export async function handlePaymentIntentCanceled(
+  admin: TypedSupabaseClient,
+  pi: Stripe.PaymentIntent,
+  env: { STRIPE_SECRET_KEY: string } & NotifyEnv,
+): Promise<Response> {
+  const escrow = await findEscrowByPaymentIntent(admin, pi.id);
+  if (!escrow) return ok();
+  if (escrow.kind === 'listing') {
+    if (escrow.status !== 'reserved') return ok(); // already shipped/sold/disputed — stale cancel
+    await releaseExpiredReservation(admin, env, { listingId: escrow.id, reason: 'auth_canceled' });
+    return ok();
+  }
+  // Commission: the manual-capture auth can't span a multi-week knit. Surface
+  // it for support rather than dropping it silently — the commission escrow
+  // model needs a different mechanism (tracked separately, H2b).
+  await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
+    service: 'stripe.webhook:commission_auth_canceled',
+    context: { commission_request_id: escrow.id, payment_intent_id: pi.id, status: escrow.status },
+    error: 'Commission PaymentIntent canceled (manual-capture auth likely expired before completion)',
   });
   return ok();
 }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { purchaseListing, confirmListingDelivery, completeListingPurchase } from './listings';
+import { purchaseListing, confirmListingDelivery, completeListingPurchase, releaseExpiredReservation, shipListing } from './listings';
 import { createNotification } from '../notify';
+import { recordDeadLetter } from './dead-letter';
 import { tbFeeForPrice } from '../shipping';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
@@ -26,18 +27,39 @@ vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 const checkoutCreate = vi.fn(async (_args?: any) => ({ url: 'https://checkout.stripe.com/c/test_123' }));
 const piCapture = vi.fn(async (_id?: any) => ({}));
 const piRetrieve = vi.fn(async (_id?: any) => ({ status: 'requires_capture' }));
+const piCancel = vi.fn(async (_id?: any) => ({ status: 'canceled' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     checkout: { sessions: { create: checkoutCreate } },
-    paymentIntents: { capture: piCapture, retrieve: piRetrieve },
+    paymentIntents: { capture: piCapture, retrieve: piRetrieve, cancel: piCancel },
   })),
 }));
 
 beforeEach(() => {
   checkoutCreate.mockClear();
   piCapture.mockClear();
+  piRetrieve.mockClear();
+  piCancel.mockClear();
+  vi.mocked(recordDeadLetter).mockClear();
   vi.mocked(createNotification).mockClear();
 });
+
+const RELEASE_ENV = { STRIPE_SECRET_KEY: 'sk_test', PUBLIC_SITE_URL: 'https://test.site', RESEND_API_KEY: '', PUBLIC_VAPID_KEY: '', VAPID_PRIVATE_KEY: '' } as any;
+
+/** Seed a reserved-but-not-shipped listing holding an uncaptured auth. */
+function seedReserved(overrides: Record<string, unknown> = {}): FakeDb {
+  return fakeDb({
+    listings: [{
+      id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1',
+      title: 'Babygenser', status: 'reserved',
+      stripe_payment_intent_id: 'pi_hold',
+      reserved_at: '2026-01-01T00:00:00.000Z',
+      auto_release_at: '2026-01-06T00:00:00.000Z',
+      buyer_name: 'Kari', buyer_address: 'Storgata 1', buyer_postal_code: '0001', buyer_city: 'Oslo',
+      ...overrides,
+    }],
+  });
+}
 
 function ctxFor(db: FakeDb, userId = 'buyer-1', email = 'buyer@x.io'): ServiceContext {
   return {
@@ -289,6 +311,24 @@ describe('purchaseListing — guards', () => {
     expect(checkoutCreate).not.toHaveBeenCalled();
   });
 
+  it('falls back to the production site URL when PUBLIC_SITE_URL is unset', async () => {
+    const db = seedPersonal();
+    const ctx = ctxFor(db);
+    delete (ctx.env as any).PUBLIC_SITE_URL;
+    await purchaseListing(ctx, { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    expect(checkoutArgs().success_url).toContain('https://www.littlesandmeknits.com');
+  });
+
+  it('is blocked by the purchases kill-switch (no checkout created)', async () => {
+    const db = seedPersonal();
+    const ctx = ctxFor(db);
+    (ctx.env as any).KILL_PURCHASES = 'on';
+    const r = await purchaseListing(ctx, { listingId: 'l1', stripeSecretKey: 'sk_test' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('service_unavailable');
+    expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+
   it('server_error when Stripe returns a session without a URL', async () => {
     checkoutCreate.mockResolvedValueOnce({ url: null } as any);
     const db = seedPersonal();
@@ -435,8 +475,9 @@ describe('completeListingPurchase (webhook transition)', () => {
     expect(row.stripe_payment_intent_id).toBe('pi_xyz');
     expect(row.platform_fee_nok).toBe(74);
     expect(row.reserved_at).toBe(FIXED.toISOString());
-    // auto-release defaults to +21 days.
-    expect(row.auto_release_at).toBe(new Date(FIXED.getTime() + 21 * 86400_000).toISOString());
+    // Ship-by deadline: +5 days, safely inside Stripe's ~7-day auth window
+    // (past it the cron releases the reservation rather than capturing).
+    expect(row.auto_release_at).toBe(new Date(FIXED.getTime() + 5 * 86400_000).toISOString());
     expect(row).toMatchObject({
       buyer_name: 'Kari', buyer_address: 'Storgata 1',
       buyer_postal_code: '0001', buyer_city: 'Oslo',
@@ -499,6 +540,18 @@ describe('confirmListingDelivery', () => {
       }],
     });
   }
+
+  it('is blocked by the payouts kill-switch BEFORE any capture or state change', async () => {
+    const db = seedShipped();
+    const ctx = ctxFor(db, 'buyer-1');
+    (ctx.env as any).KILL_PAYOUTS = 'on';
+    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('service_unavailable');
+    expect(piCapture).not.toHaveBeenCalled();
+    // Never mark sold without having captured — must be re-confirmable later.
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
+  });
 
   it('captures the same PI the buy created, marks sold + delivered (real row state)', async () => {
     const db = seedShipped();
@@ -567,4 +620,163 @@ describe('confirmListingDelivery', () => {
     expect(piCapture).not.toHaveBeenCalled();
     expect((db.find('listings', { id: 'l1' }) as any).status).toBe('sold');
   });
+});
+
+// H2: shipListing capture must never run against a dead auth (fake-db so the
+// projection/filter + branch mutants are actually killed).
+describe('shipListing (escrow capture vs dead auth)', () => {
+  it('captures the authorized PI and marks the listing shipped', async () => {
+    const db = seedReserved();
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: 'TRK1' });
+    expect(r.ok).toBe(true);
+    expect(piRetrieve).toHaveBeenCalledWith('pi_hold');
+    expect(piCapture).toHaveBeenCalledWith('pi_hold');
+    const row = db.find('listings', { id: 'l1' }) as any;
+    expect(row.status).toBe('shipped');
+    expect(row.tracking_code).toBe('TRK1');
+  });
+
+  it('skips capture when the PI already succeeded, still ships', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded' });
+    const db = seedReserved();
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(true);
+    expect(piCapture).not.toHaveBeenCalled();
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
+  });
+
+  it('releases the reservation (no ship, no capture) when the auth is dead', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    const db = seedReserved();
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    expect(piCapture).not.toHaveBeenCalled();
+    const row = db.find('listings', { id: 'l1' }) as any;
+    expect(row.status).toBe('active'); // relisted, not shipped
+    expect(row.buyer_id).toBeNull();
+    expect(recordDeadLetter).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the whole capture step while payouts are paused, still ships', async () => {
+    const db = seedReserved();
+    const ctx = ctxFor(db, 'seller-1');
+    (ctx.env as any).KILL_PAYOUTS = 'on';
+    const r = await shipListing(ctx, { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(true);
+    expect(piRetrieve).not.toHaveBeenCalled(); // entire block guarded out
+    expect(piCapture).not.toHaveBeenCalled();
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
+  });
+
+  it('rejects shipping a listing that is not reserved', async () => {
+    const db = seedReserved({ status: 'active' });
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+  });
+
+  it('ships without any Stripe call when there is no payment intent (legacy/free)', async () => {
+    const db = seedReserved({ stripe_payment_intent_id: null });
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(true);
+    expect(piRetrieve).not.toHaveBeenCalled();
+    expect(piCapture).not.toHaveBeenCalled();
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
+  });
+
+  it('not_found when the actor is not the seller', async () => {
+    const db = seedReserved();
+    const r = await shipListing(ctxFor(db, 'someone-else'), { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('not_found');
+  });
+});
+
+// H2: ship-by-deadline / auth-expiry — release a never-shipped reservation
+// before the 7-day manual-capture auth dies, instead of capturing for an item
+// that never shipped.
+describe('releaseExpiredReservation', () => {
+  it('cancels the hold, relists, and notifies both parties', async () => {
+    const db = seedReserved(); // retrieve → requires_capture (default)
+    const r = await releaseExpiredReservation(db.client as any, RELEASE_ENV, { listingId: 'l1', reason: 'ship_deadline' });
+    expect(r.released).toBe(true);
+
+    // The uncaptured auth is canceled (buyer's hold returned).
+    expect(piCancel).toHaveBeenCalledWith('pi_hold');
+
+    // Listing is back to active with the purchase trail wiped.
+    const row = db.find('listings', { id: 'l1' }) as any;
+    expect(row.status).toBe('active');
+    expect(row.buyer_id).toBeNull();
+    expect(row.stripe_payment_intent_id).toBeNull();
+    expect(row.reserved_at).toBeNull();
+    expect(row.auto_release_at).toBeNull();
+    expect(row.buyer_name).toBeNull();
+    expect(row.buyer_city).toBeNull();
+
+    // Both parties told; buyer learns they weren't charged.
+    expect(createNotification).toHaveBeenCalledTimes(2);
+    const calls = vi.mocked(createNotification).mock.calls;
+    const buyerNote = calls.find(c => (c[1] as any).userId === 'buyer-1')![1] as any;
+    const sellerNote = calls.find(c => (c[1] as any).userId === 'seller-1')![1] as any;
+    expect(buyerNote.type).toBe('listing_reservation_released');
+    expect(buyerNote.body).toContain('ikke belastet');
+    expect(sellerNote.type).toBe('listing_reservation_released');
+    expect(sellerNote.body).toContain('innen fristen'); // ship_deadline copy
+  });
+
+  it('still relists when the auth already expired (canceled) — nothing to cancel', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    const db = seedReserved();
+    const r = await releaseExpiredReservation(db.client as any, RELEASE_ENV, { listingId: 'l1', reason: 'auth_canceled' });
+    expect(r.released).toBe(true);
+    expect(piCancel).not.toHaveBeenCalled(); // already canceled, no double-cancel
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('active');
+    const sellerNote = vi.mocked(createNotification).mock.calls.find(c => (c[1] as any).userId === 'seller-1')![1] as any;
+    expect(sellerNote.body).toContain('utløp'); // auth_canceled copy
+  });
+
+  it('relists a no-payment-intent reservation without any Stripe call', async () => {
+    const db = seedReserved({ stripe_payment_intent_id: null });
+    const r = await releaseExpiredReservation(db.client as any, RELEASE_ENV, { listingId: 'l1', reason: 'ship_deadline' });
+    expect(r.released).toBe(true);
+    expect(piRetrieve).not.toHaveBeenCalled();
+    expect(piCancel).not.toHaveBeenCalled();
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('active');
+  });
+
+  it('is a no-op when the listing is no longer reserved (cron/webhook race)', async () => {
+    const db = seedReserved({ status: 'shipped' });
+    const r = await releaseExpiredReservation(db.client as any, RELEASE_ENV, { listingId: 'l1', reason: 'ship_deadline' });
+    expect(r.released).toBe(false);
+    expect(piCancel).not.toHaveBeenCalled();
+    expect(createNotification).not.toHaveBeenCalled();
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped'); // untouched
+  });
+
+  it('NEVER reverts a captured charge — dead-letters and leaves it reserved', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded' });
+    const db = seedReserved();
+    const r = await releaseExpiredReservation(db.client as any, RELEASE_ENV, { listingId: 'l1', reason: 'ship_deadline' });
+    expect(r.released).toBe(false);
+    expect(piCancel).not.toHaveBeenCalled();
+    expect(recordDeadLetter).toHaveBeenCalledTimes(1);
+    // Money was captured — do NOT silently relist (that would lose it).
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('reserved');
+    expect(createNotification).not.toHaveBeenCalled();
+  });
+
+  // Every still-uncaptured auth state must be cancelable (releases the hold).
+  it.each(['requires_capture', 'requires_payment_method', 'requires_confirmation', 'requires_action'])(
+    'cancels the hold for an uncaptured PI in state %s',
+    async (status) => {
+      piRetrieve.mockResolvedValueOnce({ status });
+      const db = seedReserved();
+      const r = await releaseExpiredReservation(db.client as any, RELEASE_ENV, { listingId: 'l1', reason: 'ship_deadline' });
+      expect(r.released).toBe(true);
+      expect(piCancel).toHaveBeenCalledWith('pi_hold');
+      expect((db.find('listings', { id: 'l1' }) as any).status).toBe('active');
+    },
+  );
 });

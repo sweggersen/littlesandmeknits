@@ -9,6 +9,7 @@ import { sendEmail } from '../../../lib/email';
 import { renderDraftNudgeEmail } from '../../../lib/email-templates';
 import { isKilled } from '../../../lib/flags';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
+import { releaseExpiredReservation } from '../../../lib/services/listings';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -28,7 +29,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0, userPreferencesRefreshed: 0, promotionDailyWindowsReset: 0, draftsNudged: 0 };
+  const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, reservationsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0, userPreferencesRefreshed: 0, promotionDailyWindowsReset: 0, draftsNudged: 0 };
 
   // One shared timestamp for the whole tick (all the "past-due" comparisons).
   const now = new Date().toISOString();
@@ -250,11 +251,14 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    // 3. Auto-release listing purchases after 14 days
+    // 3a. Auto-confirm SHIPPED listings past the delivery window. Capture
+    //     usually already happened at ship, so this is normally idempotent;
+    //     it captures here only if the buyer confirmed nothing and the seller
+    //     somehow shipped while payouts were paused.
     const { data: releasableListings } = await admin
       .from('listings')
       .select('id, seller_id, title, stripe_payment_intent_id')
-      .in('status', ['reserved', 'shipped'])
+      .eq('status', 'shipped')
       .lt('auto_release_at', now);
 
     if (releasableListings?.length) {
@@ -291,6 +295,36 @@ export const POST: APIRoute = async ({ request }) => {
           }, env);
         }
         results.listingsReleased++;
+      }
+    }
+
+    // 3b. Release RESERVED listings the seller never shipped before the ship-by
+    //     deadline. Capturing would charge the buyer for an item that never
+    //     shipped, and the manual-capture auth is near expiry — so cancel the
+    //     hold and relist instead of capturing.
+    const { data: expiredReservations } = await admin
+      .from('listings')
+      .select('id')
+      .eq('status', 'reserved')
+      .lt('auto_release_at', now);
+
+    const releaseEnv = {
+      STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY,
+      RESEND_API_KEY: env.RESEND_API_KEY,
+      PUBLIC_SITE_URL: env.PUBLIC_SITE_URL,
+      PUBLIC_VAPID_KEY: env.PUBLIC_VAPID_KEY,
+      VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY,
+    };
+    for (const stale of expiredReservations ?? []) {
+      try {
+        const r = await releaseExpiredReservation(admin, releaseEnv, { listingId: stale.id, reason: 'ship_deadline' });
+        if (r.released) results.reservationsReleased++;
+      } catch (e) {
+        await recordDeadLetter({ admin }, {
+          service: 'cron.auto_release:reservation_release',
+          context: { listing_id: stale.id },
+          error: e,
+        });
       }
     }
   });

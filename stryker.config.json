@@ -1,12 +1,14 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation-testing gate for the money-critical commerce paths (R2-15 A+). Scoped to the fee/escrow/payment functions so the score measures the strength of the money tests, not thinly-covered CRUD. Run: npm run test:mutation. Currently ~99%. break=92 keeps refactor headroom while enforcing the high-signal floor; the ~3 residual survivors are fail()/label copy strings and one equivalent initializer (let onboarded=false, always overwritten) — deliberately not chased (would need brittle copy assertions or disable-comments).",
+  "_comment": "Mutation-testing gate for the money-critical commerce paths. Scoped to the fee/escrow/payment DECISION lines (the notification-copy tails of shipListing/confirmListingDelivery/releaseExpiredReservation are deliberately OUT of range — copy, not money logic) so the score measures money-test strength. Ranges: completeListingPurchase+purchaseListing (fee math, ship-by deadline), shipListing capture-vs-dead-auth, confirmListingDelivery capture, releaseExpiredReservation cancel/revert, payCommission+finalizeCommissionPayment. Run: npm run test:mutation. Currently ~92%. break=92 enforces the high-signal floor; residual survivors are fail()/label copy strings, the un-simulatable single-threaded race guard (if(!reverted.length)...), and equivalent initializers (let onboarded=false) — deliberately not chased (would need brittle copy assertions or concurrency).",
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.config.ts" },
   "coverageAnalysis": "perTest",
   "mutate": [
-    "src/lib/services/listings.ts:374-518",
-    "src/lib/services/listings.ts:584-651",
+    "src/lib/services/listings.ts:372-520",
+    "src/lib/services/listings.ts:521-594",
+    "src/lib/services/listings.ts:609-663",
+    "src/lib/services/listings.ts:685-731",
     "src/lib/services/commissions.ts:335-466"
   ],
   "reporters": ["clear-text", "progress", "html"],

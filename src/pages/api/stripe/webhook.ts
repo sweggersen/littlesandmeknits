@@ -14,6 +14,7 @@ import {
   handleChargebackClosed,
   handlePayoutFailed,
   handlePaymentIntentFailed,
+  handlePaymentIntentCanceled,
   handleChargeRefunded,
 } from '../../../lib/services/stripe-events';
 import { log } from '../../../lib/log';
@@ -416,6 +417,13 @@ async function handleEvent(
   }
   if (event.type === 'payment_intent.payment_failed') {
     return handlePaymentIntentFailed(supabase, event.data.object as Stripe.PaymentIntent);
+  }
+  if (event.type === 'payment_intent.canceled') {
+    return handlePaymentIntentCanceled(
+      supabase,
+      event.data.object as Stripe.PaymentIntent,
+      { STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY, ...notifyEnv },
+    );
   }
   if (event.type === 'charge.refunded') {
     return handleChargeRefunded(supabase, event.data.object as Stripe.Charge, notifyEnv);

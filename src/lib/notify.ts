@@ -33,7 +33,8 @@ export type NotificationType =
   | 'seller_new_listing'
   | 'payout_failed'
   | 'payment_failed'
-  | 'seller_activated';
+  | 'seller_activated'
+  | 'listing_reservation_released';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
   new_offer: 'email_new_offer',
@@ -66,6 +67,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   payout_failed: 'email_payment_received',
   payment_failed: 'email_payment_received',
   seller_activated: 'email_item_approved',
+  listing_reservation_released: 'email_listing_purchased',
 };
 
 interface NotifyEnv {

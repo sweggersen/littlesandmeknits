@@ -93,6 +93,13 @@ describe('payCommission — builds a real Checkout Session', () => {
     expect((sessionCreate.mock.calls[0][0] as any).metadata.platform_fee_ore).toBe('8000');
   });
 
+  it('falls back to the production site URL when PUBLIC_SITE_URL is unset', async () => {
+    const ctx = ctxFor(seed());
+    delete (ctx.env as any).PUBLIC_SITE_URL;
+    await payCommission(ctx, { requestId: 'req-1' });
+    expect((sessionCreate.mock.calls[0][0] as any).success_url).toContain('https://www.littlesandmeknits.com');
+  });
+
   // Price sweep: the fee is the platform's cut and is echoed in metadata so the
   // webhook stores exactly what was charged.
   it.each([

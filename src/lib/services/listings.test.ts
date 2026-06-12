@@ -284,6 +284,26 @@ describe('shipListing', () => {
     const u = updates.find((x: any) => x.table === 'listings') as any;
     expect(u.row.tracking_code).toBeNull();
   });
+
+  it('H2: does NOT ship against a dead auth — releases the reservation + conflict', async () => {
+    // The 7-day manual-capture auth expired before the seller shipped.
+    stripeCapture.mockClear();
+    stripeRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    const { ctx, updates } = mockCtx({
+      actorId: 'seller',
+      rows: { listings: { id: 'l1', seller_id: 'seller', buyer_id: 'b', title: 't', status: 'reserved', stripe_payment_intent_id: 'pi_dead' } },
+    });
+    const r = await shipListing(ctx, { listingId: 'l1', trackingCode: 'TRK' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    // Reverts to active (relisted), never marks shipped, never captures dead money.
+    const u = updates.find((x: any) => x.table === 'listings') as any;
+    expect(u.row.status).toBe('active');
+    expect(u.row.buyer_id).toBeNull();
+    expect(u.row.stripe_payment_intent_id).toBeNull();
+    expect(u.row.reserved_at).toBeNull();
+    expect(stripeCapture).not.toHaveBeenCalled();
+  });
 });
 
 // ───────────────────────────── confirmListingDelivery ──────────────

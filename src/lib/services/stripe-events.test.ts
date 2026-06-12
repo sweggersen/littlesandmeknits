@@ -1,12 +1,25 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type Stripe from 'stripe';
 import { createFakeDb } from './__test_helpers__/fake-db';
+
+// handlePaymentIntentCanceled → releaseExpiredReservation → createStripe.
+// Stub the PI retrieve/cancel so the canceled-auth release path is exercised
+// without a real Stripe call. (The other handlers here don't touch Stripe.)
+const { piRetrieveMock, piCancelMock } = vi.hoisted(() => ({
+  piRetrieveMock: vi.fn(async () => ({ status: 'requires_capture' })),
+  piCancelMock: vi.fn(async () => ({ status: 'canceled' })),
+}));
+vi.mock('../stripe', () => ({
+  createStripe: () => ({ paymentIntents: { retrieve: piRetrieveMock, cancel: piCancelMock } }),
+}));
+
 import {
   isEventProcessed,
   handleChargebackOpened,
   handleChargebackClosed,
   handlePayoutFailed,
   handlePaymentIntentFailed,
+  handlePaymentIntentCanceled,
   handleChargeRefunded,
 } from './stripe-events';
 
@@ -180,5 +193,51 @@ describe('isEventProcessed', () => {
     expect(await isEventProcessed(db.client as never, 'evt_done')).toBe(true);
     expect(await isEventProcessed(db.client as never, 'evt_pending')).toBe(false);
     expect(await isEventProcessed(db.client as never, 'evt_absent')).toBe(false);
+  });
+});
+
+describe('handlePaymentIntentCanceled (H2 defense-in-depth)', () => {
+  const canceledEnv = { STRIPE_SECRET_KEY: 'sk_test', PUBLIC_SITE_URL: 'https://x.io', RESEND_API_KEY: '', PUBLIC_VAPID_KEY: '', VAPID_PRIVATE_KEY: '' } as never;
+
+  it('releases a still-reserved listing whose auth was canceled', async () => {
+    piRetrieveMock.mockResolvedValueOnce({ status: 'canceled' }); // Stripe already voided it
+    // projectColumns models Postgres returning the updated rows from
+    // update(...).select(), which the reservation-release race guard relies on.
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'reserved', seller_id: 'S1', buyer_id: 'B1', title: 'Genser', reserved_at: '2026-01-01T00:00:00Z', auto_release_at: '2026-01-06T00:00:00Z' }],
+    }, { projectColumns: true });
+    const res = await handlePaymentIntentCanceled(db.client as never, intent({ id: 'pi_1', status: 'canceled' }), canceledEnv);
+    expect(res.status).toBe(200);
+    expect(db.find('listings', { id: 'L1' })!.status).toBe('active'); // relisted
+    expect(db.find('notifications', { user_id: 'B1', type: 'listing_reservation_released' })).toBeTruthy();
+  });
+
+  it('is a no-op for a listing that already shipped (stale cancel)', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'shipped', seller_id: 'S1', buyer_id: 'B1', title: 'Genser' }],
+    });
+    const res = await handlePaymentIntentCanceled(db.client as never, intent({ id: 'pi_1', status: 'canceled' }), canceledEnv);
+    expect(res.status).toBe(200);
+    expect(db.find('listings', { id: 'L1' })!.status).toBe('shipped'); // untouched
+    expect(db.rows('notifications').length).toBe(0);
+  });
+
+  it('dead-letters a canceled commission auth (escrow cannot span a knit)', async () => {
+    const db = createFakeDb({
+      ...baseSeed(),
+      listings: [],
+      commission_requests: [{ id: 'C1', stripe_payment_intent_id: 'pi_2', status: 'awarded', buyer_id: 'B1', title: 'Lue', awarded_offer_id: 'O1' }],
+    });
+    const res = await handlePaymentIntentCanceled(db.client as never, intent({ id: 'pi_2', status: 'canceled' }), canceledEnv);
+    expect(res.status).toBe(200);
+    expect(db.find('dead_letter_events', { service: 'stripe.webhook:commission_auth_canceled' })).toBeTruthy();
+  });
+
+  it('200 no-op when the payment intent matches nothing', async () => {
+    const db = createFakeDb({ ...baseSeed(), listings: [], commission_requests: [] });
+    const res = await handlePaymentIntentCanceled(db.client as never, intent({ id: 'pi_unknown', status: 'canceled' }), canceledEnv);
+    expect(res.status).toBe(200);
   });
 });

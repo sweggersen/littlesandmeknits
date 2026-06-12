@@ -321,6 +321,16 @@ export async function uploadListingPhotos(
 const PLATFORM_FEE_PERCENT = 13;
 const AMBASSADOR_FEE_PERCENT = 8;
 
+// Escrow timing. Stripe manual-capture authorizations expire ~7 days after the
+// charge, so a reservation MUST resolve before then. SHIP_DEADLINE_DAYS is the
+// window the seller has to ship (well inside 7d); past it the cron releases the
+// reservation (cancels the hold, relists) rather than capturing money for an
+// item that never shipped. DELIVERY_WINDOW_DAYS is the post-ship window for the
+// buyer to confirm before auto-release — capture already happened at ship, so
+// this one is just a status deadline and may exceed 7 days safely.
+const SHIP_DEADLINE_DAYS = 5;
+const DELIVERY_WINDOW_DAYS = 14;
+
 export interface CompletePurchaseParams {
   listingId: string;
   buyerId: string;
@@ -365,9 +375,11 @@ export async function completeListingPurchase(
 ): Promise<CompletePurchaseResult> {
   const now = (p.now ?? new Date());
   const nowIso = now.toISOString();
-  // Fallback deadline if the seller never ships. shipListing recomputes this
-  // to shipped_at + 14d.
-  const autoReleaseAt = new Date(now.getTime() + 21 * 86400_000).toISOString();
+  // Ship-by deadline: the seller must ship within SHIP_DEADLINE_DAYS (safely
+  // under Stripe's 7-day auth expiry). Past it, the cron RELEASES the
+  // reservation (cancel hold + relist) instead of capturing. shipListing
+  // recomputes this to shipped_at + DELIVERY_WINDOW_DAYS once shipped.
+  const autoReleaseAt = new Date(now.getTime() + SHIP_DEADLINE_DAYS * 86400_000).toISOString();
   const feeNok = p.amountTotalOre ? Math.round((p.amountTotalOre * 0.13) / 100) : 0;
 
   const { data: rows, error } = await admin
@@ -525,34 +537,47 @@ export async function shipListing(
   // Custom holds the funds in the seller's pending balance for 7 days
   // before auto-paying out to their kontonummer — disputes within that
   // window are netted against the next payout. The auto_release_at field
-  // is still set to 14 days so we can mark the listing 'sold' for status
-  // purposes if the buyer doesn't confirm delivery.
+  // is set to DELIVERY_WINDOW_DAYS so we can mark the listing 'sold' for
+  // status purposes if the buyer doesn't confirm delivery.
   const shippedAt = new Date();
-  const autoReleaseAt = new Date(shippedAt.getTime() + 14 * 86400_000);
+  const autoReleaseAt = new Date(shippedAt.getTime() + DELIVERY_WINDOW_DAYS * 86400_000);
 
   const { data: listingForCapture } = await ctx.admin
     .from('listings')
     .select('stripe_payment_intent_id')
     .eq('id', input.listingId)
     .maybeSingle();
+  const shipPiId = listingForCapture?.stripe_payment_intent_id;
   // Skip the capture entirely while payouts are paused — marking shipped is
-  // fine, and the day-14 auto-release cron (which also honours the switch)
-  // captures once payouts resume.
-  if (listingForCapture?.stripe_payment_intent_id && !(await isKilled('payouts', ctx.env))) {
-    try {
-      const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
-      await stripe.paymentIntents.capture(listingForCapture.stripe_payment_intent_id);
-    } catch (e) {
-      // Fall through — the auto_release_at cron will retry on day 14.
-      // Land in dead-letter so support sees it before the retry window.
+  // fine, and the auto-release cron (which also honours the switch) captures
+  // once payouts resume (still inside the ~7-day auth window, since the
+  // ship-by deadline is < 7 days).
+  if (shipPiId && !(await isKilled('payouts', ctx.env))) {
+    const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
+    // The manual-capture auth expires ~7 days after purchase. Branch on the
+    // live PI state so a seller never ships against money we can't collect:
+    //  - requires_capture → capture now
+    //  - succeeded        → already captured (rare pre-ship); proceed
+    //  - anything else    → auth expired/canceled. DON'T mark shipped against
+    //                       dead money — release the reservation back to active
+    //                       and tell the seller (transient Stripe errors throw
+    //                       here so the seller simply retries while the auth is
+    //                       still alive, rather than shipping for free).
+    const pi = await stripe.paymentIntents.retrieve(shipPiId);
+    if (pi.status === 'requires_capture') {
+      await stripe.paymentIntents.capture(shipPiId);
+    } else if (pi.status !== 'succeeded') {
       await recordDeadLetter(ctx, {
-        service: 'listings.shipListing:capture-on-ship',
-        context: {
-          listing_id: input.listingId,
-          payment_intent_id: listingForCapture.stripe_payment_intent_id,
-        },
-        error: e,
+        service: 'listings.shipListing:auth-expired',
+        context: { listing_id: input.listingId, payment_intent_id: shipPiId, pi_status: pi.status },
+        error: `PaymentIntent not capturable at ship (status=${pi.status})`,
       });
+      await ctx.admin.from('listings').update({
+        status: 'active', buyer_id: null, stripe_payment_intent_id: null,
+        reserved_at: null, auto_release_at: null,
+        buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null,
+      }).eq('id', input.listingId).eq('status', 'reserved');
+      return fail('conflict', 'Reservasjonen har utløpt og betalingen er ikke lenger gyldig. Annonsen er lagt ut igjen.');
     }
   }
 
@@ -648,6 +673,85 @@ export async function confirmListingDelivery(
   }
 
   return ok({ redirect: `/market/listing/${input.listingId}` });
+}
+
+/** Release a reserved-but-never-shipped listing whose ship-by deadline passed
+ *  (cron) or whose Stripe auth was canceled (webhook). Cancels the still-
+ *  uncaptured PaymentIntent to return the buyer's hold, reverts the listing to
+ *  'active', clears the purchase trail, and notifies both parties. Idempotent:
+ *  acts only while the listing is still 'reserved', so a cron/webhook race is a
+ *  safe no-op. NEVER reverts a captured charge (that would silently lose
+ *  money) — it dead-letters instead. */
+export async function releaseExpiredReservation(
+  admin: TypedSupabaseClient,
+  env: { STRIPE_SECRET_KEY: string } & Parameters<typeof createNotification>[2],
+  input: { listingId: string; reason: 'ship_deadline' | 'auth_canceled' },
+): Promise<{ released: boolean }> {
+  const { data: listing } = await admin
+    .from('listings')
+    .select('id, seller_id, buyer_id, title, status, stripe_payment_intent_id')
+    .eq('id', input.listingId)
+    .maybeSingle();
+  if (!listing || listing.status !== 'reserved') return { released: false };
+
+  if (listing.stripe_payment_intent_id) {
+    const stripe = createStripe(env.STRIPE_SECRET_KEY);
+    const pi = await stripe.paymentIntents.retrieve(listing.stripe_payment_intent_id);
+    // Cancel a still-uncaptured auth to release the buyer's hold. If it's
+    // already canceled (auth expired naturally) there's nothing to release —
+    // fall through and revert the row. If it somehow captured/processing, do
+    // NOT silently revert (that would lose money) — dead-letter and bail.
+    if (pi.status === 'requires_capture' || pi.status === 'requires_payment_method'
+        || pi.status === 'requires_confirmation' || pi.status === 'requires_action') {
+      await stripe.paymentIntents.cancel(listing.stripe_payment_intent_id);
+    } else if (pi.status !== 'canceled') {
+      await recordDeadLetter({ admin, user: listing.buyer_id ? { id: listing.buyer_id } : undefined }, {
+        service: 'listings.releaseExpiredReservation:not-cancelable',
+        context: { listing_id: listing.id, payment_intent_id: listing.stripe_payment_intent_id, pi_status: pi.status, reason: input.reason },
+        error: `Refusing to release a non-cancelable PaymentIntent (status=${pi.status})`,
+      });
+      return { released: false };
+    }
+  }
+
+  // Revert to active so it can be bought again; clear the purchase trail. The
+  // status guard keeps this idempotent against a cron/webhook double-fire.
+  const { data: reverted } = await admin
+    .from('listings')
+    .update({
+      status: 'active', buyer_id: null, stripe_payment_intent_id: null,
+      reserved_at: null, auto_release_at: null,
+      buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null,
+    })
+    .eq('id', input.listingId)
+    .eq('status', 'reserved')
+    .select('id');
+  if (!reverted?.length) return { released: false }; // a concurrent caller won the race
+
+  if (listing.buyer_id) {
+    await createNotification(admin, {
+      userId: listing.buyer_id,
+      type: 'listing_reservation_released',
+      title: 'Reservasjonen er opphevet',
+      body: `Reservasjonen av «${listing.title}» er opphevet, og du er ikke belastet. Varen er tilgjengelig igjen.`,
+      url: `/market/listing/${listing.id}`,
+      referenceId: listing.id,
+    }, env);
+  }
+  if (listing.seller_id) {
+    await createNotification(admin, {
+      userId: listing.seller_id,
+      type: 'listing_reservation_released',
+      title: 'Reservasjonen utløp',
+      body: input.reason === 'auth_canceled'
+        ? `Betalingen for «${listing.title}» utløp før varen ble sendt. Reservasjonen er opphevet og annonsen er lagt ut igjen.`
+        : `«${listing.title}» ble ikke sendt innen fristen. Reservasjonen er opphevet og annonsen er lagt ut igjen.`,
+      url: `/market/listing/${listing.id}`,
+      referenceId: listing.id,
+    }, env);
+  }
+
+  return { released: true };
 }
 
 export async function disputeListing(
