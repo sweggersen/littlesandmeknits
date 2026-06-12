@@ -83,12 +83,13 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     let eventId: string;
 
     beforeAll(async () => {
-      const { data } = await admin.from('dead_letter_events').insert({
+      const { data, error } = await admin.from('dead_letter_events').insert({
         service: 'rls.test',
         user_id: aliceId,
         error: 'fixture',
         context: {},
       }).select('id').single();
+      if (error) throw new Error(`dead_letter_events setup insert failed: ${error.message} | code=${error.code} | details=${error.details} | hint=${error.hint}`);
       eventId = data!.id;
     });
 
@@ -358,12 +359,13 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
   describe('seller_profiles', () => {
     beforeAll(async () => {
       // Alice seeds a seller_profile for these tests.
-      await admin.from('seller_profiles').upsert({
+      const { error } = await admin.from('seller_profiles').upsert({
         id: aliceId,
         legal_name: 'Alice Test',
         kontonummer: '12345678901',
         stripe_connect_status: 'pending',
       });
+      if (error) throw new Error(`seller_profiles setup upsert failed: ${error.message} | code=${error.code} | details=${error.details} | hint=${error.hint}`);
     });
 
     it('owner reads own seller_profile', async () => {
@@ -395,11 +397,12 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
 
   describe('buyer_preferences', () => {
     beforeAll(async () => {
-      await admin.from('buyer_preferences').upsert({
+      const { error } = await admin.from('buyer_preferences').upsert({
         id: aliceId,
         marketplace_interests: ['children'],
         strikketorget_welcomed_at: new Date().toISOString(),
       });
+      if (error) throw new Error(`buyer_preferences setup upsert failed: ${error.message} | code=${error.code} | details=${error.details} | hint=${error.hint}`);
     });
 
     it('owner reads own buyer_preferences', async () => {
@@ -424,12 +427,13 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     let identityId: string;
 
     beforeAll(async () => {
-      const { data } = await admin.from('auth_identities').insert({
+      const { data, error } = await admin.from('auth_identities').insert({
         user_id: aliceId,
         provider: 'vipps',
         sub: 'rls-test-sub-' + aliceId.slice(0, 8),
         phone: '+4712345678',
       }).select('id').single();
+      if (error) throw new Error(`auth_identities setup insert failed: ${error.message} | code=${error.code} | details=${error.details} | hint=${error.hint}`);
       identityId = data!.id;
     });
 
