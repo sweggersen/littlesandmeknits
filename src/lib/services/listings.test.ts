@@ -76,6 +76,7 @@ function mockCtx(opts: MockOpts) {
       update: (row: unknown) => {
         const tail: any = {
           eq: () => tail,
+          in: () => tail,
           async then(cb: any) {
             updates.push({ table, row });
             return cb({ error: null });

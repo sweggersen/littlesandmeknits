@@ -46,12 +46,19 @@ function mockCtx(opts: MockOpts = {}) {
         inserts.push({ table, row });
         return { error: null };
       },
-      update: (row: unknown) => ({
-        eq: async () => {
-          updates.push({ table, row });
-          return { error: null };
-        },
-      }),
+      update: (row: unknown) => {
+        // Chainable .eq().in(); records on await — the order shadow writes use
+        // .update().eq('listing_id').in('status', [...]).
+        const tail: any = {
+          eq: () => tail,
+          in: () => tail,
+          async then(cb: any) {
+            updates.push({ table, row });
+            return cb({ error: null });
+          },
+        };
+        return tail;
+      },
     }),
   };
   const ctx: ServiceContext = {

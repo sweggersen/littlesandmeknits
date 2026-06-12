@@ -248,12 +248,17 @@ async function handleEvent(
         ? parseInt(session.metadata.platform_fee_ore, 10)
         : NaN;
 
+      const tbFeeNok = session.metadata.tb_fee_nok ? parseInt(session.metadata.tb_fee_nok, 10) : 0;
+      const shipNok = session.metadata.shipping_nok ? parseInt(session.metadata.shipping_nok, 10) : 0;
+
       const result = await completeListingPurchase(supabase, {
         listingId: purchaseListingId,
         buyerId,
         paymentIntentId: piId ?? null,
         amountTotalOre: session.amount_total ?? null,
         platformFeeOre: Number.isFinite(listingFeeOre) ? listingFeeOre : null,
+        tbFeeNok: Number.isFinite(tbFeeNok) ? tbFeeNok : 0,
+        shippingNok: Number.isFinite(shipNok) ? shipNok : 0,
         shipping: {
           name: shipping?.name ?? null,
           line1: shipping?.address?.line1 ?? null,

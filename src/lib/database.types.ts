@@ -1469,6 +1469,128 @@ export type Database = {
           },
         ]
       }
+      orders: {
+        Row: {
+          auto_release_at: string | null
+          buyer_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          created_at: string
+          delivered_at: string | null
+          dispute_reason: string | null
+          dispute_resolution: string | null
+          dispute_resolved_at: string | null
+          disputed_at: string | null
+          id: string
+          item_price_nok: number
+          listing_id: string
+          platform_fee_nok: number
+          refund_description: string | null
+          refund_notes: string | null
+          refund_outcome: string | null
+          refund_reason: string | null
+          refund_requested_at: string | null
+          refund_resolved_at: string | null
+          reserved_at: string
+          seller_id: string
+          ship_deadline_at: string | null
+          shipped_at: string | null
+          shipping_address: string | null
+          shipping_city: string | null
+          shipping_name: string | null
+          shipping_nok: number
+          shipping_postal_code: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          store_id: string | null
+          stripe_dispute_id: string | null
+          stripe_payment_intent_id: string | null
+          tb_fee_nok: number
+          tracking_code: string | null
+        }
+        Insert: {
+          auto_release_at?: string | null
+          buyer_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          dispute_reason?: string | null
+          dispute_resolution?: string | null
+          dispute_resolved_at?: string | null
+          disputed_at?: string | null
+          id?: string
+          item_price_nok: number
+          listing_id: string
+          platform_fee_nok?: number
+          refund_description?: string | null
+          refund_notes?: string | null
+          refund_outcome?: string | null
+          refund_reason?: string | null
+          refund_requested_at?: string | null
+          refund_resolved_at?: string | null
+          reserved_at?: string
+          seller_id: string
+          ship_deadline_at?: string | null
+          shipped_at?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_name?: string | null
+          shipping_nok?: number
+          shipping_postal_code?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          store_id?: string | null
+          stripe_dispute_id?: string | null
+          stripe_payment_intent_id?: string | null
+          tb_fee_nok?: number
+          tracking_code?: string | null
+        }
+        Update: {
+          auto_release_at?: string | null
+          buyer_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          dispute_reason?: string | null
+          dispute_resolution?: string | null
+          dispute_resolved_at?: string | null
+          disputed_at?: string | null
+          id?: string
+          item_price_nok?: number
+          listing_id?: string
+          platform_fee_nok?: number
+          refund_description?: string | null
+          refund_notes?: string | null
+          refund_outcome?: string | null
+          refund_reason?: string | null
+          refund_requested_at?: string | null
+          refund_resolved_at?: string | null
+          reserved_at?: string
+          seller_id?: string
+          ship_deadline_at?: string | null
+          shipped_at?: string | null
+          shipping_address?: string | null
+          shipping_city?: string | null
+          shipping_name?: string | null
+          shipping_nok?: number
+          shipping_postal_code?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          store_id?: string | null
+          stripe_dispute_id?: string | null
+          stripe_payment_intent_id?: string | null
+          tb_fee_nok?: number
+          tracking_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           age_confirmed_at: string | null
@@ -2597,6 +2719,12 @@ export type Database = {
         | "rejected"
         | "disputed"
         | "frozen"
+      order_status:
+        | "reserved"
+        | "shipped"
+        | "delivered"
+        | "cancelled"
+        | "disputed"
       notification_type:
         | "new_offer"
         | "offer_accepted"
@@ -2815,6 +2943,7 @@ export const Constants = {
         "disputed",
         "frozen",
       ],
+      order_status: ["reserved", "shipped", "delivered", "cancelled", "disputed"],
       notification_type: [
         "new_offer",
         "offer_accepted",

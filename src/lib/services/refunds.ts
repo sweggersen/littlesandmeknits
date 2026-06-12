@@ -2,6 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
+import { updateOpenOrder } from './orders';
 
 const VALID_REASONS = new Set(['not_received', 'damaged', 'not_as_described', 'wrong_size', 'changed_mind', 'other']);
 
@@ -25,11 +26,18 @@ export async function requestRefund(
   }
   if (listing.refund_requested_at) return fail('conflict', 'Refusjon er allerede etterspurt');
 
+  const reqAt = new Date().toISOString();
   await ctx.admin.from('listings').update({
-    refund_requested_at: new Date().toISOString(),
+    refund_requested_at: reqAt,
     refund_reason: input.reason,
     refund_description: input.description?.slice(0, 1000) ?? null,
   }).eq('id', input.listingId);
+  // Phase B shadow: record the refund request on the order.
+  await updateOpenOrder(ctx.admin, input.listingId, {
+    refund_requested_at: reqAt,
+    refund_reason: input.reason,
+    refund_description: input.description?.slice(0, 1000) ?? null,
+  });
 
   await createNotification(ctx.admin, {
     userId: listing.seller_id,
@@ -97,6 +105,12 @@ export async function respondToRefund(
       refund_resolved_at: now, refund_outcome: 'accepted',
       refund_notes: input.notes?.slice(0, 1000) ?? null,
     }).eq('id', listing.id);
+    // Phase B shadow: the order is cancelled (refunded), trail kept on the order.
+    await updateOpenOrder(ctx.admin, listing.id, {
+      status: 'cancelled', cancelled_at: now, cancel_reason: 'refund_accepted',
+      refund_resolved_at: now, refund_outcome: 'accepted',
+      refund_notes: input.notes?.slice(0, 1000) ?? null,
+    });
 
     if (listing.buyer_id) {
       await createNotification(ctx.admin, {
@@ -113,12 +127,18 @@ export async function respondToRefund(
   }
 
   // Decline → escalate to formal dispute. Moderator picks it up via /admin/disputes.
+  const declineReason = `Selger avviste refusjon. Kjøpers grunn: ${listing.refund_reason}.${input.notes ? ` Selgers svar: ${input.notes.slice(0, 500)}` : ''}`;
   await ctx.admin.from('listings').update({
     status: 'disputed',
     disputed_at: now,
-    dispute_reason: `Selger avviste refusjon. Kjøpers grunn: ${listing.refund_reason}.${input.notes ? ` Selgers svar: ${input.notes.slice(0, 500)}` : ''}`,
+    dispute_reason: declineReason,
     refund_resolved_at: now, refund_outcome: 'declined',
   }).eq('id', listing.id);
+  // Phase B shadow: the order is disputed.
+  await updateOpenOrder(ctx.admin, listing.id, {
+    status: 'disputed', disputed_at: now, dispute_reason: declineReason,
+    refund_resolved_at: now, refund_outcome: 'declined',
+  });
 
   if (listing.buyer_id) {
     await createNotification(ctx.admin, {

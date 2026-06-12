@@ -8,6 +8,7 @@ import { VALID_CATEGORIES } from '../labels';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
 import { recordDeadLetter } from './dead-letter';
 import { killGuard, isKilled } from '../flags';
+import { createReservedOrder, updateOpenOrder } from './orders';
 
 const VALID_KIND = new Set(['pre_loved', 'ready_made']);
 const VALID_CONDITION = new Set(['som_ny', 'lite_brukt', 'brukt', 'slitt']);
@@ -339,6 +340,10 @@ export interface CompletePurchaseParams {
    *  (platform_fee_ore). Null for sessions created before the metadata was
    *  added — those fall back to the legacy 13%-of-total estimate. */
   platformFeeOre?: number | null;
+  /** TB fee + shipping (NOK), from session metadata — recorded on the order's
+   *  money breakdown. Default 0 for legacy sessions. */
+  tbFeeNok?: number | null;
+  shippingNok?: number | null;
   /** Shipping address collected at Checkout. */
   shipping?: {
     name?: string | null;
@@ -404,10 +409,34 @@ export async function completeListingPurchase(
     })
     .eq('id', p.listingId)
     .eq('status', 'active')
-    .select('seller_id, title');
+    .select('seller_id, title, price_nok, store_id');
 
   if (error) return { updated: false, error, listing: null };
-  const listing = (rows?.[0] as { seller_id: string; title: string } | undefined) ?? null;
+  const listing = (rows?.[0] as { seller_id: string; title: string; price_nok: number; store_id: string | null } | undefined) ?? null;
+
+  // Phase B shadow: record the order (source of truth). Only on a real
+  // transition (not a duplicate webhook delivery, which matches 0 rows).
+  if (listing) {
+    await createReservedOrder(admin, {
+      listing_id: p.listingId,
+      buyer_id: p.buyerId,
+      seller_id: listing.seller_id,
+      store_id: listing.store_id ?? null,
+      status: 'reserved',
+      item_price_nok: listing.price_nok,
+      shipping_nok: p.shippingNok ?? 0,
+      tb_fee_nok: p.tbFeeNok ?? 0,
+      platform_fee_nok: feeNok,
+      stripe_payment_intent_id: p.paymentIntentId ?? null,
+      shipping_name: p.shipping?.name ?? null,
+      shipping_address: p.shipping?.line1 ?? null,
+      shipping_postal_code: p.shipping?.postalCode ?? null,
+      shipping_city: p.shipping?.city ?? null,
+      reserved_at: nowIso,
+      ship_deadline_at: autoReleaseAt,
+    });
+  }
+
   return { updated: !!listing, error: null, listing };
 }
 
@@ -583,6 +612,10 @@ export async function shipListing(
         reserved_at: null, auto_release_at: null,
         buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null,
       }).eq('id', input.listingId).eq('status', 'reserved');
+      // Phase B shadow: the order is cancelled (dead auth), not shipped.
+      await updateOpenOrder(ctx.admin, input.listingId, {
+        status: 'cancelled', cancelled_at: shippedAt.toISOString(), cancel_reason: 'auth_canceled',
+      });
       return fail('conflict', 'Reservasjonen har utløpt og betalingen er ikke lenger gyldig. Annonsen er lagt ut igjen.');
     }
   }
@@ -596,6 +629,16 @@ export async function shipListing(
       auto_release_at: autoReleaseAt.toISOString(),
     })
     .eq('id', input.listingId);
+
+  // Phase B shadow: mirror the ship transition onto the order. The delivery
+  // window deadline lives in auto_release_at; ship_deadline_at is now moot.
+  await updateOpenOrder(ctx.admin, input.listingId, {
+    status: 'shipped',
+    shipped_at: shippedAt.toISOString(),
+    tracking_code: input.trackingCode.trim() || null,
+    auto_release_at: autoReleaseAt.toISOString(),
+    ship_deadline_at: null,
+  });
 
   if (listing.buyer_id) {
     await createNotification(ctx.admin, {
@@ -666,6 +709,11 @@ export async function confirmListingDelivery(
     })
     .eq('id', input.listingId);
 
+  // Phase B shadow: the order is delivered (terminal, money with the seller).
+  await updateOpenOrder(ctx.admin, input.listingId, {
+    status: 'delivered', delivered_at: now, auto_release_at: null,
+  });
+
   if (listing.seller_id) {
     await createNotification(ctx.admin, {
       userId: listing.seller_id,
@@ -733,6 +781,13 @@ export async function releaseExpiredReservation(
     .eq('status', 'reserved')
     .select('id');
   if (!reverted?.length) return { released: false }; // a concurrent caller won the race
+
+  // Phase B shadow: the order is cancelled (hold released, never charged).
+  await updateOpenOrder(admin, input.listingId, {
+    status: 'cancelled',
+    cancelled_at: new Date().toISOString(),
+    cancel_reason: input.reason,
+  });
 
   if (listing.buyer_id) {
     await createNotification(admin, {

@@ -11,6 +11,7 @@ import { isKilled } from '../../../lib/flags';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds } from '../../../lib/services/commissions';
+import { updateOpenOrder } from '../../../lib/services/orders';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -291,6 +292,8 @@ export const POST: APIRoute = async ({ request }) => {
         await admin.from('listings').update({
           status: 'sold', sold_at: now, delivered_at: now, auto_release_at: null,
         }).eq('id', listing.id);
+        // Phase B shadow: mirror onto the order (delivered).
+        await updateOpenOrder(admin, listing.id, { status: 'delivered', delivered_at: now, auto_release_at: null });
 
         if (listing.seller_id) {
           await createNotification(admin, {

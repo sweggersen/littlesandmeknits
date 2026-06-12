@@ -12,6 +12,7 @@ import type { TypedSupabaseClient } from '../supabase';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
 import { releaseExpiredReservation } from './listings';
+import { updateOrderByPaymentIntent } from './orders';
 import { log } from '../log';
 
 type NotifyEnv = Parameters<typeof createNotification>[2];
@@ -141,6 +142,14 @@ export async function handleChargebackOpened(
     return dbError();
   }
   if (!changed?.length) return ok(); // already frozen by an earlier delivery
+
+  // Phase B shadow: freeze the order too (chargeback can land post-payout, so
+  // key on the PI, not open status).
+  if (escrow.kind === 'listing') {
+    await updateOrderByPaymentIntent(admin, intentId, {
+      status: 'disputed', disputed_at: now, dispute_reason: reason, stripe_dispute_id: dispute.id,
+    });
+  }
 
   const sellerId = escrow.kind === 'listing'
     ? escrow.sellerId
@@ -340,6 +349,9 @@ export async function handleChargeRefunded(
       .update({ refund_resolved_at: now, refund_outcome: 'accepted' })
       .eq('id', escrow.id)
       .is('refund_resolved_at', null);
+    // Phase B shadow: record the refund resolution on the order (key on PI —
+    // it may already be delivered).
+    await updateOrderByPaymentIntent(admin, intentId, { refund_resolved_at: now, refund_outcome: 'accepted' });
     if (error) {
       await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
         service: 'stripe.webhook:charge_refunded',
