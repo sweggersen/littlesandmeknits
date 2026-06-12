@@ -2,7 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
-import { updateOpenOrder } from './orders';
+import { updateOpenOrder, findOpenOrder } from './orders';
 
 const VALID_REASONS = new Set(['not_received', 'damaged', 'not_as_described', 'wrong_size', 'changed_mind', 'other']);
 
@@ -17,22 +17,18 @@ export async function requestRefund(
   if (!VALID_REASONS.has(input.reason)) return fail('bad_input', 'Invalid reason');
 
   const { data: listing } = await ctx.admin
-    .from('listings').select('id, buyer_id, seller_id, title, status, refund_requested_at')
+    .from('listings').select('id, buyer_id, seller_id, title, status')
     .eq('id', input.listingId).maybeSingle();
   if (!listing) return fail('not_found', 'Listing not found');
   if (listing.buyer_id !== ctx.user.id) return fail('forbidden', 'Du er ikke kjøperen');
   if (!['reserved', 'shipped', 'sold'].includes(listing.status)) {
     return fail('conflict', 'Kan ikke be om refusjon i denne fasen');
   }
-  if (listing.refund_requested_at) return fail('conflict', 'Refusjon er allerede etterspurt');
+  // The refund request lives on the order now.
+  const order = await findOpenOrder(ctx.admin, input.listingId);
+  if (order?.refund_requested_at) return fail('conflict', 'Refusjon er allerede etterspurt');
 
   const reqAt = new Date().toISOString();
-  await ctx.admin.from('listings').update({
-    refund_requested_at: reqAt,
-    refund_reason: input.reason,
-    refund_description: input.description?.slice(0, 1000) ?? null,
-  }).eq('id', input.listingId);
-  // Phase B shadow: record the refund request on the order.
   await updateOpenOrder(ctx.admin, input.listingId, {
     refund_requested_at: reqAt,
     refund_reason: input.reason,
@@ -64,20 +60,22 @@ export async function respondToRefund(
   if (!['accept', 'decline'].includes(input.action)) return fail('bad_input', 'Invalid action');
 
   const { data: listing } = await ctx.admin
-    .from('listings').select('id, buyer_id, seller_id, title, status, stripe_payment_intent_id, refund_requested_at, refund_reason')
+    .from('listings').select('id, buyer_id, seller_id, title, status')
     .eq('id', input.listingId).maybeSingle();
   if (!listing) return fail('not_found', 'Listing not found');
   if (listing.seller_id !== ctx.user.id) return fail('forbidden', 'Du er ikke selgeren');
-  if (!listing.refund_requested_at) return fail('conflict', 'Ingen aktiv refusjonsforespørsel');
+  // The refund request + payment ref live on the order.
+  const order = await findOpenOrder(ctx.admin, input.listingId);
+  if (!order?.refund_requested_at) return fail('conflict', 'Ingen aktiv refusjonsforespørsel');
 
   const now = new Date().toISOString();
 
   if (input.action === 'accept') {
-    if (listing.stripe_payment_intent_id) {
+    if (order.stripe_payment_intent_id) {
       const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
       try {
         // Cancel (manual capture not yet captured) or refund (captured).
-        await stripe.paymentIntents.cancel(listing.stripe_payment_intent_id);
+        await stripe.paymentIntents.cancel(order.stripe_payment_intent_id);
       } catch {
         // Already captured — full refund of the DESTINATION charge.
         // reverse_transfer pulls the funds back from the seller's connected
@@ -87,7 +85,7 @@ export async function respondToRefund(
         try {
           const stripe2 = createStripe(ctx.env.STRIPE_SECRET_KEY);
           await stripe2.refunds.create({
-            payment_intent: listing.stripe_payment_intent_id,
+            payment_intent: order.stripe_payment_intent_id,
             reverse_transfer: true,
             refund_application_fee: true,
           });
@@ -97,20 +95,13 @@ export async function respondToRefund(
         }
       }
     }
-    await ctx.admin.from('listings').update({
-      status: 'active', buyer_id: null,
-      reserved_at: null, shipped_at: null, tracking_code: null,
-      delivered_at: null, sold_at: null,
-      stripe_payment_intent_id: null, platform_fee_nok: null,
-      refund_resolved_at: now, refund_outcome: 'accepted',
-      refund_notes: input.notes?.slice(0, 1000) ?? null,
-    }).eq('id', listing.id);
-    // Phase B shadow: the order is cancelled (refunded), trail kept on the order.
+    // Order keeps the cancelled+refund record; listing returns to the catalog.
     await updateOpenOrder(ctx.admin, listing.id, {
       status: 'cancelled', cancelled_at: now, cancel_reason: 'refund_accepted',
       refund_resolved_at: now, refund_outcome: 'accepted',
       refund_notes: input.notes?.slice(0, 1000) ?? null,
     });
+    await ctx.admin.from('listings').update({ status: 'active', buyer_id: null, sold_at: null }).eq('id', listing.id);
 
     if (listing.buyer_id) {
       await createNotification(ctx.admin, {
@@ -127,18 +118,12 @@ export async function respondToRefund(
   }
 
   // Decline → escalate to formal dispute. Moderator picks it up via /admin/disputes.
-  const declineReason = `Selger avviste refusjon. Kjøpers grunn: ${listing.refund_reason}.${input.notes ? ` Selgers svar: ${input.notes.slice(0, 500)}` : ''}`;
-  await ctx.admin.from('listings').update({
-    status: 'disputed',
-    disputed_at: now,
-    dispute_reason: declineReason,
-    refund_resolved_at: now, refund_outcome: 'declined',
-  }).eq('id', listing.id);
-  // Phase B shadow: the order is disputed.
+  const declineReason = `Selger avviste refusjon. Kjøpers grunn: ${order.refund_reason}.${input.notes ? ` Selgers svar: ${input.notes.slice(0, 500)}` : ''}`;
   await updateOpenOrder(ctx.admin, listing.id, {
     status: 'disputed', disputed_at: now, dispute_reason: declineReason,
     refund_resolved_at: now, refund_outcome: 'declined',
   });
+  await ctx.admin.from('listings').update({ status: 'disputed' }).eq('id', listing.id);
 
   if (listing.buyer_id) {
     await createNotification(ctx.admin, {

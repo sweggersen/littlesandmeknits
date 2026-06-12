@@ -3,7 +3,7 @@ import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
-import { updateOpenOrder } from './orders';
+import { updateOpenOrder, findOpenOrder } from './orders';
 
 type Decision = 'refund' | 'release';
 const VALID_DECISIONS = new Set<Decision>(['refund', 'release']);
@@ -48,42 +48,32 @@ async function resolveListingDispute(
 ): Promise<ServiceResult<{ redirect: string }>> {
   const { data: listing } = await ctx.admin
     .from('listings')
-    .select('id, seller_id, buyer_id, title, status, stripe_payment_intent_id')
+    .select('id, seller_id, buyer_id, title, status')
     .eq('id', listingId)
     .maybeSingle();
 
   if (!listing) return fail('not_found', 'Listing not found');
   if (listing.status !== 'disputed') return fail('conflict', 'Not in disputed state');
-  if (!listing.stripe_payment_intent_id) return fail('server_error', 'No payment intent');
+  // The disputed order holds the PaymentIntent.
+  const order = await findOpenOrder(ctx.admin, listingId);
+  if (!order?.stripe_payment_intent_id) return fail('server_error', 'No payment intent');
 
   if (decision === 'refund') {
-    await stripe.paymentIntents.cancel(listing.stripe_payment_intent_id);
+    await stripe.paymentIntents.cancel(order.stripe_payment_intent_id);
     const resolution = notes?.trim() || 'Refunded by admin';
-    await ctx.admin.from('listings').update({
-      status: 'active', buyer_id: null,
-      dispute_resolution: resolution,
-      dispute_resolved_at: now,
-      stripe_payment_intent_id: null, platform_fee_nok: null,
-      reserved_at: null, shipped_at: null, tracking_code: null,
-    }).eq('id', listingId);
-    // Phase B shadow: the order is cancelled (admin refund).
     await updateOpenOrder(ctx.admin, listingId, {
       status: 'cancelled', cancelled_at: now, cancel_reason: 'admin_refund',
       dispute_resolution: resolution, dispute_resolved_at: now,
     });
+    await ctx.admin.from('listings').update({ status: 'active', buyer_id: null, sold_at: null }).eq('id', listingId);
   } else {
-    await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
+    await stripe.paymentIntents.capture(order.stripe_payment_intent_id);
     const resolution = notes?.trim() || 'Released by admin';
-    await ctx.admin.from('listings').update({
-      status: 'sold', sold_at: now, delivered_at: now,
-      dispute_resolution: resolution,
-      dispute_resolved_at: now,
-    }).eq('id', listingId);
-    // Phase B shadow: the order is delivered (admin released to seller).
     await updateOpenOrder(ctx.admin, listingId, {
       status: 'delivered', delivered_at: now,
       dispute_resolution: resolution, dispute_resolved_at: now,
     });
+    await ctx.admin.from('listings').update({ status: 'sold', sold_at: now }).eq('id', listingId);
   }
 
   const refunded = decision === 'refund';

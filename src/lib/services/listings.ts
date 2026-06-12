@@ -8,7 +8,7 @@ import { VALID_CATEGORIES } from '../labels';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
 import { recordDeadLetter } from './dead-letter';
 import { killGuard, isKilled } from '../flags';
-import { createReservedOrder, updateOpenOrder } from './orders';
+import { createReservedOrder, updateOpenOrder, findOpenOrder } from './orders';
 
 const VALID_KIND = new Set(['pre_loved', 'ready_made']);
 const VALID_CONDITION = new Set(['som_ny', 'lite_brukt', 'brukt', 'slitt']);
@@ -230,10 +230,11 @@ export async function markListingSold(
   if (listing.status !== 'active') return fail('bad_input', 'Bare aktive annonser kan markeres som solgt');
   if (listing.escrow_enabled) return fail('bad_input', 'Bruk Trygg betaling-flyten for denne annonsen');
 
+  // Manual "Kan møtes" sale — no order (paid off-platform), just the catalog status.
   const now = new Date().toISOString();
   const { error } = await ctx.admin
     .from('listings')
-    .update({ status: 'sold', sold_at: now, delivered_at: now })
+    .update({ status: 'sold', sold_at: now })
     .eq('id', input.listingId);
   if (error) return fail('server_error', 'Kunne ikke markere som solgt');
 
@@ -393,20 +394,11 @@ export async function completeListingPurchase(
     ? Math.round(p.platformFeeOre / 100)
     : p.amountTotalOre ? Math.round((p.amountTotalOre * 0.13) / 100) : 0;
 
+  // The listing carries only the catalog projection (status + current holder);
+  // the order (below) is the sole home of money, PII and lifecycle.
   const { data: rows, error } = await admin
     .from('listings')
-    .update({
-      status: 'reserved',
-      buyer_id: p.buyerId,
-      stripe_payment_intent_id: p.paymentIntentId ?? null,
-      platform_fee_nok: feeNok,
-      reserved_at: nowIso,
-      auto_release_at: autoReleaseAt,
-      buyer_name: p.shipping?.name ?? null,
-      buyer_address: p.shipping?.line1 ?? null,
-      buyer_postal_code: p.shipping?.postalCode ?? null,
-      buyer_city: p.shipping?.city ?? null,
-    })
+    .update({ status: 'reserved', buyer_id: p.buyerId })
     .eq('id', p.listingId)
     .eq('status', 'active')
     .select('seller_id, title, price_nok, store_id');
@@ -414,8 +406,8 @@ export async function completeListingPurchase(
   if (error) return { updated: false, error, listing: null };
   const listing = (rows?.[0] as { seller_id: string; title: string; price_nok: number; store_id: string | null } | undefined) ?? null;
 
-  // Phase B shadow: record the order (source of truth). Only on a real
-  // transition (not a duplicate webhook delivery, which matches 0 rows).
+  // Record the order (source of truth). Only on a real transition (not a
+  // duplicate webhook delivery, which matches 0 rows).
   if (listing) {
     await createReservedOrder(admin, {
       listing_id: p.listingId,
@@ -577,12 +569,9 @@ export async function shipListing(
   const shippedAt = new Date();
   const autoReleaseAt = new Date(shippedAt.getTime() + DELIVERY_WINDOW_DAYS * 86400_000);
 
-  const { data: listingForCapture } = await ctx.admin
-    .from('listings')
-    .select('stripe_payment_intent_id')
-    .eq('id', input.listingId)
-    .maybeSingle();
-  const shipPiId = listingForCapture?.stripe_payment_intent_id;
+  // The PaymentIntent lives on the order (source of truth) now.
+  const order = await findOpenOrder(ctx.admin, input.listingId);
+  const shipPiId = order?.stripe_payment_intent_id;
   // Skip the capture entirely while payouts are paused — marking shipped is
   // fine, and the auto-release cron (which also honours the switch) captures
   // once payouts resume (still inside the ~7-day auth window, since the
@@ -607,31 +596,18 @@ export async function shipListing(
         context: { listing_id: input.listingId, payment_intent_id: shipPiId, pi_status: pi.status },
         error: `PaymentIntent not capturable at ship (status=${pi.status})`,
       });
-      await ctx.admin.from('listings').update({
-        status: 'active', buyer_id: null, stripe_payment_intent_id: null,
-        reserved_at: null, auto_release_at: null,
-        buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null,
-      }).eq('id', input.listingId).eq('status', 'reserved');
-      // Phase B shadow: the order is cancelled (dead auth), not shipped.
+      // The order is cancelled (dead auth); the listing returns to the catalog.
       await updateOpenOrder(ctx.admin, input.listingId, {
         status: 'cancelled', cancelled_at: shippedAt.toISOString(), cancel_reason: 'auth_canceled',
       });
+      await ctx.admin.from('listings').update({ status: 'active', buyer_id: null })
+        .eq('id', input.listingId).eq('status', 'reserved');
       return fail('conflict', 'Reservasjonen har utløpt og betalingen er ikke lenger gyldig. Annonsen er lagt ut igjen.');
     }
   }
 
-  await ctx.admin
-    .from('listings')
-    .update({
-      status: 'shipped',
-      shipped_at: shippedAt.toISOString(),
-      tracking_code: input.trackingCode.trim() || null,
-      auto_release_at: autoReleaseAt.toISOString(),
-    })
-    .eq('id', input.listingId);
-
-  // Phase B shadow: mirror the ship transition onto the order. The delivery
-  // window deadline lives in auto_release_at; ship_deadline_at is now moot.
+  // The order owns the ship lifecycle; the listing carries only the catalog
+  // status projection. The delivery-window deadline lives on the order.
   await updateOpenOrder(ctx.admin, input.listingId, {
     status: 'shipped',
     shipped_at: shippedAt.toISOString(),
@@ -639,6 +615,7 @@ export async function shipListing(
     auto_release_at: autoReleaseAt.toISOString(),
     ship_deadline_at: null,
   });
+  await ctx.admin.from('listings').update({ status: 'shipped' }).eq('id', input.listingId);
 
   if (listing.buyer_id) {
     await createNotification(ctx.admin, {
@@ -663,7 +640,7 @@ export async function confirmListingDelivery(
 
   const { data: listing } = await ctx.admin
     .from('listings')
-    .select('id, seller_id, buyer_id, title, status, stripe_payment_intent_id')
+    .select('id, seller_id, buyer_id, title, status')
     .eq('id', input.listingId)
     .maybeSingle();
 
@@ -677,7 +654,9 @@ export async function confirmListingDelivery(
   const payoutsBlocked = await killGuard(['payouts'], ctx.env);
   if (payoutsBlocked) return payoutsBlocked;
 
-  if (listing.stripe_payment_intent_id) {
+  const order = await findOpenOrder(ctx.admin, input.listingId);
+  const piId = order?.stripe_payment_intent_id;
+  if (piId) {
     const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
     // The PI is often already captured (we capture at ship time). Capturing an
     // already-captured or canceled PI throws, so branch on its state:
@@ -685,13 +664,13 @@ export async function confirmListingDelivery(
     //  - succeeded        → already captured at ship; nothing to do
     //  - anything else    → auth expired/canceled; money was never collected,
     //                       so DON'T mark sold — dead-letter for support.
-    const pi = await stripe.paymentIntents.retrieve(listing.stripe_payment_intent_id);
+    const pi = await stripe.paymentIntents.retrieve(piId);
     if (pi.status === 'requires_capture') {
-      await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
+      await stripe.paymentIntents.capture(piId);
     } else if (pi.status !== 'succeeded') {
       await recordDeadLetter(ctx, {
         service: 'listings.confirmListingDelivery:not-capturable',
-        context: { listing_id: input.listingId, payment_intent_id: listing.stripe_payment_intent_id, pi_status: pi.status },
+        context: { listing_id: input.listingId, payment_intent_id: piId, pi_status: pi.status },
         error: `PaymentIntent not capturable (status=${pi.status})`,
       });
       return fail('conflict', 'Betalingen kunne ikke fullføres. Ta kontakt med support.');
@@ -699,20 +678,12 @@ export async function confirmListingDelivery(
   }
 
   const now = new Date().toISOString();
-  await ctx.admin
-    .from('listings')
-    .update({
-      status: 'sold',
-      sold_at: now,
-      delivered_at: now,
-      auto_release_at: null,
-    })
-    .eq('id', input.listingId);
-
-  // Phase B shadow: the order is delivered (terminal, money with the seller).
+  // Order is delivered (terminal, money with the seller); listing reflects the
+  // sale in its catalog status + sold_at (display).
   await updateOpenOrder(ctx.admin, input.listingId, {
     status: 'delivered', delivered_at: now, auto_release_at: null,
   });
+  await ctx.admin.from('listings').update({ status: 'sold', sold_at: now }).eq('id', input.listingId);
 
   if (listing.seller_id) {
     await createNotification(ctx.admin, {
@@ -743,46 +714,43 @@ export async function releaseExpiredReservation(
 ): Promise<{ released: boolean }> {
   const { data: listing } = await admin
     .from('listings')
-    .select('id, seller_id, buyer_id, title, status, stripe_payment_intent_id')
+    .select('id, seller_id, buyer_id, title, status')
     .eq('id', input.listingId)
     .maybeSingle();
   if (!listing || listing.status !== 'reserved') return { released: false };
 
-  if (listing.stripe_payment_intent_id) {
+  const order = await findOpenOrder(admin, input.listingId);
+  const piId = order?.stripe_payment_intent_id;
+  if (piId) {
     const stripe = createStripe(env.STRIPE_SECRET_KEY);
-    const pi = await stripe.paymentIntents.retrieve(listing.stripe_payment_intent_id);
+    const pi = await stripe.paymentIntents.retrieve(piId);
     // Cancel a still-uncaptured auth to release the buyer's hold. If it's
     // already canceled (auth expired naturally) there's nothing to release —
     // fall through and revert the row. If it somehow captured/processing, do
     // NOT silently revert (that would lose money) — dead-letter and bail.
     if (pi.status === 'requires_capture' || pi.status === 'requires_payment_method'
         || pi.status === 'requires_confirmation' || pi.status === 'requires_action') {
-      await stripe.paymentIntents.cancel(listing.stripe_payment_intent_id);
+      await stripe.paymentIntents.cancel(piId);
     } else if (pi.status !== 'canceled') {
       await recordDeadLetter({ admin, user: listing.buyer_id ? { id: listing.buyer_id } : undefined }, {
         service: 'listings.releaseExpiredReservation:not-cancelable',
-        context: { listing_id: listing.id, payment_intent_id: listing.stripe_payment_intent_id, pi_status: pi.status, reason: input.reason },
+        context: { listing_id: listing.id, payment_intent_id: piId, pi_status: pi.status, reason: input.reason },
         error: `Refusing to release a non-cancelable PaymentIntent (status=${pi.status})`,
       });
       return { released: false };
     }
   }
 
-  // Revert to active so it can be bought again; clear the purchase trail. The
-  // status guard keeps this idempotent against a cron/webhook double-fire.
+  // Revert the catalog row to active (status guard keeps this idempotent
+  // against a cron/webhook double-fire); the order keeps the cancelled record.
   const { data: reverted } = await admin
     .from('listings')
-    .update({
-      status: 'active', buyer_id: null, stripe_payment_intent_id: null,
-      reserved_at: null, auto_release_at: null,
-      buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null,
-    })
+    .update({ status: 'active', buyer_id: null })
     .eq('id', input.listingId)
     .eq('status', 'reserved')
     .select('id');
   if (!reverted?.length) return { released: false }; // a concurrent caller won the race
 
-  // Phase B shadow: the order is cancelled (hold released, never charged).
   await updateOpenOrder(admin, input.listingId, {
     status: 'cancelled',
     cancelled_at: new Date().toISOString(),
@@ -825,7 +793,7 @@ export async function disputeListing(
 
   const { data: listing } = await ctx.admin
     .from('listings')
-    .select('id, seller_id, buyer_id, title, status, auto_release_at')
+    .select('id, seller_id, buyer_id, title, status')
     .eq('id', input.listingId)
     .maybeSingle();
 
@@ -834,15 +802,14 @@ export async function disputeListing(
     return fail('conflict', 'Cannot dispute in this state');
   }
 
-  await ctx.admin
-    .from('listings')
-    .update({
-      status: 'disputed',
-      disputed_at: new Date().toISOString(),
-      dispute_reason: reason,
-      auto_release_at: null,
-    })
-    .eq('id', input.listingId);
+  // The order holds the dispute detail; the listing carries the status mirror.
+  await updateOpenOrder(ctx.admin, input.listingId, {
+    status: 'disputed',
+    disputed_at: new Date().toISOString(),
+    dispute_reason: reason,
+    auto_release_at: null,
+  });
+  await ctx.admin.from('listings').update({ status: 'disputed' }).eq('id', input.listingId);
 
   if (listing.seller_id) {
     await createNotification(ctx.admin, {

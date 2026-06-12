@@ -9,10 +9,12 @@ if (!auth) return Astro.redirect('/market');
 
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-const [{ data: disputedListings }, { data: disputedCommissions }] = await Promise.all([
+// Listing disputes live on the order (dispute fields + the buyer/seller); the
+// listing supplies title + price via the FK embed.
+const [{ data: disputedOrders }, { data: disputedCommissions }] = await Promise.all([
   admin
-    .from('listings')
-    .select('id, title, price_nok, seller_id, buyer_id, disputed_at, dispute_reason')
+    .from('orders')
+    .select('listing_id, seller_id, buyer_id, disputed_at, dispute_reason, listings(title, price_nok)')
     .eq('status', 'disputed')
     .order('disputed_at', { ascending: true }),
   admin
@@ -21,11 +23,15 @@ const [{ data: disputedListings }, { data: disputedCommissions }] = await Promis
     .eq('status', 'disputed')
     .order('disputed_at', { ascending: true }),
 ]);
+const disputedListings = (disputedOrders ?? []).map((o) => {
+  const l = o.listings as unknown as { title: string; price_nok: number } | null;
+  return { id: o.listing_id, title: l?.title ?? '', price_nok: l?.price_nok ?? 0, seller_id: o.seller_id, buyer_id: o.buyer_id, disputed_at: o.disputed_at, dispute_reason: o.dispute_reason };
+});
 
-const [{ data: resolvedListings }, { data: resolvedCommissions }] = await Promise.all([
+const [{ data: resolvedOrders }, { data: resolvedCommissions }] = await Promise.all([
   admin
-    .from('listings')
-    .select('id, title, dispute_resolution, dispute_resolved_at')
+    .from('orders')
+    .select('listing_id, dispute_resolution, dispute_resolved_at, listings(title)')
     .not('dispute_resolved_at', 'is', null)
     .order('dispute_resolved_at', { ascending: false })
     .limit(20),
@@ -36,6 +42,10 @@ const [{ data: resolvedListings }, { data: resolvedCommissions }] = await Promis
     .order('dispute_resolved_at', { ascending: false })
     .limit(20),
 ]);
+const resolvedListings = (resolvedOrders ?? []).map((o) => ({
+  id: o.listing_id, title: (o.listings as unknown as { title: string } | null)?.title ?? '',
+  dispute_resolution: o.dispute_resolution, dispute_resolved_at: o.dispute_resolved_at,
+}));
 
 const tab = Astro.url.searchParams.get('tab') ?? 'open';
 ---

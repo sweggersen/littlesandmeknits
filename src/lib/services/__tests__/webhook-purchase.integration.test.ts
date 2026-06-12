@@ -113,6 +113,8 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
   afterEach(async () => {
     vi.mocked(createNotification).mockClear();
     if (createdListingIds.length) {
+      // Orders FK-restrict the listing delete — clear them first.
+      await admin.from('orders').delete().in('listing_id', createdListingIds);
       await admin.from('listings').delete().in('id', createdListingIds);
       createdListingIds.length = 0;
     }
@@ -141,13 +143,17 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
     const res = await POST({ request: signedRequest(purchaseEvent(listingId)) });
     expect(res.status).toBe(200);
 
-    const { data: row } = await admin
-      .from('listings')
-      .select('status, buyer_id, stripe_payment_intent_id, platform_fee_nok, buyer_name, buyer_city')
-      .eq('id', listingId).single();
-    expect(row).toMatchObject({
+    const { data: lrow } = await admin
+      .from('listings').select('status, buyer_id').eq('id', listingId).single();
+    expect(lrow).toMatchObject({ status: 'reserved', buyer_id: buyerId });
+    // The signed event's money + PII landed on the order.
+    const { data: order } = await admin
+      .from('orders')
+      .select('status, buyer_id, stripe_payment_intent_id, platform_fee_nok, shipping_name, shipping_city')
+      .eq('listing_id', listingId).single();
+    expect(order).toMatchObject({
       status: 'reserved', buyer_id: buyerId, stripe_payment_intent_id: 'pi_roundtrip',
-      platform_fee_nok: 74, buyer_name: 'Kari Nordmann', buyer_city: 'Oslo',
+      platform_fee_nok: 74, shipping_name: 'Kari Nordmann', shipping_city: 'Oslo',
     });
 
     expect(createNotification).toHaveBeenCalledTimes(1);

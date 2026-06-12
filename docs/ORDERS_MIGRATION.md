@@ -1,6 +1,16 @@
 # Orders extraction — design
 
-**Status:** design approved-pending-review · **Author:** staff-review follow-up, 2026-06-12
+**Status:** DONE. Phases A+B+C all shipped 2026-06-12. Because nothing was live
+yet, the expand/migrate/contract staging (dual-write + prod soak) was collapsed
+into the end state directly: `orders` is the sole source of truth for the
+purchase (PII, money, Stripe refs, lifecycle, refund/dispute); `listings` keeps
+only `status` (catalog availability projection, written by the order services),
+`buyer_id` (current holder), and `sold_at`. Migration 0089 dropped the purchase
+columns. The phase narrative below is kept as the rationale; the dual-write
+"shadow" framing it describes was the intermediate that the final collapse
+removed.
+
+**Author:** staff-review follow-up, 2026-06-12
 **Problem:** the purchase/fulfillment entity does not exist as a table. It is ~20 columns
 smeared onto `listings`, which simultaneously serves as the public catalog row. Consequences:
 

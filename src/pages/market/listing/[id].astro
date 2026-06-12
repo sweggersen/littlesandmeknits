@@ -30,42 +30,22 @@ if (!id) return Astro.redirect('/market');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
 
+// Catalog columns only — the purchase entity lives on `orders` (fetched below
+// once we know the viewer). buyer_id + sold_at stay as the catalog projection.
+const LISTING_COLS = 'id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id, buyer_id, sold_at, promoted_until, promotion_tier';
+
 let { data: listing } = await supabase
   .from('listings')
-  .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution, promoted_until, promotion_tier, buyer_name, buyer_address, buyer_postal_code, buyer_city')
+  .select(LISTING_COLS)
   .eq('id', id)
   .maybeSingle();
-
-if (!listing) {
-  const { data: fallback } = await supabase
-    .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id')
-    .eq('id', id)
-    .maybeSingle();
-  if (fallback) listing = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null, buyer_name: null, buyer_address: null, buyer_postal_code: null, buyer_city: null } as any;
-}
 
 const { data: viewerProfile } = user ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle() : { data: null };
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
 
 if (!listing && isStaff) {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  let { data } = await admin
-    .from('listings')
-    .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id, buyer_id, stripe_payment_intent_id, reserved_at, shipped_at, tracking_code, auto_release_at, delivered_at, disputed_at, dispute_reason, dispute_resolution')
-    .eq('id', id)
-    .maybeSingle();
-  if (!data) {
-    const { data: fallback } = await admin
-      .from('listings')
-      .select('id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id')
-      .eq('id', id)
-      .maybeSingle();
-    if (fallback) data = { ...fallback, buyer_id: null, stripe_payment_intent_id: null, reserved_at: null, shipped_at: null, tracking_code: null, auto_release_at: null, delivered_at: null, disputed_at: null, dispute_reason: null, dispute_resolution: null } as any;
-  }
-  // The admin-client fallback returns a narrower select; cast to the
-  // primary listing shape so downstream code (which expects the full
-  // row) typechecks.
+  const { data } = await admin.from('listings').select(LISTING_COLS).eq('id', id).maybeSingle();
   listing = data as typeof listing;
 }
 
@@ -131,13 +111,13 @@ if (user && !isOwner) {
   } catch {}
 }
 
-// Refund request state (pulled separately because main select is large).
-const { data: refundRow } = await supabase
-  .from('listings')
-  .select('refund_requested_at, refund_reason, refund_description, refund_resolved_at, refund_outcome, refund_notes')
-  .eq('id', listing.id)
-  .maybeSingle();
-const refundOpen = !!(refundRow?.refund_requested_at && !refundRow?.refund_resolved_at);
+// The order is the source of truth for the post-purchase detail (shipping
+// address, tracking, refund + dispute sub-state, deadlines). Visible to the
+// buyer, the seller of the listing, and staff (orders RLS).
+const { data: order } = (isOwner || isBuyer || isStaff)
+  ? await supabase.from('orders').select('*').eq('listing_id', listing.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+  : { data: null };
+const refundOpen = !!(order?.refund_requested_at && !order?.refund_resolved_at);
 const refundReasonLabels: Record<string, string> = {
   not_received: 'Ikke mottatt',
   damaged: 'Skadet',
@@ -168,8 +148,8 @@ if (isOwner && listing.status === 'frozen') {
     .maybeSingle();
   frozenThreadId = t?.id ?? null;
 }
-const autoReleaseDays = listing.auto_release_at
-  ? Math.max(0, Math.ceil((new Date(listing.auto_release_at).getTime() - Date.now()) / 86400_000))
+const autoReleaseDays = order?.auto_release_at
+  ? Math.max(0, Math.ceil((new Date(order.auto_release_at).getTime() - Date.now()) / 86400_000))
   : null;
 
 // SEO: page-level meta + Product JSON-LD so listings can rank for
@@ -367,17 +347,17 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
 
               {isOwner && <MarkSoldPanel listing={listing} />}
 
-              <SellerPostPurchase listing={listing} />
+              <SellerPostPurchase listing={listing} order={order} />
             </div>
           ) : (
             <div class="space-y-4">
               <BuyerPostPurchase
                 listing={listing}
+                order={order}
                 isOwner={isOwner}
                 isBuyer={isBuyer}
                 justPurchased={justPurchased}
                 refundOpen={refundOpen}
-                refundRow={refundRow}
                 refundReasonLabels={refundReasonLabels}
                 autoReleaseDays={autoReleaseDays}
                 hasReviewed={hasReviewed}

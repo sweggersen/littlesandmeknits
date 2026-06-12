@@ -32,6 +32,36 @@ export async function findOpenOrder(
   return data ?? null;
 }
 
+/** The most recent order for a listing regardless of status — what page views
+ *  render (the open order, or the last terminal one for a sold/cancelled view). */
+export async function findLatestOrder(
+  admin: TypedSupabaseClient,
+  listingId: string,
+): Promise<OrderRow | null> {
+  const { data } = await admin
+    .from('orders')
+    .select('*')
+    .eq('listing_id', listingId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ?? null;
+}
+
+/** The order behind a PaymentIntent — the escrow correlation for Stripe events
+ *  now that the PI id lives on the order, not the listing. */
+export async function findOrderByPaymentIntent(
+  admin: TypedSupabaseClient,
+  intentId: string,
+): Promise<OrderRow | null> {
+  const { data } = await admin
+    .from('orders')
+    .select('*')
+    .eq('stripe_payment_intent_id', intentId)
+    .maybeSingle();
+  return data ?? null;
+}
+
 /** Create the reserved order for a completed purchase. Idempotent: the partial
  *  unique index rejects a second open order for the listing, so a duplicate
  *  webhook delivery (or a relist race) is a safe no-op rather than an error —

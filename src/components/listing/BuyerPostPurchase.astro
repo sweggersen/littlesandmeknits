@@ -12,13 +12,14 @@
 interface Listing {
   id: string;
   status: string;
-  tracking_code: string | null;
-  dispute_resolution: string | null;
-  reserved_at: string | null;
-  delivered_at: string | null;
 }
 
-interface RefundRow {
+// The purchase entity (source of truth for the post-purchase detail).
+interface Order {
+  reserved_at: string | null;
+  delivered_at: string | null;
+  tracking_code: string | null;
+  dispute_resolution: string | null;
   refund_reason: string | null;
   refund_description: string | null;
   refund_outcome: string | null;
@@ -31,19 +32,19 @@ interface BuyerReview {
 
 interface Props {
   listing: Listing;
+  order: Order | null;
   isOwner: boolean;
   isBuyer: boolean;
   justPurchased: boolean;
   refundOpen: boolean;
-  refundRow: RefundRow | null;
   refundReasonLabels: Record<string, string>;
   autoReleaseDays: number | null;
   hasReviewed: boolean;
   buyerReview: BuyerReview | null;
 }
 const {
-  listing, isOwner, isBuyer, justPurchased,
-  refundOpen, refundRow, refundReasonLabels,
+  listing, order, isOwner, isBuyer, justPurchased,
+  refundOpen, refundReasonLabels,
   autoReleaseDays, hasReviewed, buyerReview,
 } = Astro.props;
 ---
@@ -54,12 +55,12 @@ const {
   </div>
 )}
 
-{(isBuyer || isOwner) && listing.reserved_at && (
+{(isBuyer || isOwner) && order?.reserved_at && (
   <a href={`/market/listing/${listing.id}/kvittering`} class="inline-block text-xs text-charcoal/55 hover:text-terracotta-500">📄 Se kvittering →</a>
 )}
 
 {/* Refund request — buyer side */}
-{isBuyer && !refundOpen && ['reserved', 'shipped', 'sold'].includes(listing.status) && refundRow?.refund_outcome !== 'declined' && (
+{isBuyer && !refundOpen && ['reserved', 'shipped', 'sold'].includes(listing.status) && order?.refund_outcome !== 'declined' && (
   <details class="bg-white rounded-3xl p-5 border border-sage-500/10">
     <summary class="cursor-pointer text-sm font-medium text-charcoal/70 hover:text-charcoal">Be om refusjon</summary>
     <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-request`} class="mt-3 space-y-3">
@@ -90,10 +91,10 @@ const {
   <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4 text-sm">
     <p class="font-medium text-amber-900 mb-1">Refusjon etterspurt</p>
     <p class="text-amber-900/80 text-xs mb-2">
-      Grunn: <strong>{refundReasonLabels[refundRow?.refund_reason ?? ''] ?? refundRow?.refund_reason}</strong>
+      Grunn: <strong>{refundReasonLabels[order?.refund_reason ?? ''] ?? order?.refund_reason}</strong>
     </p>
-    {refundRow?.refund_description && (
-      <p class="text-amber-900/80 text-xs mb-3 whitespace-pre-wrap">«{refundRow.refund_description}»</p>
+    {order?.refund_description && (
+      <p class="text-amber-900/80 text-xs mb-3 whitespace-pre-wrap">«{order.refund_description}»</p>
     )}
     {isOwner ? (
       <div class="flex flex-wrap gap-2">
@@ -127,9 +128,9 @@ const {
         {listing.status === 'shipped' ? 'Varen er sendt' : 'Venter på sending'}
       </h2>
     </div>
-    {listing.tracking_code && (
+    {order?.tracking_code && (
       <p class="text-sm text-charcoal/65">
-        Sporingskode: <span class="font-mono">{listing.tracking_code}</span>
+        Sporingskode: <span class="font-mono">{order?.tracking_code}</span>
       </p>
     )}
     {autoReleaseDays !== null && (
@@ -165,13 +166,13 @@ const {
 {isBuyer && listing.status === 'disputed' && (
   <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 text-sm">
     Du har åpnet en tvist. Saken er under behandling.
-    {listing.dispute_resolution && (
-      <p class="mt-2 font-medium">Resultat: {listing.dispute_resolution}</p>
+    {order?.dispute_resolution && (
+      <p class="mt-2 font-medium">Resultat: {order?.dispute_resolution}</p>
     )}
   </div>
 )}
 
-{isBuyer && listing.status === 'sold' && listing.delivered_at && (
+{isBuyer && listing.status === 'sold' && order?.delivered_at && (
   <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
     Levering bekreftet. Betalingen er frigitt til selger.
   </div>

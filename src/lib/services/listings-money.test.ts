@@ -49,23 +49,16 @@ const RELEASE_ENV = { STRIPE_SECRET_KEY: 'sk_test', PUBLIC_SITE_URL: 'https://te
 /** Seed a reserved-but-not-shipped listing holding an uncaptured auth. */
 function seedReserved(overrides: Record<string, unknown> = {}): FakeDb {
   const status = (overrides.status as string) ?? 'reserved';
+  // The PI lives on the ORDER now, so a `stripe_payment_intent_id` override
+  // applies there (a null override = legacy/free purchase).
+  const pi = 'stripe_payment_intent_id' in overrides ? overrides.stripe_payment_intent_id : 'pi_hold';
   return fakeDb({
-    listings: [{
-      id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1',
-      title: 'Babygenser', status,
-      stripe_payment_intent_id: 'pi_hold',
-      reserved_at: '2026-01-01T00:00:00.000Z',
-      auto_release_at: '2026-01-06T00:00:00.000Z',
-      buyer_name: 'Kari', buyer_address: 'Storgata 1', buyer_postal_code: '0001', buyer_city: 'Oslo',
-      ...overrides,
-    }],
-    // Matching open order (Phase B source of truth) so shadow writes have a
-    // target. Mirrors the listing's lifecycle status.
+    listings: [{ id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1', title: 'Babygenser', status }],
+    // The open order is the source of truth (PII + money + lifecycle).
     orders: [{
       id: 'o1', listing_id: 'l1', buyer_id: 'buyer-1', seller_id: 'seller-1',
-      status: status === 'reserved' ? 'reserved' : status,
-      item_price_nok: 500, stripe_payment_intent_id: 'pi_hold',
-      shipping_address: 'Storgata 1',
+      status, item_price_nok: 500, stripe_payment_intent_id: pi,
+      shipping_name: 'Kari', shipping_address: 'Storgata 1', shipping_postal_code: '0001', shipping_city: 'Oslo',
       reserved_at: '2026-01-01T00:00:00.000Z',
       ship_deadline_at: '2026-01-06T00:00:00.000Z', auto_release_at: null,
     }],
@@ -483,7 +476,7 @@ describe('completeListingPurchase (webhook transition)', () => {
       amountTotalOre: 56900, platformFeeOre: 8400,
       now: FIXED,
     });
-    expect((db.find('listings', { id: 'l1' }) as any).platform_fee_nok).toBe(84);
+    expect((db.find('orders', { listing_id: 'l1' }) as any).platform_fee_nok).toBe(84);
   });
 
   it('transitions active -> reserved and records buyer, PI, fee, shipping', async () => {
@@ -497,34 +490,27 @@ describe('completeListingPurchase (webhook transition)', () => {
     expect(res.updated).toBe(true);
     expect(res.listing).toMatchObject({ seller_id: 'seller-1', title: 'Babygenser' });
 
+    // The catalog row carries ONLY the projection (status + current holder).
     const row = db.find('listings', { id: 'l1' }) as any;
     expect(row.status).toBe('reserved');
     expect(row.buyer_id).toBe('buyer-1');
-    expect(row.stripe_payment_intent_id).toBe('pi_xyz');
-    expect(row.platform_fee_nok).toBe(74);
-    expect(row.reserved_at).toBe(FIXED.toISOString());
-    // Ship-by deadline: +5 days, safely inside Stripe's ~7-day auth window
-    // (past it the cron releases the reservation rather than capturing).
-    expect(row.auto_release_at).toBe(new Date(FIXED.getTime() + 5 * 86400_000).toISOString());
-    expect(row).toMatchObject({
-      buyer_name: 'Kari', buyer_address: 'Storgata 1',
-      buyer_postal_code: '0001', buyer_city: 'Oslo',
-    });
+    expect(row.stripe_payment_intent_id ?? null).toBeNull(); // PI no longer on the listing
 
-    // Phase B: the order shadow exists with the PII + money on it, NOT (only)
-    // the catalog row. ship_deadline_at carries the 5-day deadline; the
-    // delivery-window auto_release_at is set only after shipment.
+    // The order is the sole home of PII + money + lifecycle. ship_deadline_at
+    // carries the 5-day deadline; the delivery-window auto_release_at is set
+    // only after shipment.
     const order = db.find('orders', { listing_id: 'l1' }) as any;
     expect(order.status).toBe('reserved');
     expect(order.buyer_id).toBe('buyer-1');
     expect(order.seller_id).toBe('seller-1');
     expect(order.item_price_nok).toBe(500);
+    expect(order.platform_fee_nok).toBe(74);
     expect(order.stripe_payment_intent_id).toBe('pi_xyz');
-    // Full shipping PII lands on the ORDER (the whole point of the extraction).
     expect(order.shipping_name).toBe('Kari');
     expect(order.shipping_address).toBe('Storgata 1');
     expect(order.shipping_postal_code).toBe('0001');
     expect(order.shipping_city).toBe('Oslo');
+    expect(order.reserved_at).toBe(FIXED.toISOString());
     expect(order.ship_deadline_at).toBe(new Date(FIXED.getTime() + 5 * 86400_000).toISOString());
     expect(order.auto_release_at ?? null).toBeNull();
   });
@@ -571,7 +557,7 @@ describe('completeListingPurchase (webhook transition)', () => {
     await completeListingPurchase(db.client as any, {
       listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: null, amountTotalOre: null, now: FIXED,
     });
-    expect((db.find('listings', { id: 'l1' }) as any).platform_fee_nok).toBe(0);
+    expect((db.find('orders', { listing_id: 'l1' }) as any).platform_fee_nok).toBe(0);
   });
 
   it('surfaces a DB error (no transition, no listing) so the webhook can dead-letter', async () => {
@@ -590,15 +576,14 @@ describe('completeListingPurchase (webhook transition)', () => {
 
 describe('confirmListingDelivery', () => {
   function seedShipped(overrides: Record<string, unknown> = {}) {
+    const pi = 'stripe_payment_intent_id' in overrides ? overrides.stripe_payment_intent_id : 'pi_abc';
+    const status = (overrides.status as string) ?? 'shipped';
+    const sellerId = 'seller_id' in overrides ? (overrides.seller_id as string | null) : 'seller-1';
     return fakeDb({
-      listings: [{
-        id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1',
-        title: 'Babygenser', status: 'shipped', stripe_payment_intent_id: 'pi_abc',
-        ...overrides,
-      }],
+      listings: [{ id: 'l1', seller_id: sellerId, buyer_id: 'buyer-1', title: 'Babygenser', status }],
       orders: [{
-        id: 'o1', listing_id: 'l1', buyer_id: 'buyer-1', seller_id: 'seller-1',
-        status: 'shipped', item_price_nok: 500, stripe_payment_intent_id: 'pi_abc',
+        id: 'o1', listing_id: 'l1', buyer_id: 'buyer-1', seller_id: sellerId,
+        status: status === 'sold' ? 'delivered' : status, item_price_nok: 500, stripe_payment_intent_id: pi,
       }],
     });
   }
@@ -624,14 +609,13 @@ describe('confirmListingDelivery', () => {
     // Assert the actual mutated row, not just a recorded payload.
     const row = db.find('listings', { id: 'l1' }) as any;
     expect(row.status).toBe('sold');
-    expect(row.auto_release_at).toBeNull();
-    expect(row.sold_at).toBe(row.delivered_at);
     expect(typeof row.sold_at).toBe('string');
     if (r.ok) expect(r.data.redirect).toBe('/market/listing/l1');
-    // Phase B shadow: order delivered (terminal).
+    // Order delivered (terminal); the release deadline is cleared on the order.
     const order = db.find('orders', { id: 'o1' }) as any;
     expect(order.status).toBe('delivered');
     expect(order.delivered_at).toBeTruthy();
+    expect(order.auto_release_at ?? null).toBeNull();
   });
 
   it('notifies the seller with the delivery-confirmed message (body names the item)', async () => {
@@ -697,10 +681,8 @@ describe('shipListing (escrow capture vs dead auth)', () => {
     expect(r.ok).toBe(true);
     expect(piRetrieve).toHaveBeenCalledWith('pi_hold');
     expect(piCapture).toHaveBeenCalledWith('pi_hold');
-    const row = db.find('listings', { id: 'l1' }) as any;
-    expect(row.status).toBe('shipped');
-    expect(row.tracking_code).toBe('TRK1');
-    // Phase B shadow: order mirrors the ship transition.
+    expect(db.find('listings', { id: 'l1' })!.status).toBe('shipped'); // catalog projection
+    // The order owns the ship detail (tracking, timestamps).
     const order = db.find('orders', { id: 'o1' }) as any;
     expect(order.status).toBe('shipped');
     expect(order.tracking_code).toBe('TRK1');
@@ -780,21 +762,17 @@ describe('releaseExpiredReservation', () => {
     // The uncaptured auth is canceled (buyer's hold returned).
     expect(piCancel).toHaveBeenCalledWith('pi_hold');
 
-    // Listing is back to active with the purchase trail wiped.
+    // Catalog row is back to active + the holder cleared.
     const row = db.find('listings', { id: 'l1' }) as any;
     expect(row.status).toBe('active');
     expect(row.buyer_id).toBeNull();
-    expect(row.stripe_payment_intent_id).toBeNull();
-    expect(row.reserved_at).toBeNull();
-    expect(row.auto_release_at).toBeNull();
-    expect(row.buyer_name).toBeNull();
-    expect(row.buyer_city).toBeNull();
 
-    // Phase B shadow: order cancelled (hold released), history retained.
+    // The order keeps the cancelled record + history (PII/PI retained there).
     const order = db.find('orders', { id: 'o1' }) as any;
     expect(order.status).toBe('cancelled');
     expect(order.cancel_reason).toBe('ship_deadline');
     expect(order.cancelled_at).toBeTruthy();
+    expect(order.stripe_payment_intent_id).toBe('pi_hold'); // history retained, not wiped
 
     // Both parties told; buyer learns they weren't charged.
     expect(createNotification).toHaveBeenCalledTimes(2);

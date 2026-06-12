@@ -26,17 +26,31 @@ interface ListingRow {
 function mockCtx(opts: { actorId: string; listing?: ListingRow | null }) {
   const inserts: unknown[] = [];
   const updates: unknown[] = [];
+  // The order is the source of truth now; derive it from the listing fixture so
+  // the existing test data (refund/PI on the listing row) keeps describing it.
+  const order = opts.listing ? {
+    id: 'o1', listing_id: opts.listing.id,
+    status: opts.listing.status === 'sold' ? 'delivered' : opts.listing.status,
+    stripe_payment_intent_id: opts.listing.stripe_payment_intent_id ?? null,
+    refund_requested_at: opts.listing.refund_requested_at ?? null,
+    refund_reason: opts.listing.refund_reason ?? null,
+  } : null;
   const client = {
     from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
+      select: () => {
+        // Chainable .eq().in().maybeSingle() (findOpenOrder uses .in('status')).
+        const sel: any = {
+          eq: () => sel,
+          in: () => sel,
           maybeSingle: async () => {
             if (table === 'listings') return { data: opts.listing ?? null };
+            if (table === 'orders') return { data: order };
             return { data: null };
           },
-        }),
-        in: async () => ({ data: [] }),
-      }),
+          async then(cb: any) { return cb({ data: [] }); },
+        };
+        return sel;
+      },
       insert: async (row: unknown) => {
         inserts.push({ table, row });
         return { error: null };
@@ -130,7 +144,8 @@ describe('requestRefund — state machine', () => {
       const r = await requestRefund(ctx, { listingId: 'l1', reason: 'damaged', description: 'tear at the seam' });
       expect(r.ok, `status=${status}`).toBe(true);
 
-      const u = updates.find((x: any) => x.table === 'listings') as any;
+      // The refund request is recorded on the order now.
+      const u = updates.find((x: any) => x.table === 'orders') as any;
       expect(u.row).toMatchObject({ refund_reason: 'damaged', refund_description: 'tear at the seam' });
       expect(typeof u.row.refund_requested_at).toBe('string');
     }
@@ -139,7 +154,7 @@ describe('requestRefund — state machine', () => {
   it('truncates description to 1000 chars', async () => {
     const { ctx, updates } = mockCtx({ actorId: 'buyer', listing: aListing });
     await requestRefund(ctx, { listingId: 'l1', reason: 'damaged', description: 'x'.repeat(5000) });
-    const u = updates.find((x: any) => x.table === 'listings') as any;
+    const u = updates.find((x: any) => x.table === 'orders') as any;
     expect(u.row.refund_description).toHaveLength(1000);
   });
 });
@@ -183,14 +198,15 @@ describe('respondToRefund', () => {
     const r = await respondToRefund(ctx, { listingId: 'l1', action: 'accept', notes: 'agreed' });
     expect(r.ok).toBe(true);
 
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row).toMatchObject({
-      status: 'active', buyer_id: null,
+    // Catalog row back to active + holder cleared.
+    const l = updates.find((x: any) => x.table === 'listings') as any;
+    expect(l.row).toMatchObject({ status: 'active', buyer_id: null });
+    // Order keeps the cancelled + refund record.
+    const o = updates.find((x: any) => x.table === 'orders') as any;
+    expect(o.row).toMatchObject({
+      status: 'cancelled', cancel_reason: 'refund_accepted',
       refund_outcome: 'accepted', refund_notes: 'agreed',
     });
-    // Resets the purchase trail so the listing can be re-bought.
-    expect(u.row.reserved_at).toBeNull();
-    expect(u.row.stripe_payment_intent_id).toBeNull();
   });
 
   it('on accept of a CAPTURED charge: full refund reverses the transfer + app fee', async () => {
@@ -213,12 +229,10 @@ describe('respondToRefund', () => {
     const r = await respondToRefund(ctx, { listingId: 'l1', action: 'decline', notes: 'no damage seen' });
     expect(r.ok).toBe(true);
 
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row).toMatchObject({
-      status: 'disputed',
-      refund_outcome: 'declined',
-    });
-    expect(u.row.dispute_reason).toContain('damaged');
-    expect(u.row.dispute_reason).toContain('no damage seen');
+    expect((updates.find((x: any) => x.table === 'listings') as any).row.status).toBe('disputed');
+    const o = updates.find((x: any) => x.table === 'orders') as any;
+    expect(o.row).toMatchObject({ status: 'disputed', refund_outcome: 'declined' });
+    expect(o.row.dispute_reason).toContain('damaged');
+    expect(o.row.dispute_reason).toContain('no damage seen');
   });
 });

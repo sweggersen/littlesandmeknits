@@ -17,12 +17,17 @@ function seed(role = 'admin') {
       { id: 'u2', role: 'user', created_at: ago(2) },   // signup within 7d
       { id: 'u3', role: 'user', created_at: ago(10) },  // signup within 30d only
     ],
+    // Catalog counts (active / disputed) still come from the listing status.
     listings: [
-      { id: 'sA', status: 'sold', price_nok: 300, platform_fee_nok: 30, sold_at: ago(1) },
-      { id: 'sB', status: 'sold', price_nok: 500, platform_fee_nok: 40, sold_at: ago(5) },
-      { id: 'sC', status: 'sold', price_nok: 200, platform_fee_nok: 16, sold_at: ago(20) },
-      { id: 'a1', status: 'active', price_nok: 100, platform_fee_nok: 0, sold_at: null },
-      { id: 'd1', status: 'disputed', price_nok: 100, platform_fee_nok: 0, sold_at: null },
+      { id: 'a1', status: 'active' },
+      { id: 'd1', status: 'disputed' },
+    ],
+    // GMV + revenue come from delivered ORDERS now (item_price + platform_fee).
+    orders: [
+      { id: 'oA', listing_id: 'sA', status: 'delivered', item_price_nok: 300, platform_fee_nok: 30, delivered_at: ago(1) },
+      { id: 'oB', listing_id: 'sB', status: 'delivered', item_price_nok: 500, platform_fee_nok: 40, delivered_at: ago(5) },
+      { id: 'oC', listing_id: 'sC', status: 'delivered', item_price_nok: 200, platform_fee_nok: 16, delivered_at: ago(20) },
+      { id: 'oR', listing_id: 'r1', status: 'reserved', item_price_nok: 100, platform_fee_nok: 0, delivered_at: null },
     ],
     commission_requests: [{ id: 'c1', status: 'disputed' }],
     dead_letter_events: [

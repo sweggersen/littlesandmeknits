@@ -338,24 +338,24 @@ async function handle(
         .single();
       if (!listing) throw new Error('Listing not found');
 
-      const autoRelease = new Date();
-      autoRelease.setDate(autoRelease.getDate() + 14);
+      const shipDeadline = new Date();
+      shipDeadline.setDate(shipDeadline.getDate() + 5);
 
+      // Catalog projection on the listing; the purchase entity is the order.
       const { error: updErr } = await db.from('listings').update({
-        status: 'reserved',
-        buyer_id: actorId,
-        buyer_name: p.buyer_name ?? null,
-        buyer_address: p.buyer_address ?? null,
-        buyer_postal_code: p.buyer_postal_code ?? null,
-        buyer_city: p.buyer_city ?? null,
-        stripe_payment_intent_id: 'pi_test_' + Date.now(),
-        // reserved_at is what /market/listing/[id]/kvittering gates on -
-        // without it the receipt 404s after a test-exec purchase.
-        reserved_at: new Date().toISOString(),
-        auto_release_at: autoRelease.toISOString(),
-        platform_fee_nok: Math.round(listing.price_nok * 0.10),
+        status: 'reserved', buyer_id: actorId,
       }).eq('id', p.listing_id);
       if (updErr) throw new Error(updErr.message);
+
+      const { error: ordErr } = await db.from('orders').insert({
+        listing_id: p.listing_id, buyer_id: actorId, seller_id: listing.seller_id, status: 'reserved',
+        item_price_nok: listing.price_nok, platform_fee_nok: Math.round(listing.price_nok * 0.10),
+        stripe_payment_intent_id: 'pi_test_' + Date.now(),
+        shipping_name: p.buyer_name ?? null, shipping_address: p.buyer_address ?? null,
+        shipping_postal_code: p.buyer_postal_code ?? null, shipping_city: p.buyer_city ?? null,
+        reserved_at: new Date().toISOString(), ship_deadline_at: shipDeadline.toISOString(),
+      });
+      if (ordErr) throw new Error(ordErr.message);
 
       await db.from('notifications').insert({
         user_id: listing.seller_id,

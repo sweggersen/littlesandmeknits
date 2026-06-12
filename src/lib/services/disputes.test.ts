@@ -28,20 +28,32 @@ interface MockOpts {
 function mockCtx(opts: MockOpts = {}) {
   const inserts: unknown[] = [];
   const updates: unknown[] = [];
+  // The disputed order is the source of truth for the PI; derive it from the
+  // listing fixture so existing test data keeps describing it.
+  const order = opts.listing ? {
+    id: 'o1', listing_id: opts.listing.id, status: 'disputed',
+    stripe_payment_intent_id: opts.listing.stripe_payment_intent_id ?? null,
+  } : null;
   const client = {
     from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
+      select: () => {
+        // Chainable .eq().in().maybeSingle() (findOpenOrder uses .in('status')).
+        const sel: any = {
+          eq: () => sel,
+          in: () => sel,
           maybeSingle: async () => {
             if (table === 'profiles') return { data: { role: opts.role ?? null } };
             if (table === 'listings') return { data: opts.listing ?? null };
+            if (table === 'orders') return { data: order };
             if (table === 'commission_requests') return { data: opts.request ?? null };
             if (table === 'commission_offers') return { data: opts.offer ?? null };
             if (table === 'seller_profiles') return { data: { stripe_account_id: 'acct_k' } };
             return { data: null };
           },
-        }),
-      }),
+          async then(cb: any) { return cb({ data: [] }); },
+        };
+        return sel;
+      },
       insert: async (row: unknown) => {
         inserts.push({ table, row });
         return { error: null };
@@ -143,12 +155,11 @@ describe('resolveDispute — listing', () => {
     });
     expect(r.ok).toBe(true);
     expect(stripeCancel).toHaveBeenCalledWith('pi_x');
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row).toMatchObject({
-      status: 'active', buyer_id: null,
-      stripe_payment_intent_id: null, platform_fee_nok: null,
-    });
-    expect(u.row.dispute_resolution).toBe('broken');
+    // Catalog row back to active + holder cleared.
+    expect((updates.find((x: any) => x.table === 'listings') as any).row).toMatchObject({ status: 'active', buyer_id: null });
+    // Order keeps the cancelled + resolution record.
+    const o = updates.find((x: any) => x.table === 'orders') as any;
+    expect(o.row).toMatchObject({ status: 'cancelled', cancel_reason: 'admin_refund', dispute_resolution: 'broken' });
   });
 
   it('release: captures PI, marks sold + delivered', async () => {
@@ -158,11 +169,12 @@ describe('resolveDispute — listing', () => {
     });
     expect(r.ok).toBe(true);
     expect(stripeCapture).toHaveBeenCalledWith('pi_x');
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row.status).toBe('sold');
-    expect(u.row.dispute_resolution).toBe('Released by admin');
-    expect(typeof u.row.sold_at).toBe('string');
-    expect(typeof u.row.delivered_at).toBe('string');
+    const l = updates.find((x: any) => x.table === 'listings') as any;
+    expect(l.row.status).toBe('sold');
+    expect(typeof l.row.sold_at).toBe('string');
+    const o = updates.find((x: any) => x.table === 'orders') as any;
+    expect(o.row).toMatchObject({ status: 'delivered', dispute_resolution: 'Released by admin' });
+    expect(typeof o.row.delivered_at).toBe('string');
   });
 
   it('writes a moderation_audit_log entry', async () => {

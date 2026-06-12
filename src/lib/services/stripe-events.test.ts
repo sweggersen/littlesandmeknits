@@ -34,19 +34,21 @@ const env = {} as never; // no Resend/VAPID -> createNotification only inserts t
 const baseSeed = () => ({ notifications: [], dead_letter_events: [] });
 
 describe('handleChargebackOpened (listing)', () => {
-  it('freezes the listing to disputed and notifies the seller', async () => {
+  it('freezes the ORDER + mirrors the listing status, notifies the seller', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'reserved', stripe_dispute_id: null, seller_id: 'S1', buyer_id: 'B1', title: 'Marius-genser' }],
+      listings: [{ id: 'L1', status: 'reserved', seller_id: 'S1', title: 'Marius-genser' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'reserved', stripe_dispute_id: null, seller_id: 'S1', buyer_id: 'B1' }],
     });
     const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_1', payment_intent: 'pi_1', reason: 'fraudulent' }), env);
 
     expect(res.status).toBe(200);
-    const row = db.find('listings', { id: 'L1' })!;
-    expect(row.status).toBe('disputed');
-    expect(row.disputed_at).toBeTruthy();
-    expect(row.dispute_reason).toBe('stripe_chargeback:fraudulent');
-    expect(row.stripe_dispute_id).toBe('dp_1');
+    const order = db.find('orders', { id: 'o1' })!;
+    expect(order.status).toBe('disputed');
+    expect(order.disputed_at).toBeTruthy();
+    expect(order.dispute_reason).toBe('stripe_chargeback:fraudulent');
+    expect(order.stripe_dispute_id).toBe('dp_1');
+    expect(db.find('listings', { id: 'L1' })!.status).toBe('disputed'); // catalog mirror
 
     const notif = db.find('notifications', { user_id: 'S1', type: 'dispute_opened' });
     expect(notif).toBeTruthy();
@@ -55,7 +57,8 @@ describe('handleChargebackOpened (listing)', () => {
   it('is idempotent: a second delivery does not re-notify', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'disputed', stripe_dispute_id: 'dp_1', seller_id: 'S1', buyer_id: 'B1', title: 'Genser' }],
+      listings: [{ id: 'L1', status: 'disputed', seller_id: 'S1', title: 'Genser' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'disputed', stripe_dispute_id: 'dp_1', seller_id: 'S1', buyer_id: 'B1' }],
     });
     const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_1', payment_intent: 'pi_1', reason: 'fraudulent' }), env);
     expect(res.status).toBe(200);
@@ -63,7 +66,7 @@ describe('handleChargebackOpened (listing)', () => {
   });
 
   it('dead-letters an unmatched payment intent (no row silently dropped)', async () => {
-    const db = createFakeDb({ ...baseSeed(), listings: [], commission_requests: [] });
+    const db = createFakeDb({ ...baseSeed(), orders: [], commission_requests: [] });
     const res = await handleChargebackOpened(db.client as never, dispute({ id: 'dp_x', payment_intent: 'pi_unknown', reason: 'general' }), env);
     expect(res.status).toBe(200);
     const dl = db.find('dead_letter_events', { service: 'stripe.webhook:chargeback_unmatched' });
@@ -87,17 +90,18 @@ describe('handleChargebackOpened (commission)', () => {
 });
 
 describe('handleChargebackClosed', () => {
-  it('records a won outcome and tells the seller it was in their favour', async () => {
+  it('records a won outcome on the order and tells the seller it was in their favour', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_dispute_id: 'dp_1', dispute_resolved_at: null, seller_id: 'S1', buyer_id: 'B1', title: 'Genser', awarded_offer_id: null }],
+      listings: [{ id: 'L1', seller_id: 'S1', title: 'Genser' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_dispute_id: 'dp_1', dispute_resolved_at: null, seller_id: 'S1', buyer_id: 'B1' }],
       commission_requests: [],
     });
     const res = await handleChargebackClosed(db.client as never, dispute({ id: 'dp_1', status: 'won' }), env);
     expect(res.status).toBe(200);
-    const row = db.find('listings', { id: 'L1' })!;
-    expect(row.dispute_resolution).toBe('stripe_chargeback_won');
-    expect(row.dispute_resolved_at).toBeTruthy();
+    const order = db.find('orders', { id: 'o1' })!;
+    expect(order.dispute_resolution).toBe('stripe_chargeback_won');
+    expect(order.dispute_resolved_at).toBeTruthy();
     const notif = db.find('notifications', { user_id: 'S1', type: 'dispute_resolved' })!;
     expect(notif.title).toMatch(/favør/);
   });
@@ -105,11 +109,12 @@ describe('handleChargebackClosed', () => {
   it('records a lost outcome', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_dispute_id: 'dp_9', dispute_resolved_at: null, seller_id: 'S1', title: 'Genser', awarded_offer_id: null }],
+      listings: [{ id: 'L1', seller_id: 'S1', title: 'Genser' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_dispute_id: 'dp_9', dispute_resolved_at: null, seller_id: 'S1' }],
       commission_requests: [],
     });
     await handleChargebackClosed(db.client as never, dispute({ id: 'dp_9', status: 'lost' }), env);
-    expect(db.find('listings', { id: 'L1' })!.dispute_resolution).toBe('stripe_chargeback_lost');
+    expect(db.find('orders', { id: 'o1' })!.dispute_resolution).toBe('stripe_chargeback_lost');
     expect(db.find('notifications', { user_id: 'S1' })!.title).toMatch(/tapt/i);
   });
 });
@@ -144,7 +149,8 @@ describe('handlePaymentIntentFailed', () => {
   it('audits the failure with the matched escrow row', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_3', status: 'reserved', buyer_id: 'B1', seller_id: 'S1', title: 'X' }],
+      listings: [{ id: 'L1', status: 'reserved', seller_id: 'S1', title: 'X' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_3', status: 'reserved', buyer_id: 'B1', seller_id: 'S1' }],
       commission_requests: [],
     });
     const res = await handlePaymentIntentFailed(db.client as never, intent({ id: 'pi_3', status: 'requires_payment_method', last_payment_error: { message: 'card_declined' } as Stripe.PaymentIntent['last_payment_error'] }));
@@ -155,26 +161,28 @@ describe('handlePaymentIntentFailed', () => {
 });
 
 describe('handleChargeRefunded', () => {
-  it('reconciles a refund issued AFTER payout (status sold) and notifies the buyer', async () => {
+  it('reconciles a refund issued AFTER payout (order delivered) and notifies the buyer', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_4', status: 'sold', buyer_id: 'B1', seller_id: 'S1', title: 'Sokker', refund_resolved_at: null }],
+      listings: [{ id: 'L1', status: 'sold', seller_id: 'S1', title: 'Sokker' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_4', status: 'delivered', buyer_id: 'B1', seller_id: 'S1', refund_resolved_at: null }],
       commission_requests: [],
     });
     const res = await handleChargeRefunded(db.client as never, charge({ id: 'ch_1', payment_intent: 'pi_4', amount_refunded: 29400 }), env);
     expect(res.status).toBe(200);
-    const row = db.find('listings', { id: 'L1' })!;
-    expect(row.refund_resolved_at).toBeTruthy();
-    expect(row.refund_outcome).toBe('accepted');
+    const order = db.find('orders', { id: 'o1' })!;
+    expect(order.refund_resolved_at).toBeTruthy();
+    expect(order.refund_outcome).toBe('accepted');
     // Refund-after-payout must be flagged for balance reconciliation.
     expect(db.find('dead_letter_events', { service: 'stripe.webhook:refund_after_payout' })).toBeTruthy();
     expect(db.find('notifications', { user_id: 'B1' })).toBeTruthy();
   });
 
-  it('does not flag reconciliation when the listing was not yet released', async () => {
+  it('does not flag reconciliation when the order was not yet delivered', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_5', status: 'reserved', buyer_id: 'B1', seller_id: 'S1', title: 'Sokker', refund_resolved_at: null }],
+      listings: [{ id: 'L1', status: 'reserved', seller_id: 'S1', title: 'Sokker' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_5', status: 'reserved', buyer_id: 'B1', seller_id: 'S1', refund_resolved_at: null }],
       commission_requests: [],
     });
     await handleChargeRefunded(db.client as never, charge({ id: 'ch_2', payment_intent: 'pi_5', amount_refunded: 29400 }), env);
@@ -205,18 +213,21 @@ describe('handlePaymentIntentCanceled (H2 defense-in-depth)', () => {
     // update(...).select(), which the reservation-release race guard relies on.
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'reserved', seller_id: 'S1', buyer_id: 'B1', title: 'Genser', reserved_at: '2026-01-01T00:00:00Z', auto_release_at: '2026-01-06T00:00:00Z' }],
+      listings: [{ id: 'L1', status: 'reserved', seller_id: 'S1', buyer_id: 'B1', title: 'Genser' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'reserved', seller_id: 'S1', buyer_id: 'B1', ship_deadline_at: '2026-01-06T00:00:00Z' }],
     }, { projectColumns: true });
     const res = await handlePaymentIntentCanceled(db.client as never, intent({ id: 'pi_1', status: 'canceled' }), canceledEnv);
     expect(res.status).toBe(200);
     expect(db.find('listings', { id: 'L1' })!.status).toBe('active'); // relisted
+    expect(db.find('orders', { id: 'o1' })!.status).toBe('cancelled');
     expect(db.find('notifications', { user_id: 'B1', type: 'listing_reservation_released' })).toBeTruthy();
   });
 
-  it('is a no-op for a listing that already shipped (stale cancel)', async () => {
+  it('is a no-op for an order that already shipped (stale cancel)', async () => {
     const db = createFakeDb({
       ...baseSeed(),
-      listings: [{ id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'shipped', seller_id: 'S1', buyer_id: 'B1', title: 'Genser' }],
+      listings: [{ id: 'L1', status: 'shipped', seller_id: 'S1', buyer_id: 'B1', title: 'Genser' }],
+      orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_1', status: 'shipped', seller_id: 'S1', buyer_id: 'B1' }],
     });
     const res = await handlePaymentIntentCanceled(db.client as never, intent({ id: 'pi_1', status: 'canceled' }), canceledEnv);
     expect(res.status).toBe(200);

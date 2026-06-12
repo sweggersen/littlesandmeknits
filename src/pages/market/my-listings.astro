@@ -17,7 +17,7 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 const [{ data: listings }, { data: conversations }, { data: knitterOffers }] = await Promise.all([
   supabase
     .from('listings')
-    .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier, buyer_name, buyer_city')
+    .select('id, title, price_nok, status, kind, hero_photo_path, created_at, promoted_until, promotion_tier')
     .eq('seller_id', user.id)
     .order('created_at', { ascending: false }),
   // Conversations with at least one *unread* message (from the other party).
@@ -38,9 +38,21 @@ const drafts = (listings ?? []).filter((l) => l.status === 'draft');
 const inReview = (listings ?? []).filter((l) => l.status === 'pending_review');
 const rejected = (listings ?? []).filter((l) => l.status === 'rejected');
 const frozen = (listings ?? []).filter((l) => l.status === 'frozen');
-const pending = (listings ?? []).filter((l) => ['reserved', 'shipped', 'disputed'].includes(l.status));
 const live = (listings ?? []).filter((l) => l.status === 'active');
 const sold = (listings ?? []).filter((l) => l.status === 'sold');
+
+// Buyer name/city for pending orders come from the order (not the catalog row).
+const pendingBase = (listings ?? []).filter((l) => ['reserved', 'shipped', 'disputed'].includes(l.status));
+const { data: pendOrders } = pendingBase.length
+  ? await supabase.from('orders').select('listing_id, shipping_name, shipping_city')
+      .eq('seller_id', user.id).in('status', ['reserved', 'shipped', 'disputed'])
+  : { data: [] };
+const orderByListing = new Map((pendOrders ?? []).map((o) => [o.listing_id, o]));
+const pending = pendingBase.map((l) => ({
+  ...l,
+  buyer_name: orderByListing.get(l.id)?.shipping_name ?? null,
+  buyer_city: orderByListing.get(l.id)?.shipping_city ?? null,
+}));
 // Dedupe by conversation id — the join returns one row per unread message.
 const unreadConvos = new Set((conversations ?? []).map((c: any) => c.id)).size;
 

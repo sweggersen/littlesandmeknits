@@ -9,18 +9,24 @@
 interface Listing {
   id: string;
   status: string;
-  buyer_name: string | null;
-  buyer_address: string | null;
-  buyer_postal_code: string | null;
-  buyer_city: string | null;
+}
+
+// The order is the source of truth for the buyer's shipping address +
+// tracking + dispute detail (PII no longer lives on the catalog row).
+interface Order {
+  shipping_name: string | null;
+  shipping_address: string | null;
+  shipping_postal_code: string | null;
+  shipping_city: string | null;
   tracking_code: string | null;
   dispute_reason: string | null;
 }
 
 interface Props {
   listing: Listing;
+  order: Order | null;
 }
-const { listing } = Astro.props;
+const { listing, order } = Astro.props;
 ---
 
 {listing.status === 'reserved' && (
@@ -29,13 +35,13 @@ const { listing } = Astro.props;
       <span class="inline-block w-2.5 h-2.5 rounded-full bg-sage-500"></span>
       <h2 class="font-serif text-lg">Noen har kjøpt varen din!</h2>
     </div>
-    {listing.buyer_name && (
+    {order?.shipping_name && (
       <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm space-y-1">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Send til</p>
-        <p class="font-medium">{listing.buyer_name}</p>
-        {listing.buyer_address && <p class="text-charcoal/70">{listing.buyer_address}</p>}
-        {listing.buyer_postal_code && listing.buyer_city && (
-          <p class="text-charcoal/70">{listing.buyer_postal_code} {listing.buyer_city}</p>
+        <p class="font-medium">{order?.shipping_name}</p>
+        {order?.shipping_address && <p class="text-charcoal/70">{order?.shipping_address}</p>}
+        {order?.shipping_postal_code && order?.shipping_city && (
+          <p class="text-charcoal/70">{order?.shipping_postal_code} {order?.shipping_city}</p>
         )}
       </div>
     )}
@@ -61,8 +67,8 @@ const { listing } = Astro.props;
 {listing.status === 'shipped' && (
   <div class="bg-sage-100 text-sage-900 rounded-2xl p-4 text-sm">
     Varen er sendt. Venter på at kjøper bekrefter mottak.
-    {listing.tracking_code && (
-      <p class="mt-1">Sporingskode: <span class="font-mono">{listing.tracking_code}</span></p>
+    {order?.tracking_code && (
+      <p class="mt-1">Sporingskode: <span class="font-mono">{order?.tracking_code}</span></p>
     )}
   </div>
 )}
@@ -70,8 +76,8 @@ const { listing } = Astro.props;
 {listing.status === 'disputed' && (
   <div class="bg-amber-50 text-amber-900 rounded-2xl p-4 text-sm">
     Kjøper har åpnet en tvist. Saken er under behandling av admin.
-    {listing.dispute_reason && (
-      <p class="mt-1 text-xs">Grunn: {listing.dispute_reason}</p>
+    {order?.dispute_reason && (
+      <p class="mt-1 text-xs">Grunn: {order?.dispute_reason}</p>
     )}
   </div>
 )}

@@ -11,7 +11,6 @@ import { isKilled } from '../../../lib/flags';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds } from '../../../lib/services/commissions';
-import { updateOpenOrder } from '../../../lib/services/orders';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -260,64 +259,62 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
 
-    // 3a. Auto-confirm SHIPPED listings past the delivery window. Capture
-    //     usually already happened at ship, so this is normally idempotent;
-    //     it captures here only if the buyer confirmed nothing and the seller
-    //     somehow shipped while payouts were paused.
-    const { data: releasableListings } = await admin
-      .from('listings')
-      .select('id, seller_id, title, stripe_payment_intent_id')
+    // 3a. Auto-confirm SHIPPED orders past the delivery window (the deadline
+    //     lives on the order now). Capture usually already happened at ship, so
+    //     this is normally idempotent; it captures here only if the buyer
+    //     confirmed nothing and the seller shipped while payouts were paused.
+    const { data: releasableOrders } = await admin
+      .from('orders')
+      .select('id, listing_id, seller_id, stripe_payment_intent_id')
       .eq('status', 'shipped')
       .lt('auto_release_at', now);
 
-    if (releasableListings?.length) {
+    if (releasableOrders?.length) {
       const stripe = createStripe(env.STRIPE_SECRET_KEY);
-      for (const listing of releasableListings) {
-        let listingCaptured = true;
-        if (listing.stripe_payment_intent_id) {
+      for (const ord of releasableOrders) {
+        let captured = true;
+        if (ord.stripe_payment_intent_id) {
           try {
-            await stripe.paymentIntents.capture(listing.stripe_payment_intent_id);
+            await stripe.paymentIntents.capture(ord.stripe_payment_intent_id);
           } catch (e) {
-            // Leave the row releasable (auto_release_at untouched) for the next
-            // tick and dead-letter so a failed capture isn't silently dropped.
-            listingCaptured = false;
-            await recordDeadLetter({ admin, user: listing.seller_id ? { id: listing.seller_id } : undefined }, {
+            // Leave the order releasable (auto_release_at untouched) for the
+            // next tick and dead-letter so a failed capture isn't dropped.
+            captured = false;
+            await recordDeadLetter({ admin, user: ord.seller_id ? { id: ord.seller_id } : undefined }, {
               service: 'cron.auto_release:listing_capture',
-              context: { listing_id: listing.id, payment_intent_id: listing.stripe_payment_intent_id },
+              context: { order_id: ord.id, listing_id: ord.listing_id, payment_intent_id: ord.stripe_payment_intent_id },
               error: e,
             });
           }
         }
-        if (!listingCaptured) continue;
-        await admin.from('listings').update({
-          status: 'sold', sold_at: now, delivered_at: now, auto_release_at: null,
-        }).eq('id', listing.id);
-        // Phase B shadow: mirror onto the order (delivered).
-        await updateOpenOrder(admin, listing.id, { status: 'delivered', delivered_at: now, auto_release_at: null });
+        if (!captured) continue;
+        await admin.from('orders').update({ status: 'delivered', delivered_at: now, auto_release_at: null }).eq('id', ord.id);
+        await admin.from('listings').update({ status: 'sold', sold_at: now }).eq('id', ord.listing_id);
 
-        if (listing.seller_id) {
+        const { data: l } = await admin.from('listings').select('title').eq('id', ord.listing_id).maybeSingle();
+        if (ord.seller_id) {
           await createNotification(admin, {
-            userId: listing.seller_id,
+            userId: ord.seller_id,
             type: 'listing_delivered',
             title: 'Automatisk levering bekreftet',
-            body: `Kjøper svarte ikke innen 14 dager — «${listing.title}» er nå merket som levert.`,
-            url: `/market/listing/${listing.id}`,
-            referenceId: listing.id,
+            body: `Kjøper svarte ikke innen 14 dager — «${l?.title ?? 'varen'}» er nå merket som levert.`,
+            url: `/market/listing/${ord.listing_id}`,
+            referenceId: ord.listing_id,
           }, env);
         }
         results.listingsReleased++;
       }
     }
 
-    // 3b. Release RESERVED listings the seller never shipped before the ship-by
+    // 3b. Release RESERVED orders the seller never shipped before the ship-by
     //     deadline. Capturing would charge the buyer for an item that never
     //     shipped, and the manual-capture auth is near expiry — so cancel the
     //     hold and relist instead of capturing.
     const { data: expiredReservations } = await admin
-      .from('listings')
-      .select('id')
+      .from('orders')
+      .select('listing_id')
       .eq('status', 'reserved')
-      .lt('auto_release_at', now);
+      .lt('ship_deadline_at', now);
 
     const releaseEnv = {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY,
@@ -328,12 +325,12 @@ export const POST: APIRoute = async ({ request }) => {
     };
     for (const stale of expiredReservations ?? []) {
       try {
-        const r = await releaseExpiredReservation(admin, releaseEnv, { listingId: stale.id, reason: 'ship_deadline' });
+        const r = await releaseExpiredReservation(admin, releaseEnv, { listingId: stale.listing_id, reason: 'ship_deadline' });
         if (r.released) results.reservationsReleased++;
       } catch (e) {
         await recordDeadLetter({ admin }, {
           service: 'cron.auto_release:reservation_release',
-          context: { listing_id: stale.id },
+          context: { listing_id: stale.listing_id },
           error: e,
         });
       }

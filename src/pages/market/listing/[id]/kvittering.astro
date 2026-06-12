@@ -16,7 +16,7 @@ const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 const { data: listing } = await admin
   .from('listings')
-  .select('id, seller_id, buyer_id, store_id, title, price_nok, platform_fee_nok, reserved_at, shipped_at, delivered_at, sold_at, status, buyer_name, buyer_address, buyer_postal_code, buyer_city, kind')
+  .select('id, seller_id, buyer_id, store_id, title, price_nok, sold_at, status, kind')
   .eq('id', id)
   .maybeSingle();
 
@@ -29,8 +29,17 @@ const isBuyer = listing.buyer_id === user.id;
 const isSeller = listing.seller_id === user.id;
 if (!isBuyer && !isSeller && !isStaff) return Astro.redirect(`/market/listing/${id}`);
 
+// The order is the purchase record (money + shipping). Most recent for the listing.
+const { data: order } = await admin
+  .from('orders')
+  .select('platform_fee_nok, reserved_at, shipped_at, delivered_at, shipping_name, shipping_address, shipping_postal_code, shipping_city')
+  .eq('listing_id', id)
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
+
 // Has the purchase actually happened?
-if (!listing.reserved_at) {
+if (!order?.reserved_at) {
   return new Response('Kvittering finnes ikke — kjøpet er ikke fullført', { status: 404 });
 }
 
@@ -53,15 +62,15 @@ if (listing.store_id) {
   sellerName = seller?.display_name ?? 'Privatperson';
 }
 
-// Buyer block — from the shipping form
-const buyerName = listing.buyer_name ?? 'Kjøper';
-const buyerAddress = [listing.buyer_address, listing.buyer_postal_code, listing.buyer_city].filter(Boolean).join(', ');
+// Buyer block — from the shipping form (now on the order).
+const buyerName = order.shipping_name ?? 'Kjøper';
+const buyerAddress = [order.shipping_address, order.shipping_postal_code, order.shipping_city].filter(Boolean).join(', ');
 
 // Numbers. We charge buyer the listed price (gross); platform fee comes
 // out of the seller's payout. Buyer's view shows the price they paid;
 // seller's view also shows the platform fee + net payout.
 const gross = listing.price_nok;
-const fee = listing.platform_fee_nok ?? 0;
+const fee = order.platform_fee_nok ?? 0;
 const net = gross - fee;
 
 // VAT note: private sellers aren't MVA-registered. Stores may be (boolean
@@ -70,9 +79,9 @@ const net = gross - fee;
 const vatAmount = sellerVatRegistered ? Math.round(gross * 25 / 125) : null;
 
 // Kvittering nr: K + listing-id short + reserved date stamp
-const receiptNo = `K-${listing.id.slice(0, 8).toUpperCase()}-${(listing.reserved_at ?? new Date().toISOString()).slice(0, 10).replace(/-/g, '')}`;
+const receiptNo = `K-${listing.id.slice(0, 8).toUpperCase()}-${(order.reserved_at ?? new Date().toISOString()).slice(0, 10).replace(/-/g, '')}`;
 
-const dato = (listing.sold_at ?? listing.delivered_at ?? listing.shipped_at ?? listing.reserved_at)!;
+const dato = (listing.sold_at ?? order.delivered_at ?? order.shipped_at ?? order.reserved_at)!;
 const dateLabel = new Date(dato).toLocaleDateString('nb-NO', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function nok(n: number): string {

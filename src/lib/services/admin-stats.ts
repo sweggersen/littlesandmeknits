@@ -39,19 +39,20 @@ export async function getDashboardTrends(ctx: ServiceContext): Promise<ServiceRe
   const since30 = new Date(now - 30 * DAY).toISOString();
 
   // Pull 30 days of completed sales once; derive both windows + the sparkline.
+  // GMV + revenue live on the order (delivered = released to the seller).
   const { data: sold } = await ctx.admin
-    .from('listings')
-    .select('price_nok, platform_fee_nok, sold_at')
-    .eq('status', 'sold')
-    .gte('sold_at', since30);
+    .from('orders')
+    .select('item_price_nok, platform_fee_nok, delivered_at')
+    .eq('status', 'delivered')
+    .gte('delivered_at', since30);
 
   let gmv7 = 0, revenue7 = 0, sold7 = 0, gmv30 = 0, revenue30 = 0, sold30 = 0;
   const dailySold = new Array(7).fill(0) as number[];
   for (const r of sold ?? []) {
-    const price = r.price_nok ?? 0;
+    const price = r.item_price_nok ?? 0;
     const fee = r.platform_fee_nok ?? 0;
     gmv30 += price; revenue30 += fee; sold30 += 1;
-    const t = r.sold_at ? new Date(r.sold_at).getTime() : 0;
+    const t = r.delivered_at ? new Date(r.delivered_at).getTime() : 0;
     if (t >= now - 7 * DAY) {
       gmv7 += price; revenue7 += fee; sold7 += 1;
       const idx = 6 - Math.floor((now - t) / DAY);

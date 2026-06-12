@@ -63,6 +63,8 @@ describe.skipIf(!HAS_LOCAL)('completeListingPurchase against real Postgres', () 
 
   afterEach(async () => {
     if (createdListingIds.length) {
+      // Orders FK-restrict the listing delete — clear them first.
+      await admin.from('orders').delete().in('listing_id', createdListingIds);
       await admin.from('listings').delete().in('id', createdListingIds);
       createdListingIds.length = 0;
     }
@@ -81,25 +83,29 @@ describe.skipIf(!HAS_LOCAL)('completeListingPurchase against real Postgres', () 
     expect(res.updated).toBe(true);
     expect(res.listing?.seller_id).toBe(sellerId);
 
-    // Read the row back from real Postgres.
-    const { data: row } = await admin
-      .from('listings')
-      .select('status, buyer_id, stripe_payment_intent_id, platform_fee_nok, reserved_at, auto_release_at, buyer_name, buyer_address, buyer_postal_code, buyer_city')
-      .eq('id', listingId)
-      .single();
+    // Catalog row carries only the projection.
+    const { data: lrow } = await admin
+      .from('listings').select('status, buyer_id').eq('id', listingId).single();
+    expect(lrow).toMatchObject({ status: 'reserved', buyer_id: buyerId });
 
-    expect(row).toMatchObject({
+    // The order (real Postgres) holds the money + PII + lifecycle.
+    const { data: order } = await admin
+      .from('orders')
+      .select('status, buyer_id, stripe_payment_intent_id, platform_fee_nok, reserved_at, ship_deadline_at, shipping_name, shipping_address, shipping_postal_code, shipping_city')
+      .eq('listing_id', listingId)
+      .single();
+    expect(order).toMatchObject({
       status: 'reserved',
       buyer_id: buyerId,
       stripe_payment_intent_id: 'pi_integration_test',
       platform_fee_nok: 74, // round(56900 * 0.13 / 100)
-      buyer_name: 'Kari Nordmann',
-      buyer_address: 'Storgata 1',
-      buyer_postal_code: '0001',
-      buyer_city: 'Oslo',
+      shipping_name: 'Kari Nordmann',
+      shipping_address: 'Storgata 1',
+      shipping_postal_code: '0001',
+      shipping_city: 'Oslo',
     });
-    expect(row?.reserved_at).toBeTruthy();
-    expect(row?.auto_release_at).toBeTruthy();
+    expect(order?.reserved_at).toBeTruthy();
+    expect(order?.ship_deadline_at).toBeTruthy();
   });
 
   it('is idempotent: a second delivery leaves the row reserved and reports no transition', async () => {
@@ -115,10 +121,13 @@ describe.skipIf(!HAS_LOCAL)('completeListingPurchase against real Postgres', () 
     expect(second.updated).toBe(false);
     expect(second.listing).toBeNull();
 
-    // The first buyer + PI stand; the retry did not overwrite anything.
-    const { data: row } = await admin
-      .from('listings').select('buyer_id, stripe_payment_intent_id').eq('id', listingId).single();
-    expect(row).toMatchObject({ buyer_id: buyerId, stripe_payment_intent_id: 'pi_1' });
+    // The first buyer + PI stand; the retry created no second open order.
+    const { data: lrow } = await admin.from('listings').select('buyer_id').eq('id', listingId).single();
+    expect(lrow?.buyer_id).toBe(buyerId);
+    const { data: orders } = await admin
+      .from('orders').select('stripe_payment_intent_id').eq('listing_id', listingId);
+    expect(orders).toHaveLength(1);
+    expect(orders![0].stripe_payment_intent_id).toBe('pi_1');
   });
 
   it('does not transition a listing that is not active', async () => {

@@ -247,64 +247,9 @@ describe('shipListing', () => {
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
-  it('sets shipped + tracking + auto_release_at 14 days out', async () => {
-    stripeCapture.mockClear();
-    stripeCapture.mockResolvedValue({});
-    const { ctx, updates } = mockCtx({
-      actorId: 'seller',
-      rows: { listings: { id: 'l1', seller_id: 'seller', buyer_id: 'b', title: 't', status: 'reserved', stripe_payment_intent_id: 'pi_x' } },
-    });
-    const r = await shipListing(ctx, { listingId: 'l1', trackingCode: 'TRK' });
-    expect(r.ok).toBe(true);
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row.status).toBe('shipped');
-    expect(u.row.tracking_code).toBe('TRK');
-    const releaseTs = new Date(u.row.auto_release_at).getTime();
-    const shippedTs = new Date(u.row.shipped_at).getTime();
-    // Should be ~14 days after shipped_at.
-    expect(releaseTs - shippedTs).toBeCloseTo(14 * 86400_000, -3);
-  });
-
-  it('captures the PaymentIntent when present', async () => {
-    stripeCapture.mockClear();
-    stripeCapture.mockResolvedValue({});
-    const { ctx } = mockCtx({
-      actorId: 'seller',
-      rows: { listings: { id: 'l1', seller_id: 'seller', buyer_id: 'b', title: 't', status: 'reserved', stripe_payment_intent_id: 'pi_x' } },
-    });
-    await shipListing(ctx, { listingId: 'l1', trackingCode: 'TRK' });
-    expect(stripeCapture).toHaveBeenCalledWith('pi_x');
-  });
-
-  it('blank tracking_code stored as null', async () => {
-    const { ctx, updates } = mockCtx({
-      actorId: 'seller',
-      rows: { listings: { id: 'l1', seller_id: 'seller', buyer_id: 'b', title: 't', status: 'reserved' } },
-    });
-    await shipListing(ctx, { listingId: 'l1', trackingCode: '   ' });
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row.tracking_code).toBeNull();
-  });
-
-  it('H2: does NOT ship against a dead auth — releases the reservation + conflict', async () => {
-    // The 7-day manual-capture auth expired before the seller shipped.
-    stripeCapture.mockClear();
-    stripeRetrieve.mockResolvedValueOnce({ status: 'canceled' });
-    const { ctx, updates } = mockCtx({
-      actorId: 'seller',
-      rows: { listings: { id: 'l1', seller_id: 'seller', buyer_id: 'b', title: 't', status: 'reserved', stripe_payment_intent_id: 'pi_dead' } },
-    });
-    const r = await shipListing(ctx, { listingId: 'l1', trackingCode: 'TRK' });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
-    // Reverts to active (relisted), never marks shipped, never captures dead money.
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row.status).toBe('active');
-    expect(u.row.buyer_id).toBeNull();
-    expect(u.row.stripe_payment_intent_id).toBeNull();
-    expect(u.row.reserved_at).toBeNull();
-    expect(stripeCapture).not.toHaveBeenCalled();
-  });
+  // Capture / dead-auth / tracking behaviour is covered against the stateful
+  // fake-db (with the order as source of truth) in listings-money.test.ts —
+  // these guard tests stay here for the cheap input-validation paths.
 });
 
 // ───────────────────────────── confirmListingDelivery ──────────────
@@ -339,56 +284,6 @@ describe('confirmListingDelivery', () => {
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
-  it('captures Stripe PaymentIntent and marks listing sold', async () => {
-    stripeCapture.mockClear();
-    stripeCapture.mockResolvedValue({});
-    const { ctx, updates } = mockCtx({
-      actorId: 'buyer',
-      rows: { listings: { id: 'l1', seller_id: 's', buyer_id: 'buyer', title: 't', status: 'shipped', stripe_payment_intent_id: 'pi_real' } },
-    });
-    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
-    expect(r.ok).toBe(true);
-    expect(stripeCapture).toHaveBeenCalledWith('pi_real');
-    const u = updates.find((x: any) => x.table === 'listings') as any;
-    expect(u.row.status).toBe('sold');
-    expect(typeof u.row.sold_at).toBe('string');
-  });
-
-  it('does NOT re-capture a PI already captured at ship (succeeded), still marks sold', async () => {
-    stripeCapture.mockClear();
-    stripeRetrieve.mockResolvedValueOnce({ status: 'succeeded' });
-    const { ctx, updates } = mockCtx({
-      actorId: 'buyer',
-      rows: { listings: { id: 'l1', seller_id: 's', buyer_id: 'buyer', title: 't', status: 'shipped', stripe_payment_intent_id: 'pi_real' } },
-    });
-    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
-    expect(r.ok).toBe(true);
-    expect(stripeCapture).not.toHaveBeenCalled();
-    expect((updates.find((x: any) => x.table === 'listings') as any).row.status).toBe('sold');
-  });
-
-  it('refuses to mark sold when the auth is no longer capturable (canceled/expired)', async () => {
-    stripeCapture.mockClear();
-    stripeRetrieve.mockResolvedValueOnce({ status: 'canceled' });
-    const { ctx, updates } = mockCtx({
-      actorId: 'buyer',
-      rows: { listings: { id: 'l1', seller_id: 's', buyer_id: 'buyer', title: 't', status: 'shipped', stripe_payment_intent_id: 'pi_real' } },
-    });
-    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
-    expect(stripeCapture).not.toHaveBeenCalled();
-    expect(updates.find((x: any) => x.table === 'listings')).toBeUndefined();
-  });
-
-  it('skips Stripe when no PaymentIntent (non-escrow flow)', async () => {
-    stripeCapture.mockClear();
-    const { ctx } = mockCtx({
-      actorId: 'buyer',
-      rows: { listings: { id: 'l1', seller_id: 's', buyer_id: 'buyer', title: 't', status: 'shipped', stripe_payment_intent_id: null } },
-    });
-    const r = await confirmListingDelivery(ctx, { listingId: 'l1' });
-    expect(r.ok).toBe(true);
-    expect(stripeCapture).not.toHaveBeenCalled();
-  });
+  // Capture / succeeded / dead-auth / no-PI behaviour is covered against the
+  // stateful fake-db (order as source of truth) in listings-money.test.ts.
 });

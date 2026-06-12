@@ -13,13 +13,22 @@ const user = guard;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-// Listing purchases (buyer_id)
-const { data: purchases } = await supabase
-  .from('listings')
-  .select('id, title, price_nok, status, tracking_code, shipped_at, delivered_at, seller_id, reserved_at')
+// Listing purchases are the buyer's orders (source of truth); the listing
+// supplies title + price via the FK embed.
+const { data: orderRows } = await supabase
+  .from('orders')
+  .select('listing_id, status, tracking_code, shipped_at, delivered_at, reserved_at, listings(title, price_nok, seller_id)')
   .eq('buyer_id', user.id)
-  .in('status', ['reserved', 'shipped', 'sold', 'disputed'])
+  .in('status', ['reserved', 'shipped', 'delivered', 'disputed'])
   .order('reserved_at', { ascending: false });
+const purchases = (orderRows ?? []).map((o) => {
+  const l = o.listings as unknown as { title: string; price_nok: number; seller_id: string } | null;
+  return {
+    id: o.listing_id, title: l?.title ?? '', price_nok: l?.price_nok ?? 0, seller_id: l?.seller_id ?? '',
+    status: o.status, tracking_code: o.tracking_code, shipped_at: o.shipped_at,
+    delivered_at: o.delivered_at, reserved_at: o.reserved_at,
+  };
+});
 
 // Commissions where the user is the bestiller. We surface awarded /
 // completed / delivered ones — open requests live on /market/commissions/
@@ -38,9 +47,9 @@ const { data: acceptedOffers } = acceptedOfferIds.length
   : { data: [] };
 const offerById = new Map((acceptedOffers ?? []).map(o => [o.id, o]));
 
-const active = (purchases ?? []).filter((p) => ['reserved', 'shipped'].includes(p.status));
-const delivered = (purchases ?? []).filter((p) => p.status === 'sold');
-const disputed = (purchases ?? []).filter((p) => p.status === 'disputed');
+const active = purchases.filter((p) => ['reserved', 'shipped'].includes(p.status));
+const delivered = purchases.filter((p) => p.status === 'delivered');
+const disputed = purchases.filter((p) => p.status === 'disputed');
 
 const activeCommissions = (commissions ?? []).filter(c => ['awarded', 'completed'].includes(c.status));
 const deliveredCommissions = (commissions ?? []).filter(c => c.status === 'delivered');

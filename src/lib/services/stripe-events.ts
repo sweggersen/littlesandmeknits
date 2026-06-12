@@ -12,7 +12,6 @@ import type { TypedSupabaseClient } from '../supabase';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
 import { releaseExpiredReservation } from './listings';
-import { updateOrderByPaymentIntent } from './orders';
 import { log } from '../log';
 
 type NotifyEnv = Parameters<typeof createNotification>[2];
@@ -62,20 +61,23 @@ export async function markEventProcessed(
 // ── Correlation: Stripe charge/PI -> our escrow row ───────────────────
 
 type Escrow =
-  | { kind: 'listing'; id: string; sellerId: string | null; buyerId: string | null; title: string; status: string }
+  | { kind: 'listing'; id: string; orderId: string; sellerId: string | null; buyerId: string | null; title: string; status: string }
   | { kind: 'commission'; id: string; buyerId: string | null; title: string; status: string; awardedOfferId: string | null };
 
 export async function findEscrowByPaymentIntent(
   admin: TypedSupabaseClient,
   intentId: string,
 ): Promise<Escrow | null> {
-  const { data: listing } = await admin
-    .from('listings')
-    .select('id, seller_id, buyer_id, title, status')
+  // The PI id lives on the order now. `id` stays the LISTING id (handlers
+  // update its status projection); `orderId` carries the source-of-truth row.
+  const { data: order } = await admin
+    .from('orders')
+    .select('id, listing_id, seller_id, buyer_id, status')
     .eq('stripe_payment_intent_id', intentId)
     .maybeSingle();
-  if (listing) {
-    return { kind: 'listing', id: listing.id, sellerId: listing.seller_id, buyerId: listing.buyer_id, title: listing.title, status: listing.status };
+  if (order) {
+    const { data: l } = await admin.from('listings').select('title').eq('id', order.listing_id).maybeSingle();
+    return { kind: 'listing', id: order.listing_id, orderId: order.id, sellerId: order.seller_id, buyerId: order.buyer_id, title: l?.title ?? '', status: order.status };
   }
   const { data: commission } = await admin
     .from('commission_requests')
@@ -123,33 +125,42 @@ export async function handleChargebackOpened(
 
   const reason = `stripe_chargeback:${dispute.reason ?? 'unknown'}`;
   const now = new Date().toISOString();
-  const table = escrow.kind === 'listing' ? 'listings' : 'commission_requests';
 
-  // Idempotent: only the first dispute.created for this row freezes + notifies
-  // (the `stripe_dispute_id IS NULL` guard). Re-deliveries change nothing.
-  const { data: changed, error } = await admin
-    .from(table)
-    .update({ status: 'disputed', disputed_at: now, dispute_reason: reason, stripe_dispute_id: dispute.id })
-    .eq('id', escrow.id)
-    .is('stripe_dispute_id', null)
-    .select('id');
-  if (error) {
+  // Freeze the source-of-truth row, idempotently (first dispute.created only,
+  // via the `stripe_dispute_id IS NULL` guard). A listing chargeback freezes
+  // the ORDER (which holds the dispute fields + can be post-payout) and mirrors
+  // the catalog status; a commission freezes commission_requests directly.
+  let changed: { id: string }[] | null;
+  let freezeErr: unknown;
+  if (escrow.kind === 'listing') {
+    const res = await admin
+      .from('orders')
+      .update({ status: 'disputed', disputed_at: now, dispute_reason: reason, stripe_dispute_id: dispute.id })
+      .eq('id', escrow.orderId)
+      .is('stripe_dispute_id', null)
+      .select('id');
+    changed = res.data; freezeErr = res.error;
+    if (changed?.length) {
+      await admin.from('listings').update({ status: 'disputed' }).eq('id', escrow.id);
+    }
+  } else {
+    const res = await admin
+      .from('commission_requests')
+      .update({ status: 'disputed', disputed_at: now, dispute_reason: reason, stripe_dispute_id: dispute.id })
+      .eq('id', escrow.id)
+      .is('stripe_dispute_id', null)
+      .select('id');
+    changed = res.data; freezeErr = res.error;
+  }
+  if (freezeErr) {
     await recordDeadLetter(dlCtx(admin), {
       service: 'stripe.webhook:chargeback_freeze',
       context: { dispute_id: dispute.id, kind: escrow.kind, id: escrow.id },
-      error,
+      error: freezeErr,
     });
     return dbError();
   }
   if (!changed?.length) return ok(); // already frozen by an earlier delivery
-
-  // Phase B shadow: freeze the order too (chargeback can land post-payout, so
-  // key on the PI, not open status).
-  if (escrow.kind === 'listing') {
-    await updateOrderByPaymentIntent(admin, intentId, {
-      status: 'disputed', disputed_at: now, dispute_reason: reason, stripe_dispute_id: dispute.id,
-    });
-  }
 
   const sellerId = escrow.kind === 'listing'
     ? escrow.sellerId
@@ -194,18 +205,21 @@ export async function handleChargebackClosed(
   };
 
   // Explicit per-table calls (a dynamic .from(union) defeats the typed client).
-  const { data: lrows, error: lerr } = await admin
-    .from('listings')
+  // The dispute fields live on the ORDER now; resolve there and notify by the
+  // listing it points to.
+  const { data: orows, error: lerr } = await admin
+    .from('orders')
     .update({ dispute_resolution: resolution, dispute_resolved_at: now })
     .eq('stripe_dispute_id', dispute.id)
     .is('dispute_resolved_at', null)
-    .select('id, title, seller_id');
+    .select('listing_id, seller_id');
   if (lerr) {
-    await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'listings', outcome }, error: lerr });
+    await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'orders', outcome }, error: lerr });
     return dbError();
   }
-  if (lrows?.length) {
-    await notify(lrows[0].seller_id, lrows[0].title, 'listing', lrows[0].id);
+  if (orows?.length) {
+    const { data: l } = await admin.from('listings').select('title').eq('id', orows[0].listing_id).maybeSingle();
+    await notify(orows[0].seller_id, l?.title ?? '', 'listing', orows[0].listing_id);
     return ok();
   }
 
@@ -335,23 +349,21 @@ export async function handleChargeRefunded(
   const now = new Date().toISOString();
 
   if (escrow.kind === 'listing') {
-    // If the listing was already released to the seller ('sold'), a refund now
+    // If the order was already delivered (released to the seller), a refund now
     // can drive the connected account negative — flag for reconciliation.
-    if (escrow.status === 'sold') {
+    if (escrow.status === 'delivered') {
       await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
         service: 'stripe.webhook:refund_after_payout',
         context: { listing_id: escrow.id, charge_id: charge.id, amount_refunded_ore: charge.amount_refunded },
         error: 'Refund issued after escrow was released to the seller — reconcile connected-account balance',
       });
     }
+    // Refund resolution lives on the order (keyed on PI — may be delivered).
     const { error } = await admin
-      .from('listings')
+      .from('orders')
       .update({ refund_resolved_at: now, refund_outcome: 'accepted' })
-      .eq('id', escrow.id)
+      .eq('stripe_payment_intent_id', intentId)
       .is('refund_resolved_at', null);
-    // Phase B shadow: record the refund resolution on the order (key on PI —
-    // it may already be delivered).
-    await updateOrderByPaymentIntent(admin, intentId, { refund_resolved_at: now, refund_outcome: 'accepted' });
     if (error) {
       await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
         service: 'stripe.webhook:charge_refunded',

@@ -12,13 +12,30 @@ if (!id) return Astro.redirect('/admin/disputes');
 
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-const { data: listing } = await admin
+const { data: listingRow } = await admin
   .from('listings')
-  .select('id, title, price_nok, seller_id, buyer_id, store_id, status, disputed_at, dispute_reason, dispute_resolution, dispute_resolved_at')
+  .select('id, title, price_nok, seller_id, buyer_id, store_id, status')
   .eq('id', id)
   .maybeSingle();
 
-if (!listing) return Astro.redirect('/admin/disputes');
+if (!listingRow) return Astro.redirect('/admin/disputes');
+
+// Dispute detail lives on the order now; fold it onto the listing object so the
+// existing template (listing.dispute_*) keeps working.
+const { data: ord } = await admin
+  .from('orders')
+  .select('disputed_at, dispute_reason, dispute_resolution, dispute_resolved_at')
+  .eq('listing_id', id)
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
+const listing = {
+  ...listingRow,
+  disputed_at: ord?.disputed_at ?? null,
+  dispute_reason: ord?.dispute_reason ?? null,
+  dispute_resolution: ord?.dispute_resolution ?? null,
+  dispute_resolved_at: ord?.dispute_resolved_at ?? null,
+};
 
 // Pull buyer + seller (or store) contact info so the mod can investigate
 const [{ data: buyerProfile }, buyerAuth, { data: sellerProfile }, sellerAuth, { data: storeRow }] = await Promise.all([

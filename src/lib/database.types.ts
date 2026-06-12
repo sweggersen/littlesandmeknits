@@ -593,25 +593,14 @@ export type Database = {
       }
       listings: {
         Row: {
-          auto_release_at: string | null
-          buyer_address: string | null
-          buyer_city: string | null
           buyer_id: string | null
-          buyer_name: string | null
-          buyer_postal_code: string | null
-          buyer_tb_fee_nok: number | null
           can_meet: boolean
           category: Database["public"]["Enums"]["listing_category"]
           colorway: string | null
           condition: Database["public"]["Enums"]["listing_condition"] | null
           created_at: string
           currency: string
-          delivered_at: string | null
           description: string | null
-          dispute_reason: string | null
-          dispute_resolution: string | null
-          dispute_resolved_at: string | null
-          disputed_at: string | null
           draft_nudge_sent_at: string | null
           escrow_enabled: boolean
           escrow_fee_paid_at: string | null
@@ -631,7 +620,6 @@ export type Database = {
           pattern_external_title: string | null
           pattern_slug: string | null
           photos: string[]
-          platform_fee_nok: number | null
           pre_freeze_status:
             | Database["public"]["Enums"]["listing_status"]
             | null
@@ -640,19 +628,11 @@ export type Database = {
           promoted_until: string | null
           promotion_tier: string | null
           published_at: string | null
-          refund_description: string | null
-          refund_notes: string | null
-          refund_outcome: string | null
-          refund_reason: string | null
-          refund_requested_at: string | null
-          refund_resolved_at: string | null
           report_count: number
-          reserved_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           search_vector: unknown
           seller_id: string
-          shipped_at: string | null
           shipping_info: string | null
           shipping_option: string | null
           shipping_price_nok: number
@@ -662,33 +642,19 @@ export type Database = {
           sold_at: string | null
           status: Database["public"]["Enums"]["listing_status"]
           store_id: string | null
-          stripe_dispute_id: string | null
-          stripe_payment_intent_id: string | null
           title: string
-          tracking_code: string | null
           updated_at: string
           yarn_ids: string[]
         }
         Insert: {
-          auto_release_at?: string | null
-          buyer_address?: string | null
-          buyer_city?: string | null
           buyer_id?: string | null
-          buyer_name?: string | null
-          buyer_postal_code?: string | null
-          buyer_tb_fee_nok?: number | null
           can_meet?: boolean
           category: Database["public"]["Enums"]["listing_category"]
           colorway?: string | null
           condition?: Database["public"]["Enums"]["listing_condition"] | null
           created_at?: string
           currency?: string
-          delivered_at?: string | null
           description?: string | null
-          dispute_reason?: string | null
-          dispute_resolution?: string | null
-          dispute_resolved_at?: string | null
-          disputed_at?: string | null
           draft_nudge_sent_at?: string | null
           escrow_enabled?: boolean
           escrow_fee_paid_at?: string | null
@@ -708,7 +674,6 @@ export type Database = {
           pattern_external_title?: string | null
           pattern_slug?: string | null
           photos?: string[]
-          platform_fee_nok?: number | null
           pre_freeze_status?:
             | Database["public"]["Enums"]["listing_status"]
             | null
@@ -717,19 +682,11 @@ export type Database = {
           promoted_until?: string | null
           promotion_tier?: string | null
           published_at?: string | null
-          refund_description?: string | null
-          refund_notes?: string | null
-          refund_outcome?: string | null
-          refund_reason?: string | null
-          refund_requested_at?: string | null
-          refund_resolved_at?: string | null
           report_count?: number
-          reserved_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           search_vector?: unknown
           seller_id: string
-          shipped_at?: string | null
           shipping_info?: string | null
           shipping_option?: string | null
           shipping_price_nok?: number
@@ -739,33 +696,19 @@ export type Database = {
           sold_at?: string | null
           status?: Database["public"]["Enums"]["listing_status"]
           store_id?: string | null
-          stripe_dispute_id?: string | null
-          stripe_payment_intent_id?: string | null
           title: string
-          tracking_code?: string | null
           updated_at?: string
           yarn_ids?: string[]
         }
         Update: {
-          auto_release_at?: string | null
-          buyer_address?: string | null
-          buyer_city?: string | null
           buyer_id?: string | null
-          buyer_name?: string | null
-          buyer_postal_code?: string | null
-          buyer_tb_fee_nok?: number | null
           can_meet?: boolean
           category?: Database["public"]["Enums"]["listing_category"]
           colorway?: string | null
           condition?: Database["public"]["Enums"]["listing_condition"] | null
           created_at?: string
           currency?: string
-          delivered_at?: string | null
           description?: string | null
-          dispute_reason?: string | null
-          dispute_resolution?: string | null
-          dispute_resolved_at?: string | null
-          disputed_at?: string | null
           draft_nudge_sent_at?: string | null
           escrow_enabled?: boolean
           escrow_fee_paid_at?: string | null
@@ -785,7 +728,6 @@ export type Database = {
           pattern_external_title?: string | null
           pattern_slug?: string | null
           photos?: string[]
-          platform_fee_nok?: number | null
           pre_freeze_status?:
             | Database["public"]["Enums"]["listing_status"]
             | null
@@ -794,19 +736,11 @@ export type Database = {
           promoted_until?: string | null
           promotion_tier?: string | null
           published_at?: string | null
-          refund_description?: string | null
-          refund_notes?: string | null
-          refund_outcome?: string | null
-          refund_reason?: string | null
-          refund_requested_at?: string | null
-          refund_resolved_at?: string | null
           report_count?: number
-          reserved_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           search_vector?: unknown
           seller_id?: string
-          shipped_at?: string | null
           shipping_info?: string | null
           shipping_option?: string | null
           shipping_price_nok?: number
@@ -816,10 +750,7 @@ export type Database = {
           sold_at?: string | null
           status?: Database["public"]["Enums"]["listing_status"]
           store_id?: string | null
-          stripe_dispute_id?: string | null
-          stripe_payment_intent_id?: string | null
           title?: string
-          tracking_code?: string | null
           updated_at?: string
           yarn_ids?: string[]
         }
