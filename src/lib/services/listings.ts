@@ -318,9 +318,6 @@ export async function uploadListingPhotos(
   return ok({ redirect: `/market/listing/${input.listingId}` });
 }
 
-const PLATFORM_FEE_PERCENT = 13;
-const AMBASSADOR_FEE_PERCENT = 8;
-
 // Escrow timing. Stripe manual-capture authorizations expire ~7 days after the
 // charge, so a reservation MUST resolve before then. SHIP_DEADLINE_DAYS is the
 // window the seller has to ship (well inside 7d); past it the cron releases the
@@ -445,28 +442,23 @@ export async function purchaseListing(
   // (NOT the individual member's). The store is the seller of record.
   let payoutAccountId: string | null = null;
   let onboarded = false;
-  let feePercent: number;
   if (listing.store_id) {
     const { data: store } = await ctx.admin
       .from('stores')
-      .select('stripe_account_id, stripe_onboarded, tier, status')
+      .select('stripe_account_id, stripe_onboarded, status')
       .eq('id', listing.store_id)
       .maybeSingle();
     if (!store || store.status !== 'active') return fail('conflict', 'Store not active');
     payoutAccountId = store.stripe_account_id;
     onboarded = !!store.stripe_onboarded;
-    // Tier-based commission: Starter +2%, Pro +1%, Elite +0%
-    const tierDelta = store.tier === 'elite' ? 0 : store.tier === 'pro' ? 1 : 2;
-    feePercent = PLATFORM_FEE_PERCENT + tierDelta;
   } else {
-    const [{ data: seller }, { data: sellerConnect }] = await Promise.all([
-      ctx.admin.from('profiles').select('role').eq('id', listing.seller_id).maybeSingle(),
-      ctx.admin.from('seller_profiles').select('stripe_account_id, stripe_connect_status').eq('id', listing.seller_id).maybeSingle(),
-    ]);
-    if (!seller) return fail('not_found', 'Seller not found');
+    const { data: sellerConnect } = await ctx.admin
+      .from('seller_profiles')
+      .select('stripe_account_id, stripe_connect_status')
+      .eq('id', listing.seller_id)
+      .maybeSingle();
     payoutAccountId = sellerConnect?.stripe_account_id ?? null;
     onboarded = sellerConnect?.stripe_connect_status === 'verified';
-    feePercent = seller.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   }
 
   if (!onboarded || !payoutAccountId) {
@@ -475,11 +467,11 @@ export async function purchaseListing(
   const itemOre = listing.price_nok * 100;
   const shippingOre = shippingNok * 100;
   const tbFeeOre = tbFee * 100;
-  // Commission applies to the item only, not shipping or TB fee.
-  const platformFeeFromItem = Math.round(itemOre * feePercent / 100);
-  // TB fee goes 100% to the platform.
-  const applicationFeeOre = platformFeeFromItem + tbFeeOre;
-  // Shipping is paid by the buyer and passed through to the seller untouched.
+  // H4 launch fee model: NO commission on the item ("Vi tar ingen prosent av
+  // salget, du som selger får hele beløpet"). The platform's revenue on a
+  // listing sale is the buyer-paid TB fee only; item + shipping pass through
+  // to the seller untouched.
+  const applicationFeeOre = tbFeeOre;
 
   const lineItems = [
     { price_data: { currency: 'nok', unit_amount: itemOre, product_data: { name: listing.title } }, quantity: 1 },

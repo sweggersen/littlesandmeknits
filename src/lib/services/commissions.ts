@@ -329,8 +329,10 @@ export async function cancelCommission(
   return ok({ redirect: '/market/commissions/my-listings' });
 }
 
-const PLATFORM_FEE_PERCENT = 13;
-const AMBASSADOR_FEE_PERCENT = 8;
+// Commission ("Strikk for meg") platform fee, per terms §5: flat 12 % of the
+// agreed price. Deducted from the knitter's transfer at release, NOT charged
+// on top to the buyer.
+const COMMISSION_FEE_PERCENT = 12;
 
 export async function payCommission(
   ctx: ServiceContext,
@@ -357,29 +359,32 @@ export async function payCommission(
 
   if (!offer) return fail('not_found', 'Offer not found');
 
-  const [{ data: knitterProfile }, { data: knitterSeller }] = await Promise.all([
-    ctx.admin.from('profiles').select('role').eq('id', offer.knitter_id).maybeSingle(),
-    ctx.admin.from('seller_profiles').select('stripe_account_id, stripe_connect_status').eq('id', offer.knitter_id).maybeSingle(),
-  ]);
+  const { data: knitterSeller } = await ctx.admin
+    .from('seller_profiles')
+    .select('stripe_account_id, stripe_connect_status')
+    .eq('id', offer.knitter_id)
+    .maybeSingle();
 
   // The knitter must be able to receive payouts before we collect money.
   if (knitterSeller?.stripe_connect_status !== 'verified' || !knitterSeller.stripe_account_id) {
     return fail('conflict', 'Strikkeren har ikke fullført oppsett av utbetaling ennå.');
   }
 
-  const feePercent = knitterProfile?.role === 'ambassador' ? AMBASSADOR_FEE_PERCENT : PLATFORM_FEE_PERCENT;
   const amountOre = offer.price_nok * 100;
-  const platformFee = Math.round(amountOre * feePercent / 100);
+  const platformFee = Math.round(amountOre * COMMISSION_FEE_PERCENT / 100);
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
 
-  // Real hosted Checkout — the buyer actually pays (Vipps/card). Escrow via
-  // manual capture; funds route to the knitter (destination charge) minus our
-  // platform fee. The post-payment side-effects (status, project activation,
-  // notify) run in the stripe webhook (type=commission_payment) once Stripe
-  // confirms payment — NOT here, so an abandoned checkout leaves the request
-  // untouched.
+  // Separate charges & transfers (H2b): a knit takes weeks but a manual-capture
+  // auth dies in ~7 days, so we charge the buyer IN FULL now (automatic
+  // capture, no transfer_data — funds land in the PLATFORM balance and sit
+  // there as real escrow) and transfer the knitter's share via
+  // releaseCommissionFunds when the work is delivered/auto-released. Refunds
+  // before release are plain refunds from the platform balance. The
+  // post-payment side-effects (status, project activation, notify) run in the
+  // stripe webhook (type=commission_payment) once Stripe confirms payment —
+  // NOT here, so an abandoned checkout leaves the request untouched.
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: [{
@@ -387,11 +392,6 @@ export async function payCommission(
       quantity: 1,
     }],
     payment_method_types: ['vipps' as 'card', 'card'],
-    payment_intent_data: {
-      capture_method: 'manual',
-      application_fee_amount: platformFee,
-      transfer_data: { destination: knitterSeller.stripe_account_id },
-    },
     success_url: `${siteUrl}/market/commissions/${input.requestId}?paid=1`,
     cancel_url: `${siteUrl}/market/commissions/${input.requestId}`,
     customer_email: ctx.user.email ?? undefined,
@@ -407,6 +407,109 @@ export async function payCommission(
 
   if (!session.url) return fail('server_error', 'Checkout URL missing');
   return ok({ redirect: session.url });
+}
+
+/** Release a paid commission's funds to the knitter when the work is
+ *  delivered (buyer confirm, cron auto-release, or admin dispute release).
+ *
+ *  Handles both payment rails:
+ *   - NEW (separate charges & transfers): the PI was auto-captured into the
+ *     platform balance at payment; transfer price minus the 12 % platform fee
+ *     to the knitter's account, tied to the original charge via
+ *     source_transaction. The Stripe idempotency key (per request) makes a
+ *     buyer-click/cron race yield ONE transfer.
+ *   - LEGACY (manual-capture destination charge): requires_capture → capture
+ *     (Stripe routes via the PI's transfer_data); already-succeeded
+ *     destination charges have nothing left to do.
+ *
+ *  Returns released=false (with a dead-letter) when the money state is wrong
+ *  (e.g. auth expired before the rail switch) — callers must NOT mark the
+ *  commission delivered in that case. */
+export async function releaseCommissionFunds(
+  admin: ServiceContext['admin'],
+  stripeSecretKey: string,
+  input: { requestId: string; paymentIntentId: string; knitterId: string; priceNok: number },
+): Promise<{ released: boolean; reason?: string }> {
+  const stripe = createStripe(stripeSecretKey);
+  const pi = await stripe.paymentIntents.retrieve(input.paymentIntentId);
+
+  if (pi.status === 'requires_capture') {
+    // Legacy rail: capture routes the funds via the PI's transfer_data.
+    await stripe.paymentIntents.capture(input.paymentIntentId);
+    return { released: true };
+  }
+
+  if (pi.status === 'succeeded') {
+    if (pi.transfer_data) return { released: true }; // legacy, already routed
+
+    const { data: knitterSeller } = await admin
+      .from('seller_profiles')
+      .select('stripe_account_id')
+      .eq('id', input.knitterId)
+      .maybeSingle();
+    if (!knitterSeller?.stripe_account_id) {
+      await recordDeadLetter({ admin }, {
+        service: 'commissions.releaseCommissionFunds:no-payout-account',
+        context: { commission_request_id: input.requestId, knitter_id: input.knitterId },
+        error: 'Knitter has no Stripe account id at release time',
+      });
+      return { released: false, reason: 'no_payout_account' };
+    }
+
+    const priceOre = input.priceNok * 100;
+    const feeOre = Math.round(priceOre * COMMISSION_FEE_PERCENT / 100);
+    const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
+    const transfer = await stripe.transfers.create({
+      amount: priceOre - feeOre,
+      currency: 'nok',
+      destination: knitterSeller.stripe_account_id,
+      // Draw against the original charge's funds (not the general balance).
+      ...(chargeId ? { source_transaction: chargeId } : {}),
+      transfer_group: `commission_${input.requestId}`,
+      metadata: { commission_request_id: input.requestId, platform_fee_ore: String(feeOre) },
+    }, {
+      // One transfer per commission, even if confirm + cron race.
+      idempotencyKey: `commission-transfer-${input.requestId}`,
+    });
+    await admin
+      .from('commission_requests')
+      .update({ stripe_transfer_id: transfer.id })
+      .eq('id', input.requestId);
+    return { released: true };
+  }
+
+  // canceled / anything else: money was never collected — surface, don't mark delivered.
+  await recordDeadLetter({ admin }, {
+    service: 'commissions.releaseCommissionFunds:not-releasable',
+    context: { commission_request_id: input.requestId, payment_intent_id: input.paymentIntentId, pi_status: pi.status },
+    error: `Commission PaymentIntent not releasable (status=${pi.status})`,
+  });
+  return { released: false, reason: pi.status };
+}
+
+/** Refund a paid commission back to the buyer (admin dispute decision or
+ *  cancellation before delivery). Branches on rail: an uncaptured legacy auth
+ *  is canceled; a captured charge is refunded (with transfer/app-fee reversal
+ *  only when it was a legacy destination charge). */
+export async function refundCommissionPayment(
+  stripeSecretKey: string,
+  paymentIntentId: string,
+): Promise<void> {
+  const stripe = createStripe(stripeSecretKey);
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+  if (pi.status === 'canceled') return; // already void
+  if (pi.status === 'requires_capture') {
+    await stripe.paymentIntents.cancel(paymentIntentId);
+    return;
+  }
+  if (pi.transfer_data) {
+    // Legacy destination charge: pull the funds back from the connected
+    // account and return our application fee so the buyer is made whole.
+    await stripe.refunds.create({ payment_intent: paymentIntentId, reverse_transfer: true, refund_application_fee: true });
+  } else {
+    // New rail: funds are still in the platform balance — plain refund.
+    await stripe.refunds.create({ payment_intent: paymentIntentId });
+  }
 }
 
 /** Finalize a commission payment after Stripe confirms the Checkout Session.
@@ -628,9 +731,18 @@ export async function confirmDelivery(
   const payoutsBlocked = await killGuard(['payouts'], ctx.env);
   if (payoutsBlocked) return payoutsBlocked;
 
-  if (req.stripe_payment_intent_id) {
-    const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
-    await stripe.paymentIntents.capture(req.stripe_payment_intent_id);
+  const { data: offer } = await ctx.supabase
+    .from('commission_offers').select('knitter_id, price_nok').eq('id', req.awarded_offer_id!).single();
+
+  if (req.stripe_payment_intent_id && offer) {
+    const r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
+      requestId: input.requestId,
+      paymentIntentId: req.stripe_payment_intent_id,
+      knitterId: offer.knitter_id,
+      priceNok: offer.price_nok,
+    });
+    // Never mark delivered without the money having moved (dead-lettered inside).
+    if (!r.released) return fail('conflict', 'Utbetalingen kunne ikke gjennomføres. Ta kontakt med support.');
   }
 
   const reviewDeadline = new Date();
@@ -641,9 +753,6 @@ export async function confirmDelivery(
     delivered_at: new Date().toISOString(),
     review_deadline_at: reviewDeadline.toISOString(),
   }).eq('id', input.requestId);
-
-  const { data: offer } = await ctx.supabase
-    .from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id!).single();
 
   if (offer) {
     await createNotification(ctx.admin, {

@@ -10,6 +10,7 @@ import { renderDraftNudgeEmail } from '../../../lib/email-templates';
 import { isKilled } from '../../../lib/flags';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
+import { releaseCommissionFunds } from '../../../lib/services/commissions';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -206,36 +207,43 @@ export const POST: APIRoute = async ({ request }) => {
       .lt('auto_release_at', now);
 
     if (releasable?.length) {
-      const stripe = createStripe(env.STRIPE_SECRET_KEY);
       for (const req of releasable) {
-        let commissionCaptured = true;
-        if (req.stripe_payment_intent_id) {
+        const { data: offer } = await admin
+          .from('commission_offers')
+          .select('knitter_id, price_nok')
+          .eq('id', req.awarded_offer_id!)
+          .maybeSingle();
+
+        let commissionReleased = true;
+        if (req.stripe_payment_intent_id && offer) {
           try {
-            await stripe.paymentIntents.capture(req.stripe_payment_intent_id);
+            // Rail-aware release: transfers the knitter's share (new rail) or
+            // captures the legacy destination charge. Idempotent per request.
+            const r = await releaseCommissionFunds(admin, env.STRIPE_SECRET_KEY, {
+              requestId: req.id,
+              paymentIntentId: req.stripe_payment_intent_id,
+              knitterId: offer.knitter_id,
+              priceNok: offer.price_nok,
+            });
+            commissionReleased = r.released; // false already dead-lettered inside
           } catch (e) {
-            // Don't mark delivered if we couldn't capture — leave auto_release_at
-            // in the past so the next tick retries, and dead-letter so support
-            // sees the stuck escrow rather than it being silently dropped.
-            commissionCaptured = false;
+            // Don't mark delivered if the money didn't move — leave
+            // auto_release_at in the past so the next tick retries, and
+            // dead-letter so the stuck escrow isn't silently dropped.
+            commissionReleased = false;
             await recordDeadLetter({ admin, user: req.buyer_id ? { id: req.buyer_id } : undefined }, {
-              service: 'cron.auto_release:commission_capture',
+              service: 'cron.auto_release:commission_release',
               context: { commission_request_id: req.id, payment_intent_id: req.stripe_payment_intent_id },
               error: e,
             });
           }
         }
-        if (!commissionCaptured) continue;
+        if (!commissionReleased) continue;
 
         await admin
           .from('commission_requests')
           .update({ status: 'delivered', delivered_at: now })
           .eq('id', req.id);
-
-        const { data: offer } = await admin
-          .from('commission_offers')
-          .select('knitter_id')
-          .eq('id', req.awarded_offer_id!)
-          .maybeSingle();
 
         if (offer) {
           await createNotification(admin, {

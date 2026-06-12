@@ -2,6 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
+import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
 
 type Decision = 'refund' | 'release';
 const VALID_DECISIONS = new Set<Decision>(['refund', 'release']);
@@ -30,7 +31,7 @@ export async function resolveDispute(
     return resolveListingDispute(ctx, input.itemId, decision, input.notes, stripe, now);
   }
   if (input.itemType === 'commission') {
-    return resolveCommissionDispute(ctx, input.itemId, decision, input.notes, stripe, now);
+    return resolveCommissionDispute(ctx, input.itemId, decision, input.notes, now);
   }
 
   return fail('bad_input', 'Invalid item type');
@@ -114,7 +115,6 @@ async function resolveCommissionDispute(
   requestId: string,
   decision: Decision,
   notes: string | undefined,
-  stripe: ReturnType<typeof createStripe>,
   now: string,
 ): Promise<ServiceResult<{ redirect: string }>> {
   const { data: req } = await ctx.admin
@@ -127,10 +127,22 @@ async function resolveCommissionDispute(
   if (req.status !== 'disputed') return fail('conflict', 'Not in disputed state');
 
   if (req.stripe_payment_intent_id) {
+    const { data: awardedOffer } = await ctx.admin
+      .from('commission_offers').select('knitter_id, price_nok')
+      .eq('id', req.awarded_offer_id!).maybeSingle();
     if (decision === 'refund') {
-      await stripe.paymentIntents.cancel(req.stripe_payment_intent_id);
-    } else {
-      await stripe.paymentIntents.capture(req.stripe_payment_intent_id);
+      // Rail-aware: cancels an uncaptured legacy auth, plain-refunds a
+      // platform-balance charge, reverse-transfers a legacy destination charge.
+      await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+    } else if (awardedOffer) {
+      const r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
+        requestId,
+        paymentIntentId: req.stripe_payment_intent_id,
+        knitterId: awardedOffer.knitter_id,
+        priceNok: awardedOffer.price_nok,
+      });
+      // Don't record "released to knitter" if the money didn't move.
+      if (!r.released) return fail('conflict', 'Utbetalingen kunne ikke gjennomføres. Se dead letters.');
     }
   }
 

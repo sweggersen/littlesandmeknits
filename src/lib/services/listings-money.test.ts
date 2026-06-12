@@ -91,7 +91,7 @@ function seedPersonal(listingOverrides: Record<string, unknown> = {}, role = 'us
 }
 
 describe('purchaseListing — personal seller money math', () => {
-  it('charges item + shipping + TB fee, application fee = 13% of item + TB fee', async () => {
+  it('charges item + shipping + TB fee; application fee = TB fee ONLY (0% seller commission)', async () => {
     const db = seedPersonal();
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(true);
@@ -100,23 +100,24 @@ describe('purchaseListing — personal seller money math', () => {
     // price 500 -> 50000 ore; shipping 76 -> 7600; TB fee for 500 = 19 -> 1900.
     const amounts = args.line_items.map((li: any) => li.price_data.unit_amount);
     expect(amounts).toEqual([50000, 7600, 1900]);
-    // application_fee = 13% of 50000 (=6500) + TB fee 1900 = 8400.
-    expect(args.payment_intent_data.application_fee_amount).toBe(8400);
+    // H4 launch model: no item commission — the platform keeps the TB fee only,
+    // the seller receives the full item price + shipping.
+    expect(args.payment_intent_data.application_fee_amount).toBe(1900);
     expect(args.payment_intent_data.transfer_data.destination).toBe('acct_seller');
     expect(args.payment_intent_data.capture_method).toBe('manual');
     // The Stripe-hosted Checkout URL is handed back to the caller.
     if (r.ok) expect(r.data.checkoutUrl).toBe('https://checkout.stripe.com/c/test_123');
   });
 
-  it('ambassador seller pays 8% commission, free shipping omits the shipping line', async () => {
-    const db = seedPersonal({ price_nok: 1000, shipping_option: 'free', shipping_price_nok: 0 }, 'ambassador');
+  it('free shipping omits the shipping line; fee still TB only', async () => {
+    const db = seedPersonal({ price_nok: 1000, shipping_option: 'free', shipping_price_nok: 0 });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     expect(r.ok).toBe(true);
 
     const args = checkoutArgs();
     const amounts = args.line_items.map((li: any) => li.price_data.unit_amount);
     expect(amounts).toEqual([100000, 2900]); // item + TB only
-    expect(args.payment_intent_data.application_fee_amount).toBe(10900); // 8000 + 2900
+    expect(args.payment_intent_data.application_fee_amount).toBe(2900); // TB fee for 1000 kr
   });
 
   it('stamps metadata with buyer, seller, TB, shipping and the EXACT fee', async () => {
@@ -126,7 +127,7 @@ describe('purchaseListing — personal seller money math', () => {
     expect(args.metadata).toEqual({
       type: 'listing_purchase', listing_id: 'l1', buyer_id: 'buyer-9',
       seller_id: 'seller-1', tb_fee_nok: '19', shipping_nok: '76',
-      platform_fee_ore: '8400', store_id: '',
+      platform_fee_ore: '1900', store_id: '',
     });
     // H3 invariant: the metadata fee IS the application fee, so the webhook
     // records exactly what Stripe charged (no recomputation drift).
@@ -203,59 +204,58 @@ describe('purchaseListing — personal seller money math', () => {
     expect(amounts).toEqual([50000, 1900]); // item 500 + TB 19, no shipping line
   });
 
-  it('not_found when the seller profile is missing', async () => {
+  it('succeeds without a profiles row (role no longer affects the fee)', async () => {
     const db = fakeDb({
       listings: [{
         id: 'l1', seller_id: 'seller-1', store_id: null, title: 'X', price_nok: 500,
         status: 'active', hero_photo_path: null, escrow_enabled: true,
         shipping_option: 'free', shipping_price_nok: 0,
       }],
-      // No profiles row for seller-1.
+      // No profiles row for seller-1 — only the payout connect row matters now.
       seller_profiles: [{ id: 'seller-1', stripe_account_id: 'acct', stripe_connect_status: 'verified' }],
     });
     const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
-    expect(r.ok).toBe(false);
-    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
-    expect(checkoutCreate).not.toHaveBeenCalled();
+    expect(r.ok).toBe(true);
+    expect(checkoutArgs().payment_intent_data.application_fee_amount).toBe(1900); // TB only
   });
 });
 
 describe('purchaseListing — escrow split reconciles (money conservation)', () => {
   // The invariant that ties it all together: what the buyer pays, minus what
-  // the platform keeps (application fee), must equal what the seller nets
-  // (item + shipping passthrough - commission). If shipping were ever
-  // double-counted into the fee, or the TB fee leaked to the seller, this
-  // breaks even when the individual-number tests pass.
+  // the platform keeps (application fee = the TB fee only, 0% commission),
+  // must equal what the seller nets (full item + shipping passthrough). If
+  // shipping were ever counted into the fee, or the TB fee leaked to the
+  // seller, this breaks even when the individual-number tests pass.
   it.each([
-    ['small_parcel', 76, 'user', 13],
-    ['free', 0, 'user', 13],
-    ['parcel', 140, 'ambassador', 8],
-  ])('shipping=%s seller=%s', async (shipping_option, shippingNok, role, pct) => {
-    const db = seedPersonal({ price_nok: 800, shipping_option, shipping_price_nok: shippingNok }, role);
+    ['small_parcel', 76],
+    ['free', 0],
+    ['parcel', 140],
+  ])('shipping=%s reconciles', async (shipping_option, shippingNok) => {
+    const db = seedPersonal({ price_nok: 800, shipping_option, shipping_price_nok: shippingNok });
     await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
     const args = checkoutArgs();
 
     const itemOre = 800 * 100;
-    const shipOre = shippingNok * 100;
+    const shipOre = (shippingNok as number) * 100;
     const tbOre = tbFeeForPrice(800) * 100;
-    const commission = Math.round(itemOre * pct / 100);
 
     const buyerTotal = args.line_items.reduce((s: number, li: any) => s + li.price_data.unit_amount * li.quantity, 0);
     const appFee = args.payment_intent_data.application_fee_amount;
 
     // Buyer pays item + shipping + TB.
     expect(buyerTotal).toBe(itemOre + shipOre + tbOre);
-    // Platform keeps commission + TB fee.
-    expect(appFee).toBe(commission + tbOre);
-    // Seller nets item + shipping - commission (no TB leakage).
-    expect(buyerTotal - appFee).toBe(itemOre + shipOre - commission);
+    // Platform keeps the TB fee only.
+    expect(appFee).toBe(tbOre);
+    // Seller nets the FULL item + shipping (0% commission, no TB leakage).
+    expect(buyerTotal - appFee).toBe(itemOre + shipOre);
     // Sanity: the platform never takes more than the buyer pays.
     expect(appFee).toBeLessThan(buyerTotal);
   });
 
-  // Price sweep — rounding bugs hide at boundaries the hand-picked cases miss.
+  // Price sweep — the TB tiers step at 200/500 kr; boundaries are where
+  // off-by-one bugs hide.
   it.each([1, 50, 199, 200, 201, 499, 500, 501, 999, 1000, 4999, 5000])(
-    'fee math holds at price %d kr (personal, 13%%, free shipping)',
+    'fee = exactly the TB tier at price %d kr (free shipping)',
     async (price) => {
       const db = seedPersonal({ price_nok: price, shipping_option: 'free', shipping_price_nok: 0 });
       await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
@@ -263,17 +263,17 @@ describe('purchaseListing — escrow split reconciles (money conservation)', () 
 
       const itemOre = price * 100;
       const tbOre = tbFeeForPrice(price) * 100;
-      const expectedFee = Math.round(itemOre * 13 / 100) + tbOre;
 
-      expect(args.payment_intent_data.application_fee_amount).toBe(expectedFee);
+      expect(args.payment_intent_data.application_fee_amount).toBe(tbOre);
       const buyerTotal = args.line_items.reduce((s: number, li: any) => s + li.price_data.unit_amount, 0);
       expect(buyerTotal).toBe(itemOre + tbOre);
-      expect(expectedFee).toBeLessThanOrEqual(buyerTotal);
+      // Seller share is exactly the item price.
+      expect(buyerTotal - args.payment_intent_data.application_fee_amount).toBe(itemOre);
     },
   );
 });
 
-describe('purchaseListing — store-owned tier fees', () => {
+describe('purchaseListing — store-owned listings', () => {
   function seedStore(tier: string | undefined) {
     return fakeDb({
       listings: [{
@@ -285,17 +285,17 @@ describe('purchaseListing — store-owned tier fees', () => {
     });
   }
 
-  it.each([
-    ['starter', 15], ['pro', 14], ['elite', 13], [undefined, 15],
-  ])('tier=%s applies %d%% commission', async (tier, pct) => {
-    const db = seedStore(tier);
-    const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
-    expect(r.ok).toBe(true);
-    const args = checkoutArgs();
-    const expectedFee = Math.round(60000 * pct / 100) + 2900; // TB for 600 = 29
-    expect(args.payment_intent_data.application_fee_amount).toBe(expectedFee);
-    expect(args.payment_intent_data.transfer_data.destination).toBe('acct_store');
-  });
+  it.each([['starter'], ['pro'], ['elite'], [undefined]])(
+    'tier=%s: fee is the TB fee only, payment routes to the store account',
+    async (tier) => {
+      const db = seedStore(tier as string | undefined);
+      const r = await purchaseListing(ctxFor(db), { listingId: 'l1', stripeSecretKey: 'sk_test' });
+      expect(r.ok).toBe(true);
+      const args = checkoutArgs();
+      expect(args.payment_intent_data.application_fee_amount).toBe(2900); // TB for 600 = 29
+      expect(args.payment_intent_data.transfer_data.destination).toBe('acct_store');
+    },
+  );
 });
 
 describe('purchaseListing — guards', () => {

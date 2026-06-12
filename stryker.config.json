@@ -5,11 +5,11 @@
   "vitest": { "configFile": "vitest.config.ts" },
   "coverageAnalysis": "perTest",
   "mutate": [
-    "src/lib/services/listings.ts:372-520",
-    "src/lib/services/listings.ts:521-594",
-    "src/lib/services/listings.ts:609-663",
-    "src/lib/services/listings.ts:685-731",
-    "src/lib/services/commissions.ts:335-466"
+    "src/lib/services/listings.ts:373-526",
+    "src/lib/services/listings.ts:527-599",
+    "src/lib/services/listings.ts:615-668",
+    "src/lib/services/listings.ts:691-736",
+    "src/lib/services/commissions.ts:337-569"
   ],
   "reporters": ["clear-text", "progress", "html"],
   "htmlReporter": { "fileName": "reports/mutation/index.html" },

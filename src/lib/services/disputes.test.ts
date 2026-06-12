@@ -6,9 +6,15 @@ vi.mock('../notify', () => ({ createNotification: vi.fn() }));
 
 const stripeCancel = vi.fn().mockResolvedValue({});
 const stripeCapture = vi.fn().mockResolvedValue({});
+// Commission PIs default to the new rail (captured into the platform balance).
+const stripeRetrieve = vi.fn(async (): Promise<any> => ({ status: 'succeeded', transfer_data: null, latest_charge: 'ch_1' }));
+const stripeRefundCreate = vi.fn().mockResolvedValue({});
+const stripeTransferCreate = vi.fn(async () => ({ id: 'tr_1' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
-    paymentIntents: { cancel: stripeCancel, capture: stripeCapture },
+    paymentIntents: { cancel: stripeCancel, capture: stripeCapture, retrieve: stripeRetrieve },
+    refunds: { create: stripeRefundCreate },
+    transfers: { create: stripeTransferCreate },
   })),
 }));
 
@@ -31,6 +37,7 @@ function mockCtx(opts: MockOpts = {}) {
             if (table === 'listings') return { data: opts.listing ?? null };
             if (table === 'commission_requests') return { data: opts.request ?? null };
             if (table === 'commission_offers') return { data: opts.offer ?? null };
+            if (table === 'seller_profiles') return { data: { stripe_account_id: 'acct_k' } };
             return { data: null };
           },
         }),
@@ -190,30 +197,57 @@ describe('resolveDispute — commission', () => {
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
-  it('refund: cancels PI, sets request to cancelled', async () => {
+  it('refund (new rail): plain refund from the platform balance, request cancelled', async () => {
+    stripeRefundCreate.mockClear();
+    stripeCancel.mockClear();
     const { ctx, updates } = mockCtx({
-      role: 'admin', request: disputedReq, offer: { knitter_id: 'k1' },
+      role: 'admin', request: disputedReq, offer: { knitter_id: 'k1', price_nok: 500 },
+    });
+    const r = await resolveDispute(ctx, {
+      itemType: 'commission', itemId: 'r1', decision: 'refund',
+    });
+    expect(r.ok).toBe(true);
+    // Captured into the platform balance → refund, no cancel, NO reverse_transfer.
+    expect(stripeRefundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_y' });
+    expect(stripeCancel).not.toHaveBeenCalled();
+    const u = updates.find((x: any) => x.table === 'commission_requests') as any;
+    expect(u.row.status).toBe('cancelled');
+    expect(u.row.delivered_at).toBeUndefined();
+  });
+
+  it('refund (legacy uncaptured auth): cancels the PI instead', async () => {
+    stripeCancel.mockClear();
+    stripeRefundCreate.mockClear();
+    stripeRetrieve.mockResolvedValueOnce({ status: 'requires_capture' });
+    const { ctx, updates } = mockCtx({
+      role: 'admin', request: disputedReq, offer: { knitter_id: 'k1', price_nok: 500 },
     });
     const r = await resolveDispute(ctx, {
       itemType: 'commission', itemId: 'r1', decision: 'refund',
     });
     expect(r.ok).toBe(true);
     expect(stripeCancel).toHaveBeenCalledWith('pi_y');
+    expect(stripeRefundCreate).not.toHaveBeenCalled();
     const u = updates.find((x: any) => x.table === 'commission_requests') as any;
     expect(u.row.status).toBe('cancelled');
-    expect(u.row.delivered_at).toBeUndefined();
   });
 
-  it('release: captures PI, sets request to delivered with delivered_at', async () => {
+  it('release: transfers the knitter share, sets request to delivered with delivered_at', async () => {
+    stripeCapture.mockClear();
+    stripeTransferCreate.mockClear();
     const { ctx, updates } = mockCtx({
-      role: 'admin', request: disputedReq, offer: { knitter_id: 'k1' },
+      role: 'admin', request: disputedReq, offer: { knitter_id: 'k1', price_nok: 500 },
     });
     const r = await resolveDispute(ctx, {
       itemType: 'commission', itemId: 'r1', decision: 'release',
     });
     expect(r.ok).toBe(true);
-    expect(stripeCapture).toHaveBeenCalledWith('pi_y');
-    const u = updates.find((x: any) => x.table === 'commission_requests') as any;
+    expect(stripeCapture).not.toHaveBeenCalled();
+    expect(stripeTransferCreate).toHaveBeenCalledTimes(1);
+    expect((stripeTransferCreate.mock.calls[0] as any)[0]).toMatchObject({ amount: 44000, destination: 'acct_k' });
+    // releaseCommissionFunds records stripe_transfer_id first; the status
+    // update is the one carrying `status`.
+    const u = updates.find((x: any) => x.table === 'commission_requests' && (x.row as any).status) as any;
     expect(u.row.status).toBe('delivered');
     expect(typeof u.row.delivered_at).toBe('string');
   });

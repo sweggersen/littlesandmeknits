@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { payCommission, finalizeCommissionPayment } from './commissions';
+import { payCommission, finalizeCommissionPayment, releaseCommissionFunds, refundCommissionPayment } from './commissions';
 import { createNotification } from '../notify';
+import { recordDeadLetter } from './dead-letter';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
 
@@ -9,23 +10,37 @@ import type { ServiceContext } from './types';
 const fakeDb = (seed: Record<string, Record<string, unknown>[]>) =>
   createFakeDb(seed, { projectColumns: true });
 
-// Money-math + side-effect coverage for commission payment. payCommission now
-// builds a real hosted Checkout Session (the buyer actually pays); the
-// post-payment side-effects live in finalizeCommissionPayment, run by the
-// webhook once Stripe confirms.
+// Money-math + side-effect coverage for commission payment (separate charges &
+// transfers): payCommission builds a hosted Checkout Session that auto-captures
+// into the platform balance; finalizeCommissionPayment (webhook) records the
+// payment; releaseCommissionFunds transfers the knitter's share at delivery.
 
 vi.mock('../notify', () => ({ createNotification: vi.fn() }));
 vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 
 const sessionCreate = vi.fn(async (_args?: any) => ({ url: 'https://checkout.stripe.com/c/sess_1' }));
+const piRetrieve = vi.fn(async (_id?: any): Promise<any> => ({ status: 'succeeded', transfer_data: null, latest_charge: 'ch_1' }));
+const piCapture = vi.fn(async (_id?: any) => ({}));
+const piCancel = vi.fn(async (_id?: any) => ({}));
+const transferCreate = vi.fn(async (_args?: any, _opts?: any) => ({ id: 'tr_1' }));
+const refundCreate = vi.fn(async (_args?: any) => ({}));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     checkout: { sessions: { create: sessionCreate } },
+    paymentIntents: { retrieve: piRetrieve, capture: piCapture, cancel: piCancel },
+    transfers: { create: transferCreate },
+    refunds: { create: refundCreate },
   })),
 }));
 
 beforeEach(() => {
   sessionCreate.mockClear();
+  piRetrieve.mockClear();
+  piCapture.mockClear();
+  piCancel.mockClear();
+  transferCreate.mockClear();
+  refundCreate.mockClear();
+  vi.mocked(recordDeadLetter).mockClear();
   vi.mocked(createNotification).mockClear();
 });
 
@@ -57,8 +72,8 @@ function seed(o: SeedOpts = {}): FakeDb {
   });
 }
 
-describe('payCommission — builds a real Checkout Session', () => {
-  it('non-ambassador knitter: 13% fee on a manual-capture destination charge', async () => {
+describe('payCommission — builds a real Checkout Session (separate charges & transfers)', () => {
+  it('charges the full price into the PLATFORM balance, 12% fee recorded in metadata', async () => {
     const db = seed();
     const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
     expect(r.ok).toBe(true);
@@ -68,9 +83,11 @@ describe('payCommission — builds a real Checkout Session', () => {
     const args = sessionCreate.mock.calls[0][0] as any;
     expect(args.mode).toBe('payment');
     expect(args.line_items[0].price_data.unit_amount).toBe(100000); // 1000 kr -> ore
-    expect(args.payment_intent_data.capture_method).toBe('manual');
-    expect(args.payment_intent_data.application_fee_amount).toBe(13000); // 13%
-    expect(args.payment_intent_data.transfer_data.destination).toBe('acct_knitter');
+    // H2b: NO payment_intent_data — no manual capture (the auth would die in
+    // ~7 days, a knit takes weeks) and no destination/application fee. The
+    // charge auto-captures into the platform balance; the knitter's share is
+    // transferred at delivery by releaseCommissionFunds.
+    expect(args.payment_intent_data).toBeUndefined();
     expect(args.line_items[0].price_data.currency).toBe('nok');
     expect(args.line_items[0].price_data.product_data.name).toContain('Strikket teppe');
     expect(args.payment_method_types).toEqual(expect.arrayContaining(['vipps', 'card']));
@@ -78,19 +95,12 @@ describe('payCommission — builds a real Checkout Session', () => {
     expect(args.cancel_url).toBe('https://test.site/market/commissions/req-1');
     expect(args.customer_email).toBe('buyer@x.io'); // prefilled so Vipps/card receipt reaches the buyer
     expect(args.locale).toBe('nb');
-    expect(args.metadata).toMatchObject({ type: 'commission_payment', commission_request_id: 'req-1', buyer_id: 'buyer-1', platform_fee_ore: '13000' });
+    expect(args.metadata).toMatchObject({ type: 'commission_payment', commission_request_id: 'req-1', buyer_id: 'buyer-1', platform_fee_ore: '12000' });
 
     // No side effects here — the request stays awaiting_payment until the webhook.
     const row = db.find('commission_requests', { id: 'req-1' }) as any;
     expect(row.status).toBe('awaiting_payment');
     expect(createNotification).not.toHaveBeenCalled();
-  });
-
-  it('ambassador knitter pays 8%', async () => {
-    const db = seed({ role: 'ambassador' });
-    await payCommission(ctxFor(db), { requestId: 'req-1' });
-    expect((sessionCreate.mock.calls[0][0] as any).payment_intent_data.application_fee_amount).toBe(8000);
-    expect((sessionCreate.mock.calls[0][0] as any).metadata.platform_fee_ore).toBe('8000');
   });
 
   it('falls back to the production site URL when PUBLIC_SITE_URL is unset', async () => {
@@ -100,61 +110,63 @@ describe('payCommission — builds a real Checkout Session', () => {
     expect((sessionCreate.mock.calls[0][0] as any).success_url).toContain('https://www.littlesandmeknits.com');
   });
 
-  // Price sweep: the fee is the platform's cut and is echoed in metadata so the
-  // webhook stores exactly what was charged.
-  it.each([
-    [1, 13], [50, 13], [199, 13], [200, 8], [999, 13], [1000, 8], [4999, 13], [5000, 8],
-  ])('price %d kr @ %d%% — fee reconciles', async (price, pct) => {
-    const db = seed({ offer: { price_nok: price }, role: pct === 8 ? 'ambassador' : 'user' });
-    await payCommission(ctxFor(db), { requestId: 'req-1' });
-    const args = sessionCreate.mock.calls[0][0] as any;
-    const amountOre = price * 100;
-    const expectedFee = Math.round(amountOre * pct / 100);
-    expect(args.line_items[0].price_data.unit_amount).toBe(amountOre);
-    expect(args.payment_intent_data.application_fee_amount).toBe(expectedFee);
-    expect(expectedFee).toBeLessThanOrEqual(amountOre); // platform never takes more than the price
-    expect(args.metadata.platform_fee_ore).toBe(String(expectedFee));
-  });
+  // Price sweep: the recorded fee is 12% flat (terms §5) of the agreed price,
+  // echoed in metadata so the webhook stores exactly what will be deducted
+  // from the knitter's transfer.
+  it.each([1, 50, 199, 200, 999, 1000, 4999, 5000])(
+    'price %d kr — 12%% fee reconciles', async (price) => {
+      const db = seed({ offer: { price_nok: price } });
+      await payCommission(ctxFor(db), { requestId: 'req-1' });
+      const args = sessionCreate.mock.calls[0][0] as any;
+      const amountOre = price * 100;
+      const expectedFee = Math.round(amountOre * 12 / 100);
+      expect(args.line_items[0].price_data.unit_amount).toBe(amountOre);
+      expect(expectedFee).toBeLessThanOrEqual(amountOre); // platform never takes more than the price
+      expect(args.metadata.platform_fee_ore).toBe(String(expectedFee));
+      // Knitter's eventual share is price - fee; conservation holds.
+      expect(amountOre - expectedFee + expectedFee).toBe(amountOre);
+    },
+  );
 });
 
 describe('payCommission — guards', () => {
   it('rejects empty request id', async () => {
     const r = await payCommission(ctxFor(seed()), { requestId: '' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('bad_input');
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toBeTruthy(); }
   });
 
   it('forbids paying someone else’s request', async () => {
     const r = await payCommission(ctxFor(seed(), 'not-the-buyer'), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('forbidden');
+    if (!r.ok) { expect(r.code).toBe('forbidden'); expect(r.message).toBeTruthy(); }
     expect(sessionCreate).not.toHaveBeenCalled();
   });
 
   it('rejects a request not in awaiting_payment', async () => {
     const r = await payCommission(ctxFor(seed({ req: { status: 'open' } })), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('bad_input');
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toBeTruthy(); }
   });
 
   it('not_found when the awarded offer is missing', async () => {
     const r = await payCommission(ctxFor(seed({ offer: { id: 'a-different-offer' } })), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('not_found');
+    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
     expect(sessionCreate).not.toHaveBeenCalled();
   });
 
   it('refuses to collect money for a knitter without verified payouts', async () => {
     const r = await payCommission(ctxFor(seed({ connect: { stripe_account_id: null, stripe_connect_status: 'pending' } })), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(sessionCreate).not.toHaveBeenCalled();
   });
 
   it('refuses when verified but missing the payout account id', async () => {
     const r = await payCommission(ctxFor(seed({ connect: { stripe_account_id: null, stripe_connect_status: 'verified' } })), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
   });
 
   it('refuses when the knitter has no payout-connect row at all', async () => {
@@ -166,19 +178,20 @@ describe('payCommission — guards', () => {
     });
     const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('conflict');
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(sessionCreate).not.toHaveBeenCalled();
   });
 
-  it('defaults to the standard 13% fee when the knitter profile row is missing', async () => {
+  it('charges 12% flat regardless of knitter role (no profiles dependency)', async () => {
     const db = fakeDb({
       commission_requests: [{ id: 'req-1', buyer_id: 'buyer-1', status: 'awaiting_payment', awarded_offer_id: 'offer-1', title: 'T', yarn_provided_by_buyer: false }],
       commission_offers: [{ id: 'offer-1', knitter_id: 'knitter-1', price_nok: 1000 }],
-      // No profiles row → knitterProfile null → not ambassador → 13%.
+      // No profiles row at all — the fee is flat 12% per terms §5.
       seller_profiles: [{ id: 'knitter-1', stripe_account_id: 'acct_knitter', stripe_connect_status: 'verified' }],
     });
-    await payCommission(ctxFor(db), { requestId: 'req-1' });
-    expect((sessionCreate.mock.calls[0][0] as any).payment_intent_data.application_fee_amount).toBe(13000);
+    const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
+    expect(r.ok).toBe(true);
+    expect((sessionCreate.mock.calls[0][0] as any).metadata.platform_fee_ore).toBe('12000');
   });
 
   it('is blocked by the commissions kill-switch (no checkout created)', async () => {
@@ -205,7 +218,7 @@ describe('payCommission — guards', () => {
     sessionCreate.mockResolvedValueOnce({ url: null } as any);
     const r = await payCommission(ctxFor(seed()), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('server_error');
+    if (!r.ok) { expect(r.code).toBe('server_error'); expect(r.message).toBeTruthy(); }
   });
 });
 
@@ -255,7 +268,7 @@ describe('finalizeCommissionPayment — post-payment (webhook)', () => {
     const db = seed();
     const r = await finalizeCommissionPayment(db.client as any, {} as any, { requestId: 'missing-req', paymentIntentId: 'pi_real', platformFeeOre: 13000 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('not_found');
+    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
     expect(createNotification).not.toHaveBeenCalled();
     expect((db.find('projects', { id: 'proj-1' }) as any).status).toBe('planning'); // untouched
   });
@@ -264,7 +277,136 @@ describe('finalizeCommissionPayment — post-payment (webhook)', () => {
     const db = seed({ offer: { id: 'a-different-offer' } });
     const r = await finalizeCommissionPayment(db.client as any, {} as any, { requestId: 'req-1', paymentIntentId: 'pi_real', platformFeeOre: 13000 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.code).toBe('not_found');
+    if (!r.ok) { expect(r.code).toBe('not_found'); expect(r.message).toBeTruthy(); }
     expect(createNotification).not.toHaveBeenCalled();
+  });
+});
+
+// H2b: the transfer at delivery — the money-critical release step.
+describe('releaseCommissionFunds', () => {
+  const args = { requestId: 'req-1', paymentIntentId: 'pi_paid', knitterId: 'knitter-1', priceNok: 1000 };
+
+  it('new rail: transfers price minus 12% to the knitter, tied to the charge, idempotent key', async () => {
+    const db = seed();
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(true);
+    expect(piCapture).not.toHaveBeenCalled();
+    expect(transferCreate).toHaveBeenCalledTimes(1);
+    const [params, opts] = transferCreate.mock.calls[0];
+    expect(params).toMatchObject({
+      amount: 88000, // 100000 - 12000 (12%)
+      currency: 'nok',
+      destination: 'acct_knitter',
+      source_transaction: 'ch_1',
+      transfer_group: 'commission_req-1',
+    });
+    expect(params.metadata.platform_fee_ore).toBe('12000');
+    // The idempotency key makes a confirm/cron race yield ONE transfer.
+    expect(opts.idempotencyKey).toBe('commission-transfer-req-1');
+    // Transfer id recorded for audit.
+    expect((db.find('commission_requests', { id: 'req-1' }) as any).stripe_transfer_id).toBe('tr_1');
+  });
+
+  // Money conservation across the sweep: transfer + fee = price, in ore.
+  it.each([1, 50, 199, 200, 999, 1000, 4999, 5000])('conserves money at %d kr', async (price) => {
+    const db = seed();
+    await releaseCommissionFunds(db.client as any, 'sk_test', { ...args, priceNok: price });
+    const [params] = transferCreate.mock.calls[0];
+    const feeOre = Math.round(price * 100 * 12 / 100);
+    expect(params.amount + feeOre).toBe(price * 100);
+    expect(params.amount).toBeGreaterThanOrEqual(0);
+  });
+
+  it('legacy rail requires_capture: captures (transfer_data routes), no transfer', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'requires_capture' });
+    const db = seed();
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(true);
+    expect(piCapture).toHaveBeenCalledWith('pi_paid');
+    expect(transferCreate).not.toHaveBeenCalled();
+  });
+
+  it('legacy rail already captured (has transfer_data): nothing to do', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded', transfer_data: { destination: 'acct_knitter' } });
+    const db = seed();
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(true);
+    expect(piCapture).not.toHaveBeenCalled();
+    expect(transferCreate).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the auth died (canceled): dead-letters, releases nothing', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    const db = seed();
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(false);
+    expect(transferCreate).not.toHaveBeenCalled();
+    expect(recordDeadLetter).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses when the knitter has no payout account: dead-letters, no transfer', async () => {
+    const db = seed({ connect: { stripe_account_id: null } });
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(false);
+    expect(r.reason).toBe('no_payout_account');
+    expect(transferCreate).not.toHaveBeenCalled();
+    expect(recordDeadLetter).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses when the seller_profiles row is missing entirely', async () => {
+    const db = fakeDb({
+      commission_requests: [{ id: 'req-1', buyer_id: 'buyer-1', status: 'completed', awarded_offer_id: 'offer-1', title: 'T', yarn_provided_by_buyer: false }],
+      commission_offers: [{ id: 'offer-1', knitter_id: 'knitter-1', price_nok: 1000 }],
+      // No seller_profiles at all.
+    });
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(false);
+    expect(r.reason).toBe('no_payout_account');
+    expect(transferCreate).not.toHaveBeenCalled();
+  });
+
+  it('unwraps an expanded latest_charge object for source_transaction', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded', transfer_data: null, latest_charge: { id: 'ch_expanded' } });
+    const db = seed();
+    await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(transferCreate.mock.calls[0][0].source_transaction).toBe('ch_expanded');
+  });
+
+  it('omits source_transaction when the charge id is unavailable', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded', transfer_data: null, latest_charge: null });
+    const db = seed();
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(true);
+    expect('source_transaction' in transferCreate.mock.calls[0][0]).toBe(false);
+  });
+});
+
+// H2b: refunds back to the buyer must match the rail the money took.
+describe('refundCommissionPayment', () => {
+  it('no-op when the PI is already canceled', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    await refundCommissionPayment('sk_test', 'pi_x');
+    expect(piCancel).not.toHaveBeenCalled();
+    expect(refundCreate).not.toHaveBeenCalled();
+  });
+
+  it('cancels an uncaptured legacy auth (returns the hold, no refund object)', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'requires_capture' });
+    await refundCommissionPayment('sk_test', 'pi_x');
+    expect(piCancel).toHaveBeenCalledWith('pi_x');
+    expect(refundCreate).not.toHaveBeenCalled();
+  });
+
+  it('plain refund for a new-rail charge (platform balance, NO reverse_transfer)', async () => {
+    // default piRetrieve: succeeded, transfer_data null
+    await refundCommissionPayment('sk_test', 'pi_x');
+    expect(refundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_x' });
+    expect(piCancel).not.toHaveBeenCalled();
+  });
+
+  it('reverse-transfer refund for a legacy destination charge', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded', transfer_data: { destination: 'acct_knitter' } });
+    await refundCommissionPayment('sk_test', 'pi_x');
+    expect(refundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_x', reverse_transfer: true, refund_application_fee: true });
   });
 });

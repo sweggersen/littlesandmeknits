@@ -15,13 +15,19 @@ vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 const stripeCreate = vi.fn();
 const stripeConfirm = vi.fn();
 const stripeCapture = vi.fn();
+// Default PI state: new rail (auto-captured into the platform balance,
+// no transfer_data) so confirmDelivery exercises the transfer path.
+const stripeRetrieve = vi.fn(async (): Promise<any> => ({ status: 'succeeded', transfer_data: null, latest_charge: 'ch_1' }));
+const stripeTransferCreate = vi.fn(async () => ({ id: 'tr_1' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     paymentIntents: {
       create: stripeCreate,
       confirm: stripeConfirm,
       capture: stripeCapture,
+      retrieve: stripeRetrieve,
     },
+    transfers: { create: stripeTransferCreate },
   })),
 }));
 
@@ -319,19 +325,26 @@ describe('confirmDelivery', () => {
     if (!r.ok) expect(r.code).toBe('bad_input');
   });
 
-  it('captures the Stripe payment intent on success', async () => {
+  it('releases the funds (transfer of price minus 12%) on success', async () => {
     stripeCapture.mockClear();
-    stripeCapture.mockResolvedValue({});
+    stripeTransferCreate.mockClear();
     const { ctx } = mockCtx({
       actorId: 'buyer',
       rows: {
         commission_requests: { id: 'r1', buyer_id: 'buyer', status: 'completed', title: 't', awarded_offer_id: 'o1', stripe_payment_intent_id: 'pi_real' },
-        commission_offers: { knitter_id: 'k' },
+        commission_offers: { knitter_id: 'k', price_nok: 500 },
+        seller_profiles: { stripe_account_id: 'acct_k' },
       },
     });
     const r = await confirmDelivery(ctx, { requestId: 'r1' });
     expect(r.ok).toBe(true);
-    expect(stripeCapture).toHaveBeenCalledWith('pi_real');
+    // New rail: no capture; the knitter's share is transferred instead.
+    expect(stripeCapture).not.toHaveBeenCalled();
+    expect(stripeTransferCreate).toHaveBeenCalledTimes(1);
+    expect((stripeTransferCreate.mock.calls[0] as any)[0]).toMatchObject({
+      amount: 44000, // 50000 - 12%
+      destination: 'acct_k',
+    });
   });
 
   it('skips Stripe capture when no payment intent (test-mode commission)', async () => {
