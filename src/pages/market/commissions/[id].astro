@@ -7,10 +7,8 @@ import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import OffersList from '../../../components/commission/OffersList.astro';
 import CommissionTimeline from '../../../components/commission/Timeline.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { createAdminSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { commissionShareMeta } from '../../../lib/seo';
-import { env } from '../../../lib/env';
 import { CATEGORY_LABEL, COMMISSION_STATUS, PROJECT_STATUS } from '../../../lib/labels';
 
 const id = Astro.params.id;
@@ -29,8 +27,8 @@ const { data: viewerProfile } = user ? await supabase.from('profiles').select('r
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
 
 if (!req && isStaff) {
-  const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const { data } = await admin
+  // Staff read any commission request via RLS (0092 staff read) — no bypass.
+  const { data } = await supabase
     .from('commission_requests')
     .select('*, profiles!commission_requests_buyer_id_fkey(display_name, avatar_path)')
     .eq('id', id)
@@ -117,8 +115,8 @@ const knitterName = knitterProfile?.display_name ?? 'Anonym';
 // Check if user already submitted a review
 let hasUserReview = false;
 if (user && req.status === 'delivered') {
-  const adminClient = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-  const { count } = await adminClient
+  // The viewer's own review — RLS grants reviewer self-read (0037), no bypass.
+  const { count } = await supabase
     .from('transaction_reviews')
     .select('id', { count: 'exact', head: true })
     .eq('commission_request_id', id)
