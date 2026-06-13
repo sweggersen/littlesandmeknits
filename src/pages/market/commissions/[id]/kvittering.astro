@@ -1,9 +1,8 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
-import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { createServerSupabase } from '../../../../lib/supabase';
 import { requireUser } from '../../../../lib/auth';
 import { CATEGORY_LABEL } from '../../../../lib/labels';
-import { env } from '../../../../lib/env';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market');
@@ -12,10 +11,13 @@ const guard = await requireUser(Astro);
 if (guard instanceof Response) return guard;
 const user = guard;
 
+// All reads are RLS-permitted for the authorized viewer: buyer (commission_requests
+// owner + offers-on-own-request), accepted knitter (0073 + 0019), staff (0092 staff
+// read on both tables); profiles are public. The cookie-bound client is the access
+// gate; the explicit buyer/knitter/staff check below is defense-in-depth on RLS.
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-const { data: req, error: reqErr } = await admin
+const { data: req, error: reqErr } = await supabase
   .from('commission_requests')
   .select('id, buyer_id, awarded_offer_id, title, category, size_label, status, platform_fee_nok, delivered_at, completed_at, created_at')
   .eq('id', id)
@@ -27,7 +29,7 @@ if (!req) return Astro.redirect('/market/commissions');
 let knitterId: string | null = null;
 let price = 0;
 if (req.awarded_offer_id) {
-  const { data: offer } = await admin
+  const { data: offer } = await supabase
     .from('commission_offers')
     .select('knitter_id, price_nok')
     .eq('id', req.awarded_offer_id)
@@ -35,7 +37,7 @@ if (req.awarded_offer_id) {
   if (offer) { knitterId = offer.knitter_id; price = offer.price_nok ?? 0; }
 }
 
-const { data: viewerProfile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle();
+const { data: viewerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
 const isBuyer = req.buyer_id === user.id;
 const isKnitter = knitterId === user.id;
@@ -47,9 +49,9 @@ if (!req.awarded_offer_id) {
 }
 
 const [{ data: buyer }, { data: knitter }] = await Promise.all([
-  admin.from('profiles').select('display_name, location').eq('id', req.buyer_id).maybeSingle(),
+  supabase.from('profiles').select('display_name, location').eq('id', req.buyer_id).maybeSingle(),
   knitterId
-    ? admin.from('profiles').select('display_name, location').eq('id', knitterId).maybeSingle()
+    ? supabase.from('profiles').select('display_name, location').eq('id', knitterId).maybeSingle()
     : Promise.resolve({ data: null }),
 ]);
 

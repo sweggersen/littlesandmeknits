@@ -1,8 +1,7 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
-import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { createServerSupabase } from '../../../../lib/supabase';
 import { requireUser } from '../../../../lib/auth';
-import { env } from '../../../../lib/env';
 
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market');
@@ -11,10 +10,13 @@ const guard = await requireUser(Astro);
 if (guard instanceof Response) return guard;
 const user = guard;
 
+// All reads here are RLS-permitted for the authorized viewer (buyer/seller via
+// orders + listings policies; staff via role; profiles/stores public reads), so
+// the cookie-bound client is the access gate — no service-role bypass needed.
+// The explicit buyer/seller/staff check below is now defense-in-depth on RLS.
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
-const { data: listing } = await admin
+const { data: listing } = await supabase
   .from('listings')
   .select('id, seller_id, buyer_id, store_id, title, price_nok, sold_at, status, kind')
   .eq('id', id)
@@ -23,14 +25,14 @@ const { data: listing } = await admin
 if (!listing) return Astro.redirect('/market');
 
 // Only buyer / seller / staff can view.
-const { data: viewerProfile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle();
+const { data: viewerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';
 const isBuyer = listing.buyer_id === user.id;
 const isSeller = listing.seller_id === user.id;
 if (!isBuyer && !isSeller && !isStaff) return Astro.redirect(`/market/listing/${id}`);
 
 // The order is the purchase record (money + shipping). Most recent for the listing.
-const { data: order } = await admin
+const { data: order } = await supabase
   .from('orders')
   .select('platform_fee_nok, reserved_at, shipped_at, delivered_at, shipping_name, shipping_address, shipping_postal_code, shipping_city')
   .eq('listing_id', id)
@@ -49,7 +51,7 @@ let sellerOrgnr: string | null = null;
 let sellerOrgFormal: string | null = null;
 let sellerVatRegistered = false;
 if (listing.store_id) {
-  const { data: store } = await admin.from('stores')
+  const { data: store } = await supabase.from('stores')
     .select('name, legal_name, orgnr, vat_registered').eq('id', listing.store_id).maybeSingle();
   if (store) {
     sellerName = store.legal_name ?? store.name;
@@ -58,7 +60,7 @@ if (listing.store_id) {
     sellerVatRegistered = !!store.vat_registered;
   }
 } else {
-  const { data: seller } = await admin.from('profiles').select('display_name').eq('id', listing.seller_id).maybeSingle();
+  const { data: seller } = await supabase.from('profiles').select('display_name').eq('id', listing.seller_id).maybeSingle();
   sellerName = seller?.display_name ?? 'Privatperson';
 }
 

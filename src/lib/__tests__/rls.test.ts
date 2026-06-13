@@ -268,6 +268,24 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
 
       await admin.from('commission_requests').delete().eq('id', req!.id);
     });
+
+    it('staff (admin) read a request they are not party to (0092)', async () => {
+      const { data: req } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId,
+        title: 'rls staff-read',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200,
+        status: 'frozen', // hidden from non-owners; staff must still read it
+      }).select('id').single();
+
+      await admin.from('profiles').update({ role: 'admin' }).eq('id', charlieId);
+      const staff = await userClient('rls-charlie@test.strikketorget.no');
+      const { data } = await staff.from('commission_requests').select('id').eq('id', req!.id);
+      expect(data ?? []).not.toHaveLength(0);
+      await admin.from('profiles').update({ role: null }).eq('id', charlieId);
+
+      await admin.from('commission_requests').delete().eq('id', req!.id);
+    });
   });
 
   describe('commission_offers', () => {
@@ -296,6 +314,13 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       const { data: charlieReads } = await charlieClient.from('commission_offers')
         .select('id').eq('id', offer!.id);
       expect(charlieReads ?? []).toHaveLength(0);
+
+      // ...but staff (admin) read any offer for moderation/receipts (0092).
+      await admin.from('profiles').update({ role: 'admin' }).eq('id', charlieId);
+      const staff = await userClient('rls-charlie@test.strikketorget.no');
+      const { data: staffReads } = await staff.from('commission_offers').select('id').eq('id', offer!.id);
+      expect(staffReads ?? []).not.toHaveLength(0);
+      await admin.from('profiles').update({ role: null }).eq('id', charlieId);
 
       await admin.from('commission_offers').delete().eq('id', offer!.id);
       await admin.from('commission_requests').delete().eq('id', req!.id);
