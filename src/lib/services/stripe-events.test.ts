@@ -52,6 +52,12 @@ describe('handleChargebackOpened (listing)', () => {
 
     const notif = db.find('notifications', { user_id: 'S1', type: 'dispute_opened' });
     expect(notif).toBeTruthy();
+
+    // Ledger: chargeback froze the escrow (system actor, carries the dispute id).
+    expect(db.find('payment_events', { event_type: 'dispute_opened' })).toMatchObject({
+      kind: 'listing', order_id: 'o1', stripe_object_id: 'dp_1',
+      stripe_payment_intent_id: 'pi_1', context: { source: 'stripe_chargeback', reason: 'fraudulent' },
+    });
   });
 
   it('is idempotent: a second delivery does not re-notify', async () => {
@@ -86,6 +92,10 @@ describe('handleChargebackOpened (commission)', () => {
     expect(res.status).toBe(200);
     expect(db.find('commission_requests', { id: 'C1' })!.status).toBe('disputed');
     expect(db.find('notifications', { user_id: 'K1', type: 'dispute_opened' })).toBeTruthy();
+    // Ledger: commission chargeback frozen.
+    expect(db.find('payment_events', { event_type: 'dispute_opened' })).toMatchObject({
+      kind: 'commission', commission_request_id: 'C1', stripe_object_id: 'dp_2',
+    });
   });
 });
 
@@ -104,6 +114,11 @@ describe('handleChargebackClosed', () => {
     expect(order.dispute_resolved_at).toBeTruthy();
     const notif = db.find('notifications', { user_id: 'S1', type: 'dispute_resolved' })!;
     expect(notif.title).toMatch(/favør/);
+    // Ledger: chargeback closed, outcome recorded.
+    expect(db.find('payment_events', { event_type: 'dispute_resolved' })).toMatchObject({
+      kind: 'listing', order_id: 'o1', stripe_object_id: 'dp_1',
+      context: { source: 'stripe_chargeback', outcome: 'won' },
+    });
   });
 
   it('records a lost outcome', async () => {
@@ -176,6 +191,11 @@ describe('handleChargeRefunded', () => {
     // Refund-after-payout must be flagged for balance reconciliation.
     expect(db.find('dead_letter_events', { service: 'stripe.webhook:refund_after_payout' })).toBeTruthy();
     expect(db.find('notifications', { user_id: 'B1' })).toBeTruthy();
+    // Ledger: refund settled by Stripe (amount from the charge, in kr).
+    expect(db.find('payment_events', { event_type: 'refunded' })).toMatchObject({
+      kind: 'listing', order_id: 'o1', actor_id: 'B1', amount_nok: 294,
+      stripe_object_id: 'ch_1', context: { source: 'stripe_charge_refunded' },
+    });
   });
 
   it('does not flag reconciliation when the order was not yet delivered', async () => {

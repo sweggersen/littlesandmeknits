@@ -1522,6 +1522,54 @@ export type Database = {
           },
         ]
       }
+      payment_events: {
+        Row: {
+          actor_id: string | null
+          amount_nok: number | null
+          commission_request_id: string | null
+          context: Json
+          created_at: string
+          event_type: Database["public"]["Enums"]["payment_event_type"]
+          fee_nok: number | null
+          id: string
+          kind: string
+          occurred_at: string
+          order_id: string | null
+          stripe_object_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          actor_id?: string | null
+          amount_nok?: number | null
+          commission_request_id?: string | null
+          context?: Json
+          created_at?: string
+          event_type: Database["public"]["Enums"]["payment_event_type"]
+          fee_nok?: number | null
+          id?: string
+          kind: string
+          occurred_at?: string
+          order_id?: string | null
+          stripe_object_id?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          actor_id?: string | null
+          amount_nok?: number | null
+          commission_request_id?: string | null
+          context?: Json
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["payment_event_type"]
+          fee_nok?: number | null
+          id?: string
+          kind?: string
+          occurred_at?: string
+          order_id?: string | null
+          stripe_object_id?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           age_confirmed_at: string | null
@@ -2656,6 +2704,14 @@ export type Database = {
         | "delivered"
         | "cancelled"
         | "disputed"
+      payment_event_type:
+        | "reserved"
+        | "captured"
+        | "released"
+        | "refunded"
+        | "cancelled"
+        | "dispute_opened"
+        | "dispute_resolved"
       notification_type:
         | "new_offer"
         | "offer_accepted"
@@ -2875,6 +2931,15 @@ export const Constants = {
         "frozen",
       ],
       order_status: ["reserved", "shipped", "delivered", "cancelled", "disputed"],
+      payment_event_type: [
+        "reserved",
+        "captured",
+        "released",
+        "refunded",
+        "cancelled",
+        "dispute_opened",
+        "dispute_resolved",
+      ],
       notification_type: [
         "new_offer",
         "offer_accepted",

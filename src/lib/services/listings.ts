@@ -9,6 +9,7 @@ import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
 import { recordDeadLetter } from './dead-letter';
 import { killGuard, isKilled } from '../flags';
 import { createReservedOrder, updateOpenOrder, findOpenOrder } from './orders';
+import { recordPaymentEvent } from './payment-events';
 
 const VALID_KIND = new Set(['pre_loved', 'ready_made']);
 const VALID_CONDITION = new Set(['som_ny', 'lite_brukt', 'brukt', 'slitt']);
@@ -409,7 +410,7 @@ export async function completeListingPurchase(
   // Record the order (source of truth). Only on a real transition (not a
   // duplicate webhook delivery, which matches 0 rows).
   if (listing) {
-    await createReservedOrder(admin, {
+    const orderId = await createReservedOrder(admin, {
       listing_id: p.listingId,
       buyer_id: p.buyerId,
       seller_id: listing.seller_id,
@@ -426,6 +427,13 @@ export async function completeListingPurchase(
       shipping_city: p.shipping?.city ?? null,
       reserved_at: nowIso,
       ship_deadline_at: autoReleaseAt,
+    });
+    // Ledger: funds authorized & held. amount = item + shipping (what the
+    // buyer paid that's in escrow); fee = the platform's cut (TB fee).
+    await recordPaymentEvent(admin, {
+      kind: 'listing', type: 'reserved', orderId, actorId: p.buyerId,
+      amountNok: listing.price_nok + (p.shippingNok ?? 0), feeNok,
+      paymentIntentId: p.paymentIntentId ?? null,
     });
   }
 
@@ -608,7 +616,7 @@ export async function shipListing(
 
   // The order owns the ship lifecycle; the listing carries only the catalog
   // status projection. The delivery-window deadline lives on the order.
-  await updateOpenOrder(ctx.admin, input.listingId, {
+  const orderId = await updateOpenOrder(ctx.admin, input.listingId, {
     status: 'shipped',
     shipped_at: shippedAt.toISOString(),
     tracking_code: input.trackingCode.trim() || null,
@@ -616,6 +624,12 @@ export async function shipListing(
     ship_deadline_at: null,
   });
   await ctx.admin.from('listings').update({ status: 'shipped' }).eq('id', input.listingId);
+  // Ledger: funds captured at ship (the manual-capture hold is now collected).
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'listing', type: 'captured', orderId, actorId: ctx.user.id,
+    amountNok: order?.item_price_nok ?? null, feeNok: order?.platform_fee_nok ?? null,
+    paymentIntentId: shipPiId ?? null,
+  });
 
   if (listing.buyer_id) {
     await createNotification(ctx.admin, {
@@ -680,10 +694,16 @@ export async function confirmListingDelivery(
   const now = new Date().toISOString();
   // Order is delivered (terminal, money with the seller); listing reflects the
   // sale in its catalog status + sold_at (display).
-  await updateOpenOrder(ctx.admin, input.listingId, {
+  const orderId = await updateOpenOrder(ctx.admin, input.listingId, {
     status: 'delivered', delivered_at: now, auto_release_at: null,
   });
   await ctx.admin.from('listings').update({ status: 'sold', sold_at: now }).eq('id', input.listingId);
+  // Ledger: escrow released to the seller (terminal success).
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'listing', type: 'released', orderId, actorId: ctx.user.id,
+    amountNok: order?.item_price_nok ?? null, feeNok: order?.platform_fee_nok ?? null,
+    paymentIntentId: piId ?? null, context: { trigger: 'buyer_confirmed' },
+  });
 
   if (listing.seller_id) {
     await createNotification(ctx.admin, {
@@ -751,10 +771,17 @@ export async function releaseExpiredReservation(
     .select('id');
   if (!reverted?.length) return { released: false }; // a concurrent caller won the race
 
-  await updateOpenOrder(admin, input.listingId, {
+  const orderId = await updateOpenOrder(admin, input.listingId, {
     status: 'cancelled',
     cancelled_at: new Date().toISOString(),
     cancel_reason: input.reason,
+  });
+  // Ledger: authorization voided without capture — buyer never charged.
+  await recordPaymentEvent(admin, {
+    kind: 'listing', type: 'cancelled', orderId,
+    actorId: listing.buyer_id ?? null,
+    amountNok: order?.item_price_nok ?? null,
+    paymentIntentId: piId ?? null, context: { reason: input.reason },
   });
 
   if (listing.buyer_id) {
@@ -803,13 +830,18 @@ export async function disputeListing(
   }
 
   // The order holds the dispute detail; the listing carries the status mirror.
-  await updateOpenOrder(ctx.admin, input.listingId, {
+  const orderId = await updateOpenOrder(ctx.admin, input.listingId, {
     status: 'disputed',
     disputed_at: new Date().toISOString(),
     dispute_reason: reason,
     auto_release_at: null,
   });
   await ctx.admin.from('listings').update({ status: 'disputed' }).eq('id', input.listingId);
+  // Ledger: buyer opened a dispute — escrow frozen pending resolution.
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'listing', type: 'dispute_opened', orderId, actorId: ctx.user.id,
+    context: { reason },
+  });
 
   if (listing.seller_id) {
     await createNotification(ctx.admin, {

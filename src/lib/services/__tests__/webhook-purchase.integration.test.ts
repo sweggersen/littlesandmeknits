@@ -113,7 +113,11 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
   afterEach(async () => {
     vi.mocked(createNotification).mockClear();
     if (createdListingIds.length) {
-      // Orders FK-restrict the listing delete — clear them first.
+      // Clear the ledger rows for these orders first (no FK, but tidy), then
+      // the orders (which FK-restrict the listing delete), then the listings.
+      const { data: ords } = await admin.from('orders').select('id').in('listing_id', createdListingIds);
+      const orderIds = (ords ?? []).map((o) => o.id);
+      if (orderIds.length) await admin.from('payment_events').delete().in('order_id', orderIds);
       await admin.from('orders').delete().in('listing_id', createdListingIds);
       await admin.from('listings').delete().in('id', createdListingIds);
       createdListingIds.length = 0;

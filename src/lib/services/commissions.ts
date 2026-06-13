@@ -6,6 +6,7 @@ import { insertQueueItem } from '../moderation';
 import { VALID_CATEGORIES } from '../labels';
 import { bookShipment, getTracking as bringGetTracking } from '../bring';
 import { recordDeadLetter } from './dead-letter';
+import { recordPaymentEvent } from './payment-events';
 import { assertWithinQuota } from './quota';
 import { killGuard } from '../flags';
 
@@ -332,7 +333,7 @@ export async function cancelCommission(
 // Commission ("Strikk for meg") platform fee, per terms §5: flat 12 % of the
 // agreed price. Deducted from the knitter's transfer at release, NOT charged
 // on top to the buyer.
-const COMMISSION_FEE_PERCENT = 12;
+export const COMMISSION_FEE_PERCENT = 12;
 
 export async function payCommission(
   ctx: ServiceContext,
@@ -530,7 +531,7 @@ export async function finalizeCommissionPayment(
 
   const { data: offer } = await admin
     .from('commission_offers')
-    .select('id, knitter_id, project_id')
+    .select('id, knitter_id, project_id, price_nok')
     .eq('id', req.awarded_offer_id!)
     .maybeSingle();
   if (!offer) return fail('not_found', 'Offer not found');
@@ -554,6 +555,15 @@ export async function finalizeCommissionPayment(
       platform_fee_nok: input.platformFeeOre != null ? Math.round(input.platformFeeOre / 100) : null,
     })
     .eq('id', input.requestId);
+
+  // Ledger: commission paid in full into the platform balance (separate
+  // charges & transfers — the knitter is paid later, at delivery/release).
+  await recordPaymentEvent(admin, {
+    kind: 'commission', type: 'captured', commissionRequestId: input.requestId,
+    actorId: req.buyer_id, amountNok: offer.price_nok,
+    feeNok: input.platformFeeOre != null ? Math.round(input.platformFeeOre / 100) : null,
+    paymentIntentId: input.paymentIntentId,
+  });
 
   await createNotification(admin, {
     userId: offer.knitter_id, type: 'payment_received',
@@ -743,6 +753,13 @@ export async function confirmDelivery(
     });
     // Never mark delivered without the money having moved (dead-lettered inside).
     if (!r.released) return fail('conflict', 'Utbetalingen kunne ikke gjennomføres. Ta kontakt med support.');
+    // Ledger: escrow released to the knitter (price minus the platform's cut).
+    await recordPaymentEvent(ctx.admin, {
+      kind: 'commission', type: 'released', commissionRequestId: input.requestId,
+      actorId: ctx.user.id, amountNok: offer.price_nok,
+      feeNok: Math.round(offer.price_nok * COMMISSION_FEE_PERCENT / 100),
+      paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'buyer_confirmed' },
+    });
   }
 
   const reviewDeadline = new Date();
@@ -869,6 +886,12 @@ export async function disputeCommission(
       auto_release_at: null,
     })
     .eq('id', input.requestId);
+
+  // Ledger: buyer opened a dispute — the held funds are frozen pending review.
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'commission', type: 'dispute_opened', commissionRequestId: input.requestId,
+    actorId: ctx.user.id, context: { reason },
+  });
 
   const { data: offer } = await ctx.admin
     .from('commission_offers')

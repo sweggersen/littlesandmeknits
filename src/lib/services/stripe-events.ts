@@ -11,6 +11,7 @@ import type Stripe from 'stripe';
 import type { TypedSupabaseClient } from '../supabase';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
+import { recordPaymentEvent } from './payment-events';
 import { releaseExpiredReservation } from './listings';
 import { log } from '../log';
 
@@ -162,6 +163,15 @@ export async function handleChargebackOpened(
   }
   if (!changed?.length) return ok(); // already frozen by an earlier delivery
 
+  // Ledger: a bank chargeback froze the escrow (system actor).
+  await recordPaymentEvent(admin, {
+    kind: escrow.kind, type: 'dispute_opened',
+    orderId: escrow.kind === 'listing' ? escrow.orderId : null,
+    commissionRequestId: escrow.kind === 'commission' ? escrow.id : null,
+    paymentIntentId: intentId, stripeObjectId: dispute.id,
+    context: { source: 'stripe_chargeback', reason: dispute.reason ?? null },
+  });
+
   const sellerId = escrow.kind === 'listing'
     ? escrow.sellerId
     : await knitterIdForOffer(admin, escrow.awardedOfferId);
@@ -212,12 +222,17 @@ export async function handleChargebackClosed(
     .update({ dispute_resolution: resolution, dispute_resolved_at: now })
     .eq('stripe_dispute_id', dispute.id)
     .is('dispute_resolved_at', null)
-    .select('listing_id, seller_id');
+    .select('id, listing_id, seller_id');
   if (lerr) {
     await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'orders', outcome }, error: lerr });
     return dbError();
   }
   if (orows?.length) {
+    // Ledger: chargeback closed by the bank (won = seller keeps funds).
+    await recordPaymentEvent(admin, {
+      kind: 'listing', type: 'dispute_resolved', orderId: orows[0].id,
+      stripeObjectId: dispute.id, context: { source: 'stripe_chargeback', outcome },
+    });
     const { data: l } = await admin.from('listings').select('title').eq('id', orows[0].listing_id).maybeSingle();
     await notify(orows[0].seller_id, l?.title ?? '', 'listing', orows[0].listing_id);
     return ok();
@@ -234,6 +249,10 @@ export async function handleChargebackClosed(
     return dbError();
   }
   if (crows?.length) {
+    await recordPaymentEvent(admin, {
+      kind: 'commission', type: 'dispute_resolved', commissionRequestId: crows[0].id,
+      stripeObjectId: dispute.id, context: { source: 'stripe_chargeback', outcome },
+    });
     await notify(await knitterIdForOffer(admin, crows[0].awarded_offer_id), crows[0].title, 'commission', crows[0].id);
     return ok();
   }
@@ -372,6 +391,12 @@ export async function handleChargeRefunded(
       });
       return dbError();
     }
+    // Ledger: refund settled on Stripe's side (amount from the charge, in ore).
+    await recordPaymentEvent(admin, {
+      kind: 'listing', type: 'refunded', orderId: escrow.orderId,
+      actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),
+      paymentIntentId: intentId, stripeObjectId: charge.id, context: { source: 'stripe_charge_refunded' },
+    });
     if (escrow.buyerId) {
       await createNotification(admin, {
         userId: escrow.buyerId,
@@ -382,15 +407,22 @@ export async function handleChargeRefunded(
         referenceId: escrow.id,
       }, env);
     }
-  } else if (escrow.buyerId) {
-    await createNotification(admin, {
-      userId: escrow.buyerId,
-      type: 'dispute_resolved',
-      title: 'Refusjon gjennomført',
-      body: `Du har fått refundert betalingen for «${escrow.title}».`,
-      url: `/market/commissions/${escrow.id}`,
-      referenceId: escrow.id,
-    }, env);
+  } else {
+    await recordPaymentEvent(admin, {
+      kind: 'commission', type: 'refunded', commissionRequestId: escrow.id,
+      actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),
+      paymentIntentId: intentId, stripeObjectId: charge.id, context: { source: 'stripe_charge_refunded' },
+    });
+    if (escrow.buyerId) {
+      await createNotification(admin, {
+        userId: escrow.buyerId,
+        type: 'dispute_resolved',
+        title: 'Refusjon gjennomført',
+        body: `Du har fått refundert betalingen for «${escrow.title}».`,
+        url: `/market/commissions/${escrow.id}`,
+        referenceId: escrow.id,
+      }, env);
+    }
   }
   return ok();
 }

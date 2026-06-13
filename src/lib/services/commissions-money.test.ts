@@ -236,6 +236,13 @@ describe('finalizeCommissionPayment — post-payment (webhook)', () => {
 
     expect((db.find('projects', { id: 'proj-1' }) as any).status).toBe('active');
 
+    // Ledger: commission 'captured' into the platform balance (full price held;
+    // the knitter is paid later). Buyer is the actor; fee is the platform cut.
+    expect(db.find('payment_events', { event_type: 'captured' })).toMatchObject({
+      kind: 'commission', commission_request_id: 'req-1', actor_id: 'buyer-1',
+      amount_nok: 1000, fee_nok: 130, stripe_payment_intent_id: 'pi_real',
+    });
+
     expect(createNotification).toHaveBeenCalledTimes(1);
     const [, payload] = vi.mocked(createNotification).mock.calls[0];
     expect(payload).toMatchObject({ userId: 'knitter-1', type: 'payment_received', url: '/market/commissions/req-1' });

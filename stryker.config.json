@@ -1,15 +1,18 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation-testing gate for the money-critical commerce paths. Scoped to the fee/escrow/payment DECISION lines (the notification-copy tails of shipListing/confirmListingDelivery/releaseExpiredReservation are deliberately OUT of range — copy, not money logic) so the score measures money-test strength. Ranges: completeListingPurchase+purchaseListing (fee math, ship-by deadline), shipListing capture-vs-dead-auth, confirmListingDelivery capture, releaseExpiredReservation cancel/revert, payCommission+finalizeCommissionPayment. Run: npm run test:mutation. Currently ~92%. break=92 enforces the high-signal floor; residual survivors are fail()/label copy strings, the un-simulatable single-threaded race guard (if(!reverted.length)...), and equivalent initializers (let onboarded=false) — deliberately not chased (would need brittle copy assertions or concurrency).",
+  "_comment": "Mutation-testing gate for the money-critical commerce paths. Scoped to the fee/escrow/payment DECISION lines (the notification-copy tails of shipListing/confirmListingDelivery/releaseExpiredReservation are deliberately OUT of range — copy, not money logic) so the score measures money-test strength. Ranges: completeListingPurchase (fee math, ship-by deadline, reserved ledger event), purchaseListing (fee math), shipListing capture-vs-dead-auth + captured ledger event, confirmListingDelivery capture + released ledger event, releaseExpiredReservation cancel/revert + cancelled ledger event, payCommission+releaseCommissionFunds+refundCommissionPayment+finalizeCommissionPayment + captured ledger event. The payment_events ledger args (event_type, amount_nok, fee_nok) ARE in range and asserted by the money suites (db.find('payment_events',...)). Run: npm run test:mutation. break=92 enforces the high-signal floor; residual survivors are fail()/label copy strings, the un-simulatable single-threaded race guard (if(!reverted.length)...), and equivalent initializers (let onboarded=false) — deliberately not chased (would need brittle copy assertions or concurrency).",
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.config.ts" },
   "coverageAnalysis": "perTest",
   "mutate": [
-    "src/lib/services/listings.ts:373-526",
-    "src/lib/services/listings.ts:527-599",
-    "src/lib/services/listings.ts:615-668",
-    "src/lib/services/listings.ts:691-736",
-    "src/lib/services/commissions.ts:337-569"
+    "src/lib/services/listings.ts:383-440",
+    "src/lib/services/listings.ts:488-522",
+    "src/lib/services/listings.ts:570-632",
+    "src/lib/services/listings.ts:668-683",
+    "src/lib/services/listings.ts:694-706",
+    "src/lib/services/listings.ts:730-752",
+    "src/lib/services/listings.ts:780-785",
+    "src/lib/services/commissions.ts:335-566"
   ],
   "reporters": ["clear-text", "progress", "html"],
   "htmlReporter": { "fileName": "reports/mutation/index.html" },

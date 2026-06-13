@@ -199,9 +199,29 @@ tracking_code, auto_release_at, delivered_at, refund_*, dispute_*. Keep: `status
 (display mirror), `sold_at`. Add CI grep gate: `buyer_name|refund_requested_at` must not
 appear in a `from('listings')` context.
 
-**Phase D (separate effort, not this migration):** atomic transition RPCs for the money
-state machine + append-only `payment_events` audit table. The orders table is the
-prerequisite; do not bundle.
+**Phase D — append-only `payment_events` ledger (DONE, migration 0090).** One row per
+money-state transition across BOTH flows (listing orders + commission payments), via a
+`kind` discriminator + a shared 7-value `payment_event_type` enum (reserved, captured,
+released, refunded, cancelled, dispute_opened, dispute_resolved). Plain uuid entity refs
+(no FK — an audit trail must survive entity deletion and never block it), money snapshot
+(`amount_nok`/`fee_nok`), Stripe correlation ids, staff-only RLS (mirrors
+`dead_letter_events`). Writer `recordPaymentEvent()` is best-effort like
+`recordDeadLetter` — it can never roll back a committed capture/transfer/refund.
+Instrumented at every transition: `completeListingPurchase`, `shipListing`,
+`confirmListingDelivery`, `releaseExpiredReservation`, `disputeListing`, `refunds`,
+`disputes`, `commissions` (finalize/confirm/dispute), and the Stripe-event handlers
+(chargeback open/close, charge.refunded). Each row is an OBSERVATION, not a double-entry
+posting: the same money move may appear as an initiation (service decision) and a
+settlement (webhook), distinguished by `context.source` + `stripe_object_id`.
+
+**The `commission_requests` split was deliberately NOT done.** Unlike listings, the
+two drivers are absent: no buyer PII on the row, and a request is awarded once (no relist
+data loss). It is a 1:1 normalization with high churn and no concrete bug — skipped in
+favour of `payment_events`, which serves both flows. Revisit only if commissions grow a
+multi-payment lifecycle.
+
+**Still not done (separate effort):** atomic transition RPCs for the money state machine.
+The ledger records transitions; it does not yet enforce them transactionally.
 
 ## Risks
 

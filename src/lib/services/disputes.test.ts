@@ -59,14 +59,20 @@ function mockCtx(opts: MockOpts = {}) {
         return { error: null };
       },
       update: (row: unknown) => {
-        // Chainable .eq().in(); records on await — the order shadow writes use
-        // .update().eq('listing_id').in('status', [...]).
+        // Chainable .eq().in()[.select()]; records on the terminal.
+        // updateOpenOrder ends in .select('id').maybeSingle() (returns the
+        // order id for the ledger); other updates just await (.then).
         const tail: any = {
           eq: () => tail,
           in: () => tail,
+          select: () => tail,
+          maybeSingle: async () => {
+            updates.push({ table, row });
+            return { data: table === 'orders' ? order : null, error: null };
+          },
           async then(cb: any) {
             updates.push({ table, row });
-            return cb({ error: null });
+            return cb({ data: table === 'orders' && order ? [order] : [], error: null });
           },
         };
         return tail;
@@ -149,7 +155,7 @@ describe('resolveDispute — listing', () => {
   });
 
   it('refund: cancels PI, reverts listing to active, clears buyer', async () => {
-    const { ctx, updates } = mockCtx({ role: 'admin', listing: disputedListing });
+    const { ctx, updates, inserts } = mockCtx({ role: 'admin', listing: disputedListing });
     const r = await resolveDispute(ctx, {
       itemType: 'listing', itemId: 'l1', decision: 'refund', notes: 'broken',
     });
@@ -160,10 +166,14 @@ describe('resolveDispute — listing', () => {
     // Order keeps the cancelled + resolution record.
     const o = updates.find((x: any) => x.table === 'orders') as any;
     expect(o.row).toMatchObject({ status: 'cancelled', cancel_reason: 'admin_refund', dispute_resolution: 'broken' });
+    // Ledger: dispute closed (refund) + the refund money move.
+    const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
+    expect(evs).toContainEqual(expect.objectContaining({ event_type: 'dispute_resolved', order_id: 'o1', context: { decision: 'refund' } }));
+    expect(evs).toContainEqual(expect.objectContaining({ event_type: 'refunded', order_id: 'o1' }));
   });
 
   it('release: captures PI, marks sold + delivered', async () => {
-    const { ctx, updates } = mockCtx({ role: 'admin', listing: disputedListing });
+    const { ctx, updates, inserts } = mockCtx({ role: 'admin', listing: disputedListing });
     const r = await resolveDispute(ctx, {
       itemType: 'listing', itemId: 'l1', decision: 'release', notes: '',
     });
@@ -175,6 +185,10 @@ describe('resolveDispute — listing', () => {
     const o = updates.find((x: any) => x.table === 'orders') as any;
     expect(o.row).toMatchObject({ status: 'delivered', dispute_resolution: 'Released by admin' });
     expect(typeof o.row.delivered_at).toBe('string');
+    // Ledger: dispute closed (release) + the release money move.
+    const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
+    expect(evs).toContainEqual(expect.objectContaining({ event_type: 'dispute_resolved', order_id: 'o1', context: { decision: 'release' } }));
+    expect(evs).toContainEqual(expect.objectContaining({ event_type: 'released', order_id: 'o1' }));
   });
 
   it('writes a moderation_audit_log entry', async () => {
@@ -219,7 +233,7 @@ describe('resolveDispute — commission', () => {
   it('refund (new rail): plain refund from the platform balance, request cancelled', async () => {
     stripeRefundCreate.mockClear();
     stripeCancel.mockClear();
-    const { ctx, updates } = mockCtx({
+    const { ctx, updates, inserts } = mockCtx({
       role: 'admin', request: disputedReq, offer: { knitter_id: 'k1', price_nok: 500 },
     });
     const r = await resolveDispute(ctx, {
@@ -232,6 +246,10 @@ describe('resolveDispute — commission', () => {
     const u = updates.find((x: any) => x.table === 'commission_requests') as any;
     expect(u.row.status).toBe('cancelled');
     expect(u.row.delivered_at).toBeUndefined();
+    // Ledger: dispute closed (refund) + the refunded amount.
+    const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
+    expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'dispute_resolved', commission_request_id: 'r1', context: { decision: 'refund' } }));
+    expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'refunded', commission_request_id: 'r1', amount_nok: 500 }));
   });
 
   it('refund (legacy uncaptured auth): cancels the PI instead', async () => {
@@ -254,7 +272,7 @@ describe('resolveDispute — commission', () => {
   it('release: transfers the knitter share, sets request to delivered with delivered_at', async () => {
     stripeCapture.mockClear();
     stripeTransferCreate.mockClear();
-    const { ctx, updates } = mockCtx({
+    const { ctx, updates, inserts } = mockCtx({
       role: 'admin', request: disputedReq, offer: { knitter_id: 'k1', price_nok: 500 },
     });
     const r = await resolveDispute(ctx, {
@@ -269,6 +287,10 @@ describe('resolveDispute — commission', () => {
     const u = updates.find((x: any) => x.table === 'commission_requests' && (x.row as any).status) as any;
     expect(u.row.status).toBe('delivered');
     expect(typeof u.row.delivered_at).toBe('string');
+    // Ledger: dispute closed (release) + the released amount minus the 12% fee.
+    const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
+    expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'dispute_resolved', commission_request_id: 'r1', context: { decision: 'release' } }));
+    expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'released', commission_request_id: 'r1', amount_nok: 500, fee_nok: 60 }));
   });
 
   it('handles request with no payment intent (no Stripe call)', async () => {

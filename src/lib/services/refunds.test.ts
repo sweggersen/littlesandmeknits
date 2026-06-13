@@ -56,14 +56,20 @@ function mockCtx(opts: { actorId: string; listing?: ListingRow | null }) {
         return { error: null };
       },
       update: (row: unknown) => {
-        // Chainable .eq().eq().in(); records on await (the order shadow writes
-        // use .update().eq('listing_id').in('status', [...])).
+        // Chainable .eq().eq().in()[.select()]; records on the terminal.
+        // updateOpenOrder ends in .select('id').maybeSingle() (returns the
+        // order id for the ledger); listing updates just await (.then).
         const tail: any = {
           eq: () => tail,
           in: () => tail,
+          select: () => tail,
+          maybeSingle: async () => {
+            updates.push({ table, row });
+            return { data: table === 'orders' ? order : null, error: null };
+          },
           async then(cb: any) {
             updates.push({ table, row });
-            return cb({ error: null });
+            return cb({ data: table === 'orders' && order ? [order] : [], error: null });
           },
         };
         return tail;
@@ -194,7 +200,7 @@ describe('respondToRefund', () => {
   });
 
   it('on accept: returns listing to active + clears buyer + records outcome', async () => {
-    const { ctx, updates } = mockCtx({ actorId: 'seller', listing: pendingRefund });
+    const { ctx, updates, inserts } = mockCtx({ actorId: 'seller', listing: pendingRefund });
     const r = await respondToRefund(ctx, { listingId: 'l1', action: 'accept', notes: 'agreed' });
     expect(r.ok).toBe(true);
 
@@ -206,6 +212,12 @@ describe('respondToRefund', () => {
     expect(o.row).toMatchObject({
       status: 'cancelled', cancel_reason: 'refund_accepted',
       refund_outcome: 'accepted', refund_notes: 'agreed',
+    });
+    // Ledger: a 'refunded' event, tagged as the seller's decision.
+    const ev = inserts.find((x: any) => x.table === 'payment_events') as any;
+    expect(ev.row).toMatchObject({
+      kind: 'listing', event_type: 'refunded', order_id: 'o1', actor_id: 'seller',
+      context: { trigger: 'seller_accepted' },
     });
   });
 
@@ -225,7 +237,7 @@ describe('respondToRefund', () => {
   });
 
   it('on decline: flips status to disputed + records outcome', async () => {
-    const { ctx, updates } = mockCtx({ actorId: 'seller', listing: pendingRefund });
+    const { ctx, updates, inserts } = mockCtx({ actorId: 'seller', listing: pendingRefund });
     const r = await respondToRefund(ctx, { listingId: 'l1', action: 'decline', notes: 'no damage seen' });
     expect(r.ok).toBe(true);
 
@@ -234,5 +246,11 @@ describe('respondToRefund', () => {
     expect(o.row).toMatchObject({ status: 'disputed', refund_outcome: 'declined' });
     expect(o.row.dispute_reason).toContain('damaged');
     expect(o.row.dispute_reason).toContain('no damage seen');
+    // Ledger: a 'dispute_opened' event, tagged as a declined refund.
+    const ev = inserts.find((x: any) => x.table === 'payment_events') as any;
+    expect(ev.row).toMatchObject({
+      kind: 'listing', event_type: 'dispute_opened', order_id: 'o1',
+      context: { trigger: 'refund_declined' },
+    });
   });
 });

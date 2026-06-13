@@ -57,7 +57,7 @@ function seedReserved(overrides: Record<string, unknown> = {}): FakeDb {
     // The open order is the source of truth (PII + money + lifecycle).
     orders: [{
       id: 'o1', listing_id: 'l1', buyer_id: 'buyer-1', seller_id: 'seller-1',
-      status, item_price_nok: 500, stripe_payment_intent_id: pi,
+      status, item_price_nok: 500, platform_fee_nok: 74, stripe_payment_intent_id: pi,
       shipping_name: 'Kari', shipping_address: 'Storgata 1', shipping_postal_code: '0001', shipping_city: 'Oslo',
       reserved_at: '2026-01-01T00:00:00.000Z',
       ship_deadline_at: '2026-01-06T00:00:00.000Z', auto_release_at: null,
@@ -513,6 +513,15 @@ describe('completeListingPurchase (webhook transition)', () => {
     expect(order.reserved_at).toBe(FIXED.toISOString());
     expect(order.ship_deadline_at).toBe(new Date(FIXED.getTime() + 5 * 86400_000).toISOString());
     expect(order.auto_release_at ?? null).toBeNull();
+
+    // Ledger: a 'reserved' money event lands, keyed to the new order, with the
+    // escrowed amount (item + shipping) and the platform's cut.
+    const ev = db.find('payment_events', { event_type: 'reserved' }) as any;
+    expect(ev).toMatchObject({
+      kind: 'listing', event_type: 'reserved', order_id: order.id,
+      actor_id: 'buyer-1', amount_nok: 500, fee_nok: 74,
+      stripe_payment_intent_id: 'pi_xyz',
+    });
   });
 
   it('records tb fee + shipping + store on the order money breakdown', async () => {
@@ -526,6 +535,8 @@ describe('completeListingPurchase (webhook transition)', () => {
     expect(order.shipping_nok).toBe(76);
     expect(order.platform_fee_nok).toBe(19); // 1900 ore
     expect(order.store_id).toBe('store-9'); // store-owned order routes here
+    // Ledger amount is item + shipping (576), not item alone — pins the '+'.
+    expect((db.find('payment_events', { event_type: 'reserved' }) as any).amount_nok).toBe(576);
   });
 
   it('is idempotent: a duplicate delivery does not re-transition or re-notify', async () => {
@@ -583,7 +594,8 @@ describe('confirmListingDelivery', () => {
       listings: [{ id: 'l1', seller_id: sellerId, buyer_id: 'buyer-1', title: 'Babygenser', status }],
       orders: [{
         id: 'o1', listing_id: 'l1', buyer_id: 'buyer-1', seller_id: sellerId,
-        status: status === 'sold' ? 'delivered' : status, item_price_nok: 500, stripe_payment_intent_id: pi,
+        status: status === 'sold' ? 'delivered' : status, item_price_nok: 500, platform_fee_nok: 74,
+        stripe_payment_intent_id: pi,
       }],
     });
   }
@@ -616,6 +628,13 @@ describe('confirmListingDelivery', () => {
     expect(order.status).toBe('delivered');
     expect(order.delivered_at).toBeTruthy();
     expect(order.auto_release_at ?? null).toBeNull();
+
+    // Ledger: escrow 'released' to the seller, buyer is the actor.
+    expect(db.find('payment_events', { event_type: 'released' })).toMatchObject({
+      kind: 'listing', order_id: 'o1', actor_id: 'buyer-1',
+      amount_nok: 500, fee_nok: 74, stripe_payment_intent_id: 'pi_abc',
+      context: { trigger: 'buyer_confirmed' },
+    });
   });
 
   it('notifies the seller with the delivery-confirmed message (body names the item)', async () => {
@@ -687,6 +706,12 @@ describe('shipListing (escrow capture vs dead auth)', () => {
     expect(order.status).toBe('shipped');
     expect(order.tracking_code).toBe('TRK1');
     expect(order.shipped_at).toBeTruthy();
+
+    // Ledger: funds 'captured' at ship (the seller is the actor).
+    expect(db.find('payment_events', { event_type: 'captured' })).toMatchObject({
+      kind: 'listing', order_id: 'o1', actor_id: 'seller-1',
+      amount_nok: 500, fee_nok: 74, stripe_payment_intent_id: 'pi_hold',
+    });
   });
 
   it('skips capture when the PI already succeeded, still ships', async () => {
@@ -773,6 +798,12 @@ describe('releaseExpiredReservation', () => {
     expect(order.cancel_reason).toBe('ship_deadline');
     expect(order.cancelled_at).toBeTruthy();
     expect(order.stripe_payment_intent_id).toBe('pi_hold'); // history retained, not wiped
+
+    // Ledger: 'cancelled' — authorization voided, buyer never charged.
+    expect(db.find('payment_events', { event_type: 'cancelled' })).toMatchObject({
+      kind: 'listing', order_id: 'o1', actor_id: 'buyer-1', amount_nok: 500,
+      stripe_payment_intent_id: 'pi_hold', context: { reason: 'ship_deadline' },
+    });
 
     // Both parties told; buyer learns they weren't charged.
     expect(createNotification).toHaveBeenCalledTimes(2);

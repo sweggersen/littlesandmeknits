@@ -4,6 +4,8 @@ import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
 import { updateOpenOrder, findOpenOrder } from './orders';
+import { recordPaymentEvent } from './payment-events';
+import { COMMISSION_FEE_PERCENT } from './commissions';
 
 type Decision = 'refund' | 'release';
 const VALID_DECISIONS = new Set<Decision>(['refund', 'release']);
@@ -75,6 +77,20 @@ async function resolveListingDispute(
     });
     await ctx.admin.from('listings').update({ status: 'sold', sold_at: now }).eq('id', listingId);
   }
+
+  // Ledger: dispute closed. A refund returns the buyer's money; a release
+  // captures it to the seller. Two events tell the whole story — the
+  // resolution plus the underlying money move.
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'listing', type: 'dispute_resolved', orderId: order.id, actorId: ctx.user.id,
+    paymentIntentId: order.stripe_payment_intent_id, context: { decision },
+  });
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'listing', type: decision === 'refund' ? 'refunded' : 'released',
+    orderId: order.id, actorId: ctx.user.id,
+    amountNok: order.item_price_nok + (order.shipping_nok ?? 0), feeNok: order.platform_fee_nok,
+    paymentIntentId: order.stripe_payment_intent_id, context: { trigger: 'admin_dispute' },
+  });
 
   const refunded = decision === 'refund';
   if (listing.buyer_id) {
@@ -158,8 +174,24 @@ async function resolveCommissionDispute(
   }).eq('id', requestId);
 
   const { data: offer } = await ctx.admin
-    .from('commission_offers').select('knitter_id')
+    .from('commission_offers').select('knitter_id, price_nok')
     .eq('id', req.awarded_offer_id!).maybeSingle();
+
+  // Ledger: dispute closed + the underlying money move (commission flow).
+  // On release the knitter is paid the price minus the platform's commission;
+  // on refund the buyer's money is returned (no fee retained).
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'commission', type: 'dispute_resolved', commissionRequestId: requestId,
+    actorId: ctx.user.id, paymentIntentId: req.stripe_payment_intent_id, context: { decision },
+  });
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'commission', type: decision === 'refund' ? 'refunded' : 'released',
+    commissionRequestId: requestId, actorId: ctx.user.id,
+    amountNok: offer?.price_nok ?? null,
+    feeNok: decision === 'release' && offer
+      ? Math.round(offer.price_nok * COMMISSION_FEE_PERCENT / 100) : null,
+    paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'admin_dispute' },
+  });
 
   const refunded = decision === 'refund';
   if (req.buyer_id) {

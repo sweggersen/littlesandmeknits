@@ -3,6 +3,7 @@ import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { updateOpenOrder, findOpenOrder } from './orders';
+import { recordPaymentEvent } from './payment-events';
 
 const VALID_REASONS = new Set(['not_received', 'damaged', 'not_as_described', 'wrong_size', 'changed_mind', 'other']);
 
@@ -102,6 +103,12 @@ export async function respondToRefund(
       refund_notes: input.notes?.slice(0, 1000) ?? null,
     });
     await ctx.admin.from('listings').update({ status: 'active', buyer_id: null, sold_at: null }).eq('id', listing.id);
+    // Ledger: seller accepted the refund — buyer made whole.
+    await recordPaymentEvent(ctx.admin, {
+      kind: 'listing', type: 'refunded', orderId: order.id, actorId: ctx.user.id,
+      amountNok: order.item_price_nok + (order.shipping_nok ?? 0), feeNok: order.platform_fee_nok,
+      paymentIntentId: order.stripe_payment_intent_id, context: { trigger: 'seller_accepted' },
+    });
 
     if (listing.buyer_id) {
       await createNotification(ctx.admin, {
@@ -124,6 +131,11 @@ export async function respondToRefund(
     refund_resolved_at: now, refund_outcome: 'declined',
   });
   await ctx.admin.from('listings').update({ status: 'disputed' }).eq('id', listing.id);
+  // Ledger: refund declined — escalated to a formal dispute (escrow frozen).
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'listing', type: 'dispute_opened', orderId: order.id, actorId: ctx.user.id,
+    paymentIntentId: order.stripe_payment_intent_id, context: { trigger: 'refund_declined' },
+  });
 
   if (listing.buyer_id) {
     await createNotification(ctx.admin, {

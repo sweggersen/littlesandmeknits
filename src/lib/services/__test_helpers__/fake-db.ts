@@ -181,8 +181,13 @@ class FakeQuery {
       const hits = this.matching();
       for (const row of hits) Object.assign(row, this.payload as Row);
       // update().select() returns the updated rows; otherwise data is null.
-      const data = this.hasSelect ? hits.map(proj) : null;
-      return { data, error: null };
+      // Respect the terminal mode like PostgREST: a list await yields the
+      // array, but .maybeSingle()/.single() collapse to one row.
+      if (!this.hasSelect) return { data: null, error: null };
+      if (mode === 'list') return { data: hits.map(proj), error: null };
+      if (mode === 'maybe') return { data: hits[0] ? proj(hits[0]) : null, error: null };
+      if (hits.length === 1) return { data: proj(hits[0]), error: null };
+      return { data: null, error: { message: hits.length === 0 ? 'no rows' : 'multiple rows' } };
     }
 
     if (this.opType === 'delete') {

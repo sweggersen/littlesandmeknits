@@ -69,10 +69,13 @@ export async function findOrderByPaymentIntent(
 export async function createReservedOrder(
   admin: TypedSupabaseClient,
   order: OrderInsert,
-): Promise<void> {
-  const { error } = await admin.from('orders').insert(order);
+): Promise<string | null> {
+  const { data, error } = await admin.from('orders').insert(order).select('id').maybeSingle();
   // 23505 = unique_violation on orders_one_open_per_listing.
   if (error && error.code !== '23505') throw error;
+  // The new order's id (for the payment-events ledger), or null when the
+  // insert was a no-op duplicate.
+  return (data as { id: string } | null)?.id ?? null;
 }
 
 /** Patch the open order for a listing (shadow write next to the listing
@@ -82,12 +85,17 @@ export async function updateOpenOrder(
   admin: TypedSupabaseClient,
   listingId: string,
   patch: OrderUpdate,
-): Promise<void> {
-  await admin
+): Promise<string | null> {
+  const { data } = await admin
     .from('orders')
     .update(patch)
     .eq('listing_id', listingId)
-    .in('status', OPEN);
+    .in('status', OPEN)
+    .select('id')
+    .maybeSingle();
+  // The affected order's id (for the payment-events ledger), or null when
+  // there was no open order to patch.
+  return (data as { id: string } | null)?.id ?? null;
 }
 
 /** Patch the order behind a PaymentIntent — used by Stripe events (chargeback,

@@ -510,6 +510,62 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('payment_events (money ledger)', () => {
+    let eventId: string;
+
+    beforeAll(async () => {
+      // The ledger references an order id (no FK), so a bare uuid is fine.
+      const { data, error } = await admin.from('payment_events').insert({
+        kind: 'listing', event_type: 'reserved',
+        order_id: '00000000-0000-0000-0000-000000000001',
+        actor_id: aliceId, amount_nok: 300, fee_nok: 19,
+        stripe_payment_intent_id: 'pi_rls', context: {},
+      }).select('id').single();
+      if (error) throw new Error(`payment_events setup insert failed: ${error.message} | code=${error.code} | details=${error.details} | hint=${error.hint}`);
+      eventId = data!.id;
+    });
+
+    it('non-staff (even the actor) cannot read the ledger', async () => {
+      // alice is the recorded actor, but the ledger is staff-only.
+      const { data, error } = await aliceClient
+        .from('payment_events').select('id').eq('id', eventId);
+      expect(error).toBeNull();
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('staff (admin role) reads the ledger', async () => {
+      await admin.from('profiles').update({ role: 'admin' }).eq('id', bobId);
+      const staff = await userClient('rls-bob@test.strikketorget.no');
+      const { data } = await staff.from('payment_events').select('id').eq('id', eventId);
+      expect(data ?? []).not.toHaveLength(0);
+      await admin.from('profiles').update({ role: null }).eq('id', bobId);  // restore
+    });
+
+    it('authenticated users CANNOT insert ledger rows (service-role only)', async () => {
+      const { error } = await charlieClient.from('payment_events').insert({
+        kind: 'listing', event_type: 'reserved',
+        order_id: '00000000-0000-0000-0000-000000000002',
+      });
+      expect(error).not.toBeNull(); // no insert policy -> RLS violation
+    });
+
+    it('the one-entity check rejects a row with neither/both entity ids', async () => {
+      // Service-role bypasses RLS, so this proves the CHECK constraint, not a policy.
+      const neither = await admin.from('payment_events').insert({ kind: 'listing', event_type: 'reserved' });
+      expect(neither.error).not.toBeNull();
+      const both = await admin.from('payment_events').insert({
+        kind: 'listing', event_type: 'reserved',
+        order_id: '00000000-0000-0000-0000-000000000003',
+        commission_request_id: '00000000-0000-0000-0000-000000000004',
+      });
+      expect(both.error).not.toBeNull();
+    });
+
+    afterAll(async () => {
+      await admin.from('payment_events').delete().eq('id', eventId);
+    });
+  });
+
   describe('auth_identities', () => {
     let identityId: string;
 
