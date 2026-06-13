@@ -25,6 +25,9 @@ import { log } from '../../../lib/log';
 function dlCtx(admin: TypedSupabaseClient, userId?: string | null) {
   return {
     admin,
+    // Thread the notify env so a webhook money-failure dead-letter also
+    // pushes/emails the admin alert, not just lands in-app.
+    env: notifyEnv,
     user: userId ? { id: userId } : undefined,
   };
 }
@@ -426,7 +429,7 @@ async function handleEvent(
     return handlePayoutFailed(supabase, event.data.object as Stripe.Payout, event.account ?? null, notifyEnv);
   }
   if (event.type === 'payment_intent.payment_failed') {
-    return handlePaymentIntentFailed(supabase, event.data.object as Stripe.PaymentIntent);
+    return handlePaymentIntentFailed(supabase, event.data.object as Stripe.PaymentIntent, notifyEnv);
   }
   if (event.type === 'payment_intent.canceled') {
     return handlePaymentIntentCanceled(

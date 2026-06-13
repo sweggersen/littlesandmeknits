@@ -51,7 +51,7 @@ export const POST: APIRoute = async ({ request }) => {
     } catch (e) {
       errors.push({ section: name, error: e instanceof Error ? e.message : String(e) });
       try {
-        await recordDeadLetter({ admin }, {
+        await recordDeadLetter({ admin, env }, {
           service: `cron.run:${name}`,
           context: { section: name },
           error: e,

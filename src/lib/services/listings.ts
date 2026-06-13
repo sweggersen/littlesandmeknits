@@ -769,7 +769,7 @@ export async function releaseExpiredReservation(
         || pi.status === 'requires_confirmation' || pi.status === 'requires_action') {
       await stripe.paymentIntents.cancel(piId);
     } else if (pi.status !== 'canceled') {
-      await recordDeadLetter({ admin, user: listing.buyer_id ? { id: listing.buyer_id } : undefined }, {
+      await recordDeadLetter({ admin, env, user: listing.buyer_id ? { id: listing.buyer_id } : undefined }, {
         service: 'listings.releaseExpiredReservation:not-cancelable',
         context: { listing_id: listing.id, payment_intent_id: piId, pi_status: pi.status, reason: input.reason },
         error: `Refusing to release a non-cancelable PaymentIntent (status=${pi.status})`,

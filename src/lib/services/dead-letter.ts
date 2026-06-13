@@ -2,6 +2,11 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { log } from '../log';
 import { captureException } from '../observability';
+import { createNotification } from '../notify';
+
+/** Env needed to push/email the alert. Optional — without it the in-app
+ *  notification still lands (admins see it in the bell), just not on a phone. */
+type AlertEnv = Parameters<typeof createNotification>[2];
 
 export type DeadLetterDomain = 'marketplace' | 'studio' | 'platform';
 
@@ -36,7 +41,9 @@ export interface DeadLetterInput {
 export async function recordDeadLetter(
   // user is optional because some callers (Stripe webhook, cron) don't
   // have a session-bound actor — they record on behalf of "the system".
-  ctx: { admin: ServiceContext['admin']; user?: ServiceContext['user'] | undefined },
+  // env is optional: when present the admin alert also pushes/emails, so a
+  // money-path failure reaches a phone, not just the in-app bell.
+  ctx: { admin: ServiceContext['admin']; user?: ServiceContext['user'] | undefined; env?: AlertEnv },
   input: DeadLetterInput,
 ): Promise<void> {
   const message = input.error instanceof Error
@@ -68,6 +75,37 @@ export async function recordDeadLetter(
     service: input.service,
     extra: input.context as Record<string, unknown> | undefined,
   });
+
+  // Proactively alert admins so a money-path failure can't sit unseen in the
+  // table until someone happens to open /admin/dead-letters. Best-effort:
+  // alerting must NEVER break (or recurse into) the dead-letter path, so all
+  // failures here are swallowed.
+  await alertAdmins(ctx, input.service, message);
+}
+
+/** Notify every admin that a commerce failure was recorded. In-app always (no
+ *  env needed); push/email too when env carries the Resend/VAPID keys.
+ *  Swallows everything — never throws, never re-records a dead-letter. */
+async function alertAdmins(
+  ctx: { admin: ServiceContext['admin']; env?: AlertEnv },
+  service: string,
+  message: string,
+): Promise<void> {
+  try {
+    const { data: admins } = await ctx.admin
+      .from('profiles').select('id').eq('role', 'admin');
+    for (const a of admins ?? []) {
+      await createNotification(ctx.admin, {
+        userId: (a as { id: string }).id,
+        type: 'system_alert',
+        title: 'Systemvarsel: en hendelse feilet',
+        body: `${service}: ${message.slice(0, 200)}`,
+        url: '/admin/dead-letters',
+      }, ctx.env);
+    }
+  } catch (e) {
+    log.error('dead_letter.alert_failed', { service, error: e });
+  }
 }
 
 /** Admin-only: mark a dead-letter event resolved with an optional note.

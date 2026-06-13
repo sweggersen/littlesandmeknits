@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { recordDeadLetter, resolveDeadLetter, domainFromService } from './dead-letter';
+import { createFakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
 
 function mockCtx(insertImpl?: (row: unknown) => Promise<{ error: { message: string } | null }>): { ctx: ServiceContext; inserts: unknown[]; updates: unknown[] } {
@@ -17,6 +18,9 @@ function mockCtx(insertImpl?: (row: unknown) => Promise<{ error: { message: stri
           return { error: null };
         },
       }),
+      // recordDeadLetter now alerts admins (profiles.select('id').eq('role',...)).
+      // No admins in this lightweight mock — return empty so the alert no-ops.
+      select: () => ({ eq: async () => ({ data: [] }) }),
     }),
   };
   const ctx = {
@@ -77,6 +81,47 @@ describe('recordDeadLetter', () => {
     (ctx as any).user = undefined;
     await recordDeadLetter(ctx, { service: 'svc', error: 'err' });
     expect((inserts[0] as any).user_id).toBeNull();
+  });
+
+  it('alerts admins so a money-path failure cannot sit unseen', async () => {
+    const db = createFakeDb({
+      profiles: [
+        { id: 'admin-1', role: 'admin' },
+        { id: 'mod-1', role: 'moderator' },
+        { id: 'u2', role: 'user' },
+      ],
+      notifications: [],
+      dead_letter_events: [],
+    });
+    await recordDeadLetter({ admin: db.client as any }, {
+      service: 'listings.shipListing', error: new Error('capture failed'),
+    });
+
+    // The failure is recorded AND surfaced to admins (in-app; push/email when env present).
+    expect(db.rows('dead_letter_events')).toHaveLength(1);
+    const notifs = db.rows('notifications') as any[];
+    // Only the admin is alerted — not the moderator or the ordinary user.
+    expect(notifs).toHaveLength(1);
+    expect(notifs[0]).toMatchObject({
+      user_id: 'admin-1', type: 'system_alert', url: '/admin/dead-letters',
+    });
+    expect(notifs[0].body).toContain('listings.shipListing');
+    expect(notifs[0].body).toContain('capture failed');
+  });
+
+  it('alerting never breaks the dead-letter path (admin lookup failure is swallowed)', async () => {
+    // admin client whose profiles query throws — the dead-letter must still record.
+    const inserts: unknown[] = [];
+    const admin = {
+      from: (table: string) => ({
+        insert: async (row: unknown) => { inserts.push({ table, row }); return { error: null }; },
+        select: () => ({ eq: async () => { throw new Error('profiles unavailable'); } }),
+      }),
+    };
+    await expect(
+      recordDeadLetter({ admin: admin as any }, { service: 'svc', error: 'boom' }),
+    ).resolves.toBeUndefined();
+    expect(inserts.some((i: any) => i.table === 'dead_letter_events')).toBe(true);
   });
 });
 

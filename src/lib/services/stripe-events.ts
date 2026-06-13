@@ -19,8 +19,11 @@ type NotifyEnv = Parameters<typeof createNotification>[2];
 
 const ok = () => new Response('ok', { status: 200 });
 const dbError = () => new Response('DB error', { status: 500 });
-const dlCtx = (admin: TypedSupabaseClient, userId?: string | null) => ({
+// env is threaded so the admin dead-letter alert can push/email (not just land
+// in-app) — these are the money failures most worth a phone notification.
+const dlCtx = (admin: TypedSupabaseClient, env: NotifyEnv, userId?: string | null) => ({
   admin,
+  env,
   user: userId ? { id: userId } : undefined,
 });
 
@@ -116,7 +119,7 @@ export async function handleChargebackOpened(
   if (!escrow) {
     // Could be a pattern/fee charge, or a row we don't track. Record so
     // support can see an unmatched chargeback rather than silently dropping.
-    await recordDeadLetter(dlCtx(admin), {
+    await recordDeadLetter(dlCtx(admin, env), {
       service: 'stripe.webhook:chargeback_unmatched',
       context: { dispute_id: dispute.id, payment_intent_id: intentId, reason: dispute.reason },
       error: 'No listing/commission matches the disputed payment intent',
@@ -154,7 +157,7 @@ export async function handleChargebackOpened(
     changed = res.data; freezeErr = res.error;
   }
   if (freezeErr) {
-    await recordDeadLetter(dlCtx(admin), {
+    await recordDeadLetter(dlCtx(admin, env), {
       service: 'stripe.webhook:chargeback_freeze',
       context: { dispute_id: dispute.id, kind: escrow.kind, id: escrow.id },
       error: freezeErr,
@@ -224,7 +227,7 @@ export async function handleChargebackClosed(
     .is('dispute_resolved_at', null)
     .select('id, listing_id, seller_id');
   if (lerr) {
-    await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'orders', outcome }, error: lerr });
+    await recordDeadLetter(dlCtx(admin, env), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'orders', outcome }, error: lerr });
     return dbError();
   }
   if (orows?.length) {
@@ -245,7 +248,7 @@ export async function handleChargebackClosed(
     .is('dispute_resolved_at', null)
     .select('id, title, awarded_offer_id');
   if (cerr) {
-    await recordDeadLetter(dlCtx(admin), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'commission_requests', outcome }, error: cerr });
+    await recordDeadLetter(dlCtx(admin, env), { service: 'stripe.webhook:chargeback_closed', context: { dispute_id: dispute.id, table: 'commission_requests', outcome }, error: cerr });
     return dbError();
   }
   if (crows?.length) {
@@ -270,7 +273,7 @@ export async function handlePayoutFailed(
 ): Promise<Response> {
   // A failed payout always gets dead-lettered so support can chase the bank
   // details, even when we can't map it to a known seller.
-  await recordDeadLetter(dlCtx(admin), {
+  await recordDeadLetter(dlCtx(admin, env), {
     service: 'stripe.webhook:payout_failed',
     context: {
       payout_id: payout.id,
@@ -310,9 +313,10 @@ export async function handlePayoutFailed(
 export async function handlePaymentIntentFailed(
   admin: TypedSupabaseClient,
   pi: Stripe.PaymentIntent,
+  env: NotifyEnv,
 ): Promise<Response> {
   const escrow = await findEscrowByPaymentIntent(admin, pi.id);
-  await recordDeadLetter(dlCtx(admin, escrow?.buyerId ?? null), {
+  await recordDeadLetter(dlCtx(admin, env, escrow?.buyerId ?? null), {
     service: 'stripe.webhook:payment_intent_failed',
     context: {
       payment_intent_id: pi.id,
@@ -345,7 +349,7 @@ export async function handlePaymentIntentCanceled(
   // Commission: the manual-capture auth can't span a multi-week knit. Surface
   // it for support rather than dropping it silently — the commission escrow
   // model needs a different mechanism (tracked separately, H2b).
-  await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
+  await recordDeadLetter(dlCtx(admin, env, escrow.buyerId), {
     service: 'stripe.webhook:commission_auth_canceled',
     context: { commission_request_id: escrow.id, payment_intent_id: pi.id, status: escrow.status },
     error: 'Commission PaymentIntent canceled (manual-capture auth likely expired before completion)',
@@ -371,7 +375,7 @@ export async function handleChargeRefunded(
     // If the order was already delivered (released to the seller), a refund now
     // can drive the connected account negative — flag for reconciliation.
     if (escrow.status === 'delivered') {
-      await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
+      await recordDeadLetter(dlCtx(admin, env, escrow.buyerId), {
         service: 'stripe.webhook:refund_after_payout',
         context: { listing_id: escrow.id, charge_id: charge.id, amount_refunded_ore: charge.amount_refunded },
         error: 'Refund issued after escrow was released to the seller — reconcile connected-account balance',
@@ -384,7 +388,7 @@ export async function handleChargeRefunded(
       .eq('stripe_payment_intent_id', intentId)
       .is('refund_resolved_at', null);
     if (error) {
-      await recordDeadLetter(dlCtx(admin, escrow.buyerId), {
+      await recordDeadLetter(dlCtx(admin, env, escrow.buyerId), {
         service: 'stripe.webhook:charge_refunded',
         context: { listing_id: escrow.id, charge_id: charge.id },
         error,

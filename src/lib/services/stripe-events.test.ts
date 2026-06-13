@@ -168,7 +168,7 @@ describe('handlePaymentIntentFailed', () => {
       orders: [{ id: 'o1', listing_id: 'L1', stripe_payment_intent_id: 'pi_3', status: 'reserved', buyer_id: 'B1', seller_id: 'S1' }],
       commission_requests: [],
     });
-    const res = await handlePaymentIntentFailed(db.client as never, intent({ id: 'pi_3', status: 'requires_payment_method', last_payment_error: { message: 'card_declined' } as Stripe.PaymentIntent['last_payment_error'] }));
+    const res = await handlePaymentIntentFailed(db.client as never, intent({ id: 'pi_3', status: 'requires_payment_method', last_payment_error: { message: 'card_declined' } as Stripe.PaymentIntent['last_payment_error'] }), env);
     expect(res.status).toBe(200);
     const dl = db.find('dead_letter_events', { service: 'stripe.webhook:payment_intent_failed' })!;
     expect(dl).toBeTruthy();

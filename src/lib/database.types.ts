@@ -2743,6 +2743,8 @@ export type Database = {
         | "payout_failed"
         | "payment_failed"
         | "seller_activated"
+        | "listing_reservation_released"
+        | "system_alert"
       project_status: "planning" | "active" | "finished" | "frogged"
       purchase_status: "pending" | "completed" | "refunded"
       report_reason:
@@ -2971,6 +2973,8 @@ export const Constants = {
         "payout_failed",
         "payment_failed",
         "seller_activated",
+        "listing_reservation_released",
+        "system_alert",
       ],
       project_status: ["planning", "active", "finished", "frogged"],
       purchase_status: ["pending", "completed", "refunded"],
