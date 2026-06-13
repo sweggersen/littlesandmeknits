@@ -583,6 +583,29 @@ describe('completeListingPurchase (webhook transition)', () => {
     expect(res.listing).toBeNull();
     expect(res.error).toMatchObject({ message: 'deadlock' });
   });
+
+  it('compensates: an order-insert failure reverts the listing flip and rethrows', async () => {
+    // The listing flip to 'reserved' succeeds, but the order insert fails. The
+    // buyer has paid; we must NOT leave the listing 'reserved' with no order.
+    const db = createFakeDb(
+      {
+        listings: [{ id: 'l1', seller_id: 'seller-1', store_id: null, buyer_id: null, status: 'active', title: 'X', price_nok: 500 }],
+        orders: [],
+      },
+      { projectColumns: true, insertError: { orders: { message: 'orders write failed' } } },
+    );
+    await expect(completeListingPurchase(db.client as any, {
+      listingId: 'l1', buyerId: 'buyer-1', paymentIntentId: 'pi', amountTotalOre: 10000, now: FIXED,
+    })).rejects.toThrow(/orders write failed/);
+
+    // Listing reverted to active + holder cleared (so Stripe's retry reprocesses
+    // cleanly); no order, no ledger row left behind.
+    const row = db.find('listings', { id: 'l1' }) as any;
+    expect(row.status).toBe('active');
+    expect(row.buyer_id).toBeNull();
+    expect(db.rows('orders')).toHaveLength(0);
+    expect(db.rows('payment_events')).toHaveLength(0);
+  });
 });
 
 describe('confirmListingDelivery', () => {

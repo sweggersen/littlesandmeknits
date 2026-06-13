@@ -410,24 +410,41 @@ export async function completeListingPurchase(
   // Record the order (source of truth). Only on a real transition (not a
   // duplicate webhook delivery, which matches 0 rows).
   if (listing) {
-    const orderId = await createReservedOrder(admin, {
-      listing_id: p.listingId,
-      buyer_id: p.buyerId,
-      seller_id: listing.seller_id,
-      store_id: listing.store_id ?? null,
-      status: 'reserved',
-      item_price_nok: listing.price_nok,
-      shipping_nok: p.shippingNok ?? 0,
-      tb_fee_nok: p.tbFeeNok ?? 0,
-      platform_fee_nok: feeNok,
-      stripe_payment_intent_id: p.paymentIntentId ?? null,
-      shipping_name: p.shipping?.name ?? null,
-      shipping_address: p.shipping?.line1 ?? null,
-      shipping_postal_code: p.shipping?.postalCode ?? null,
-      shipping_city: p.shipping?.city ?? null,
-      reserved_at: nowIso,
-      ship_deadline_at: autoReleaseAt,
-    });
+    let orderId: string | null;
+    try {
+      orderId = await createReservedOrder(admin, {
+        listing_id: p.listingId,
+        buyer_id: p.buyerId,
+        seller_id: listing.seller_id,
+        store_id: listing.store_id ?? null,
+        status: 'reserved',
+        item_price_nok: listing.price_nok,
+        shipping_nok: p.shippingNok ?? 0,
+        tb_fee_nok: p.tbFeeNok ?? 0,
+        platform_fee_nok: feeNok,
+        stripe_payment_intent_id: p.paymentIntentId ?? null,
+        shipping_name: p.shipping?.name ?? null,
+        shipping_address: p.shipping?.line1 ?? null,
+        shipping_postal_code: p.shipping?.postalCode ?? null,
+        shipping_city: p.shipping?.city ?? null,
+        reserved_at: nowIso,
+        ship_deadline_at: autoReleaseAt,
+      });
+    } catch (e) {
+      // Atomicity: the listing was flipped to 'reserved' above, but the order
+      // (source of truth for the buyer's paid purchase) failed to insert.
+      // Compensate by reverting the flip so the row isn't stranded as
+      // 'reserved' with no order, then rethrow — the webhook dead-letters +
+      // 500s, Stripe redelivers, and the (now-'active') listing reprocesses
+      // cleanly. createReservedOrder is idempotent (partial unique index), so
+      // the retry is safe even if the order did land before the failure.
+      await admin
+        .from('listings')
+        .update({ status: 'active', buyer_id: null })
+        .eq('id', p.listingId)
+        .eq('status', 'reserved');
+      throw e;
+    }
     // Ledger: funds authorized & held. amount = item + shipping (what the
     // buyer paid that's in escrow); fee = the platform's cut (TB fee).
     await recordPaymentEvent(admin, {

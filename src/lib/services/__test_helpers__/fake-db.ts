@@ -96,6 +96,7 @@ class FakeQuery {
     private readonly seq: { n: number },
     private readonly project: boolean,
     private readonly updateError: Record<string, { message: string }>,
+    private readonly insertError: Record<string, { message: string; code?: string }>,
   ) {}
 
   private tableRows(): Row[] {
@@ -148,6 +149,8 @@ class FakeQuery {
     const proj = (r: Row): Row => (this.project ? projectRow(r, this.cols) : r);
 
     if (this.opType === 'insert') {
+      const injected = this.insertError[this.table];
+      if (injected) return { data: null, error: injected };
       const rows = Array.isArray(this.payload) ? this.payload as Row[] : [this.payload as Row];
       const inserted = rows.map((r) => {
         const row: Row = { ...r };
@@ -236,6 +239,10 @@ export interface FakeDbOptions {
   /** Tables whose update() should return this error (simulates a DB write
    *  failure) so the service's error branch can be exercised. */
   updateError?: Record<string, { message: string }>;
+  /** Tables whose insert() should return this error (simulates a DB write
+   *  failure) so the service's insert-failure / compensation path can be
+   *  exercised. A `code` of '23505' models a unique-violation no-op. */
+  insertError?: Record<string, { message: string; code?: string }>;
 }
 
 export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptions = {}): FakeDb {
@@ -247,8 +254,9 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
   const seq = { n: 0 };
   const project = !!opts.projectColumns;
   const updateError = opts.updateError ?? {};
+  const insertError = opts.insertError ?? {};
   return {
-    client: { from: (table: string) => new FakeQuery(table, store, ops, seq, project, updateError) },
+    client: { from: (table: string) => new FakeQuery(table, store, ops, seq, project, updateError, insertError) },
     ops,
     rows: (table) => store.get(table) ?? [],
     find: (table, where) =>
