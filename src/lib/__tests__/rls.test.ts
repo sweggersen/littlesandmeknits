@@ -110,6 +110,39 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('cron_heartbeats (0093)', () => {
+    beforeAll(async () => {
+      await admin.from('cron_heartbeats').upsert(
+        { name: 'main', last_run_at: new Date().toISOString(), ok: true },
+        { onConflict: 'name' },
+      );
+    });
+
+    it('non-staff cannot read the cron heartbeat', async () => {
+      const { data, error } = await charlieClient
+        .from('cron_heartbeats').select('name').eq('name', 'main');
+      expect(error).toBeNull();
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('staff read the cron heartbeat (dashboard liveness)', async () => {
+      await admin.from('profiles').update({ role: 'admin' }).eq('id', bobId);
+      const staff = await userClient('rls-bob@test.strikketorget.no');
+      const { data } = await staff.from('cron_heartbeats').select('name').eq('name', 'main');
+      expect(data ?? []).not.toHaveLength(0);
+      await admin.from('profiles').update({ role: null }).eq('id', bobId);
+    });
+
+    it('authenticated users cannot write the heartbeat (service-role only)', async () => {
+      const { data } = await charlieClient
+        .from('cron_heartbeats')
+        .update({ ok: false })
+        .eq('name', 'main')
+        .select('name');
+      expect(data ?? []).toHaveLength(0); // no update policy -> zero rows affected
+    });
+  });
+
   describe('listings', () => {
     it('active listing is readable by any signed-in user', async () => {
       const { data: listing, error } = await admin.from('listings').insert({

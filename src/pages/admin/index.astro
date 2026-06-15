@@ -4,6 +4,8 @@ import { requireModerator } from '../../lib/admin-auth';
 import { createServerSupabase } from '../../lib/supabase';
 import { buildServiceContext } from '../../lib/services/context';
 import { getDashboardTrends } from '../../lib/services/admin-stats';
+import { evaluateCronHealth } from '../../lib/cron-health';
+import { timeAgo } from '../../lib/time';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -40,6 +42,16 @@ const { count: openReports } = await supabase
   .from('reports')
   .select('id', { count: 'exact', head: true })
   .eq('status', 'open');
+
+// Cron liveness: a STALE heartbeat means the scheduled job has stopped running
+// (escrow auto-release etc. silently halted) — the original incident. Staff
+// read cron_heartbeats via RLS (0093).
+const { data: cronRow } = await supabase
+  .from('cron_heartbeats')
+  .select('last_run_at, ok')
+  .eq('name', 'main')
+  .maybeSingle();
+const cronHealth = evaluateCronHealth(cronRow ?? null, Date.now());
 
 const stats = [
   { label: 'Ventende i kø', value: pendingCount ?? 0, href: '/admin/moderation', color: 'terracotta' },
@@ -106,6 +118,16 @@ const TEMPLATES = [
           <a href="/admin/disputes" class:list={['hover:text-terracotta-500 transition-colors', trends.openDisputes > 0 && 'text-terracotta-600']}><span class="font-mono tabular-nums text-lg">{trends.openDisputes}</span> <span class="text-charcoal/55">åpne tvister</span></a>
           <a href="/admin/support" class:list={['hover:text-terracotta-500 transition-colors', trends.openSupport > 0 && 'text-terracotta-600']}><span class="font-mono tabular-nums text-lg">{trends.openSupport}</span> <span class="text-charcoal/55">åpne henvendelser</span></a>
           <span class:list={[trends.openDeadLetters > 0 ? 'text-red-600 font-medium' : 'text-charcoal/55']} title="Uløste feil i betalingsflyten (dead_letter_events)"><span class="font-mono tabular-nums text-lg">{trends.openDeadLetters}</span> uløste feil</span>
+          <span
+            class:list={[cronHealth.stale ? 'text-red-600 font-medium' : (cronHealth.ok ? 'text-charcoal/55' : 'text-terracotta-600')]}
+            title={cronHealth.stale
+              ? 'Cron-jobben ser ut til å ha stoppet — automatiske oppgaver (escrow-frigjøring m.m.) kjører ikke. Sjekk cron-job.org.'
+              : 'Siste vellykkede kjøring av den planlagte jobben'}>
+            <span class="text-charcoal/40">Cron:</span>{' '}
+            {cronHealth.lastRunAt
+              ? (cronHealth.stale ? `stoppet? (${timeAgo(cronHealth.lastRunAt)})` : `ok · ${timeAgo(cronHealth.lastRunAt)}`)
+              : 'aldri kjørt'}
+          </span>
         </div>
       </div>
     </section>

@@ -11,6 +11,7 @@ import { isKilled } from '../../../lib/flags';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds } from '../../../lib/services/commissions';
+import { log } from '../../../lib/log';
 
 export const POST: APIRoute = async ({ request }) => {
   const env = import.meta.env;
@@ -34,6 +35,7 @@ export const POST: APIRoute = async ({ request }) => {
 
   // One shared timestamp for the whole tick (all the "past-due" comparisons).
   const now = new Date().toISOString();
+  const startedMs = Date.now();
 
   // Per-section isolation. PREVIOUSLY a single unhandled throw anywhere in this
   // handler 500'd the entire response — which is exactly what got the prod cron
@@ -542,9 +544,41 @@ export const POST: APIRoute = async ({ request }) => {
     }
   });
 
+  // Liveness heartbeat: record that this run completed so the admin dashboard
+  // can flag a HALTED cron (no execution = no error = otherwise invisible —
+  // the original incident). Best-effort: a heartbeat write failure must not
+  // fail the run or mask the section errors.
+  const ranOk = errors.length === 0;
+  try {
+    await admin.from('cron_heartbeats').upsert({
+      name: 'main',
+      last_run_at: now,
+      ok: ranOk,
+      error_count: errors.length,
+      duration_ms: Date.now() - startedMs,
+      results: results as unknown as never,
+      errors: errors as unknown as never,
+      updated_at: new Date().toISOString(),
+    } as never, { onConflict: 'name' });
+  } catch (e) {
+    log.error('cron.heartbeat_failed', { error: e });
+  }
+
+  // Optional external dead-man's-switch (e.g. healthchecks.io): ping on every
+  // completed run. If the pings stop, that service alerts — the proactive half
+  // of liveness that the cron can't do for itself. Off unless the URL is set.
+  const heartbeatUrl = (cfEnv as any).CRON_HEARTBEAT_URL ?? (env as any).CRON_HEARTBEAT_URL;
+  if (heartbeatUrl) {
+    try {
+      await fetch(ranOk ? heartbeatUrl : `${heartbeatUrl}/fail`, { method: 'POST' });
+    } catch (e) {
+      log.error('cron.heartbeat_ping_failed', { error: e });
+    }
+  }
+
   // Always 200 (even with section errors) so cron-job.org keeps the job
   // enabled; `ok:false` + `errors[]` flag a degraded run for monitoring.
-  return new Response(JSON.stringify({ ok: errors.length === 0, results, errors }), {
+  return new Response(JSON.stringify({ ok: ranOk, results, errors }), {
     headers: { 'Content-Type': 'application/json' },
   });
 };

@@ -344,6 +344,39 @@ export type Database = {
           },
         ]
       }
+      cron_heartbeats: {
+        Row: {
+          duration_ms: number | null
+          error_count: number
+          errors: Json
+          last_run_at: string
+          name: string
+          ok: boolean
+          results: Json
+          updated_at: string
+        }
+        Insert: {
+          duration_ms?: number | null
+          error_count?: number
+          errors?: Json
+          last_run_at: string
+          name: string
+          ok: boolean
+          results?: Json
+          updated_at?: string
+        }
+        Update: {
+          duration_ms?: number | null
+          error_count?: number
+          errors?: Json
+          last_run_at?: string
+          name?: string
+          ok?: boolean
+          results?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dead_letter_events: {
         Row: {
           context: Json
