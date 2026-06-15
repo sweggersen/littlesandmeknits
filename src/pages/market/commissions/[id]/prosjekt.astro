@@ -6,10 +6,9 @@ import StatusBadge from '../../../../components/StatusBadge.astro';
 import EmptyState from '../../../../components/EmptyState.astro';
 import Alert from '../../../../components/Alert.astro';
 import { requireUser } from '../../../../lib/auth';
-import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
+import { createServerSupabase } from '../../../../lib/supabase';
 import { projectPhotoUrl } from '../../../../lib/storage';
 import { formatDate } from '../../../../lib/time';
-import { env } from '../../../../lib/env';
 
 const requestId = Astro.params.id;
 if (!requestId) return Astro.redirect('/market');
@@ -18,12 +17,15 @@ const guard = await requireUser(Astro);
 if (guard instanceof Response) return guard;
 const user = guard;
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Both authorized viewers below can read every entity here via RLS — the
+// buyer through the commission_requests (0073) + linked-project (0070)
+// policies, the knitter as owner of their offer/project (0015) and accepted
+// knitter on the request (0073/0092). So the cookie-bound client is the access
+// gate; the explicit buyer/preview check below is defense-in-depth on RLS.
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
 // Load the commission request + the accepted offer + the linked project.
-// We use the admin client for the join because RLS would force separate
-// queries with different gates depending on viewer role.
-const { data: reqRow } = await admin
+const { data: reqRow } = await supabase
   .from('commission_requests')
   .select('id, buyer_id, awarded_offer_id, title, status, size_label, category, colorway, yarn_provided_by_buyer')
   .eq('id', requestId)
@@ -32,7 +34,7 @@ if (!reqRow || !reqRow.awarded_offer_id) {
   return Astro.redirect(`/market/commissions/${requestId}`);
 }
 
-const { data: offerRow } = await admin
+const { data: offerRow } = await supabase
   .from('commission_offers')
   .select('id, knitter_id, project_id, price_nok, turnaround_weeks')
   .eq('id', reqRow.awarded_offer_id)
@@ -41,7 +43,7 @@ if (!offerRow || !offerRow.project_id) {
   return Astro.redirect(`/market/commissions/${requestId}`);
 }
 
-// Viewer role: buyer reads via RLS, knitter reads via admin in preview mode.
+// Viewer role: the buyer always sees it; the knitter only via ?preview=1.
 const isBuyer = reqRow.buyer_id === user.id;
 const isKnitter = offerRow.knitter_id === user.id;
 const isPreview = Astro.url.searchParams.get('preview') === '1' && isKnitter;
@@ -51,15 +53,15 @@ if (!isBuyer && !isPreview) {
   return Astro.redirect('/market');
 }
 
-// Project + logs. Admin client used because either path is authorized above.
-const { data: project } = await admin
+// Project + logs — buyer via 0070, knitter as owner; RLS gates both.
+const { data: project } = await supabase
   .from('projects')
   .select('id, title, summary, status, recipient, target_size, yarn, needles, pattern_external, hero_photo_path, started_at, finished_at, target_rows, current_rows, updated_at')
   .eq('id', offerRow.project_id)
   .maybeSingle();
 if (!project) return Astro.redirect(`/market/commissions/${requestId}`);
 
-const { data: logsRaw } = await admin
+const { data: logsRaw } = await supabase
   .from('project_logs')
   .select('id, body, log_date, photos, rows_at, created_at')
   .eq('project_id', project.id)
@@ -67,7 +69,7 @@ const { data: logsRaw } = await admin
   .order('created_at', { ascending: false });
 const logs = logsRaw ?? [];
 
-const { data: knitterProfile } = await admin
+const { data: knitterProfile } = await supabase
   .from('profiles')
   .select('display_name, avatar_path, location')
   .eq('id', offerRow.knitter_id)

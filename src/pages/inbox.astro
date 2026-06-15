@@ -1,15 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import MarketplaceShell from '../components/MarketplaceShell.astro';
-import { createServerSupabase, createAdminSupabase } from '../lib/supabase';
+import { createServerSupabase } from '../lib/supabase';
 import { orEither } from '../lib/db/assert';
-import { env } from '../lib/env';
 
 // Middleware guarantees Astro.locals.user is set on /inbox.
 const user = Astro.locals.user!;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 const filter = Astro.url.searchParams.get('filter') ?? 'all';
 
@@ -58,9 +56,12 @@ if (modThreads.length) {
   const commIds = modThreads.filter(t => t.target_type === 'commission_request').map(t => t.target_id);
   const storeIds = modThreads.filter(t => t.target_type === 'store').map(t => t.target_id);
   const [lRes, cRes, sRes, mRes] = await Promise.all([
-    listingIds.length ? admin.from('listings').select('id, title').in('id', listingIds) : Promise.resolve({ data: [] as any[] }),
-    commIds.length ? admin.from('commission_requests').select('id, title').in('id', commIds) : Promise.resolve({ data: [] as any[] }),
-    storeIds.length ? admin.from('stores').select('id, name').in('id', storeIds) : Promise.resolve({ data: [] as any[] }),
+    // Moderation-thread entity titles. The recipient owns the moderated entity
+    // (their listing/commission/store), so RLS grants the read; the rare miss
+    // falls back to 'Element' in the display below. No service-role bypass.
+    listingIds.length ? supabase.from('listings').select('id, title').in('id', listingIds) : Promise.resolve({ data: [] as any[] }),
+    commIds.length ? supabase.from('commission_requests').select('id, title').in('id', commIds) : Promise.resolve({ data: [] as any[] }),
+    storeIds.length ? supabase.from('stores').select('id, name').in('id', storeIds) : Promise.resolve({ data: [] as any[] }),
     supabase.from('moderation_messages')
       .select('thread_id, body, is_moderator, read_at, created_at')
       .in('thread_id', modThreads.map(t => t.id))

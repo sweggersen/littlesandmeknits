@@ -1,19 +1,17 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createServerSupabase } from '../../lib/supabase';
-import { createAdminSupabase } from '../../lib/supabase';
-import { env } from '../../lib/env';
-import { getUserAchievements, checkAndGrantAchievements, ACHIEVEMENTS, CATEGORY_LABELS, TIER_LABEL, type AchievementTier } from '../../lib/achievements';
+import { getUserAchievements, ACHIEVEMENTS, CATEGORY_LABELS, TIER_LABEL, type AchievementTier } from '../../lib/achievements';
+import { grantAchievementsOnView } from '../../lib/services/grant-achievements';
 
 const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
 const isMod = profile?.role === 'admin' || profile?.role === 'moderator';
 
-await checkAndGrantAchievements(admin, user.id, import.meta.env);
+await grantAchievementsOnView(user.id);
 const earnedKeys = await getUserAchievements(supabase, user.id);
 const earnedSet = new Set(earnedKeys);
 
