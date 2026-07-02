@@ -68,7 +68,11 @@ test.describe('Flow scenarios (real services + simulated Stripe)', () => {
         for (const step of scenario.steps) {
           const params = resolveParams(step.params ?? {}, results);
           const r = await exec(request, step.action, PERSONAS[step.actor].email, params);
-          expect(r.ok, `step "${step.id}" (${step.action}) failed: ${r.error}`).toBeTruthy();
+          if (step.expectFail) {
+            expect(r.ok, `step "${step.id}" (${step.action}) was expected to FAIL but succeeded`).toBeFalsy();
+          } else {
+            expect(r.ok, `step "${step.id}" (${step.action}) failed: ${r.error}`).toBeTruthy();
+          }
           results[step.id] = r.data ?? {};
 
           if (!step.expect) continue;

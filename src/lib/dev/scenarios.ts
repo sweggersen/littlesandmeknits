@@ -15,6 +15,8 @@ export interface ScenarioStep {
   action: string;           // test-exec action
   label: string;
   params?: Record<string, unknown>;
+  /** When true, the action is expected to FAIL (e.g. an anti-abuse guard). */
+  expectFail?: boolean;
   expect?: (state: any) => Assertion[];
 }
 
@@ -373,6 +375,154 @@ export const SCENARIOS: Record<string, Scenario> = {
           ['overridden', s.queue_item?.shadow_decision_overridden, true],
           ['queue approved', s.queue_item?.status, 'approved'],
           ['kari override counted', s.mod_stats?.['kari@test.strikketorget.no']?.shadow_overrides >= 1, true],
+        ] },
+    ],
+  },
+
+  'reports': {
+    title: 'Rapporter & auto-skjul',
+    desc: 'Brukere rapporterer; ved 3 rapporter auto-skjules annonsen; moderator behandler.',
+    track: 'listing',
+    personas: ['eline', 'liv', 'maja', 'ingrid', 'kari'],
+    stateFlags: ['include_reports'],
+    steps: [
+      { id: 'setup-kari', actor: 'kari', action: 'set-role', label: 'Kari = moderator', params: { role: 'moderator' } },
+      { id: 'trust-seller', actor: 'eline', action: 'set-trust', label: 'Eline betrodd', params: { trust_tier: 'trusted', trust_score: 100 } },
+      { id: 'create-listing', actor: 'eline', action: 'create-listing', label: 'Eline oppretter annonse',
+        params: { title: 'Strikket skjerf', price_nok: 99, category: 'annet', size_label: 'One size' },
+        expect: (s) => [['draft', s.listing?.status, 'draft']] },
+      { id: 'publish', actor: 'eline', action: 'publish-listing', label: 'Publiser', params: { listing_id: '$create-listing.id' },
+        expect: (s) => [['active', s.listing?.status, 'active']] },
+      { id: 'report-1', actor: 'liv', action: 'submit-report', label: 'Liv rapporterer (svindel)',
+        params: { target_type: 'listing', target_id: '$create-listing.id', reason: 'scam', description: 'Ser ut som svindel.' },
+        expect: (s) => [
+          ['report_count 1', s.listing?.report_count, 1],
+          ['still active', s.listing?.status, 'active'],
+        ] },
+      { id: 'report-2', actor: 'maja', action: 'submit-report', label: 'Maja rapporterer (spam)',
+        params: { target_type: 'listing', target_id: '$create-listing.id', reason: 'spam' },
+        expect: (s) => [
+          ['report_count 2', s.listing?.report_count, 2],
+          ['still active', s.listing?.status, 'active'],
+        ] },
+      { id: 'report-3', actor: 'ingrid', action: 'submit-report', label: 'Ingrid rapporterer → auto-skjul',
+        params: { target_type: 'listing', target_id: '$create-listing.id', reason: 'inappropriate' },
+        expect: (s) => [
+          ['report_count 3', s.listing?.report_count, 3],
+          ['auto-removed', s.listing?.status, 'removed'],
+        ] },
+      { id: 'resolve', actor: 'kari', action: 'resolve-report', label: 'Kari behandler rapport',
+        params: { report_id: '$report-1.id', notes: 'Annonse fjernet.' },
+        expect: (s) => [['a report resolved', s.reports?.some((r: any) => r.status === 'resolved'), true]] },
+    ],
+  },
+
+  'reviews-trust': {
+    title: 'Vurderinger & tillit',
+    desc: 'Etter levering vurderer begge parter; begge blir synlige samtidig (double-blind).',
+    track: 'request',
+    personas: ['liv', 'eline'],
+    stateFlags: ['include_tx_reviews'],
+    steps: [
+      { id: 'verify-knitter', actor: 'eline', action: 'set-stripe-onboarded', label: 'Eline verifisert' },
+      { id: 'create-request', actor: 'liv', action: 'create-request', label: 'Liv oppretter forespørsel',
+        params: { title: 'Babysokker i ull', category: 'sokker', size_label: '0-6 mnd', budget_nok_min: 150, budget_nok_max: 300 },
+        expect: (s) => [['open', s.request?.status, 'open']] },
+      { id: 'offer', actor: 'eline', action: 'make-offer', label: 'Eline gir tilbud',
+        params: { request_id: '$create-request.id', price_nok: 200, turnaround_weeks: 1 },
+        expect: (s) => [['1 offer', s.offers?.length, 1]] },
+      { id: 'accept', actor: 'liv', action: 'accept-offer', label: 'Liv aksepterer', params: { offer_id: '$offer.id' },
+        expect: (s) => [['awaiting_payment', s.request?.status, 'awaiting_payment']] },
+      { id: 'pay', actor: 'liv', action: 'pay', label: 'Liv betaler', params: { request_id: '$create-request.id' },
+        expect: (s) => [['awarded', s.request?.status, 'awarded']] },
+      { id: 'complete', actor: 'eline', action: 'mark-completed', label: 'Eline merker ferdig', params: { request_id: '$create-request.id' },
+        expect: (s) => [['completed', s.request?.status, 'completed']] },
+      { id: 'deliver', actor: 'liv', action: 'confirm-delivery', label: 'Liv bekrefter mottak', params: { request_id: '$create-request.id' },
+        expect: (s) => [['delivered', s.request?.status, 'delivered']] },
+      { id: 'review-buyer', actor: 'liv', action: 'submit-tx-review', label: 'Liv vurderer (4★) — ikke synlig ennå',
+        params: { commission_request_id: '$create-request.id', rating: 4, comment: 'Fine sokker!' },
+        expect: (s) => [
+          ['1 review', s.tx_reviews?.length, 1],
+          ['hidden until both', s.tx_reviews?.[0]?.visible, false],
+        ] },
+      { id: 'review-knitter', actor: 'eline', action: 'submit-tx-review', label: 'Eline vurderer (5★) — begge synlige nå',
+        params: { commission_request_id: '$create-request.id', rating: 5, comment: 'God kommunikasjon.' },
+        expect: (s) => [
+          ['2 reviews', s.tx_reviews?.length, 2],
+          ['both visible', s.tx_reviews?.every((r: any) => r.visible), true],
+        ] },
+    ],
+  },
+
+  'mod-compensation': {
+    title: 'Moderator-godtgjørelse',
+    desc: 'Moderator vurderer, samler godtgjørelse; admin genererer + markerer utbetaling.',
+    track: 'listing',
+    personas: ['eline', 'kari', 'nora'],
+    stateFlags: ['include_mod_stats', 'include_profiles', 'include_payouts'],
+    steps: [
+      { id: 'setup-nora', actor: 'nora', action: 'set-role', label: 'Nora = admin', params: { role: 'admin' } },
+      { id: 'setup-kari', actor: 'kari', action: 'set-role', label: 'Kari = moderator', params: { role: 'moderator' } },
+      { id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats', label: 'Kari erfaren (2 kr/vurd.)',
+        params: { total_reviews: 60, total_approvals: 55, total_rejections: 5, rate_nok_per_review: 2.0, current_month_reviews: 0, current_month_earned_nok: 0, total_earned_nok: 100 },
+        expect: (s) => [
+          ['rate 2', s.mod_stats?.['kari@test.strikketorget.no']?.rate_nok_per_review, 2],
+          ['total earned 100', s.mod_stats?.['kari@test.strikketorget.no']?.total_earned_nok, 100],
+        ] },
+      { id: 'item-1', actor: 'eline', action: 'create-listing-moderated', label: 'Annonse #1',
+        params: { title: 'Strikket lue #1', price_nok: 149, category: 'lue', size_label: '2 år' },
+        expect: (s) => [['pending', s.listing?.status, 'pending_review']] },
+      { id: 'review-1', actor: 'kari', action: 'moderate-review', label: 'Kari godkjenner #1 (+2 kr)',
+        params: { queue_item_id: '$item-1.queue_item_id', decision: 'approve' },
+        expect: (s) => [
+          ['month reviews 1', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_reviews, 1],
+          ['month earned ≥2', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_earned_nok >= 2, true],
+        ] },
+      { id: 'item-2', actor: 'eline', action: 'create-listing-moderated', label: 'Annonse #2',
+        params: { title: 'Strikket lue #2', price_nok: 199, category: 'lue', size_label: '4 år' } },
+      { id: 'review-2', actor: 'kari', action: 'moderate-review', label: 'Kari godkjenner #2 (+2 kr)',
+        params: { queue_item_id: '$item-2.queue_item_id', decision: 'approve' },
+        expect: (s) => [
+          ['month reviews 2', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_reviews, 2],
+          ['month earned ≥4', s.mod_stats?.['kari@test.strikketorget.no']?.current_month_earned_nok >= 4, true],
+        ] },
+      { id: 'generate-payouts', actor: 'nora', action: 'generate-payouts', label: 'Nora genererer utbetalinger',
+        expect: (s) => [
+          ['payout created', s.payouts?.length >= 1, true],
+          ['payout pending', s.payouts?.[0]?.status, 'pending'],
+          ['amount ≥4', s.payouts?.[0]?.amount_nok >= 4, true],
+        ] },
+      { id: 'mark-paid', actor: 'nora', action: 'mark-payout-paid', label: 'Nora markerer utbetalt',
+        params: { payout_id: '$generate-payouts.first_payout_id' },
+        expect: (s) => [['a payout paid', s.payouts?.some((p: any) => p.status === 'paid'), true]] },
+    ],
+  },
+
+  'self-review-block': {
+    title: 'Anti-misbruk: ingen egenvurdering',
+    desc: 'En moderator kan ikke moderere sitt eget innsendte innhold; en annen admin kan.',
+    track: 'request',
+    personas: ['kari', 'nora'],
+    stateFlags: ['include_mod_stats', 'include_profiles'],
+    steps: [
+      { id: 'setup-kari', actor: 'kari', action: 'set-role', label: 'Kari = moderator', params: { role: 'moderator' } },
+      { id: 'setup-kari-stats', actor: 'kari', action: 'set-mod-stats', label: 'Kari erfaren', params: { total_reviews: 60 } },
+      { id: 'kari-submits', actor: 'kari', action: 'create-request-moderated', label: 'Kari sender eget oppdrag',
+        params: { title: 'Cardigan til meg selv', category: 'cardigan', size_label: 'M', budget_nok_min: 500, budget_nok_max: 1000 },
+        expect: (s) => [
+          ['pending_review', s.request?.status, 'pending_review'],
+          ['queued', !!s.queue_item, true],
+        ] },
+      { id: 'self-review-fails', actor: 'kari', action: 'moderate-review', label: 'Kari prøver å godkjenne eget (skal feile)',
+        expectFail: true,
+        params: { queue_item_id: '$kari-submits.queue_item_id', decision: 'approve' },
+        expect: (s) => [['unchanged, still pending', s.request?.status, 'pending_review']] },
+      { id: 'setup-nora', actor: 'nora', action: 'set-role', label: 'Nora = admin', params: { role: 'admin' } },
+      { id: 'nora-approves', actor: 'nora', action: 'moderate-review', label: 'Nora godkjenner (ikke eget)',
+        params: { queue_item_id: '$kari-submits.queue_item_id', decision: 'approve' },
+        expect: (s) => [
+          ['request open', s.request?.status, 'open'],
+          ['queue approved', s.queue_item?.status, 'approved'],
         ] },
     ],
   },
