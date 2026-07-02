@@ -106,7 +106,21 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   // when the user is missing.
   const GATED_PREFIXES = ['/admin', '/studio', '/profile', '/inbox', '/innstillinger', '/onboarding'];
   const isGated = GATED_PREFIXES.some((p) => path === p || path.startsWith(p + '/'));
-  if (isGated || !ctx.url.searchParams.has('skip_auth_load')) {
+  // Anonymous short-circuit: getUser() is a NETWORK call to Supabase Auth on
+  // every request. A visitor with no Supabase auth cookie (`sb-…-auth-token`,
+  // possibly chunked `.0/.1`) cannot resolve to a user, so skip the round-trip
+  // — logged-out browsing gets faster AND stops depending on Supabase Auth
+  // availability. Gated routes still redirect exactly as before (no cookie =
+  // no user = login redirect, now without the wasted call).
+  const { hasSupabaseAuthCookie } = await import('./lib/auth');
+  const hasAuthCookie = hasSupabaseAuthCookie(ctx.request.headers.get('Cookie'));
+  if (!hasAuthCookie) {
+    ctx.locals.user = null;
+    if (isGated) {
+      const next = path + (ctx.url.search ?? '');
+      return ctx.redirect(`/login?next=${encodeURIComponent(next)}`);
+    }
+  } else if (isGated || !ctx.url.searchParams.has('skip_auth_load')) {
     const { getCurrentUser } = await import('./lib/auth');
     const user = await getCurrentUser({ request: ctx.request, cookies: ctx.cookies });
     ctx.locals.user = user;

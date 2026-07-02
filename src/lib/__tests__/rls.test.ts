@@ -624,6 +624,32 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('admin-only vs moderator staff policies (0095 consolidation)', () => {
+    // 0095 rewrote inline role checks onto the helpers. These pin that the
+    // admin-only tables did NOT silently widen to moderators.
+    it('a moderator cannot read the audit log or payouts; an admin can', async () => {
+      await admin.from('moderation_audit_log').insert({
+        actor_id: aliceId, action: 'approve', target_type: 'listing',
+        target_id: '00000000-0000-0000-0000-000000000001',
+      });
+
+      await admin.from('profiles').update({ role: 'moderator' }).eq('id', bobId);
+      const mod = await userClient('rls-bob@test.strikketorget.no');
+      const { data: modLog } = await mod.from('moderation_audit_log').select('id').limit(1);
+      expect(modLog ?? []).toHaveLength(0);
+      const { data: modPayouts } = await mod.from('moderator_payouts').select('id').limit(1);
+      expect(modPayouts ?? []).toHaveLength(0); // none are theirs; admin-read denied
+
+      await admin.from('profiles').update({ role: 'admin' }).eq('id', bobId);
+      const adm = await userClient('rls-bob@test.strikketorget.no');
+      const { data: admLog } = await adm.from('moderation_audit_log').select('id').limit(1);
+      expect(admLog ?? []).not.toHaveLength(0);
+
+      await admin.from('profiles').update({ role: null }).eq('id', bobId);
+      await admin.from('moderation_audit_log').delete().eq('actor_id', aliceId);
+    });
+  });
+
   describe('staff-read moderation gaps (0094)', () => {
     let storeId: string;
     let listingId: string;

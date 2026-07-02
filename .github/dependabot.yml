@@ -1,0 +1,21 @@
+# Dependency hygiene (staff review P1.3). Weekly, grouped so routine bumps
+# arrive as ONE reviewable PR instead of twenty; security advisories still
+# open immediate individual PRs regardless of schedule. Majors are excluded
+# from the group (they deserve their own PR + changelog read — e.g. Astro 7).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday

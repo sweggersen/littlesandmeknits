@@ -1,10 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { devToolsBlocked } from '../../lib/dev-guard';
 
-const host = Astro.url.hostname;
-if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-  return Astro.redirect('/login');
-}
+// Same gate as /api/dev/* (F2): blocked on prod builds, localhost always,
+// other hosts only with DEV_TOOLS='enabled'. The old host-based check
+// allowed ANY .workers.dev host — including the prod worker's own URL.
+if (devToolsBlocked(Astro.request)) return Astro.redirect('/login');
 
 type Screen = {
   title: string;

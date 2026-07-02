@@ -7,6 +7,10 @@
     "enabled": true
   },
   "build": {
-    "command": "npm run build && find dist -name '._*' -delete"
+    // assert-prod-bake refuses to deploy a bundle that baked a localhost (or
+    // no) Supabase URL — .dev.vars wins the build-time env bake, so a naive
+    // laptop `wrangler deploy` would ship a broken marketplace. CI asserts in
+    // its own step; this guards the manual path.
+    "command": "npm run build && node scripts/assert-prod-bake.mjs && find dist -name '._*' -delete"
   }
 }

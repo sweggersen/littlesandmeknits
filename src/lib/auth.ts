@@ -2,6 +2,15 @@ import type { APIContext, AstroCookies } from 'astro';
 import type { User } from '@supabase/supabase-js';
 import { createServerSupabase, createAdminSupabase } from './supabase';
 
+/** True when the Cookie header carries a Supabase auth session cookie
+ *  (`sb-<ref>-auth-token`, possibly chunked as `.0`/`.1`). Lets the
+ *  middleware skip the getUser() NETWORK round-trip for anonymous
+ *  visitors — no cookie can never resolve to a user. */
+export function hasSupabaseAuthCookie(cookieHeader: string | null): boolean {
+  if (!cookieHeader) return false;
+  return /(?:^|;\s*)sb-[^=;]*-auth-token(?:\.\d+)?=/.test(cookieHeader);
+}
+
 /** Raw user lookup. Prefer `Astro.locals.user` set by middleware for
  *  ordinary pages — this helper is for code paths the middleware
  *  doesn't run (API routes, dev tools, places where you need a fresh

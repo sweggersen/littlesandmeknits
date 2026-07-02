@@ -4,10 +4,9 @@
 // the OFFLINE_HTML template literal, and rewrites the document with
 // it — so what you see is byte-identical to what an offline navigation
 // renders.
-const host = Astro.url.hostname;
-if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
-  return Astro.redirect('/market');
-}
+import { devToolsBlocked } from '../../lib/dev-guard';
+// Same gate as /api/dev/* (F2) — the old check allowed any .workers.dev host.
+if (devToolsBlocked(Astro.request)) return Astro.redirect('/market');
 ---
 <!doctype html>
 <html lang="nb-NO">
