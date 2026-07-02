@@ -21,10 +21,12 @@ import {
   confirmListingDelivery as svcConfirmListingDelivery,
   completeListingPurchase as svcCompleteListingPurchase,
   disputeListing as svcDisputeListing,
+  releaseExpiredReservation as svcReleaseExpiredReservation,
 } from '../../../lib/services/listings';
 import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/services/seller-reviews';
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
+import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -447,6 +449,37 @@ async function handle(
       });
       if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { resolved: p.decision ?? 'refund' } };
+    }
+
+    case 'release-reservation': {
+      // Simulates the cron releasing an unshipped reservation whose ship-by
+      // deadline passed (cancels the escrow hold, relists). System action.
+      const res = await svcReleaseExpiredReservation(db, env as unknown as Parameters<typeof svcReleaseExpiredReservation>[1], {
+        listingId: p.listing_id as string,
+        reason: ((p.reason as string) ?? 'ship_deadline') as 'ship_deadline' | 'auth_canceled',
+      });
+      return { data: { released: res.released } };
+    }
+
+    case 'chargeback-open': {
+      // Fabricate the Stripe dispute the webhook would receive for this order's PI.
+      const { data: order } = await db.from('orders')
+        .select('stripe_payment_intent_id').eq('listing_id', p.listing_id as string)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const dispute = {
+        id: 'dp_sim_' + Date.now(),
+        payment_intent: order?.stripe_payment_intent_id,
+        reason: (p.reason as string) ?? 'product_not_received',
+        status: 'needs_response',
+      };
+      const resp = await handleChargebackOpened(db, dispute as never, env as never);
+      return { data: { http: resp.status, dispute_id: dispute.id } };
+    }
+
+    case 'chargeback-close': {
+      const dispute = { id: p.dispute_id, status: (p.outcome as string) ?? 'won' };
+      const resp = await handleChargebackClosed(db, dispute as never, env as never);
+      return { data: { http: resp.status } };
     }
 
     case 'submit-seller-review': {
