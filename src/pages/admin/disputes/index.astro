@@ -1,23 +1,24 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../lib/supabase';
-import { env } from '../../../lib/env';
+import { createServerSupabase } from '../../../lib/supabase';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers all reads (orders 0088, commission_requests 0092,
+// listings embed 0037); requireAdmin gates the page.
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
 // Listing disputes live on the order (dispute fields + the buyer/seller); the
 // listing supplies title + price via the FK embed.
 const [{ data: disputedOrders }, { data: disputedCommissions }] = await Promise.all([
-  admin
+  supabase
     .from('orders')
     .select('listing_id, seller_id, buyer_id, disputed_at, dispute_reason, listings(title, price_nok)')
     .eq('status', 'disputed')
     .order('disputed_at', { ascending: true }),
-  admin
+  supabase
     .from('commission_requests')
     .select('id, title, buyer_id, awarded_offer_id, disputed_at, dispute_reason')
     .eq('status', 'disputed')
@@ -29,13 +30,13 @@ const disputedListings = (disputedOrders ?? []).map((o) => {
 });
 
 const [{ data: resolvedOrders }, { data: resolvedCommissions }] = await Promise.all([
-  admin
+  supabase
     .from('orders')
     .select('listing_id, dispute_resolution, dispute_resolved_at, listings(title)')
     .not('dispute_resolved_at', 'is', null)
     .order('dispute_resolved_at', { ascending: false })
     .limit(20),
-  admin
+  supabase
     .from('commission_requests')
     .select('id, title, dispute_resolution, dispute_resolved_at')
     .not('dispute_resolved_at', 'is', null)

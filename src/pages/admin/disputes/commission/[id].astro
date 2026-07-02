@@ -1,8 +1,9 @@
 ---
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../../lib/supabase';
-import { env } from '../../../../lib/env';
+import { createServerSupabase } from '../../../../lib/supabase';
+import { buildServiceContext } from '../../../../lib/services/context';
+import { getAuthEmails } from '../../../../lib/services/admin-emails';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -10,9 +11,12 @@ if (!auth) return Astro.redirect('/market');
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/admin/disputes');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers the reads (commission_requests + offers 0092, profiles
+// public); emails are auth.users (service-role only) via the admin-emails service.
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 
-const { data: req } = await admin
+const { data: req } = await supabase
   .from('commission_requests')
   .select('id, title, buyer_id, awarded_offer_id, status, disputed_at, dispute_reason, dispute_resolution, dispute_resolved_at')
   .eq('id', id)
@@ -21,20 +25,20 @@ const { data: req } = await admin
 if (!req) return Astro.redirect('/admin/disputes');
 
 const { data: offer } = req.awarded_offer_id
-  ? await admin.from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id).maybeSingle()
+  ? await supabase.from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id).maybeSingle()
   : { data: null };
 const knitterId = offer?.knitter_id ?? null;
 
-const [{ data: buyerP }, buyerAuth, { data: knitterP }, knitterAuth] = await Promise.all([
-  admin.from('profiles').select('display_name').eq('id', req.buyer_id).maybeSingle(),
-  admin.auth.admin.getUserById(req.buyer_id),
-  knitterId ? admin.from('profiles').select('display_name').eq('id', knitterId).maybeSingle() : Promise.resolve({ data: null }),
-  knitterId ? admin.auth.admin.getUserById(knitterId) : Promise.resolve({ data: { user: null } as any }),
+const [{ data: buyerP }, { data: knitterP }, emailsRes] = await Promise.all([
+  supabase.from('profiles').select('display_name').eq('id', req.buyer_id).maybeSingle(),
+  knitterId ? supabase.from('profiles').select('display_name').eq('id', knitterId).maybeSingle() : Promise.resolve({ data: null }),
+  ctx ? getAuthEmails(ctx, [req.buyer_id, knitterId]) : Promise.resolve(null),
 ]);
+const emails = emailsRes?.ok ? emailsRes.data : new Map<string, string>();
 const buyerName = buyerP?.display_name ?? null;
-const buyerEmail = buyerAuth.data.user?.email ?? null;
+const buyerEmail = emails.get(req.buyer_id) ?? null;
 const knitterName = knitterP?.display_name ?? null;
-const knitterEmail = knitterAuth.data.user?.email ?? null;
+const knitterEmail = (knitterId && emails.get(knitterId)) || null;
 
 const itemUrl = `/market/commissions/${req.id}`;
 const isOpen = req.status === 'disputed';

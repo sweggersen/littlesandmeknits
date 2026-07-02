@@ -1,9 +1,8 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
-import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { REPORT_STATUS } from '../../../lib/labels';
-import { env } from '../../../lib/env';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -11,15 +10,16 @@ if (!auth) return Astro.redirect('/market');
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/admin/reports');
 
+// Staff-read RLS covers all reads (reports + threads staff policies, listings
+// 0037, commission_requests 0092, stores 0094).
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 const { data: report } = await supabase
   .from('reports').select('*').eq('id', id).maybeSingle();
 if (!report) return Astro.redirect('/admin/reports');
 
 // Sibling reports: every report (open OR closed) targeting the same item.
-const { data: siblingsData } = await admin
+const { data: siblingsData } = await supabase
   .from('reports')
   .select('id, reporter_id, reason, description, status, anonymous, created_at')
   .eq('target_type', report.target_type)
@@ -33,26 +33,26 @@ let itemUrl: string | null = null;
 let itemTitle: string | null = null;
 
 if (report.target_type === 'listing') {
-  const { data: l } = await admin.from('listings')
+  const { data: l } = await supabase.from('listings')
     .select('id, title').eq('id', report.target_id).maybeSingle();
   if (l) { itemUrl = `/market/listing/${l.id}`; itemTitle = l.title; }
 } else if (report.target_type === 'commission_request') {
-  const { data: r } = await admin.from('commission_requests').select('id, title').eq('id', report.target_id).maybeSingle();
+  const { data: r } = await supabase.from('commission_requests').select('id, title').eq('id', report.target_id).maybeSingle();
   if (r) { itemUrl = `/market/commissions/${r.id}`; itemTitle = r.title; }
 } else if (report.target_type === 'store') {
-  const { data: s } = await admin.from('stores').select('id, slug, name').eq('id', report.target_id).maybeSingle();
+  const { data: s } = await supabase.from('stores').select('id, slug, name').eq('id', report.target_id).maybeSingle();
   if (s) { itemUrl = `/market/store/${s.slug}`; itemTitle = s.name; }
 }
 
 // If an OPEN thread already exists for this target, jump straight to it —
 // that's where the active work continues.
-const { data: openThread } = await admin.from('moderation_threads')
+const { data: openThread } = await supabase.from('moderation_threads')
   .select('id').eq('target_type', report.target_type).eq('target_id', report.target_id)
   .eq('status', 'open').order('created_at', { ascending: false }).limit(1).maybeSingle();
 if (openThread) return Astro.redirect(`/admin/moderation-threads/${openThread.id}`);
 
 // Otherwise show closed/historical thread link if any.
-const { data: existingThread } = await admin.from('moderation_threads')
+const { data: existingThread } = await supabase.from('moderation_threads')
   .select('id, status').eq('target_type', report.target_type).eq('target_id', report.target_id)
   .order('created_at', { ascending: false }).limit(1).maybeSingle();
 

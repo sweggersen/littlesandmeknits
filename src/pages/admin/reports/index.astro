@@ -1,16 +1,16 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
-import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { REPORT_STATUS } from '../../../lib/labels';
-import { env } from '../../../lib/env';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
 
 const tab = Astro.url.searchParams.get('tab') ?? 'open';
+// Staff-read RLS covers all reads (reports + threads staff policies, listings
+// 0037, commission_requests 0092, stores 0094).
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 
 // Fetch ALL reports in the relevant status set; we group client-side below.
 let reports: any[] = [];
@@ -50,9 +50,9 @@ const groups = Array.from(groupsMap.values());
 // Batch-fetch titles for the targets so the cards are meaningful.
 const byType = (t: string) => groups.filter(g => g.target_type === t).map(g => g.target_id);
 const [listingsRes, requestsRes, storesRes] = await Promise.all([
-  byType('listing').length ? admin.from('listings').select('id, title').in('id', byType('listing')) : { data: [] as any[] },
-  byType('commission_request').length ? admin.from('commission_requests').select('id, title').in('id', byType('commission_request')) : { data: [] as any[] },
-  byType('store').length ? admin.from('stores').select('id, name').in('id', byType('store')) : { data: [] as any[] },
+  byType('listing').length ? supabase.from('listings').select('id, title').in('id', byType('listing')) : { data: [] as any[] },
+  byType('commission_request').length ? supabase.from('commission_requests').select('id, title').in('id', byType('commission_request')) : { data: [] as any[] },
+  byType('store').length ? supabase.from('stores').select('id, name').in('id', byType('store')) : { data: [] as any[] },
 ]);
 const titleByKey = new Map<string, string>();
 for (const l of listingsRes.data ?? []) titleByKey.set(`listing:${l.id}`, l.title);

@@ -1,8 +1,9 @@
 ---
 import AdminLayout from '../../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../../lib/supabase';
-import { env } from '../../../../lib/env';
+import { createServerSupabase } from '../../../../lib/supabase';
+import { buildServiceContext } from '../../../../lib/services/context';
+import { getAuthEmails } from '../../../../lib/services/admin-emails';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -10,9 +11,13 @@ if (!auth) return Astro.redirect('/market');
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/admin/disputes');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers every table read here (listings 0037, orders 0088,
+// profiles public, stores + marketplace_conversations 0094). Emails live in
+// auth.users — service-role only — so they come from the admin-emails service.
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 
-const { data: listingRow } = await admin
+const { data: listingRow } = await supabase
   .from('listings')
   .select('id, title, price_nok, seller_id, buyer_id, store_id, status')
   .eq('id', id)
@@ -22,7 +27,7 @@ if (!listingRow) return Astro.redirect('/admin/disputes');
 
 // Dispute detail lives on the order now; fold it onto the listing object so the
 // existing template (listing.dispute_*) keeps working.
-const { data: ord } = await admin
+const { data: ord } = await supabase
   .from('orders')
   .select('disputed_at, dispute_reason, dispute_resolution, dispute_resolved_at')
   .eq('listing_id', id)
@@ -38,23 +43,23 @@ const listing = {
 };
 
 // Pull buyer + seller (or store) contact info so the mod can investigate
-const [{ data: buyerProfile }, buyerAuth, { data: sellerProfile }, sellerAuth, { data: storeRow }] = await Promise.all([
-  listing.buyer_id ? admin.from('profiles').select('display_name').eq('id', listing.buyer_id).maybeSingle() : Promise.resolve({ data: null }),
-  listing.buyer_id ? admin.auth.admin.getUserById(listing.buyer_id) : Promise.resolve({ data: { user: null } as any }),
-  admin.from('profiles').select('display_name').eq('id', listing.seller_id).maybeSingle(),
-  admin.auth.admin.getUserById(listing.seller_id),
-  listing.store_id ? admin.from('stores').select('name, contact_email, slug').eq('id', listing.store_id).maybeSingle() : Promise.resolve({ data: null }),
+const [{ data: buyerProfile }, { data: sellerProfile }, { data: storeRow }, emailsRes] = await Promise.all([
+  listing.buyer_id ? supabase.from('profiles').select('display_name').eq('id', listing.buyer_id).maybeSingle() : Promise.resolve({ data: null }),
+  supabase.from('profiles').select('display_name').eq('id', listing.seller_id).maybeSingle(),
+  listing.store_id ? supabase.from('stores').select('name, contact_email, slug').eq('id', listing.store_id).maybeSingle() : Promise.resolve({ data: null }),
+  ctx ? getAuthEmails(ctx, [listing.buyer_id, listing.seller_id]) : Promise.resolve(null),
 ]);
+const emails = emailsRes?.ok ? emailsRes.data : new Map<string, string>();
 
 const buyerName = buyerProfile?.display_name ?? null;
-const buyerEmail = buyerAuth.data.user?.email ?? null;
+const buyerEmail = (listing.buyer_id && emails.get(listing.buyer_id)) ?? null;
 const sellerName = storeRow?.name ?? sellerProfile?.display_name ?? null;
-const sellerEmail = storeRow?.contact_email ?? sellerAuth.data.user?.email ?? null;
+const sellerEmail = storeRow?.contact_email ?? emails.get(listing.seller_id) ?? null;
 const sellerKind: 'butikk' | 'selger' = storeRow ? 'butikk' : 'selger';
 
 // Existing conversation between buyer and seller for this listing
 const { data: conv } = listing.buyer_id
-  ? await admin.from('marketplace_conversations').select('id').eq('listing_id', listing.id).eq('buyer_id', listing.buyer_id).maybeSingle()
+  ? await supabase.from('marketplace_conversations').select('id').eq('listing_id', listing.id).eq('buyer_id', listing.buyer_id).maybeSingle()
   : { data: null };
 
 const itemUrl = `/market/listing/${listing.id}`;

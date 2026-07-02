@@ -1,16 +1,17 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { anonymizeUser } from '../../../lib/anonymize';
-import { env } from '../../../lib/env';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/admin');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers every read here (requireAdmin gates the page; the
+// audit-log/stats/payouts policies are admin-read, profiles are public-read).
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-const { data: mods } = await admin
+const { data: mods } = await supabase
   .from('moderator_stats')
   .select('*, profiles(display_name)')
   .order('total_reviews', { ascending: false });

@@ -2,13 +2,14 @@
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import ItemDetailsPanel from '../../../components/moderation/ItemDetailsPanel.astro';
 import { requireModerator } from '../../../lib/admin-auth';
-import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { computeConfidenceScore, computeStoreConfidenceScore, recommendationForStoreScore, getReviewStats } from '../../../lib/moderation';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { CATEGORY_LABEL } from '../../../lib/labels';
 import { lookupOrgnrRoles, type OrgRole } from '../../../lib/brreg';
-import { env } from '../../../lib/env';
+import { buildServiceContext } from '../../../lib/services/context';
+import { getAuthEmails } from '../../../lib/services/admin-emails';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -16,8 +17,11 @@ if (!auth) return Astro.redirect('/market');
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/admin/moderation');
 
+// Staff-read RLS covers every table read (listings 0037, requests 0092,
+// stores/photos 0094, seller_profiles 0072, visible reviews, own
+// store_members row); the submitter email is auth.users via the service.
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 
 const { data: queueItem } = await supabase
   .from('moderation_queue')
@@ -31,12 +35,12 @@ if (!queueItem) return Astro.redirect('/admin/moderation');
 // table after the profiles split). Profile is required; seller_profile
 // is optional.
 const [{ data: submitterRow }, { data: submitterSeller }] = await Promise.all([
-  admin
+  supabase
     .from('profiles')
     .select('id, display_name, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
     .eq('id', queueItem.submitter_id)
     .single(),
-  admin
+  supabase
     .from('seller_profiles')
     .select('stripe_connect_status')
     .eq('id', queueItem.submitter_id)
@@ -50,13 +54,13 @@ const submitter = submitterRow ? {
 // Fetch the actual item
 let itemData: any = null;
 if (queueItem.item_type === 'listing') {
-  const { data } = await admin.from('listings').select('*').eq('id', queueItem.item_id).maybeSingle();
+  const { data } = await supabase.from('listings').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
 } else if (queueItem.item_type === 'store' || queueItem.item_type === 'store_image') {
-  const { data } = await admin.from('stores').select('*').eq('id', queueItem.item_id).maybeSingle();
+  const { data } = await supabase.from('stores').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
 } else {
-  const { data } = await admin.from('commission_requests').select('*').eq('id', queueItem.item_id).maybeSingle();
+  const { data } = await supabase.from('commission_requests').select('*').eq('id', queueItem.item_id).maybeSingle();
   itemData = data;
 }
 
@@ -83,8 +87,8 @@ if (queueItem.item_type === 'store' && itemData?.orgnr) {
     rolesError = rolesRes.error ?? 'unknown';
   }
 
-  const { data: authUser } = await admin.auth.admin.getUserById(queueItem.submitter_id);
-  submitterEmail = authUser?.user?.email ?? null;
+  const emailsRes = ctx ? await getAuthEmails(ctx, [queueItem.submitter_id]) : null;
+  submitterEmail = (emailsRes?.ok && emailsRes.data.get(queueItem.submitter_id)) || null;
 
   // Fuzzy name-match: case-insensitive, normalised, check if submitter's
   // display_name appears in any role person's name (or vice versa). Lets
@@ -163,7 +167,7 @@ if (queueItem.item_type === 'store' && itemData?.orgnr) {
 // Fetch listing photos
 let photoUrls: string[] = [];
 if (queueItem.item_type === 'listing') {
-  const { data: photoRows } = await admin
+  const { data: photoRows } = await supabase
     .from('listing_photos')
     .select('path, position')
     .eq('listing_id', queueItem.item_id)
@@ -178,7 +182,7 @@ if (queueItem.item_type === 'listing') {
 
 // For listings/commissions compute confidence here. For stores it's
 // computed earlier (right after the roles+email lookup).
-const reviewStats = submitter ? await getReviewStats(admin, submitter.id) : { avg_rating: 0, review_count: 0 };
+const reviewStats = submitter ? await getReviewStats(supabase, submitter.id) : { avg_rating: 0, review_count: 0 };
 if (submitter && itemData && queueItem.item_type !== 'store') {
   confidence = computeConfidenceScore(submitter, {
     title: itemData.title,
@@ -207,7 +211,7 @@ const isSpotCheckPending = queueItem.spot_check && !queueItem.spot_check_at && [
 // the store (broader rule than just "submitter is reviewer").
 let isStoreMember = false;
 if (queueItem.item_type === 'store') {
-  const { data: mb } = await admin
+  const { data: mb } = await supabase
     .from('store_members')
     .select('id')
     .eq('store_id', queueItem.item_id)

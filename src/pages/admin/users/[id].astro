@@ -1,11 +1,10 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { getReviewStats } from '../../../lib/moderation';
 import { computeTrustScore, determineTier } from '../../../lib/trust';
 import { anonymizeUser, staffOrAnon } from '../../../lib/anonymize';
-import { env } from '../../../lib/env';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/admin');
@@ -13,15 +12,17 @@ if (!auth) return Astro.redirect('/admin');
 const userId = Astro.params.id;
 if (!userId) return Astro.redirect('/admin/users');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers all reads (profiles public, seller_profiles 0072,
+// moderation_queue + reports staff policies, visible transaction_reviews).
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
 const [{ data: profile }, { data: sellerConnect }] = await Promise.all([
-  admin
+  supabase
     .from('profiles')
     .select('id, display_name, role, created_at, trust_score, trust_tier, total_completed_transactions, total_rejections')
     .eq('id', userId)
     .single(),
-  admin
+  supabase
     .from('seller_profiles')
     .select('stripe_connect_status')
     .eq('id', userId)
@@ -30,13 +31,13 @@ const [{ data: profile }, { data: sellerConnect }] = await Promise.all([
 
 if (!profile) return Astro.redirect('/admin/users');
 
-const reviewStats = await getReviewStats(admin, userId);
+const reviewStats = await getReviewStats(supabase, userId);
 // Trust computation needs stripe_connect_status; merge in for compatibility.
 const profileForTrust = { ...profile, stripe_connect_status: sellerConnect?.stripe_connect_status ?? null };
 const trustScore = computeTrustScore(profileForTrust, reviewStats);
 const trustTier = determineTier(trustScore, profileForTrust);
 
-const { data: queueHistory } = await admin
+const { data: queueHistory } = await supabase
   .from('moderation_queue')
   .select('id, item_type, status, decision_at')
   .eq('submitter_id', userId)
@@ -44,7 +45,7 @@ const { data: queueHistory } = await admin
   .order('decision_at', { ascending: false })
   .limit(10);
 
-const { data: reports } = await admin
+const { data: reports } = await supabase
   .from('reports')
   .select('id, reason, status, created_at')
   .eq('target_id', userId)

@@ -1,10 +1,9 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator, isShadowEligible } from '../../../lib/admin-auth';
-import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { MODERATION_QUEUE_STATUS } from '../../../lib/labels';
-import { env } from '../../../lib/env';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -67,9 +66,8 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 // Batch-fetch the title/name for each queued item so the list shows
-// something meaningful instead of just the submitter id. Use the admin
-// client so we can read pending_review stores etc.
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// something meaningful instead of just the submitter id. Staff-read RLS
+// covers pending listings (0037), requests (0092) and stores (0094).
 
 const listingIds = items.filter(i => i.item_type === 'listing').map(i => i.item_id);
 const requestIds = items.filter(i => i.item_type === 'commission_request').map(i => i.item_id);
@@ -77,10 +75,10 @@ const storeIds = items.filter(i => i.item_type === 'store' || i.item_type === 's
 const submitterIds = [...new Set(items.map(i => i.submitter_id))];
 
 const [listingsRes, requestsRes, storesRes, submittersRes] = await Promise.all([
-  listingIds.length ? admin.from('listings').select('id, title').in('id', listingIds) : { data: [] as any[] },
-  requestIds.length ? admin.from('commission_requests').select('id, title').in('id', requestIds) : { data: [] as any[] },
-  storeIds.length ? admin.from('stores').select('id, name, orgnr, legal_name').in('id', storeIds) : { data: [] as any[] },
-  submitterIds.length ? admin.from('profiles').select('id, display_name').in('id', submitterIds) : { data: [] as any[] },
+  listingIds.length ? supabase.from('listings').select('id, title').in('id', listingIds) : { data: [] as any[] },
+  requestIds.length ? supabase.from('commission_requests').select('id, title').in('id', requestIds) : { data: [] as any[] },
+  storeIds.length ? supabase.from('stores').select('id, name, orgnr, legal_name').in('id', storeIds) : { data: [] as any[] },
+  submitterIds.length ? supabase.from('profiles').select('id, display_name').in('id', submitterIds) : { data: [] as any[] },
 ]);
 
 const itemMetaById = new Map<string, { title: string; subtitle?: string }>();

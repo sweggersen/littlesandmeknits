@@ -1,8 +1,7 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../lib/supabase';
-import { env } from '../../../lib/env';
+import { createServerSupabase } from '../../../lib/supabase';
 
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -10,13 +9,15 @@ if (!auth) return Astro.redirect('/market');
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/admin/reports');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers all reads (threads/messages staff clause, listings
+// 0037, commission_requests 0092, stores 0094, profiles public).
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
-const { data: thread } = await admin
+const { data: thread } = await supabase
   .from('moderation_threads').select('*').eq('id', id).maybeSingle();
 if (!thread) return Astro.redirect('/admin/reports');
 
-const { data: messagesData } = await admin
+const { data: messagesData } = await supabase
   .from('moderation_messages')
   .select('id, sender_id, is_moderator, body, created_at')
   .eq('thread_id', thread.id)
@@ -27,21 +28,21 @@ const messages: any[] = messagesData ?? [];
 let itemUrl: string | null = null;
 let itemTitle: string | null = null;
 if (thread.target_type === 'listing') {
-  const { data: l } = await admin.from('listings').select('id, title, status').eq('id', thread.target_id).maybeSingle();
+  const { data: l } = await supabase.from('listings').select('id, title, status').eq('id', thread.target_id).maybeSingle();
   if (l) { itemUrl = `/market/listing/${l.id}`; itemTitle = l.title; }
 } else if (thread.target_type === 'store') {
-  const { data: s } = await admin.from('stores').select('slug, name').eq('id', thread.target_id).maybeSingle();
+  const { data: s } = await supabase.from('stores').select('slug, name').eq('id', thread.target_id).maybeSingle();
   if (s) { itemUrl = `/market/store/${s.slug}`; itemTitle = s.name; }
 } else if (thread.target_type === 'commission_request') {
-  const { data: c } = await admin.from('commission_requests').select('id, title').eq('id', thread.target_id).maybeSingle();
+  const { data: c } = await supabase.from('commission_requests').select('id, title').eq('id', thread.target_id).maybeSingle();
   if (c) { itemUrl = `/market/commissions/${c.id}`; itemTitle = c.title; }
 }
 
-const { data: recipient } = await admin.from('profiles').select('display_name').eq('id', thread.recipient_id).maybeSingle();
+const { data: recipient } = await supabase.from('profiles').select('display_name').eq('id', thread.recipient_id).maybeSingle();
 
 const senderIds = Array.from(new Set(messages.map(m => m.sender_id)));
 const { data: profilesData } = senderIds.length
-  ? await admin.from('profiles').select('id, display_name').in('id', senderIds)
+  ? await supabase.from('profiles').select('id, display_name').in('id', senderIds)
   : { data: [] };
 const nameById = new Map<string, string>();
 for (const p of profilesData ?? []) nameById.set(p.id, p.display_name ?? 'Bruker');

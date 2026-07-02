@@ -1,18 +1,19 @@
 ---
 import AdminLayout from '../../../layouts/AdminLayout.astro';
 import { requireAdmin } from '../../../lib/admin-auth';
-import { createAdminSupabase } from '../../../lib/supabase';
+import { createServerSupabase } from '../../../lib/supabase';
 import { anonymizeUser, staffOrAnon } from '../../../lib/anonymize';
-import { env } from '../../../lib/env';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/admin');
 
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+// Staff-read RLS covers every read here (requireAdmin gates the page; the
+// audit-log/stats/payouts policies are admin-read, profiles are public-read).
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const search = Astro.url.searchParams.get('q') ?? '';
 const roleFilter = Astro.url.searchParams.get('role') ?? '';
 
-let query = admin
+let query = supabase
   .from('profiles')
   .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections, created_at')
   .order('created_at', { ascending: false })

@@ -624,6 +624,71 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('staff-read moderation gaps (0094)', () => {
+    let storeId: string;
+    let listingId: string;
+    let photoId: string;
+    let convId: string;
+
+    beforeAll(async () => {
+      const { data: s, error: sErr } = await admin.from('stores').insert({
+        name: 'rls-staff-store', legal_name: 'RLS Staff Store AS',
+        slug: `rls-staff-store-${bobId.slice(0, 8)}`,
+        orgnr: `9${String(Date.now()).slice(-8)}`, // unique-ish 9-digit test orgnr
+        status: 'pending_review',
+      }).select('id').single();
+      if (sErr) throw new Error(`store insert failed: ${sErr.message} | ${sErr.details}`);
+      storeId = s!.id;
+
+      const { data: l, error: lErr } = await admin.from('listings').insert({
+        seller_id: bobId, title: 'rls-staff-photos', price_nok: 100,
+        kind: 'ready_made', category: 'genser', size_label: 'M',
+        status: 'pending_review',
+      }).select('id').single();
+      if (lErr) throw new Error(`listing insert failed: ${lErr.message}`);
+      listingId = l!.id;
+      const { data: p, error: pErr } = await admin.from('listing_photos').insert({
+        listing_id: listingId, path: 'rls/staff-test.jpg', position: 0,
+      }).select('id').single();
+      if (pErr) throw new Error(`photo insert failed: ${pErr.message}`);
+      photoId = p!.id;
+
+      const { data: c, error: cErr } = await admin.from('marketplace_conversations').insert({
+        listing_id: listingId, buyer_id: aliceId, seller_id: bobId,
+      }).select('id').single();
+      if (cErr) throw new Error(`conversation insert failed: ${cErr.message}`);
+      convId = c!.id;
+    });
+
+    it('third party cannot read a pending store / its photos / others\' conversations', async () => {
+      const { data: s } = await charlieClient.from('stores').select('id').eq('id', storeId);
+      expect(s ?? []).toHaveLength(0);
+      const { data: p } = await charlieClient.from('listing_photos').select('id').eq('id', photoId);
+      expect(p ?? []).toHaveLength(0);
+      const { data: c } = await charlieClient.from('marketplace_conversations').select('id').eq('id', convId);
+      expect(c ?? []).toHaveLength(0);
+    });
+
+    it('staff read all three (moderation + dispute context)', async () => {
+      await admin.from('profiles').update({ role: 'moderator' }).eq('id', charlieId);
+      const staff = await userClient('rls-charlie@test.strikketorget.no');
+      const { data: s } = await staff.from('stores').select('id').eq('id', storeId);
+      expect(s ?? []).not.toHaveLength(0);
+      const { data: p } = await staff.from('listing_photos').select('id').eq('id', photoId);
+      expect(p ?? []).not.toHaveLength(0);
+      const { data: c } = await staff.from('marketplace_conversations').select('id').eq('id', convId);
+      expect(c ?? []).not.toHaveLength(0);
+      await admin.from('profiles').update({ role: null }).eq('id', charlieId);
+    });
+
+    afterAll(async () => {
+      await admin.from('marketplace_conversations').delete().eq('id', convId);
+      await admin.from('listing_photos').delete().eq('id', photoId);
+      await admin.from('listings').delete().eq('id', listingId);
+      await admin.from('stores').delete().eq('id', storeId);
+    });
+  });
+
   describe('auth_identities', () => {
     let identityId: string;
 
