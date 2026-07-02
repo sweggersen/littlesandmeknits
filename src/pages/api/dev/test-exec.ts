@@ -20,8 +20,11 @@ import {
   shipListing as svcShipListing,
   confirmListingDelivery as svcConfirmListingDelivery,
   completeListingPurchase as svcCompleteListingPurchase,
+  disputeListing as svcDisputeListing,
 } from '../../../lib/services/listings';
 import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/services/seller-reviews';
+import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
+import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -400,6 +403,50 @@ async function handle(
       if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
 
       return { data: { status: 'sold' } };
+    }
+
+    case 'request-refund': {
+      if (!actorId) throw new Error('Actor required');
+      const result = await svcRequestRefund(synthCtx(db, actorId), {
+        listingId: p.listing_id as string,
+        reason: (p.reason as string) ?? 'not_as_described',
+        description: p.description as string | undefined,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { requested: true } };
+    }
+
+    case 'respond-refund': {
+      if (!actorId) throw new Error('Actor required');
+      const result = await svcRespondToRefund(synthCtx(db, actorId), {
+        listingId: p.listing_id as string,
+        action: (p.refund_action as string) ?? 'accept',
+        notes: p.notes as string | undefined,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { responded: p.refund_action ?? 'accept' } };
+    }
+
+    case 'dispute-listing': {
+      if (!actorId) throw new Error('Actor required');
+      const result = await svcDisputeListing(synthCtx(db, actorId), {
+        listingId: p.listing_id as string,
+        reason: (p.reason as string) ?? 'Varen kom aldri fram.',
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { disputed: true } };
+    }
+
+    case 'resolve-dispute': {
+      if (!actorId) throw new Error('Actor required');
+      const result = await svcResolveDispute(synthCtx(db, actorId), {
+        itemType: (p.item_type as string) ?? 'listing',
+        itemId: p.item_id as string,
+        decision: (p.decision as string) ?? 'refund',
+        notes: p.notes as string | undefined,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { resolved: p.decision ?? 'refund' } };
     }
 
     case 'submit-seller-review': {
