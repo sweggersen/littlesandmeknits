@@ -161,6 +161,14 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     // ═══════════════════════════════════════════════
     // SCENARIOS
     // ═══════════════════════════════════════════════
+    //
+    // ⚠️ CANONICAL DEFINITIONS LIVE IN src/lib/dev/scenarios.ts — those run
+    // headless in CI on every commit (e2e/scenarios.spec.ts) and CANNOT rot.
+    // This inline copy powers only the visual/manual tower and is NOT
+    // CI-checked, so it can drift. (It can't `import` the shared module because
+    // this is an `is:inline` script.) If a flow here disagrees with a green CI
+    // run, the shared module is right. Prefer adding/fixing flows THERE first,
+    // then mirror here if you want the visual walkthrough.
 
     const SCENARIOS = {
       'commission': {

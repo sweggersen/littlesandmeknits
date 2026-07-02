@@ -27,6 +27,7 @@ import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/servic
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
+import { setSimPiStatus } from '../../../lib/stripe-sim';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -480,6 +481,16 @@ async function handle(
       const dispute = { id: p.dispute_id, status: (p.outcome as string) ?? 'won' };
       const resp = await handleChargebackClosed(db, dispute as never, env as never);
       return { data: { http: resp.status } };
+    }
+
+    case 'sim-expire-pi': {
+      // Force the order's simulated PaymentIntent to 'canceled' so the next
+      // ship/confirm exercises the dead-auth guard (never capture dead money).
+      const { data: order } = await db.from('orders')
+        .select('stripe_payment_intent_id').eq('listing_id', p.listing_id as string)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (order?.stripe_payment_intent_id) setSimPiStatus(order.stripe_payment_intent_id, 'canceled');
+      return { data: { expired: order?.stripe_payment_intent_id ?? null } };
     }
 
     case 'submit-seller-review': {

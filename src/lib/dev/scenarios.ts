@@ -652,6 +652,34 @@ export const SCENARIOS: Record<string, Scenario> = {
     ],
   },
 
+  'listing-dead-auth-at-ship': {
+    title: 'Død betalings-auth ved sending (verne­guard)',
+    desc: 'Kjøp → betalingens auth utløper → selger prøver å sende → systemet nekter (aldri fange død betaling), reservasjonen frigis.',
+    track: 'listing',
+    personas: ['eline', 'liv'],
+    steps: [
+      { id: 'verify-seller', actor: 'eline', action: 'set-stripe-onboarded', label: 'Eline verifisert' },
+      { id: 'trust-seller', actor: 'eline', action: 'set-trust', label: 'Eline betrodd', params: { trust_tier: 'trusted', trust_score: 100 } },
+      { id: 'create-listing', actor: 'eline', action: 'create-listing', label: 'Eline oppretter annonse',
+        params: { title: 'Strikket skjørt', kind: 'pre_loved', category: 'kjole', size_label: '3 år', price_nok: 279 },
+        expect: (s) => [['draft', s.listing?.status, 'draft']] },
+      { id: 'publish', actor: 'eline', action: 'publish-listing', label: 'Publiser', params: { listing_id: '$create-listing.id' },
+        expect: (s) => [['active', s.listing?.status, 'active']] },
+      { id: 'purchase', actor: 'liv', action: 'purchase-listing', label: 'Liv kjøper',
+        params: { listing_id: '$create-listing.id', buyer_name: 'Liv', buyer_address: 'Storgata 12', buyer_postal_code: '0155', buyer_city: 'Oslo' },
+        expect: (s) => [['reserved', s.order?.status, 'reserved']] },
+      { id: 'expire-auth', actor: 'eline', action: 'sim-expire-pi', label: 'Betalings-auth utløper' },
+      { id: 'ship-fails', actor: 'eline', action: 'ship-listing', label: 'Eline prøver å sende (skal nektes)',
+        expectFail: true,
+        params: { listing_id: '$create-listing.id', tracking_code: 'POSTEN-00000' },
+        expect: (s) => [
+          ['order NOT shipped — cancelled', s.order?.status, 'cancelled'],
+          ['cancel reason auth', s.order?.cancel_reason, 'auth_canceled'],
+          ['listing relisted', s.listing?.status, 'active'],
+        ] },
+    ],
+  },
+
   'listing-purchase': {
     title: 'Kjøp & levering (escrow)',
     desc: 'Full kjøpsflyt gjennom de ekte tjenestene + simulert Stripe: annonse → kjøp → sending → bekreft → vurdering. Sjekker ordre-state OG payment_events-hovedboka.',
