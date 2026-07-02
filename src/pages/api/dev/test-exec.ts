@@ -13,6 +13,7 @@ import {
   confirmDelivery as svcConfirmDelivery,
   shipYarn as svcShipYarn,
   receiveYarn as svcReceiveYarn,
+  finalizeCommissionPayment as svcFinalizeCommissionPayment,
 } from '../../../lib/services/commissions';
 import {
   publishListing as svcPublishListing,
@@ -266,14 +267,28 @@ async function handle(
     }
 
     case 'pay': {
-      // Calls the real payCommission service. In test env the knitter's
-      // stripe_connect_status is usually not 'verified' so the Stripe
-      // PaymentIntent step is skipped — the service still flips status,
-      // notifies the knitter, and ensures the project exists.
+      // Full commission payment as prod experiences it: payCommission creates
+      // the Stripe checkout session (the awarded knitter must be Stripe-verified
+      // — see set-stripe-onboarded), then we SIMULATE the
+      // checkout.session.completed webhook by invoking the real
+      // finalizeCommissionPayment. That flips status (awarded / awaiting_yarn),
+      // activates the project, records platform_fee, and notifies — matching
+      // the H2b separate-charges-&-transfers model.
       if (!actorId) throw new Error('Actor required');
       const result = await svcPayCommission(synthCtx(db, actorId), { requestId: p.request_id as string });
       if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
-      // Fetch the project so existing tests that pluck `.data.project` keep working.
+
+      const { data: offerRow } = await db.from('commission_requests')
+        .select('awarded_offer_id, commission_offers!commission_requests_awarded_offer_fkey(price_nok)')
+        .eq('id', p.request_id).single();
+      const priceNok = (offerRow as any)?.commission_offers?.price_nok ?? 0;
+      const fin = await svcFinalizeCommissionPayment(db, env as unknown as Record<string, string>, {
+        requestId: p.request_id as string,
+        paymentIntentId: 'pi_sim_comm_' + Date.now(),
+        platformFeeOre: Math.round(priceNok * 100 * 0.12),
+      });
+      if (!fin.ok) throw new Error(`finalize: ${fin.code}: ${fin.message}`);
+
       const { data: req } = await db.from('commission_requests')
         .select('status, commission_offers!commission_requests_awarded_offer_fkey(project_id)')
         .eq('id', p.request_id).single();

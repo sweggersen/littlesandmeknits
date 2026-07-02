@@ -49,6 +49,10 @@ export const SCENARIOS: Record<string, Scenario> = {
     personas: ['liv', 'eline'],
     steps: [
       {
+        id: 'verify-knitter', actor: 'eline', action: 'set-stripe-onboarded',
+        label: 'Eline er Stripe-verifisert (kan motta betaling)',
+      },
+      {
         id: 'create-request', actor: 'liv', action: 'create-request',
         label: 'Liv oppretter forespørsel',
         params: { title: 'Mariusgenser i str 2 år', category: 'genser', size_label: '2 år', budget_nok_min: 800, budget_nok_max: 1500, description: 'Klassisk Mariusgenser, str 2 år.' },
@@ -111,6 +115,10 @@ export const SCENARIOS: Record<string, Scenario> = {
     track: 'request',
     personas: ['liv', 'eline', 'maja'],
     steps: [
+      {
+        id: 'verify-knitter', actor: 'eline', action: 'set-stripe-onboarded',
+        label: 'Eline er Stripe-verifisert',
+      },
       {
         id: 'create-request', actor: 'liv', action: 'create-request',
         label: 'Forespørsel med eget garn',
