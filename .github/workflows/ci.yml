@@ -86,8 +86,43 @@ jobs:
           export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
           npx vitest run integration rls
 
+  # Critical-path e2e (staff review P1.1). Catches the build-passes-but-500s
+  # class the outage exposed — unit tests + build can't. Boots the same local
+  # Supabase, runs the app dev server, and asserts real pages respond 200
+  # (anonymous + authed). Small + blocking: gates deploy without flakiness.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.101.0
+      - run: npm ci
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+      - name: Start Supabase
+        run: supabase start
+      - name: Run critical-path smoke
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export SB_/')"
+          export PUBLIC_SUPABASE_URL="$SB_API_URL"
+          export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
+          npx playwright test ci-smoke.spec.ts
+      - name: Upload trace on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-trace
+          path: test-results/
+          retention-days: 7
+
   deploy:
-    needs: [quality, database]
+    needs: [quality, database, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     env:
