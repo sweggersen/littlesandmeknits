@@ -109,6 +109,16 @@ jobs:
       - name: Run critical-path smoke
         run: |
           eval "$(supabase status -o env | sed 's/^/export SB_/')"
+          # The dev server reads server-side secrets via `cloudflare:workers`
+          # env, which the Astro dev shim loads from .dev.vars — NOT process.env.
+          # So the dev endpoints (test-token/test-exec/test-login) need the
+          # service key HERE, not just exported. PUBLIC_* also go in so the
+          # cloudflare shim + import.meta.env agree.
+          cat > .dev.vars <<EOF
+          PUBLIC_SUPABASE_URL=$SB_API_URL
+          PUBLIC_SUPABASE_ANON_KEY=$SB_ANON_KEY
+          SUPABASE_SERVICE_ROLE_KEY=$SB_SERVICE_ROLE_KEY
+          EOF
           export PUBLIC_SUPABASE_URL="$SB_API_URL"
           export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
