@@ -471,7 +471,8 @@ async function handle(
         category: p.category ?? 'genser',
         size_label: p.size_label ?? '2 år',
         price_nok: p.price_nok ?? 249,
-        condition: p.condition ?? 'lite_brukt',
+        // condition only applies to pre-loved items; ready_made has none.
+        condition: p.kind === 'ready_made' ? null : (p.condition ?? 'lite_brukt'),
         description: p.description ?? 'Testannonse fra kontrollpanelet.',
         status: 'draft',
       }).select().single();

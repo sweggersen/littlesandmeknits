@@ -16,6 +16,10 @@ async function exec(api: APIRequestContext, action: string, actorEmail: string |
     data: { action, actor: actorEmail, params },
   });
   const json = await res.json();
+  // Normalize the error to a readable string (test-exec may return an object).
+  if (json && json.error && typeof json.error !== 'string') {
+    json.error = json.error.message ?? JSON.stringify(json.error);
+  }
   return json as { ok: boolean; data?: any; error?: string };
 }
 
