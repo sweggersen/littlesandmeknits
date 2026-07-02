@@ -1,0 +1,44 @@
+# Uptime check — catches breakage BETWEEN deploys.
+#
+# The CI deploy job smoke-tests both domains, but only when something deploys.
+# The 2026-06/07 strikketorget.no outage sat unnoticed for weeks because
+# nothing exercised the marketplace between deploys. This scheduled check curls
+# both domains every ~15 minutes; a non-200 fails the run, and GitHub emails
+# the workflow author on scheduled-run failures automatically — no external
+# uptime service or secrets needed.
+#
+# strikketorget.no/ renders the marketplace (hits Supabase), so it catches
+# env/bake/DB regressions that the mostly-static LMK homepage cannot.
+#
+# Note: GitHub auto-disables scheduled workflows after 60 days without repo
+# activity, and schedule ticks can be delayed a few minutes under load.
+
+name: Uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe both domains
+        run: |
+          fail=0
+          for url in https://strikketorget.no/ https://www.littlesandmeknits.com/; do
+            # 3 attempts with backoff so a transient network blip doesn't page.
+            ok=""
+            for attempt in 1 2 3; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$url" || echo 000)
+              echo "attempt $attempt: $code  $url"
+              if [ "$code" = "200" ]; then ok=1; break; fi
+              sleep 20
+            done
+            if [ -z "$ok" ]; then
+              echo "::error::$url is DOWN (last status: $code)"
+              fail=1
+            fi
+          done
+          exit $fail
