@@ -846,8 +846,12 @@ async function handle(
 
       if (qi.submitter_id === actorId) throw new Error('Cannot review own submission');
 
+      // Select ALL columns the earnings update reads below — selecting only
+      // total_reviews/shadow_overrides meant current_month_reviews was
+      // undefined, so `undefined + 1 || 1` pinned month reviews at 1 and
+      // earnings never accumulated (caught by the CI scenario runner).
       const { data: modStats } = await db.from('moderator_stats')
-        .select('total_reviews, shadow_overrides')
+        .select('total_reviews, shadow_overrides, total_approvals, total_rejections, current_month_reviews, current_month_earned_nok, total_earned_nok')
         .eq('user_id', actorId).maybeSingle();
       const totalReviews = modStats?.total_reviews ?? 0;
       const isShadow = totalReviews < 50;
@@ -1378,6 +1382,9 @@ async function handle(
       await db.from('moderation_audit_log').delete().in('actor_id', testUserIds);
       await db.from('moderator_payouts').delete().in('moderator_id', testUserIds);
       await db.from('moderator_stats').delete().in('user_id', testUserIds);
+      // seller_profiles carries stripe_connect_status — reset it so a verified
+      // seller in one scenario doesn't leak into the next.
+      await db.from('seller_profiles').delete().in('id', testUserIds);
       await db.from('reports').delete().in('reporter_id', testUserIds);
       await db.from('seller_reviews').delete().in('reviewer_id', testUserIds);
       await db.from('transaction_reviews').delete().in('reviewer_id', testUserIds);
