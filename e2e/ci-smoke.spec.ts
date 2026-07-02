@@ -63,10 +63,10 @@ test.describe('CI smoke — SSR pages render (anonymous + authed)', () => {
     await expect(page.getByText(/Strikketorget|Strikk|annonser|marked/i).first()).toBeVisible();
     await expect200(page, listingPath);
     await expect(page.getByText('E2E demo: Strikket genser str. 2 år').first()).toBeVisible();
-    // (Not asserting anonymous /inbox → /login here: on localhost login.astro
-    // auto-invites and bounces to the Vipps OIDC start, which can't complete
-    // in CI. The authed test below covers that gated pages render.)
-    await expect200(page, '/login');
+    // Note: anonymous /login and /inbox are NOT asserted here — on localhost
+    // login.astro auto-invites and forwards to the Vipps OIDC start, which
+    // can't complete in CI. The three pages above are exactly the ones the
+    // outage 500'd; the authed test covers gated pages.
   });
 
   test('authed: gated pages render for a logged-in user', async ({ page }) => {
