@@ -636,6 +636,7 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
         slug: `rls-staff-store-${bobId.slice(0, 8)}`,
         orgnr: `9${String(Date.now()).slice(-8)}`, // unique-ish 9-digit test orgnr
         status: 'pending_review',
+        created_by: bobId,
       }).select('id').single();
       if (sErr) throw new Error(`store insert failed: ${sErr.message} | ${sErr.details}`);
       storeId = s!.id;
