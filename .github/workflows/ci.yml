@@ -106,23 +106,25 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Start Supabase
         run: supabase start
-      - name: Run critical-path smoke
+      - name: Run smoke + flow scenarios
         run: |
           eval "$(supabase status -o env | sed 's/^/export SB_/')"
           # The dev server reads server-side secrets via `cloudflare:workers`
           # env, which the Astro dev shim loads from .dev.vars — NOT process.env.
           # So the dev endpoints (test-token/test-exec/test-login) need the
           # service key HERE, not just exported. PUBLIC_* also go in so the
-          # cloudflare shim + import.meta.env agree.
+          # cloudflare shim + import.meta.env agree. STRIPE_SECRET_KEY=sk_simulate
+          # activates the in-memory Stripe double so money flows run for real.
           cat > .dev.vars <<EOF
           PUBLIC_SUPABASE_URL=$SB_API_URL
           PUBLIC_SUPABASE_ANON_KEY=$SB_ANON_KEY
           SUPABASE_SERVICE_ROLE_KEY=$SB_SERVICE_ROLE_KEY
+          STRIPE_SECRET_KEY=sk_simulate
           EOF
           export PUBLIC_SUPABASE_URL="$SB_API_URL"
           export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
-          npx playwright test ci-smoke.spec.ts
+          npx playwright test ci-smoke.spec.ts scenarios.spec.ts
       - name: Upload trace on failure
         if: failure()
         uses: actions/upload-artifact@v4

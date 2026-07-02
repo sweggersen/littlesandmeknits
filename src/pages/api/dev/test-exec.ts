@@ -18,6 +18,7 @@ import {
   publishListing as svcPublishListing,
   shipListing as svcShipListing,
   confirmListingDelivery as svcConfirmListingDelivery,
+  completeListingPurchase as svcCompleteListingPurchase,
 } from '../../../lib/services/listings';
 import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/services/seller-reviews';
 
@@ -333,41 +334,37 @@ async function handle(
     case 'purchase-listing': {
       if (!actorId) throw new Error('Actor required');
       const { data: listing } = await db.from('listings')
-        .select('id, seller_id, title, price_nok')
+        .select('id, price_nok, shipping_price_nok')
         .eq('id', p.listing_id)
         .single();
       if (!listing) throw new Error('Listing not found');
 
-      const shipDeadline = new Date();
-      shipDeadline.setDate(shipDeadline.getDate() + 5);
-
-      // Catalog projection on the listing; the purchase entity is the order.
-      const { error: updErr } = await db.from('listings').update({
-        status: 'reserved', buyer_id: actorId,
-      }).eq('id', p.listing_id);
-      if (updErr) throw new Error(updErr.message);
-
-      const { error: ordErr } = await db.from('orders').insert({
-        listing_id: p.listing_id, buyer_id: actorId, seller_id: listing.seller_id, status: 'reserved',
-        item_price_nok: listing.price_nok, platform_fee_nok: Math.round(listing.price_nok * 0.10),
-        stripe_payment_intent_id: 'pi_test_' + Date.now(),
-        shipping_name: p.buyer_name ?? null, shipping_address: p.buyer_address ?? null,
-        shipping_postal_code: p.buyer_postal_code ?? null, shipping_city: p.buyer_city ?? null,
-        reserved_at: new Date().toISOString(), ship_deadline_at: shipDeadline.toISOString(),
+      // Call the REAL webhook path so the sim exercises production escrow code:
+      // inserts the order (money + shipping PII), flips the catalog projection,
+      // and records the 'reserved' payment_events ledger row. amountTotalOre =
+      // item + shipping + TB fee (what Stripe would charge); platformFeeOre =
+      // the TB fee (H4 launch model: app fee = TB fee only).
+      const { tbFeeForPrice } = await import('../../../lib/shipping');
+      const tbFee = tbFeeForPrice(listing.price_nok);
+      const shipNok = listing.shipping_price_nok ?? 0;
+      const amountTotalOre = (listing.price_nok + shipNok + tbFee) * 100;
+      const res = await svcCompleteListingPurchase(db, {
+        listingId: p.listing_id as string,
+        buyerId: actorId,
+        paymentIntentId: 'pi_test_' + Date.now(),
+        amountTotalOre,
+        platformFeeOre: tbFee * 100,
+        tbFeeNok: tbFee,
+        shippingNok: shipNok,
+        shipping: {
+          name: (p.buyer_name as string) ?? null,
+          line1: (p.buyer_address as string) ?? null,
+          postalCode: (p.buyer_postal_code as string) ?? null,
+          city: (p.buyer_city as string) ?? null,
+        },
       });
-      if (ordErr) throw new Error(ordErr.message);
-
-      await db.from('notifications').insert({
-        user_id: listing.seller_id,
-        type: 'listing_purchased',
-        title: 'Varen din er solgt!',
-        body: `«${listing.title}» — ${listing.price_nok} kr`,
-        url: `/market/listing/${listing.id}`,
-        actor_id: actorId,
-        reference_id: listing.id,
-      });
-
-      return { data: { listing_id: listing.id, status: 'reserved' } };
+      if (!res.updated) throw new Error(res.error ? String((res.error as { message?: string }).message ?? 'db error') : 'purchase did not transition (listing not active?)');
+      return { data: { listing_id: p.listing_id, status: 'reserved' } };
     }
 
     case 'ship-listing': {
@@ -1167,6 +1164,14 @@ async function handle(
               .maybeSingle();
             result.project = project;
           }
+
+          // Commission money ledger (separate charges & transfers) so scenarios
+          // can assert captured/released/refunded events + amounts.
+          const { data: events } = await db.from('payment_events')
+            .select('kind, event_type, amount_nok, fee_nok, actor_id, occurred_at')
+            .eq('commission_request_id', p.request_id as string)
+            .order('occurred_at', { ascending: true });
+          result.payment_events = events;
         }
       }
 
@@ -1176,6 +1181,24 @@ async function handle(
           .eq('id', p.listing_id)
           .single();
         result.listing = listing;
+
+        // The purchase entity (money, PII, lifecycle, Stripe refs) lives on the
+        // ORDER now (orders extraction) — not the listing. Surface the latest
+        // order + its ledger so scenarios assert the real post-refactor state.
+        const { data: order } = await db.from('orders')
+          .select('*')
+          .eq('listing_id', p.listing_id as string)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        result.order = order;
+        if (order?.id) {
+          const { data: events } = await db.from('payment_events')
+            .select('kind, event_type, amount_nok, fee_nok, actor_id, occurred_at')
+            .eq('order_id', order.id)
+            .order('occurred_at', { ascending: true });
+          result.payment_events = events;
+        }
 
         const { data: convos } = await db.from('marketplace_conversations')
           .select('id, buyer_id, created_at, marketplace_messages(id, sender_id, body, created_at)')
@@ -1239,9 +1262,14 @@ async function handle(
           const uid = emailToId.get(email);
           if (!uid) continue;
           const { data } = await db.from('profiles')
-            .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections, stripe_connect_status, stripe_account_id')
+            .select('id, display_name, role, trust_score, trust_tier, total_completed_transactions, total_rejections')
             .eq('id', uid).maybeSingle();
-          if (data) profiles[email] = data;
+          // stripe_connect_status / stripe_account_id moved to seller_profiles
+          // in the 0072 profile split — fold them back in for assertions.
+          const { data: seller } = await db.from('seller_profiles')
+            .select('stripe_connect_status, stripe_account_id')
+            .eq('id', uid).maybeSingle();
+          if (data) profiles[email] = { ...data, stripe_connect_status: seller?.stripe_connect_status ?? null, stripe_account_id: seller?.stripe_account_id ?? null };
         }
         result.profiles = profiles;
       }
