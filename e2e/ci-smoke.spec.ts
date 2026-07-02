@@ -62,7 +62,7 @@ test.describe('CI smoke — SSR pages render (anonymous + authed)', () => {
     await expect200(page, '/market');
     await expect(page.getByText(/Strikketorget|Strikk|annonser|marked/i).first()).toBeVisible();
     await expect200(page, listingPath);
-    await expect(page.getByText('E2E demo: Strikket genser str. 2 år')).toBeVisible();
+    await expect(page.getByText('E2E demo: Strikket genser str. 2 år').first()).toBeVisible();
     // A gated route must redirect anonymous users to login (not 500).
     await expect200(page, '/inbox');
     await expect(page).toHaveURL(/\/login/);
