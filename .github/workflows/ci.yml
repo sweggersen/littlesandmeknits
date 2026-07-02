@@ -115,9 +115,49 @@ jobs:
           supabase db diff --linked --schema public || true
           supabase db push
 
+      # PUBLIC_* env is BAKED INTO THE BUNDLE at build time (import.meta.env).
+      # These are deliberately inline, not secrets: the Supabase anon key and
+      # VAPID public key ship in every browser bundle by design. Without them
+      # the build silently bakes `undefined` and every Supabase-touching page
+      # 500s in prod (the 2026-06-15 strikketorget.no outage). Locally,
+      # .dev.vars / .env.local supply these — but both are gitignored, so CI
+      # must set them here.
       - name: Build
+        env:
+          PUBLIC_SITE_URL: https://www.littlesandmeknits.com
+          PUBLIC_SUPABASE_URL: https://cftibmirzakolkcqvqsq.supabase.co
+          PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNmdGlibWlyemFrb2xrY3F2cXNxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODI2NzcsImV4cCI6MjA5MzU1ODY3N30.2M8zOgoX3DdqJAXHUxAB0j-2vq6Xyz7M5of21tNfCDc
+          PUBLIC_VAPID_KEY: BO5ipC6LSSx-2bQc2mBT9oLNRf90fWSlK_Rd7RYZQ1bQFg-A84n0zb2HHXHAc9kPE8TozL37hEJLYA9DdpAvB1s
         run: npm run build
+
+      # A build that baked the wrong (or no) Supabase URL must never deploy.
+      - name: Assert prod env got baked into the bundle
+        run: |
+          if ! grep -rq "cftibmirzakolkcqvqsq.supabase.co" dist/server/chunks/; then
+            echo "::error::Prod PUBLIC_SUPABASE_URL was NOT baked into the server bundle — refusing to deploy."
+            exit 1
+          fi
+          if grep -rq "127.0.0.1:54321" dist/server/chunks/; then
+            echo "::error::A localhost Supabase URL leaked into the server bundle — refusing to deploy."
+            exit 1
+          fi
 
       - name: Deploy to Cloudflare Workers
         if: env.CLOUDFLARE_API_TOKEN != ''
         run: npx wrangler deploy --config dist/server/wrangler.json
+
+      # Post-deploy smoke: both domains must serve. strikketorget.no/ renders
+      # the marketplace (hits Supabase), so it catches env/bake regressions the
+      # LMK homepage (static-ish) cannot.
+      - name: Smoke-test prod
+        if: env.CLOUDFLARE_API_TOKEN != ''
+        run: |
+          sleep 5
+          for url in https://strikketorget.no/ https://www.littlesandmeknits.com/; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$url")
+            echo "$code  $url"
+            if [ "$code" != "200" ]; then
+              echo "::error::$url returned $code after deploy"
+              exit 1
+            fi
+          done

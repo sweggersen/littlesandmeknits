@@ -34,6 +34,15 @@ npm run build       # production build, must pass with zero errors before commit
 the optimized-deps cache is stale. Kill the dev server and run
 `npm run dev:fresh` to clear it. Doesn't affect prod builds.
 
+**`PUBLIC_*` env is baked at build time — and `.dev.vars` wins.** The
+Cloudflare adapter injects `.dev.vars` into `import.meta.env` during `astro
+build` with priority over shell env AND every `.env*` file. A local build
+therefore bakes the localhost Supabase URL from `.dev.vars` — never deploy a
+locally-built worker unless you've moved `.dev.vars` aside. Deploys go through
+CI, whose Build step sets the prod `PUBLIC_*` values inline (they're public by
+design) and then asserts the bake + smoke-tests both domains. Missing bake =
+every Supabase-touching page 500s (the 2026-06-15 strikketorget.no outage).
+
 ## Architecture rules
 
 ### Use shared components — never inline UI patterns
