@@ -8,7 +8,6 @@
 // create-listing image_style:'garment'. Not shipped to users.
 
 const BG = '#f7f2ea';       // linen card
-const LINE = '#6b5d4f';     // soft charcoal outline
 
 /** Darken a `RRGGBB` hex by mixing toward black, for outlines/shading. */
 function shade(hex: string, factor = 0.72): string {
