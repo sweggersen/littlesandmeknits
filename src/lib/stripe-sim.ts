@@ -18,18 +18,8 @@ export const SIMULATE_STRIPE_KEY = 'sk_simulate';
 // per-worker-instance, which is fine for a sequential scenario run.
 const piState = new Map<string, string>();
 
-/** Force a PaymentIntent's simulated status — lets a scenario reproduce a dead
- *  auth (canceled) to exercise the "never ship against dead money" guard. */
-export function setSimPiStatus(id: string, status: string): void {
-  piState.set(id, status);
-}
-
 function pi(id: string): Stripe.PaymentIntent {
-  // Status precedence: an id marked '_canceled' is a dead auth (survives across
-  // HTTP requests, unlike the in-process piState map which the dev worker
-  // re-evaluates per request); otherwise the in-process capture state; else the
-  // default authorized-and-held state.
-  const status = id.includes('_canceled') ? 'canceled' : (piState.get(id) ?? 'requires_capture');
+  const status = piState.get(id) ?? 'requires_capture';
   return {
     id,
     status,

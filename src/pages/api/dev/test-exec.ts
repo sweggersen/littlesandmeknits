@@ -482,22 +482,6 @@ async function handle(
       return { data: { http: resp.status } };
     }
 
-    case 'sim-expire-pi': {
-      // Mark the order's simulated PaymentIntent as a dead auth so the next
-      // ship exercises the guard (never capture dead money). Encoded in the id
-      // (stateless) since the sim's in-process state doesn't survive across the
-      // dev worker's per-request module re-eval.
-      const { data: order } = await db.from('orders')
-        .select('id, stripe_payment_intent_id').eq('listing_id', p.listing_id as string)
-        .order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (order?.id) {
-        await db.from('orders').update({
-          stripe_payment_intent_id: `${order.stripe_payment_intent_id ?? 'pi_sim'}_canceled`,
-        }).eq('id', order.id);
-      }
-      return { data: { expired: true } };
-    }
-
     case 'submit-seller-review': {
       if (!actorId) throw new Error('Actor required');
       const result = await svcSubmitSellerReview(synthCtx(db, actorId), {
