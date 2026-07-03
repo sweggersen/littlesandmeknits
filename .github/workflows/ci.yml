@@ -63,7 +63,7 @@ jobs:
       - run: npm ci
 
       - name: Start Supabase (applies all migrations from scratch)
-        run: supabase start
+        run: supabase start -x edge-runtime,studio,imgproxy,vector
 
       - name: Lint database (migrations must be clean)
         run: supabase db lint --level warning
@@ -105,7 +105,7 @@ jobs:
       - name: Install Playwright (chromium)
         run: npx playwright install --with-deps chromium
       - name: Start Supabase
-        run: supabase start
+        run: supabase start -x edge-runtime,studio,imgproxy,vector
       - name: Run smoke + flow scenarios
         run: |
           eval "$(supabase status -o env | sed 's/^/export SB_/')"
