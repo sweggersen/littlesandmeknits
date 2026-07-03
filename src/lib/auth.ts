@@ -11,19 +11,33 @@ export function hasSupabaseAuthCookie(cookieHeader: string | null): boolean {
   return /(?:^|;\s*)sb-[^=;]*-auth-token(?:\.\d+)?=/.test(cookieHeader);
 }
 
+/** The Supabase access token from an `Authorization: Bearer <jwt>` header, or
+ *  null. This is how non-browser clients (mobile app, API consumers)
+ *  authenticate — no cookies. */
+export function extractBearerToken(request: Request): string | null {
+  const h = request.headers.get('Authorization') ?? request.headers.get('authorization');
+  if (!h?.startsWith('Bearer ')) return null;
+  const token = h.slice(7).trim();
+  return token || null;
+}
+
 /** Raw user lookup. Prefer `Astro.locals.user` set by middleware for
  *  ordinary pages — this helper is for code paths the middleware
  *  doesn't run (API routes, dev tools, places where you need a fresh
- *  user without the locals plumbing). */
+ *  user without the locals plumbing).
+ *
+ *  Dual-mode: a `Bearer` token (mobile/API) is verified directly; otherwise
+ *  the SSR session cookie (web) is used. */
 export async function getCurrentUser(opts: {
   request: Request;
   cookies: AstroCookies;
 }): Promise<User | null> {
+  const token = extractBearerToken(opts.request);
   try {
     const supabase = createServerSupabase(opts);
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = token ? await supabase.auth.getUser(token) : await supabase.auth.getUser();
     return user;
   } catch {
     return null;

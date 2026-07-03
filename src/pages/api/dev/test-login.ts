@@ -40,11 +40,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const server = createServerSupabase({ request, cookies });
-  const { error } = await server.auth.signInWithPassword({ email, password });
+  const { data: signIn, error } = await server.auth.signInWithPassword({ email, password });
   if (error) return new Response(`Sign in failed: ${error.message}`, { status: 500 });
 
-  return new Response(JSON.stringify({ ok: true, user_id: user.id }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  });
+  // Also hand back the access token so callers can exercise the Bearer-auth
+  // path (/api/v1/*) the mobile app will use — not just the cookie session.
+  return new Response(
+    JSON.stringify({ ok: true, user_id: user.id, access_token: signIn.session?.access_token ?? null }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
+  );
 };

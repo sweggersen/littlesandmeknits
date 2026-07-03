@@ -124,7 +124,7 @@ jobs:
           export PUBLIC_SUPABASE_URL="$SB_API_URL"
           export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
-          npx playwright test ci-smoke.spec.ts scenarios.spec.ts
+          npx playwright test ci-smoke.spec.ts scenarios.spec.ts api-v1.spec.ts
       - name: Upload trace on failure
         if: failure()
         uses: actions/upload-artifact@v4

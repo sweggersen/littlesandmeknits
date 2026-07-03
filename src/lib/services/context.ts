@@ -1,6 +1,6 @@
 import type { AstroCookies } from 'astro';
-import { getCurrentUser } from '../auth';
-import { createServerSupabase, createAdminSupabase } from '../supabase';
+import { getCurrentUser, extractBearerToken } from '../auth';
+import { createServerSupabase, createAdminSupabase, createTokenSupabase } from '../supabase';
 import type { ServiceContext } from './types';
 
 export async function buildServiceContext(
@@ -17,8 +17,11 @@ export async function buildServiceContext(
   } catch {
     serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
   }
+  // ctx.supabase is the RLS-respecting client. A Bearer token (mobile/API) gets
+  // a token-authed client so RLS runs as that user; otherwise the cookie client.
+  const token = extractBearerToken(request);
   return {
-    supabase: createServerSupabase({ request, cookies }),
+    supabase: token ? createTokenSupabase(token) : createServerSupabase({ request, cookies }),
     admin: createAdminSupabase(serviceRoleKey),
     user: { id: user.id, email: user.email },
     env,
