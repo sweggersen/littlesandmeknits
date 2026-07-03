@@ -27,7 +27,6 @@ import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/servic
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
-import { setSimPiStatus } from '../../../lib/stripe-sim';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -484,13 +483,19 @@ async function handle(
     }
 
     case 'sim-expire-pi': {
-      // Force the order's simulated PaymentIntent to 'canceled' so the next
-      // ship/confirm exercises the dead-auth guard (never capture dead money).
+      // Mark the order's simulated PaymentIntent as a dead auth so the next
+      // ship exercises the guard (never capture dead money). Encoded in the id
+      // (stateless) since the sim's in-process state doesn't survive across the
+      // dev worker's per-request module re-eval.
       const { data: order } = await db.from('orders')
-        .select('stripe_payment_intent_id').eq('listing_id', p.listing_id as string)
+        .select('id, stripe_payment_intent_id').eq('listing_id', p.listing_id as string)
         .order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (order?.stripe_payment_intent_id) setSimPiStatus(order.stripe_payment_intent_id, 'canceled');
-      return { data: { expired: order?.stripe_payment_intent_id ?? null } };
+      if (order?.id) {
+        await db.from('orders').update({
+          stripe_payment_intent_id: `${order.stripe_payment_intent_id ?? 'pi_sim'}_canceled`,
+        }).eq('id', order.id);
+      }
+      return { data: { expired: true } };
     }
 
     case 'submit-seller-review': {

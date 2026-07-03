@@ -25,7 +25,11 @@ export function setSimPiStatus(id: string, status: string): void {
 }
 
 function pi(id: string): Stripe.PaymentIntent {
-  const status = piState.get(id) ?? 'requires_capture';
+  // Status precedence: an id marked '_canceled' is a dead auth (survives across
+  // HTTP requests, unlike the in-process piState map which the dev worker
+  // re-evaluates per request); otherwise the in-process capture state; else the
+  // default authorized-and-held state.
+  const status = id.includes('_canceled') ? 'canceled' : (piState.get(id) ?? 'requires_capture');
   return {
     id,
     status,
