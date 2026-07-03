@@ -27,6 +27,8 @@ import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/servic
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
+import { garmentSvgBytes } from '../../../lib/dev/garments';
+import { seedWorld } from '../../../lib/dev/seed-world';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -97,6 +99,34 @@ async function makeTestPng(hexColor: string, size = 200): Promise<Uint8Array> {
   let off = 0;
   for (const p of parts) { png.set(p, off); off += p.length; }
   return png;
+}
+
+/** Generate `count` photos for a listing and set its hero. Default style is a
+ *  flat colour PNG (fast, used by existing tests); `style:'garment'` uploads a
+ *  category-matched knit illustration (used by the world-seeder) so a hat shows
+ *  a hat, mittens show mittens, etc. */
+async function generateListingPhotos(
+  db: ReturnType<typeof createAdminSupabase>,
+  sellerId: string,
+  listingId: string,
+  category: string,
+  count: number,
+  style?: string,
+): Promise<void> {
+  const cat = String(category ?? 'genser');
+  const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+  const garment = style === 'garment';
+  for (let i = 0; i < Math.min(count, 6); i++) {
+    const color = colors[i % colors.length];
+    const bytes = garment ? garmentSvgBytes(cat, color) : await makeTestPng(color);
+    const ext = garment ? 'svg' : 'png';
+    const contentType = garment ? 'image/svg+xml' : 'image/png';
+    const path = `${sellerId}/listings/${listingId}/photo-${crypto.randomUUID()}.${ext}`;
+    await db.storage.from('projects').upload(path, bytes, { contentType, upsert: false });
+    await db.from('listing_photos').insert({ listing_id: listingId, path, position: i });
+  }
+  const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', listingId).order('position').limit(1).maybeSingle();
+  if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', listingId);
 }
 
 const TEST_COLORS: Record<string, string[]> = {
@@ -208,6 +238,15 @@ async function handle(
   emailToId: Map<string, string>,
 ) {
   switch (action) {
+    // ── Whole-system seeder ────────────────────────────
+    // Fills an empty DB with a full, consistent marketplace by driving the
+    // real flows below. Doubles as an injection smoke test — throws on the
+    // first broken step. See src/lib/dev/seed-world.ts.
+    case 'seed-world': {
+      const summary = await seedWorld({ db, handle, emailToId });
+      return { data: { seeded: summary } };
+    }
+
     // ── Commission flow ───────────────────────────────
 
     case 'create-request': {
@@ -516,16 +555,7 @@ async function handle(
 
       const photoCount = Number(p.photo_count ?? 1);
       if (photoCount > 0) {
-        const cat = String(p.category ?? 'genser');
-        const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
-        for (let i = 0; i < Math.min(photoCount, 6); i++) {
-          const png = await makeTestPng(colors[i % colors.length]);
-          const path = `${actorId}/listings/${data.id}/photo-${crypto.randomUUID()}.png`;
-          await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
-          await db.from('listing_photos').insert({ listing_id: data.id, path, position: i });
-        }
-        const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', data.id).order('position').limit(1).maybeSingle();
-        if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', data.id);
+        await generateListingPhotos(db, actorId, data.id, String(p.category ?? 'genser'), photoCount, p.image_style);
       }
 
       return { data };
@@ -876,16 +906,7 @@ async function handle(
 
       const modPhotoCount = Number(p.photo_count ?? 1);
       if (modPhotoCount > 0) {
-        const cat = String(p.category ?? 'genser');
-        const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
-        for (let i = 0; i < Math.min(modPhotoCount, 6); i++) {
-          const png = await makeTestPng(colors[i % colors.length]);
-          const path = `${actorId}/listings/${listing.id}/photo-${crypto.randomUUID()}.png`;
-          await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
-          await db.from('listing_photos').insert({ listing_id: listing.id, path, position: i });
-        }
-        const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', listing.id).order('position').limit(1).maybeSingle();
-        if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', listing.id);
+        await generateListingPhotos(db, actorId, listing.id, String(p.category ?? 'genser'), modPhotoCount, p.image_style);
       }
 
       const { data: qi, error: qError } = await db.from('moderation_queue').insert({

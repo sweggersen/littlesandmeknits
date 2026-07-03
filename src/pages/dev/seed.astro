@@ -1,0 +1,73 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Dev-only: one-click "kickstarter" that fills the local database with a full,
+// consistent Strikketorget (users, listings, knitting requests at every stage,
+// reviews, messages, disputes, refunds, moderation, reports, follows, payouts)
+// by driving the real services. Never available in production.
+if (import.meta.env.PROD) return Astro.redirect('/market');
+---
+
+<Layout title="Seed testdata · Strikketorget" lang="nb" noindex>
+  <div class="max-w-2xl mx-auto px-4 py-12">
+    <h1 class="font-serif text-3xl mb-2">Fyll databasen med testdata</h1>
+    <p class="text-sm text-charcoal/60 mb-6">
+      Nullstiller testbrukernes data og bygger et komplett Strikketorget: brukere, annonser
+      (brukt + nytt) i alle statuser, strikkeoppdrag i alle stadier, vurderinger, meldinger,
+      tvister, refusjoner, moderering, rapporter, følgere og moderator-utbetalinger.
+      Alt kjøres gjennom de ekte tjenestene. Kun for lokal utvikling.
+    </p>
+
+    <button
+      data-seed
+      class="btn-primary px-6 py-3 rounded-full text-sm font-semibold disabled:opacity-50"
+    >
+      Kjør seed-world
+    </button>
+
+    <p data-status class="text-sm text-charcoal/60 mt-4"></p>
+    <pre data-summary class="hidden mt-4 bg-white rounded-2xl border border-sage-500/15 p-4 text-xs overflow-x-auto"></pre>
+
+    <div class="mt-8 text-sm text-charcoal/60">
+      <p class="font-medium text-charcoal/80 mb-1">Etterpå:</p>
+      <ul class="list-disc pl-5 space-y-1">
+        <li>Logg inn som en persona via <a href="/dev/screens" class="text-terracotta-500 hover:underline">/dev/screens</a> (eller test-login), f.eks. <code>eline@test.strikketorget.no</code> (selger), <code>liv@test.strikketorget.no</code> (kjøper), <code>ingrid@test.strikketorget.no</code> (strikker), <code>hanne@test.strikketorget.no</code> (moderator), <code>silje@test.strikketorget.no</code> (admin).</li>
+        <li>Bla i <a href="/market" class="text-terracotta-500 hover:underline">Strikketorget</a>, <a href="/market/commissions" class="text-terracotta-500 hover:underline">oppdrag</a> og <a href="/market/butikker" class="text-terracotta-500 hover:underline">butikker</a>.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    function initSeed() {
+      const btn = document.querySelector('[data-seed]') as HTMLButtonElement | null;
+      if (!btn) return;
+      const status = document.querySelector('[data-status]') as HTMLElement;
+      const summary = document.querySelector('[data-summary]') as HTMLElement;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        summary.classList.add('hidden');
+        status.textContent = 'Seeder … dette tar ca. 15–30 sekunder.';
+        const started = performance.now();
+        try {
+          const { token } = await (await fetch('/api/dev/test-token')).json();
+          const res = await fetch('/api/dev/test-exec', {
+            method: 'POST',
+            headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'seed-world' }),
+          });
+          const body = await res.json();
+          if (!body.ok) throw new Error(body.error || 'Ukjent feil');
+          const secs = ((performance.now() - started) / 1000).toFixed(1);
+          status.textContent = `Ferdig på ${secs}s. Testdata er lagt inn.`;
+          summary.textContent = JSON.stringify(body.data.seeded, null, 2);
+          summary.classList.remove('hidden');
+        } catch (e) {
+          status.textContent = 'Feilet: ' + (e instanceof Error ? e.message : String(e));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+    document.addEventListener('astro:page-load', initSeed);
+  </script>
+</Layout>
