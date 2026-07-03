@@ -100,7 +100,9 @@ test.describe('Strikketorget — butikker', () => {
     // ── Submit creates store + sends to moderation; we land on /admin
     await Promise.all([
       page.waitForURL(/\/market\/store\/test-butikken\/admin$/, { timeout: 15_000 }),
-      page.click('button[type="submit"]'),
+      // Scope to the store form — the global nav also has a "Logg ut"
+      // type=submit button that a bare button[type=submit] would match first.
+      page.getByRole('button', { name: 'Opprett butikk' }).click(),
     ]);
 
     await expect(page.getByRole('heading', { name: 'Oversikt' })).toBeVisible();
@@ -148,7 +150,7 @@ test.describe('Strikketorget — butikker', () => {
 
     await Promise.all([
       majaPage.waitForURL(/\/market\/store\/garn-og-gull\/admin$/, { timeout: 10_000 }),
-      majaPage.click('button[type="submit"]'),
+      majaPage.getByRole('button', { name: 'Aksepter invitasjon' }).click(),
     ]);
 
     // Maja now sees the admin dashboard

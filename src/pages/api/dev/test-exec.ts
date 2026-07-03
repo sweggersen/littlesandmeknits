@@ -508,6 +508,9 @@ async function handle(
         condition: p.kind === 'ready_made' ? null : (p.condition ?? 'lite_brukt'),
         description: p.description ?? 'Testannonse fra kontrollpanelet.',
         status: 'draft',
+        // Real listings enable escrow by paying the escrow fee; tests opt in
+        // directly. Buy actions ("Kjøp") only render on an escrow-enabled row.
+        escrow_enabled: p.escrow_enabled === true,
       }).select().single();
       if (error) throw error;
 
@@ -534,7 +537,11 @@ async function handle(
       if (!l?.seller_id) throw new Error('Listing not found');
       const result = await svcPublishListing(synthCtx(db, l.seller_id), { listingId: p.listing_id as string });
       if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
-      return { data: { status: 'active' } };
+      // Report the REAL post-publish status: a trusted seller goes straight to
+      // 'active', everyone else lands in 'pending_review' (moderation). Don't
+      // hardcode 'active' — that masks the moderation routing from callers.
+      const { data: after } = await db.from('listings').select('status').eq('id', p.listing_id).maybeSingle();
+      return { data: { status: after?.status ?? 'unknown' } };
     }
 
     case 'send-message': {

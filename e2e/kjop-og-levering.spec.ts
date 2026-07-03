@@ -43,8 +43,11 @@ test.describe('Strikketorget — kjøp og levering', () => {
   });
 
   test('full flow: list → buy → ship → confirm → review', async ({ page, request }) => {
-    // ── Step 1: Eline is a Stripe-verified seller
+    // ── Step 1: Eline is a Stripe-verified, trusted seller. Trust matters:
+    // publishing routes untrusted sellers to moderation (pending_review), and
+    // a pending listing isn't publicly viewable — the buyer below must see it.
     await exec(request, 'set-stripe-onboarded', { actor: ELINE });
+    await exec(request, 'set-trust', { actor: ELINE, params: { trust_tier: 'trusted', trust_score: 100 } });
 
     // ── Step 2: Eline creates a listing
     const create = await exec(request, 'create-listing', {
@@ -57,6 +60,7 @@ test.describe('Strikketorget — kjøp og levering', () => {
         price_nok: 349,
         condition: 'lite_brukt',
         description: 'Vakker strikket genser i merinoull. Brukt én sesong.',
+        escrow_enabled: true,
       },
     });
     const listingId = create.data.id as string;
@@ -68,7 +72,7 @@ test.describe('Strikketorget — kjøp og levering', () => {
     await loginAs(page, LIV);
     await page.goto(`/market/listing/${listingId}`);
     await expect(page.getByRole('heading', { name: 'Strikket genser str 2 år' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Kjøp nå/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Kjøp/ })).toBeVisible();
 
     // ── Step 4: Liv purchases (bypassing Stripe)
     await exec(request, 'purchase-listing', {

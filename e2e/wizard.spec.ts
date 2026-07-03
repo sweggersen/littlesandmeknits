@@ -83,14 +83,15 @@ test.describe('Strikketorget — listing wizard', () => {
     await expect(priceInput).toHaveAttribute('step', '1');
   });
 
-  test('"Fyll inn et eksempel" pre-fills step 1', async ({ page }) => {
+  test('first-listing template chip pre-fills type + category', async ({ page }) => {
     await loginAs(page, ELINE);
     await page.goto('/market/listing/new');
-    await page.getByRole('button', { name: /Fyll inn et eksempel/ }).click();
-    await expect(page.locator('#title')).toHaveValue('Mariusgenser str. 92, naturhvit');
+    // Templates deliberately set ONLY kind + category (listing-templates.ts) —
+    // everything else stays the seller's own, so we never seed fake details.
+    await page.locator('[data-fill-template="preloved"]').click();
+    await expect(page.locator('#kind')).toHaveValue('pre_loved');
     await expect(page.locator('#category')).toHaveValue('genser');
-    await expect(page.locator('#size_label')).toHaveValue('92');
-    // Helper hides itself once used.
-    await expect(page.getByRole('button', { name: /Fyll inn et eksempel/ })).toHaveCount(0);
+    // The whole chip row removes itself once any chip is used.
+    await expect(page.locator('[data-example-row]')).toHaveCount(0);
   });
 });

@@ -41,7 +41,7 @@ const { listing, order } = Astro.props;
         <p class="font-medium">{order?.shipping_name}</p>
         {order?.shipping_address && <p class="text-charcoal/70">{order?.shipping_address}</p>}
         {order?.shipping_postal_code && order?.shipping_city && (
-          <p class="text-charcoal/70">{order?.shipping_postal_code} {order?.shipping_city}</p>
+          <p class="text-charcoal/70">{`${order.shipping_postal_code} ${order.shipping_city}`}</p>
         )}
       </div>
     )}
