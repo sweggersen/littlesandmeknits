@@ -168,7 +168,7 @@ export async function seedWorld(deps: { db: Db; handle: Handle; emailToId: Map<s
   // ── 3. A store with one listing ──────────────────────────────────────────
   const store = await run('seed-store', U.eline, { slug: 'elines-strikk', name: 'Elines Strikk' });
   bump('stores');
-  await db.from('listings').update({ store_id: store.storeId }).eq('id', lLue);
+  await db.from('listings').update({ store_id: store.storeId as string }).eq('id', lLue);
 
   // ── 4. Knitting requests at every lifecycle stage ────────────────────────
   async function request(buyer: string, o: { title: string; category: string; size: string; min: number; max: number; yarn?: boolean }): Promise<string> {
