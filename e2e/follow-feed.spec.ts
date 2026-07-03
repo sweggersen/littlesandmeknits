@@ -51,7 +51,9 @@ test.describe('Strikketorget — follow feed surfaces', () => {
     await loginAs(page, LIV);
     await page.goto('/market/following');
     await expect(page.getByRole('heading', { name: 'Sellere du følger' })).toBeVisible();
-    await expect(page.getByText('Strikket genser str 2 år (publisert)')).toBeVisible();
+    // .first(): the feed can legitimately hold more than one matching listing
+    // (e.g. accumulated local seed data), so assert existence, not uniqueness.
+    await expect(page.getByText('Strikket genser str 2 år (publisert)').first()).toBeVisible();
   });
 
   test('/market/following empty state when not following anyone', async ({ page, request }) => {

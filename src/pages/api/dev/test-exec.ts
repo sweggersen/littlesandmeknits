@@ -1234,8 +1234,17 @@ async function handle(
         status: 'pending',
       }));
 
-      const { data: inserted } = await db.from('moderator_payouts').insert(payouts).select('id');
-      return { data: { count: payouts.length, total_nok: payouts.reduce((s, p) => s + p.amount_nok, 0), first_payout_id: inserted?.[0]?.id } };
+      const { data: inserted, error: payoutErr } = await db.from('moderator_payouts').insert(payouts).select('id, amount_nok');
+      if (payoutErr) throw payoutErr;
+      // Report what actually LANDED, not what we intended to insert — a partial
+      // failure must not be masked by counting the input array.
+      return {
+        data: {
+          count: inserted?.length ?? 0,
+          total_nok: (inserted ?? []).reduce((s, p) => s + (p.amount_nok ?? 0), 0),
+          first_payout_id: inserted?.[0]?.id,
+        },
+      };
     }
 
     case 'mark-payout-paid': {

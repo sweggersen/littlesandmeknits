@@ -190,6 +190,40 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       expect(third ?? []).toHaveLength(0);
       await admin.from('listings').delete().eq('id', listing!.id);
     });
+
+    it('store member reads a co-member\'s non-active store listing; non-member cannot (0096)', async () => {
+      // Store owned by bob, charlie added as a member (manager). alice is not a
+      // member. A DRAFT listing owned by bob under the store must be readable by
+      // charlie (store member, not the seller) but hidden from alice.
+      const slug = `rls-store-${Date.now()}`;
+      const { data: store, error: sErr } = await admin.from('stores').insert({
+        slug, orgnr: String(900000000 + (Date.now() % 99999999)),
+        created_by: bobId, legal_name: 'RLS TEST AS', legal_address: 'Storgata 1',
+        legal_business_type: 'AS', legal_status: 'aktiv', name: 'RLS Test-butikk',
+        contact_email: 'rls@test.no', status: 'active',
+      }).select('id').single();
+      if (sErr) throw new Error(`store insert failed: ${sErr.message}`);
+      await admin.from('store_members').insert([
+        { store_id: store!.id, user_id: bobId, role: 'owner', visible_on_storefront: true },
+        { store_id: store!.id, user_id: charlieId, role: 'manager', visible_on_storefront: true },
+      ]);
+      const { data: listing, error } = await admin.from('listings').insert({
+        seller_id: bobId, store_id: store!.id,
+        title: 'rls-store-draft', description: 'x',
+        price_nok: 100, kind: 'ready_made', category: 'genser',
+        size_label: 'M', shipping_price_nok: 0, status: 'draft',
+      }).select('id').single();
+      if (error) throw new Error(`insert failed: ${error.message}`);
+
+      const { data: member } = await charlieClient.from('listings').select('id').eq('id', listing!.id);
+      expect(member ?? []).toHaveLength(1);  // store member sees it
+      const { data: nonMember } = await aliceClient.from('listings').select('id').eq('id', listing!.id);
+      expect(nonMember ?? []).toHaveLength(0);  // non-member does not
+
+      await admin.from('listings').delete().eq('id', listing!.id);
+      await admin.from('store_members').delete().eq('store_id', store!.id);
+      await admin.from('stores').delete().eq('id', store!.id);
+    });
   });
 
   describe('marketplace conversations + messages', () => {
