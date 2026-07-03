@@ -27,7 +27,6 @@ import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/servic
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
-import { garmentSvgBytes } from '../../../lib/dev/garments';
 import { seedWorld } from '../../../lib/dev/seed-world';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
@@ -101,28 +100,23 @@ async function makeTestPng(hexColor: string, size = 200): Promise<Uint8Array> {
   return png;
 }
 
-/** Generate `count` photos for a listing and set its hero. Default style is a
- *  flat colour PNG (fast, used by existing tests); `style:'garment'` uploads a
- *  category-matched knit illustration (used by the world-seeder) so a hat shows
- *  a hat, mittens show mittens, etc. */
+/** Generate `count` flat-colour placeholder photos for a listing and set its
+ *  hero. These are instant/offline stand-ins; `scripts/marketplace-real-photos.ts`
+ *  (npm run seed:photos) replaces them with real category-matched knitwear
+ *  photos from Wikimedia Commons. */
 async function generateListingPhotos(
   db: ReturnType<typeof createAdminSupabase>,
   sellerId: string,
   listingId: string,
   category: string,
   count: number,
-  style?: string,
 ): Promise<void> {
   const cat = String(category ?? 'genser');
   const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
-  const garment = style === 'garment';
   for (let i = 0; i < Math.min(count, 6); i++) {
-    const color = colors[i % colors.length];
-    const bytes = garment ? garmentSvgBytes(cat, color) : await makeTestPng(color);
-    const ext = garment ? 'svg' : 'png';
-    const contentType = garment ? 'image/svg+xml' : 'image/png';
-    const path = `${sellerId}/listings/${listingId}/photo-${crypto.randomUUID()}.${ext}`;
-    await db.storage.from('projects').upload(path, bytes, { contentType, upsert: false });
+    const bytes = await makeTestPng(colors[i % colors.length]);
+    const path = `${sellerId}/listings/${listingId}/photo-${crypto.randomUUID()}.png`;
+    await db.storage.from('projects').upload(path, bytes, { contentType: 'image/png', upsert: false });
     await db.from('listing_photos').insert({ listing_id: listingId, path, position: i });
   }
   const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', listingId).order('position').limit(1).maybeSingle();
@@ -555,7 +549,7 @@ async function handle(
 
       const photoCount = Number(p.photo_count ?? 1);
       if (photoCount > 0) {
-        await generateListingPhotos(db, actorId, data.id, String(p.category ?? 'genser'), photoCount, p.image_style);
+        await generateListingPhotos(db, actorId, data.id, String(p.category ?? 'genser'), photoCount);
       }
 
       return { data };
@@ -906,7 +900,7 @@ async function handle(
 
       const modPhotoCount = Number(p.photo_count ?? 1);
       if (modPhotoCount > 0) {
-        await generateListingPhotos(db, actorId, listing.id, String(p.category ?? 'genser'), modPhotoCount, p.image_style);
+        await generateListingPhotos(db, actorId, listing.id, String(p.category ?? 'genser'), modPhotoCount);
       }
 
       const { data: qi, error: qError } = await db.from('moderation_queue').insert({
@@ -1485,6 +1479,14 @@ async function handle(
         }
         await db.from('marketplace_conversations').delete().eq('listing_id', l.id);
       }
+      // orders FK-restrict listing deletion (0088: on delete restrict), so a
+      // sold/reserved/disputed listing survives re-seeds unless its order goes
+      // first. Delete the test users' orders + their ledger rows, then listings.
+      const orFilter = `buyer_id.in.(${testUserIds.join(',')}),seller_id.in.(${testUserIds.join(',')})`;
+      const { data: testOrders } = await db.from('orders').select('id').or(orFilter);
+      const orderIds = (testOrders ?? []).map((o) => o.id);
+      if (orderIds.length) await db.from('payment_events').delete().in('order_id', orderIds);
+      await db.from('orders').delete().or(orFilter);
       await db.from('listings').delete().in('seller_id', testUserIds);
 
       // Conversations started by test buyers
@@ -1508,6 +1510,9 @@ async function handle(
       await db.from('transaction_reviews').delete().in('reviewer_id', testUserIds);
       await db.from('seller_follows').delete().in('follower_id', testUserIds);
       await db.from('seller_follows').delete().in('seller_id', testUserIds);
+      // Daily action quotas (0075) — reset so repeated seeding doesn't trip the
+      // per-user rate limits (e.g. 20 offers/day).
+      await db.from('user_action_counts').delete().in('user_id', testUserIds);
 
       // Queue items submitted by or decided by test users
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);

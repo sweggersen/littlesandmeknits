@@ -91,12 +91,14 @@ export async function seedWorld(deps: { db: Db; handle: Handle; emailToId: Map<s
   // Admin: resolves disputes (admin-only in the service layer).
   await db.from('profiles').update({ role: 'admin' }).eq('id', id(U.silje));
 
-  // ── 1. Listings (new + used), garment-matched images ─────────────────────
+  // ── 1. Listings (new + used) ─────────────────────────────────────────────
+  // Photos are flat-colour placeholders; `npm run seed:photos` swaps in real
+  // category-matched knitwear photos from Wikimedia Commons.
   async function listing(seller: string, o: { title: string; kind: string; category: string; size: string; price: number; condition?: string; photos?: number; publish?: boolean }): Promise<string> {
     const data = await run('create-listing', seller, {
       title: o.title, kind: o.kind, category: o.category, size_label: o.size,
       price_nok: o.price, condition: o.kind === 'ready_made' ? null : (o.condition ?? 'lite_brukt'),
-      escrow_enabled: true, image_style: 'garment', photo_count: o.photos ?? 2,
+      escrow_enabled: true, photo_count: o.photos ?? 2,
     });
     bump('listings');
     if (o.publish !== false) await run('publish-listing', null, { listing_id: data.id });
@@ -155,12 +157,12 @@ export async function seedWorld(deps: { db: Db; handle: Handle; emailToId: Map<s
   bump('refunds'); bump('disputes');
 
   // ── 2. Moderated listings (Maja is new -> pending_review) ────────────────
-  const modApprove = await run('create-listing-moderated', U.maja, { title: 'Strikket genser, håndlaget', category: 'genser', size_label: '3 år', price_nok: 329, image_style: 'garment', photo_count: 2 });
+  const modApprove = await run('create-listing-moderated', U.maja, { title: 'Strikket genser, håndlaget', category: 'genser', size_label: '3 år', price_nok: 329, photo_count: 2 });
   bump('listings');
   await run('moderate-review', U.hanne, { queue_item_id: modApprove.queue_item_id, decision: 'approve', internal_notes: 'Ser fint ut.' });
   bump('moderation');
 
-  const modReject = await run('create-listing-moderated', U.maja, { title: 'Billige klær selges billig!!!', category: 'bukser', size_label: '4 år', price_nok: 49, image_style: 'garment', photo_count: 1 });
+  const modReject = await run('create-listing-moderated', U.maja, { title: 'Billige klær selges billig!!!', category: 'bukser', size_label: '4 år', price_nok: 49, photo_count: 1 });
   bump('listings');
   await run('moderate-review', U.hanne, { queue_item_id: modReject.queue_item_id, decision: 'reject', rejection_reason: 'Mistenkelig annonse / mulig spam.', internal_notes: 'Avvist.' });
   bump('moderation');

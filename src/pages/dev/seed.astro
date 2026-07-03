@@ -28,6 +28,14 @@ if (import.meta.env.PROD) return Astro.redirect('/market');
     <p data-status class="text-sm text-charcoal/60 mt-4"></p>
     <pre data-summary class="hidden mt-4 bg-white rounded-2xl border border-sage-500/15 p-4 text-xs overflow-x-auto"></pre>
 
+    <div class="mt-6 rounded-2xl bg-white border border-sage-500/15 p-4 text-sm text-charcoal/70">
+      <p class="font-medium text-charcoal/80 mb-1">Ekte bilder</p>
+      <p>Annonsene får enkle fargeplassholdere. For ekte, kategori-matchede
+        strikkebilder fra Wikimedia Commons, kjør i terminalen etterpå:</p>
+      <pre class="mt-2 bg-linen rounded-xl p-3 text-xs overflow-x-auto">npm run seed:photos</pre>
+      <p class="mt-1 text-charcoal/50">(krever nett, tar ca. 1 minutt, laster ned 3 bilder per annonse)</p>
+    </div>
+
     <div class="mt-8 text-sm text-charcoal/60">
       <p class="font-medium text-charcoal/80 mb-1">Etterpå:</p>
       <ul class="list-disc pl-5 space-y-1">
