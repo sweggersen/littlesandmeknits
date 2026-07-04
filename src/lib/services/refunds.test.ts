@@ -244,7 +244,9 @@ describe('respondToRefund', () => {
     expect((updates.find((x: any) => x.table === 'listings') as any).row.status).toBe('disputed');
     const o = updates.find((x: any) => x.table === 'orders') as any;
     expect(o.row).toMatchObject({ status: 'disputed', refund_outcome: 'declined' });
-    expect(o.row.dispute_reason).toContain('damaged');
+    // The buyer's reason renders as its Norwegian label, not the raw enum.
+    expect(o.row.dispute_reason).toContain('Skadet');
+    expect(o.row.dispute_reason).not.toContain('damaged');
     expect(o.row.dispute_reason).toContain('no damage seen');
     // Ledger: a 'dispute_opened' event, tagged as a declined refund.
     const ev = inserts.find((x: any) => x.table === 'payment_events') as any;
