@@ -77,6 +77,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
 
 interface NotifyEnv {
   RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   PUBLIC_SITE_URL?: string;
   PUBLIC_VAPID_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
@@ -131,7 +132,7 @@ export async function createNotification(
       siteUrl,
     });
 
-    await sendEmail(apiKey, { to: email, subject, html });
+    await sendEmail(apiKey, { to: email, subject, html }, env?.EMAIL_FROM);
   } catch {
     // Email is best-effort
   }

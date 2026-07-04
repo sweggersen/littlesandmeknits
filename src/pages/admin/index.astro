@@ -113,7 +113,7 @@ const TEMPLATES = [
             ))}
           </div>
         </div>
-        <div class="flex flex-wrap gap-4 text-sm border-l border-sage-500/10 pl-5">
+        <div class="flex flex-wrap items-baseline gap-4 text-sm border-l border-sage-500/10 pl-5">
           <a href="/market" class="hover:text-terracotta-500 transition-colors"><span class="font-mono tabular-nums text-lg">{trends.activeListings}</span> <span class="text-charcoal/55">aktive annonser</span></a>
           <a href="/admin/disputes" class:list={['hover:text-terracotta-500 transition-colors', trends.openDisputes > 0 && 'text-terracotta-600']}><span class="font-mono tabular-nums text-lg">{trends.openDisputes}</span> <span class="text-charcoal/55">åpne tvister</span></a>
           <a href="/admin/support" class:list={['hover:text-terracotta-500 transition-colors', trends.openSupport > 0 && 'text-terracotta-600']}><span class="font-mono tabular-nums text-lg">{trends.openSupport}</span> <span class="text-charcoal/55">åpne henvendelser</span></a>

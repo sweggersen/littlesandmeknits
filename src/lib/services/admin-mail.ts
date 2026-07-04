@@ -27,7 +27,7 @@ export async function sendTestEmail(
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'http://localhost:4321';
   const { subject, html } = sample(siteUrl, prof.display_name ?? undefined);
-  const sent = await sendEmail(apiKey, { to: ctx.user.email, subject, html });
+  const sent = await sendEmail(apiKey, { to: ctx.user.email, subject, html }, ctx.env.EMAIL_FROM);
 
   return ok({
     redirect: sent
