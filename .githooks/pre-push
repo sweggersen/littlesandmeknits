@@ -1,30 +1,46 @@
 #!/bin/sh
-# Pre-push: run the full type check (astro check) before pushing, so the class
-# of failure that only surfaces in CI's Typecheck step (npm run build does NOT
-# run astro check) is caught locally first.
+# Pre-push: run the checks CI would run, so failures are caught locally instead
+# of after a red push. Two gates:
+#   1. astro check (full typecheck) — `npm run build` does NOT run this.
+#   2. vitest unit tests — the typecheck passes even when behaviour is wrong
+#      (e.g. a test asserting old copy), which is how master went red once.
+# Both are fast (a few seconds); the e2e/integration suites stay in CI.
 #
 # Enabled via `git config core.hooksPath .githooks` (the package.json "prepare"
 # script sets this automatically on npm install).
 #
 # Bypass in a pinch with:  git push --no-verify
+# Skip individually with:  SKIP_TYPECHECK=1  /  SKIP_TESTS=1
+
+if [ ! -d node_modules ]; then
+  echo "pre-push: node_modules missing, skipping checks (run npm install)."
+  exit 0
+fi
 
 if [ -n "$SKIP_TYPECHECK" ]; then
   echo "pre-push: SKIP_TYPECHECK set, skipping astro check."
-  exit 0
+else
+  echo "pre-push: running astro check (type check)…"
+  if ! npm run --silent typecheck; then
+    echo ""
+    echo "✗ astro check found type errors — push aborted."
+    echo "  Fix them, or bypass with:  git push --no-verify"
+    exit 1
+  fi
+  echo "✓ astro check passed."
 fi
 
-if [ ! -d node_modules ]; then
-  echo "pre-push: node_modules missing, skipping astro check (run npm install)."
-  exit 0
+if [ -n "$SKIP_TESTS" ]; then
+  echo "pre-push: SKIP_TESTS set, skipping unit tests."
+else
+  echo "pre-push: running unit tests (vitest)…"
+  if ! npm run --silent test; then
+    echo ""
+    echo "✗ unit tests failed — push aborted."
+    echo "  Fix them, or bypass with:  git push --no-verify"
+    exit 1
+  fi
+  echo "✓ unit tests passed."
 fi
 
-echo "pre-push: running astro check (type check)…"
-if ! npm run --silent typecheck; then
-  echo ""
-  echo "✗ astro check found type errors — push aborted."
-  echo "  Fix them, or bypass with:  git push --no-verify"
-  exit 1
-fi
-
-echo "✓ astro check passed."
 exit 0
