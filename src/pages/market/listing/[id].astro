@@ -17,7 +17,7 @@ import MarkSoldPanel from '../../../components/listing/MarkSoldPanel.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { getSellerConnectStatus } from '../../../lib/services/seller-status';
-import { KIND_LABEL, CONDITION_LABEL } from '../../../lib/labels';
+import { KIND_LABEL, CONDITION_LABEL, REFUND_REASON } from '../../../lib/labels';
 import { extractListingId, listingPath } from '../../../lib/listing-url';
 
 // Accept either a bare UUID (legacy URL) or `<slug>-<uuid>` (pretty URL).
@@ -118,14 +118,7 @@ const { data: order } = (isOwner || isBuyer || isStaff)
   ? await supabase.from('orders').select('*').eq('listing_id', listing.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
   : { data: null };
 const refundOpen = !!(order?.refund_requested_at && !order?.refund_resolved_at);
-const refundReasonLabels: Record<string, string> = {
-  not_received: 'Ikke mottatt',
-  damaged: 'Skadet',
-  not_as_described: 'Ikke som beskrevet',
-  wrong_size: 'Feil størrelse',
-  changed_mind: 'Ombestemte meg',
-  other: 'Annet',
-};
+const refundReasonLabels = REFUND_REASON;
 
 const justPublished = Astro.url.searchParams.get('published') === '1';
 const justPromoted = Astro.url.searchParams.get('promoted') === '1';

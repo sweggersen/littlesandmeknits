@@ -4,6 +4,7 @@ import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
+import { REFUND_REASON } from '../labels';
 
 const VALID_REASONS = new Set(['not_received', 'damaged', 'not_as_described', 'wrong_size', 'changed_mind', 'other']);
 
@@ -125,7 +126,8 @@ export async function respondToRefund(
   }
 
   // Decline → escalate to formal dispute. Moderator picks it up via /admin/disputes.
-  const declineReason = `Selger avviste refusjon. Kjøpers grunn: ${order.refund_reason}.${input.notes ? ` Selgers svar: ${input.notes.slice(0, 500)}` : ''}`;
+  const reasonLabel = REFUND_REASON[order.refund_reason as string] ?? order.refund_reason;
+  const declineReason = `Selger avviste refusjon. Kjøpers grunn: ${reasonLabel}.${input.notes ? ` Selgers svar: ${input.notes.slice(0, 500)}` : ''}`;
   await updateOpenOrder(ctx.admin, listing.id, {
     status: 'disputed', disputed_at: now, dispute_reason: declineReason,
     refund_resolved_at: now, refund_outcome: 'declined',

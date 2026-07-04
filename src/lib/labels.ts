@@ -39,5 +39,10 @@ export const REPORT_STATUS: Record<string, string> = {
   open: 'Åpen', resolved: 'Løst', dismissed: 'Avvist',
 };
 
+export const REFUND_REASON: Record<string, string> = {
+  not_received: 'Ikke mottatt', damaged: 'Skadet', not_as_described: 'Ikke som beskrevet',
+  wrong_size: 'Feil størrelse', changed_mind: 'Ombestemte meg', other: 'Annet',
+};
+
 export const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_LABEL));
 export const VALID_PROJECT_STATUSES = new Set(Object.keys(PROJECT_STATUS));
