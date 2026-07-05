@@ -547,6 +547,18 @@ export async function releaseCommissionFunds(
   if (pi.status === 'succeeded') {
     if (pi.transfer_data) return { released: true }; // legacy, already routed
 
+    // Persistent double-transfer guard. The Stripe idempotency key below only
+    // dedupes within its 24h window, so it does NOT protect a *later* second
+    // release (e.g. chargeback re-freezes to disputed, admin resolves as
+    // release weeks later). If a transfer already exists for this request, the
+    // work is paid — never transfer again.
+    const { data: existing } = await admin
+      .from('commission_requests')
+      .select('stripe_transfer_id')
+      .eq('id', input.requestId)
+      .maybeSingle();
+    if (existing?.stripe_transfer_id) return { released: true };
+
     const { data: knitterSeller } = await admin
       .from('seller_profiles')
       .select('stripe_account_id')
@@ -883,7 +895,7 @@ export async function confirmDelivery(
     await recordPaymentEvent(ctx.admin, {
       kind: 'commission', type: 'released', commissionRequestId: input.requestId,
       actorId: ctx.user.id, amountNok: offer.price_nok,
-      feeNok: MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100,
+      feeNok: Math.round(MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100),
       paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'buyer_confirmed' },
     });
   }

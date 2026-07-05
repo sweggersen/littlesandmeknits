@@ -26,7 +26,7 @@ describe('money boundary', () => {
   // Raw fee arithmetic: multiplying by a percentage or the fee constant inline.
   const FORBIDDEN_MATH = [
     /\*\s*COMMISSION_FEE_PERCENT/,      // e.g. price * COMMISSION_FEE_PERCENT / 100
-    /\*\s*0\.0[0-9]\b/,                  // e.g. * 0.08  (a percentage fee)
+    /\*\s*0\.[0-9]/,                     // e.g. * 0.08 or * 0.13  (a percentage fee)
     /application_fee_amount:\s*[^,\n]*[-+*/]/,  // inline arithmetic on the app fee
   ];
 

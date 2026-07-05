@@ -412,6 +412,19 @@ export async function handleChargeRefunded(
       }, env);
     }
   } else {
+    // Commissions use separate charges & transfers: at delivery the knitter is
+    // paid via transfers.create OUT of the platform balance. A refund/chargeback
+    // after that does NOT auto-reverse that transfer, so the platform balance
+    // eats the full price while the knitter keeps the money. Flag for manual
+    // reconciliation (reverse the transfer / recover from the knitter) — mirrors
+    // the listing refund_after_payout dead-letter.
+    if (escrow.status === 'delivered') {
+      await recordDeadLetter(dlCtx(admin, env, escrow.buyerId), {
+        service: 'stripe.webhook:commission_refund_after_payout',
+        context: { commission_request_id: escrow.id, charge_id: charge.id, amount_refunded_ore: charge.amount_refunded },
+        error: 'Refund/chargeback after the knitter transfer was made — transfer is NOT auto-reversed; reconcile platform balance',
+      });
+    }
     await recordPaymentEvent(admin, {
       kind: 'commission', type: 'refunded', commissionRequestId: escrow.id,
       actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),

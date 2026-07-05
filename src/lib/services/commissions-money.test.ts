@@ -321,6 +321,19 @@ describe('releaseCommissionFunds', () => {
     expect((db.find('commission_requests', { id: 'req-1' }) as any).stripe_transfer_id).toBe('tr_1');
   });
 
+  it('double-transfer guard: if a transfer already exists, does NOT transfer again', async () => {
+    // Simulates a LATER second release (e.g. chargeback re-freezes to disputed,
+    // admin resolves as release weeks after the first payout — past the 24h
+    // Stripe idempotency-key window). The persistent stripe_transfer_id guard
+    // must make this a no-op so the knitter isn't paid twice.
+    const db = seed({ req: { stripe_transfer_id: 'tr_already' } });
+    const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
+    expect(r.released).toBe(true);
+    expect(transferCreate).not.toHaveBeenCalled();
+    // Existing transfer id is untouched.
+    expect((db.find('commission_requests', { id: 'req-1' }) as any).stripe_transfer_id).toBe('tr_already');
+  });
+
   // Money conservation across the sweep (buyer-pays-on-top): the knitter is
   // transferred the FULL price, and the platform retains the 8% fee the buyer
   // paid on top. So knitter transfer + platform fee = buyer total (price + fee).

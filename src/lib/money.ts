@@ -34,6 +34,19 @@ export function krToOre(nok: number): number {
   return ore;
 }
 
+/**
+ * Legacy-only reconciliation estimate. Listing orders created BEFORE the exact
+ * platform fee was echoed through Stripe session metadata have no recorded fee;
+ * 13% of the gross is a rough stand-in (wrong for store/ambassador rates and the
+ * TB fee) used solely to populate the ledger's `platform_fee_nok` for those old
+ * rows. It NEVER moves money — new orders always carry the exact fee. Lives here
+ * so the money-boundary guard keeps all fee math inside the authority.
+ */
+export function legacyListingFeeNokFromTotalOre(amountTotalOre: number | null | undefined): number {
+  if (!amountTotalOre) return 0;
+  return Math.round((amountTotalOre * 0.13) / 100);
+}
+
 export interface MoneyParts {
   /** Total the buyer is charged. */
   buyerChargeOre: number;

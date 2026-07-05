@@ -1,8 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { resolveDispute } from './disputes';
 import type { ServiceContext } from './types';
 
 vi.mock('../notify', () => ({ createNotification: vi.fn() }));
+
+// Isolate call history between tests (implementations/return values survive
+// clearAllMocks, so the stripeRetrieve default stays 'succeeded').
+beforeEach(() => vi.clearAllMocks());
 
 const stripeCancel = vi.fn().mockResolvedValue({});
 const stripeCapture = vi.fn().mockResolvedValue({});
@@ -154,41 +158,65 @@ describe('resolveDispute — listing', () => {
     if (!r.ok) expect(r.code).toBe('server_error');
   });
 
-  it('refund: cancels PI, reverts listing to active, clears buyer', async () => {
+  // Common case: the listing was shipped, so escrow was captured at ship and
+  // the PI is `succeeded`. A refund must REFUND the captured charge (not cancel,
+  // which throws) and a release must NOT re-capture.
+  it('refund (captured/succeeded PI): refunds charge + reverses transfer/fee', async () => {
     const { ctx, updates, inserts } = mockCtx({ role: 'admin', listing: disputedListing });
     const r = await resolveDispute(ctx, {
       itemType: 'listing', itemId: 'l1', decision: 'refund', notes: 'broken',
     });
     expect(r.ok).toBe(true);
-    expect(stripeCancel).toHaveBeenCalledWith('pi_x');
-    // Catalog row back to active + holder cleared.
+    expect(stripeCancel).not.toHaveBeenCalled();
+    expect(stripeRefundCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ payment_intent: 'pi_x', reverse_transfer: true, refund_application_fee: true }),
+      expect.objectContaining({ idempotencyKey: 'listing-refund-pi_x' }),
+    );
     expect((updates.find((x: any) => x.table === 'listings') as any).row).toMatchObject({ status: 'active', buyer_id: null });
-    // Order keeps the cancelled + resolution record.
     const o = updates.find((x: any) => x.table === 'orders') as any;
     expect(o.row).toMatchObject({ status: 'cancelled', cancel_reason: 'admin_refund', dispute_resolution: 'broken' });
-    // Ledger: dispute closed (refund) + the refund money move.
     const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
     expect(evs).toContainEqual(expect.objectContaining({ event_type: 'dispute_resolved', order_id: 'o1', context: { decision: 'refund' } }));
     expect(evs).toContainEqual(expect.objectContaining({ event_type: 'refunded', order_id: 'o1' }));
   });
 
-  it('release: captures PI, marks sold + delivered', async () => {
+  it('release (captured/succeeded PI): does NOT re-capture, marks sold + delivered', async () => {
     const { ctx, updates, inserts } = mockCtx({ role: 'admin', listing: disputedListing });
     const r = await resolveDispute(ctx, {
       itemType: 'listing', itemId: 'l1', decision: 'release', notes: '',
     });
     expect(r.ok).toBe(true);
-    expect(stripeCapture).toHaveBeenCalledWith('pi_x');
+    expect(stripeCapture).not.toHaveBeenCalled(); // already captured at ship
     const l = updates.find((x: any) => x.table === 'listings') as any;
     expect(l.row.status).toBe('sold');
     expect(typeof l.row.sold_at).toBe('string');
     const o = updates.find((x: any) => x.table === 'orders') as any;
     expect(o.row).toMatchObject({ status: 'delivered', dispute_resolution: 'Released by admin' });
     expect(typeof o.row.delivered_at).toBe('string');
-    // Ledger: dispute closed (release) + the release money move.
     const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
     expect(evs).toContainEqual(expect.objectContaining({ event_type: 'dispute_resolved', order_id: 'o1', context: { decision: 'release' } }));
     expect(evs).toContainEqual(expect.objectContaining({ event_type: 'released', order_id: 'o1' }));
+  });
+
+  // Dispute opened BEFORE shipping: the hold is still uncaptured
+  // (requires_capture). Refund cancels the hold; release captures to the seller.
+  it('refund (pre-capture/requires_capture PI): cancels the hold', async () => {
+    stripeRetrieve.mockResolvedValueOnce({ status: 'requires_capture', transfer_data: null });
+    const { ctx, updates } = mockCtx({ role: 'admin', listing: disputedListing });
+    const r = await resolveDispute(ctx, { itemType: 'listing', itemId: 'l1', decision: 'refund' });
+    expect(r.ok).toBe(true);
+    expect(stripeCancel).toHaveBeenCalledWith('pi_x');
+    expect(stripeRefundCreate).not.toHaveBeenCalled();
+    expect((updates.find((x: any) => x.table === 'listings') as any).row).toMatchObject({ status: 'active', buyer_id: null });
+  });
+
+  it('release (pre-capture/requires_capture PI): captures to seller', async () => {
+    stripeRetrieve.mockResolvedValueOnce({ status: 'requires_capture', transfer_data: null });
+    const { ctx, updates } = mockCtx({ role: 'admin', listing: disputedListing });
+    const r = await resolveDispute(ctx, { itemType: 'listing', itemId: 'l1', decision: 'release' });
+    expect(r.ok).toBe(true);
+    expect(stripeCapture).toHaveBeenCalledWith('pi_x');
+    expect((updates.find((x: any) => x.table === 'listings') as any).row.status).toBe('sold');
   });
 
   it('writes a moderation_audit_log entry', async () => {

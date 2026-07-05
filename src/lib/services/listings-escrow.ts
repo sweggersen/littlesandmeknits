@@ -12,6 +12,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
+import { legacyListingFeeNokFromTotalOre } from '../money';
 import { recordDeadLetter } from './dead-letter';
 import { killGuard, isKilled } from '../flags';
 import { createReservedOrder, updateOpenOrder, findOpenOrder } from './orders';
@@ -89,7 +90,7 @@ export async function completeListingPurchase(
   // metadata existed and is wrong for ambassador/store rates + the TB fee.
   const feeNok = p.platformFeeOre != null
     ? Math.round(p.platformFeeOre / 100)
-    : p.amountTotalOre ? Math.round((p.amountTotalOre * 0.13) / 100) : 0;
+    : legacyListingFeeNokFromTotalOre(p.amountTotalOre);
 
   // The listing carries only the catalog projection (status + current holder);
   // the order (below) is the sole home of money, PII and lifecycle.

@@ -5,6 +5,7 @@ import { createNotification } from '../notify';
 import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
 import { updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
+import { recordDeadLetter } from './dead-letter';
 import { MoneyBreakdown } from '../money';
 
 type Decision = 'refund' | 'release';
@@ -59,9 +60,35 @@ async function resolveListingDispute(
   // The disputed order holds the PaymentIntent.
   const order = await findOpenOrder(ctx.admin, listingId);
   if (!order?.stripe_payment_intent_id) return fail('server_error', 'No payment intent');
+  const piId = order.stripe_payment_intent_id;
+
+  // Listing escrow is CAPTURED at ship time, so a disputed order may be either
+  // pre-capture (requires_capture — dispute opened before shipping) or already
+  // captured (succeeded — the common "arrived but not as described" case). The
+  // old code blindly cancel()'d / capture()'d, which THROWS on a captured PI,
+  // making the primary admin dispute tool 500 for the common case. Branch on
+  // the real PI status and use a proper refund when already captured.
+  const pi = await stripe.paymentIntents.retrieve(piId);
 
   if (decision === 'refund') {
-    await stripe.paymentIntents.cancel(order.stripe_payment_intent_id);
+    if (pi.status === 'requires_capture') {
+      await stripe.paymentIntents.cancel(piId); // uncaptured hold → void it
+    } else if (pi.status === 'succeeded') {
+      // Captured destination charge → refund buyer, reverse the seller transfer
+      // and return our platform fee, so buyer/seller/platform all net to zero.
+      await stripe.refunds.create({
+        payment_intent: piId,
+        reverse_transfer: true,
+        refund_application_fee: true,
+      }, { idempotencyKey: `listing-refund-${piId}` });
+    } else if (pi.status !== 'canceled') {
+      await recordDeadLetter({ admin: ctx.admin }, {
+        service: 'disputes.resolveListingDispute:refund-bad-state',
+        context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, pi_status: pi.status },
+        error: `Cannot refund a PaymentIntent in status=${pi.status}`,
+      });
+      return fail('conflict', 'Betalingen kan ikke refunderes i sin nåværende tilstand');
+    }
     const resolution = notes?.trim() || 'Refunded by admin';
     await updateOpenOrder(ctx.admin, listingId, {
       status: 'cancelled', cancelled_at: now, cancel_reason: 'admin_refund',
@@ -69,7 +96,17 @@ async function resolveListingDispute(
     });
     await ctx.admin.from('listings').update({ status: 'active', buyer_id: null, sold_at: null }).eq('id', listingId);
   } else {
-    await stripe.paymentIntents.capture(order.stripe_payment_intent_id);
+    if (pi.status === 'requires_capture') {
+      await stripe.paymentIntents.capture(piId); // not yet captured → capture to seller now
+    } else if (pi.status !== 'succeeded') {
+      // succeeded = already captured at ship (funds with seller); nothing to do.
+      await recordDeadLetter({ admin: ctx.admin }, {
+        service: 'disputes.resolveListingDispute:release-bad-state',
+        context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, pi_status: pi.status },
+        error: `Cannot release a PaymentIntent in status=${pi.status}`,
+      });
+      return fail('conflict', 'Betalingen kan ikke frigis i sin nåværende tilstand');
+    }
     const resolution = notes?.trim() || 'Released by admin';
     await updateOpenOrder(ctx.admin, listingId, {
       status: 'delivered', delivered_at: now,
@@ -189,7 +226,7 @@ async function resolveCommissionDispute(
     commissionRequestId: requestId, actorId: ctx.user.id,
     amountNok: offer?.price_nok ?? null,
     feeNok: decision === 'release' && offer
-      ? MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100 : null,
+      ? Math.round(MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100) : null,
     paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'admin_dispute' },
   });
 
