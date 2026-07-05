@@ -118,6 +118,42 @@ Payments are gated by the key. To pause live payments, either flip the
 leaving the rest of the site up. Disputes/refunds continue to flow through the
 webhook regardless.
 
+## Account ownership + business-structure notes (decided 2026-07)
+
+The platform Stripe account must belong to the **registered operating entity**,
+not a personal account — the platform is merchant of record (funds flow buyer →
+platform → seller), so payment volume, chargeback/refund liability, and tax all
+sit with the account holder.
+
+- **Owner:** Strikketorget is registered to (wife). Create/activate the Stripe
+  account under **her / the business**, add the developer as a **team member**
+  (Developer role) for integration work. Do NOT use a personal Stripe account.
+- **Structure today: ENK** (enkeltpersonforetak). Valid for Stripe, but ENK =
+  **unlimited personal liability** — chargebacks, buyer refunds, and a negative
+  Stripe balance land on the owner personally. The escrow design (manual
+  capture, 7-day payout delay, delivery confirmation) caps realistic downside,
+  and low-value physical goods are defensible on disputes, so ENK is an
+  acceptable *launch* structure.
+- **AS-conversion trigger:** convert to an AS (limited liability, ~30k NOK share
+  capital) once monthly GMV — other people's money moving through the platform —
+  is large enough that personal exposure is uncomfortable. Nothing in the code
+  changes; only the Stripe account's entity does.
+- **Ask a regnskapsfører before scaling:** (1) as merchant-of-record collecting
+  the *gross* amount, what counts as the ENK's MVA turnover — the commission
+  (revenue) vs. the seller's share (pass-through)? (2) MVA registration is
+  mandatory past 50 000 NOK turnover / 12 months. (3) confirm the liability
+  picture for a payments platform specifically.
+
+## Seller remediation (gap to build before real sellers)
+
+Custom Connect makes the platform responsible for (a) telling sellers when their
+account needs more info / is restricted and (b) collecting that info. Today the
+`account.updated` webhook stores `requirements` but only notifies on the
+happy-path "verified" transition, and `become-seller` can't re-submit info for
+an existing account. Build: a "verification needed" seller notification when
+requirements appear, and a remediation path (a Stripe Account Link the seller
+clicks to submit what's due). Independent of which account owns the platform.
+
 ## Money-path safety (already in place)
 - Webhook verifies the Stripe signature (`constructEventAsync`) and is
   **idempotent** (`markEventProcessed` per `event.id`).
