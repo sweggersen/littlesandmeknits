@@ -363,6 +363,75 @@ export async function cancelCommission(
   return ok({ redirect: '/market/commissions/my-listings' });
 }
 
+/** Days past `needed_by` before the buyer may cancel an in-progress commission
+ *  for a refund (P1.1). A grace window so a knitter isn't cut off the instant
+ *  the deadline passes. */
+export const LATE_CANCEL_GRACE_DAYS = 7;
+
+/** Buyer cancels a PAID, in-progress commission whose knitter is overdue, and
+ *  gets refunded (P1.1). Only valid once the money is in escrow (awarded /
+ *  awaiting_yarn) and now is past needed_by + grace. Delivered/completed work
+ *  can't be cancelled this way — that's a dispute. */
+export async function cancelLateCommission(
+  ctx: ServiceContext,
+  input: { requestId: string; now?: Date },
+): Promise<ServiceResult<{ redirect: string }>> {
+  if (!input.requestId) return fail('bad_input', 'Missing request ID');
+  const now = input.now ?? new Date();
+
+  const { data: req } = await ctx.supabase
+    .from('commission_requests')
+    .select('id, buyer_id, status, title, needed_by, stripe_payment_intent_id, awarded_offer_id')
+    .eq('id', input.requestId)
+    .maybeSingle();
+
+  if (!req || req.buyer_id !== ctx.user.id) return fail('forbidden', 'Not your request');
+  // Only money-in-escrow, in-progress states — NOT completed/delivered (those
+  // are disputes) and NOT open/awaiting_payment (no money to refund).
+  if (req.status !== 'awarded' && req.status !== 'awaiting_yarn') {
+    return fail('conflict', 'Oppdraget kan ikke avbestilles i denne fasen.');
+  }
+  if (!req.needed_by) {
+    return fail('conflict', 'Ingen frist er avtalt. Ta kontakt med oss for å avbestille.');
+  }
+  const cutoff = new Date(req.needed_by);
+  cutoff.setDate(cutoff.getDate() + LATE_CANCEL_GRACE_DAYS);
+  if (now < cutoff) {
+    return fail('conflict', 'Fristen er ikke passert ennå. Du kan avbestille hvis strikkeren blir forsinket.');
+  }
+
+  // Refund the buyer (money is still in the platform balance / escrow).
+  if (req.stripe_payment_intent_id) {
+    await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+  }
+  // commission_requests has no cancel_reason column — the reason ('late_knitter')
+  // is captured in the payment_events ledger below.
+  await ctx.admin.from('commission_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', input.requestId);
+
+  await recordPaymentEvent(ctx.admin, {
+    kind: 'commission', type: 'refunded', commissionRequestId: input.requestId,
+    actorId: ctx.user.id, paymentIntentId: req.stripe_payment_intent_id ?? undefined,
+    context: { trigger: 'buyer_late_cancel' },
+  });
+
+  // Tell the knitter their overdue commission was cancelled.
+  const { data: offer } = await ctx.admin
+    .from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id!).maybeSingle();
+  if (offer?.knitter_id) {
+    await createNotification(ctx.admin, {
+      userId: offer.knitter_id, type: 'commission_cancelled',
+      title: 'Oppdrag avbestilt',
+      body: `«${req.title}» ble avbestilt fordi fristen ble passert. Kjøperen er refundert.`,
+      url: `/market/commissions/${input.requestId}`,
+      referenceId: input.requestId,
+    }, ctx.env);
+  }
+
+  return ok({ redirect: `/market/commissions/${input.requestId}` });
+}
+
 // Commission ("Strikk for meg") platform fee, per terms §5: flat 8 % of the
 // agreed price, paid by the BUYER on top of the quote. The knitter keeps 100%.
 // Pure helpers live in ../commission-pricing (importable by Astro components);

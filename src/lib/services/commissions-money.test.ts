@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { payCommission, finalizeCommissionPayment, releaseCommissionFunds, refundCommissionPayment, makeOffer, knitterCompletedCount } from './commissions';
+import { payCommission, finalizeCommissionPayment, releaseCommissionFunds, refundCommissionPayment, makeOffer, knitterCompletedCount, cancelLateCommission } from './commissions';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
@@ -481,5 +481,64 @@ describe('makeOffer — buyer-yarn requires a proven knitter (P0.3)', () => {
     });
     const r = await makeOffer(ctxFor(db, 'knitter-new'), offerInput);
     expect(r.ok).toBe(true);
+  });
+});
+
+describe('cancelLateCommission — buyer cancels an overdue commission (P1.1)', () => {
+  const NOW = new Date('2026-03-01T00:00:00.000Z');
+  const overdue = '2026-02-01T00:00:00.000Z'; // > 7 days before NOW
+  const soon = '2026-02-27T00:00:00.000Z';    // < 7 days before NOW
+
+  function seedInProgress(over: Record<string, unknown> = {}) {
+    return createFakeDb({
+      commission_requests: [{
+        id: 'req-1', buyer_id: 'buyer-1', status: 'awarded', title: 'Genser',
+        needed_by: overdue, stripe_payment_intent_id: 'pi_c', awarded_offer_id: 'o1', ...over,
+      }],
+      commission_offers: [{ id: 'o1', knitter_id: 'knitter-1', status: 'accepted', price_nok: 1000 }],
+    });
+  }
+
+  it('refunds + cancels + notifies when overdue past the grace window', async () => {
+    const db = seedInProgress();
+    const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(true);
+    expect(refundCreate).toHaveBeenCalledTimes(1); // buyer refunded (idempotent)
+    expect((db.find('commission_requests', { id: 'req-1' }) as any).status).toBe('cancelled');
+    expect(db.find('payment_events', { event_type: 'refunded' })).toMatchObject({
+      kind: 'commission', commission_request_id: 'req-1', context: { trigger: 'buyer_late_cancel' },
+    });
+    const [, payload] = vi.mocked(createNotification).mock.calls[0];
+    expect(payload).toMatchObject({ userId: 'knitter-1', type: 'commission_cancelled' });
+  });
+
+  it('refuses before the grace window has passed', async () => {
+    const db = seedInProgress({ needed_by: soon });
+    const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    expect(refundCreate).not.toHaveBeenCalled();
+  });
+
+  it('refuses for a non-buyer', async () => {
+    const db = seedInProgress();
+    const r = await cancelLateCommission(ctxFor(db, 'someone-else'), { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('forbidden');
+  });
+
+  it('refuses in a non-in-progress state (e.g. completed = dispute territory)', async () => {
+    const db = seedInProgress({ status: 'completed' });
+    const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    expect(refundCreate).not.toHaveBeenCalled();
+  });
+
+  it('refuses when no deadline was agreed (needed_by null)', async () => {
+    const db = seedInProgress({ needed_by: null });
+    const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
   });
 });

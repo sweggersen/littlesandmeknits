@@ -41,6 +41,14 @@ if (!req) return Astro.redirect('/market/commissions');
 const isBuyer = user?.id === req.buyer_id;
 const isOpen = req.status === 'open';
 
+// P1.1: the buyer may cancel a paid, in-progress commission for a refund once
+// the knitter is > 7 days past the agreed deadline (matches LATE_CANCEL_GRACE_DAYS).
+const LATE_GRACE_DAYS = 7;
+const canLateCancel = isBuyer
+  && (req.status === 'awarded' || req.status === 'awaiting_yarn')
+  && !!req.needed_by
+  && (() => { const c = new Date(req.needed_by as string); c.setDate(c.getDate() + LATE_GRACE_DAYS); return new Date() >= c; })();
+
 // Fetch offers — public prices, buyer sees all details
 const { data: offers } = await supabase
   .from('commission_offers')
@@ -163,6 +171,18 @@ const commissionShare = commissionShareMeta({
       {isBuyer && req.status === 'rejected' && (
         <div class="bg-red-50 text-red-900 rounded-2xl p-4 mb-6 text-sm">
           Forespørselen ble avvist. {(req as any).moderation_notes ? `Grunn: ${(req as any).moderation_notes}` : 'Innholdet oppfyller ikke retningslinjene våre.'}
+        </div>
+      )}
+
+      {canLateCancel && (
+        <div class="bg-amber-50 border border-amber-300 text-amber-900 rounded-2xl p-4 mb-6 text-sm space-y-3">
+          <p><strong>Strikkeren er forsinket.</strong> Fristen ble passert for over en uke siden. Du kan avbestille oppdraget og få pengene tilbake.</p>
+          <form method="post" action="/api/marketplace/commissions/cancel-late">
+            <input type="hidden" name="request_id" value={req.id} />
+            <button type="submit" class="btn-primary rounded-full py-2.5 px-5 text-sm font-semibold">
+              Avbestill og få refusjon
+            </button>
+          </form>
         </div>
       )}
 
