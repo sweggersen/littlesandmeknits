@@ -418,14 +418,18 @@ describe('refundCommissionPayment', () => {
   it('plain refund for a new-rail charge (platform balance, NO reverse_transfer)', async () => {
     // default piRetrieve: succeeded, transfer_data null
     await refundCommissionPayment('sk_test', 'pi_x');
-    expect(refundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_x' });
+    // Idempotency key (per PI) prevents a double refund on retry.
+    expect(refundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_x' }, { idempotencyKey: 'commission-refund-pi_x' });
     expect(piCancel).not.toHaveBeenCalled();
   });
 
   it('reverse-transfer refund for a legacy destination charge', async () => {
     piRetrieve.mockResolvedValueOnce({ status: 'succeeded', transfer_data: { destination: 'acct_knitter' } });
     await refundCommissionPayment('sk_test', 'pi_x');
-    expect(refundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_x', reverse_transfer: true, refund_application_fee: true });
+    expect(refundCreate).toHaveBeenCalledWith(
+      { payment_intent: 'pi_x', reverse_transfer: true, refund_application_fee: true },
+      { idempotencyKey: 'commission-refund-pi_x' },
+    );
   });
 });
 

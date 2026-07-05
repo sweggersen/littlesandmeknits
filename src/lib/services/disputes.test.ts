@@ -241,7 +241,7 @@ describe('resolveDispute — commission', () => {
     });
     expect(r.ok).toBe(true);
     // Captured into the platform balance → refund, no cancel, NO reverse_transfer.
-    expect(stripeRefundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_y' });
+    expect(stripeRefundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_y' }, { idempotencyKey: 'commission-refund-pi_y' });
     expect(stripeCancel).not.toHaveBeenCalled();
     const u = updates.find((x: any) => x.table === 'commission_requests') as any;
     expect(u.row.status).toBe('cancelled');

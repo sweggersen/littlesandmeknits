@@ -90,6 +90,9 @@ export async function respondToRefund(
             payment_intent: order.stripe_payment_intent_id,
             reverse_transfer: true,
             refund_application_fee: true,
+          }, {
+            // Per-PI idempotency: a retry/double-accept can't refund the buyer twice.
+            idempotencyKey: `listing-refund-${order.stripe_payment_intent_id}`,
           });
         } catch (e) {
           console.error('Refund failed both paths', e);

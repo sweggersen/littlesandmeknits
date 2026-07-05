@@ -712,6 +712,17 @@ describe('confirmListingDelivery', () => {
     expect(piCapture).not.toHaveBeenCalled();
     expect((db.find('listings', { id: 'l1' }) as any).status).toBe('sold');
   });
+
+  it('dead auth at confirm (PI neither capturable nor succeeded): dead-letters, does NOT mark sold', async () => {
+    piRetrieve.mockResolvedValueOnce({ status: 'canceled' });
+    const db = seedShipped();
+    const r = await confirmListingDelivery(ctxFor(db, 'buyer-1'), { listingId: 'l1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    expect(recordDeadLetter).toHaveBeenCalledTimes(1);
+    expect(piCapture).not.toHaveBeenCalled();
+    expect((db.find('listings', { id: 'l1' }) as any).status).not.toBe('sold'); // money not lost silently
+  });
 });
 
 // H2: shipListing capture must never run against a dead auth (fake-db so the

@@ -233,7 +233,7 @@ describe('respondToRefund', () => {
       payment_intent: 'pi_test',
       reverse_transfer: true,
       refund_application_fee: true,
-    });
+    }, { idempotencyKey: 'listing-refund-pi_test' });
   });
 
   it('on decline: flips status to disputed + records outcome', async () => {

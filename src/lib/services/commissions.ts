@@ -539,13 +539,16 @@ export async function refundCommissionPayment(
     await stripe.paymentIntents.cancel(paymentIntentId);
     return;
   }
+  // Idempotency key (per PI) so a webhook retry / double dispute-resolve can't
+  // issue TWO refunds and pay the buyer back twice.
+  const idem = { idempotencyKey: `commission-refund-${paymentIntentId}` };
   if (pi.transfer_data) {
     // Legacy destination charge: pull the funds back from the connected
     // account and return our application fee so the buyer is made whole.
-    await stripe.refunds.create({ payment_intent: paymentIntentId, reverse_transfer: true, refund_application_fee: true });
+    await stripe.refunds.create({ payment_intent: paymentIntentId, reverse_transfer: true, refund_application_fee: true }, idem);
   } else {
     // New rail: funds are still in the platform balance — plain refund.
-    await stripe.refunds.create({ payment_intent: paymentIntentId });
+    await stripe.refunds.create({ payment_intent: paymentIntentId }, idem);
   }
 }
 
