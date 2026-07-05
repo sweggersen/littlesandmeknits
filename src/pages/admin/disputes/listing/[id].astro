@@ -4,6 +4,8 @@ import { requireAdmin } from '../../../../lib/admin-auth';
 import { createServerSupabase } from '../../../../lib/supabase';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getAuthEmails } from '../../../../lib/services/admin-emails';
+import { buyerDisputeHistory } from '../../../../lib/services/buyer-history';
+import BuyerHistoryPanel from '../../../../components/admin/BuyerHistoryPanel.astro';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -53,6 +55,7 @@ const emails = emailsRes?.ok ? emailsRes.data : new Map<string, string>();
 
 const buyerName = buyerProfile?.display_name ?? null;
 const buyerEmail = (listing.buyer_id && emails.get(listing.buyer_id)) ?? null;
+const buyerHistory = await buyerDisputeHistory(supabase, listing.buyer_id);
 const sellerName = storeRow?.name ?? sellerProfile?.display_name ?? null;
 const sellerEmail = storeRow?.contact_email ?? emails.get(listing.seller_id) ?? null;
 const sellerKind: 'butikk' | 'selger' = storeRow ? 'butikk' : 'selger';
@@ -102,6 +105,8 @@ const sellerMailto = sellerEmail
           <p>{sellerName ?? '—'}</p>
         </div>
       </div>
+
+      <BuyerHistoryPanel history={buyerHistory} buyerName={buyerName} />
 
       {listing.dispute_reason && (
         <div>

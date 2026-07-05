@@ -1,0 +1,57 @@
+---
+// Buyer claim-history panel for the admin dispute pages (P1.3). Shows how often
+// this buyer has requested refunds / opened disputes, so a moderator resolving
+// one case can see the pattern. The `repeatClaimer` flag is a prompt to look
+// closer, never an automatic decision.
+import type { BuyerDisputeHistory } from '../../lib/services/buyer-history';
+
+interface Props {
+  history: BuyerDisputeHistory;
+  buyerName?: string | null;
+}
+const { history, buyerName } = Astro.props;
+const { purchases, claims, upheldClaims, claimRate, repeatClaimer } = history;
+const ratePct = Math.round(claimRate * 100);
+---
+
+<div class:list={[
+  'rounded-lg p-3 text-xs border',
+  repeatClaimer ? 'bg-red-50 border-red-200' : 'bg-linen border-sage-500/15',
+]}>
+  <div class="flex items-center justify-between mb-2">
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">
+      Kjøperhistorikk{buyerName ? ` · ${buyerName}` : ''}
+    </p>
+    {repeatClaimer && (
+      <span class="text-[10px] font-bold uppercase tracking-widest text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
+        Gjentatt refusjonskrav
+      </span>
+    )}
+  </div>
+
+  {purchases === 0 ? (
+    <p class="text-charcoal/55">Ingen tidligere kjøp registrert.</p>
+  ) : (
+    <div class="grid grid-cols-3 gap-2 text-center">
+      <div>
+        <p class="text-lg font-serif leading-none">{purchases}</p>
+        <p class="text-[10px] text-charcoal/55 mt-1">Kjøp</p>
+      </div>
+      <div>
+        <p class:list={['text-lg font-serif leading-none', claims > 0 && 'text-red-600']}>{claims}</p>
+        <p class="text-[10px] text-charcoal/55 mt-1">Krav ({ratePct}%)</p>
+      </div>
+      <div>
+        <p class="text-lg font-serif leading-none">{upheldClaims}</p>
+        <p class="text-[10px] text-charcoal/55 mt-1">Refundert</p>
+      </div>
+    </div>
+  )}
+
+  {repeatClaimer && (
+    <p class="mt-2 text-[11px] text-red-700/90 leading-snug">
+      Denne kjøperen har åpnet krav på flertallet av kjøpene sine. Vurder
+      dokumentasjonen ekstra nøye før du refunderer.
+    </p>
+  )}
+</div>

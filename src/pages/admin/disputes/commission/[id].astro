@@ -4,6 +4,8 @@ import { requireAdmin } from '../../../../lib/admin-auth';
 import { createServerSupabase } from '../../../../lib/supabase';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getAuthEmails } from '../../../../lib/services/admin-emails';
+import { buyerDisputeHistory } from '../../../../lib/services/buyer-history';
+import BuyerHistoryPanel from '../../../../components/admin/BuyerHistoryPanel.astro';
 
 const auth = await requireAdmin(Astro.request, Astro.cookies);
 if (!auth) return Astro.redirect('/market');
@@ -39,6 +41,7 @@ const buyerName = buyerP?.display_name ?? null;
 const buyerEmail = emails.get(req.buyer_id) ?? null;
 const knitterName = knitterP?.display_name ?? null;
 const knitterEmail = (knitterId && emails.get(knitterId)) || null;
+const buyerHistory = await buyerDisputeHistory(supabase, req.buyer_id);
 
 const itemUrl = `/market/commissions/${req.id}`;
 const isOpen = req.status === 'disputed';
@@ -72,6 +75,8 @@ const knitterMailto = knitterEmail
         <div><p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-0.5">Kjøper</p><p>{buyerName ?? '—'}</p></div>
         <div><p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-0.5">Strikker</p><p>{knitterName ?? '—'}</p></div>
       </div>
+
+      <BuyerHistoryPanel history={buyerHistory} buyerName={buyerName} />
 
       {req.dispute_reason && (
         <div>
