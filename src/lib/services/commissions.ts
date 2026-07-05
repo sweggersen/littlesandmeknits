@@ -9,7 +9,7 @@ import { recordDeadLetter } from './dead-letter';
 import { recordPaymentEvent } from './payment-events';
 import { assertWithinQuota } from './quota';
 import { killGuard } from '../flags';
-import { COMMISSION_FEE_PERCENT as FEE_PERCENT } from '../commission-pricing';
+import { MoneyBreakdown } from '../money';
 
 const toIntOrNull = (v: string | undefined): number | null => {
   if (!v) return null;
@@ -374,9 +374,9 @@ export async function payCommission(
   }
 
   // Buyer pays the knitter's quote PLUS the platform fee on top (knitter keeps
-  // 100%). Two line items so the buyer sees the breakdown on Stripe's page too.
-  const priceOre = offer.price_nok * 100;
-  const platformFee = Math.round(priceOre * FEE_PERCENT / 100);
+  // 100%). All money math is assembled + validated by the money authority.
+  const money = MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok });
+  const platformFee = money.platformFeeOre;
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
@@ -392,16 +392,9 @@ export async function payCommission(
   // NOT here, so an abandoned checkout leaves the request untouched.
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
-    line_items: [
-      {
-        price_data: { currency: 'nok', unit_amount: priceOre, product_data: { name: `Strikk for meg: ${req.title}` } },
-        quantity: 1,
-      },
-      {
-        price_data: { currency: 'nok', unit_amount: platformFee, product_data: { name: 'Strikketorget-gebyr (trygg betaling)' } },
-        quantity: 1,
-      },
-    ],
+    line_items: money
+      .lineItems({ item: `Strikk for meg: ${req.title}`, fee: 'Strikketorget-gebyr (trygg betaling)' })
+      .map((li) => ({ price_data: { currency: 'nok' as const, unit_amount: li.amountOre, product_data: { name: li.name } }, quantity: 1 })),
     payment_method_types: ['vipps' as 'card', 'card'],
     success_url: `${siteUrl}/market/commissions/${input.requestId}?paid=1`,
     cancel_url: `${siteUrl}/market/commissions/${input.requestId}`,
@@ -467,19 +460,18 @@ export async function releaseCommissionFunds(
       return { released: false, reason: 'no_payout_account' };
     }
 
-    // The buyer paid price + fee; transfer the FULL price to the knitter and
-    // retain the fee in the platform balance. feeOre is recorded in metadata.
-    const priceOre = input.priceNok * 100;
-    const feeOre = Math.round(priceOre * FEE_PERCENT / 100);
+    // The buyer paid price + fee; transfer the FULL price (sellerCredit) to the
+    // knitter and retain the fee. Money math via the validated authority.
+    const money = MoneyBreakdown.commissionPayment({ priceNok: input.priceNok });
     const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
     const transfer = await stripe.transfers.create({
-      amount: priceOre,
+      amount: money.sellerCreditOre,
       currency: 'nok',
       destination: knitterSeller.stripe_account_id,
       // Draw against the original charge's funds (not the general balance).
       ...(chargeId ? { source_transaction: chargeId } : {}),
       transfer_group: `commission_${input.requestId}`,
-      metadata: { commission_request_id: input.requestId, platform_fee_ore: String(feeOre) },
+      metadata: { commission_request_id: input.requestId, platform_fee_ore: String(money.platformFeeOre) },
     }, {
       // One transfer per commission, even if confirm + cron race.
       idempotencyKey: `commission-transfer-${input.requestId}`,
@@ -769,7 +761,7 @@ export async function confirmDelivery(
     await recordPaymentEvent(ctx.admin, {
       kind: 'commission', type: 'released', commissionRequestId: input.requestId,
       actorId: ctx.user.id, amountNok: offer.price_nok,
-      feeNok: Math.round(offer.price_nok * FEE_PERCENT / 100),
+      feeNok: MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100,
       paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'buyer_confirmed' },
     });
   }

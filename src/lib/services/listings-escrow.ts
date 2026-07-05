@@ -173,8 +173,8 @@ export async function purchaseListing(
   if (listing.seller_id === ctx.user.id) return fail('bad_input', 'Cannot buy own listing');
   if (!listing.escrow_enabled) return fail('conflict', 'Selger har ikke aktivert trygg betaling på denne annonsen — kontakt selger direkte');
 
-  const { tbFeeForPrice, shippingTier } = await import('../shipping');
-  const tbFee = tbFeeForPrice(listing.price_nok);
+  const { shippingTier } = await import('../shipping');
+  const { MoneyBreakdown } = await import('../money');
   // shipping_price_nok was locked at listing time; fall back to the tier
   // default if missing (legacy rows).
   const tierFallback = shippingTier(listing.shipping_option as any);
@@ -206,24 +206,16 @@ export async function purchaseListing(
   if (!onboarded || !payoutAccountId) {
     return fail('conflict', 'Seller has not set up payments');
   }
-  const itemOre = listing.price_nok * 100;
-  const shippingOre = shippingNok * 100;
-  const tbFeeOre = tbFee * 100;
-  // H4 launch fee model: NO commission on the item ("Vi tar ingen prosent av
-  // salget, du som selger får hele beløpet"). The platform's revenue on a
-  // listing sale is the buyer-paid TB fee only; item + shipping pass through
-  // to the seller untouched.
-  const applicationFeeOre = tbFeeOre;
+  // ALL money math for a listing sale is assembled + validated by the money
+  // authority. H4 launch fee model: NO commission on the item — the platform's
+  // revenue is the buyer-paid TB fee only; item + shipping pass through to the
+  // seller (the Stripe application fee on this destination charge = the TB fee).
+  const money = MoneyBreakdown.listingPurchase({ priceNok: listing.price_nok, shippingNok });
+  const applicationFeeOre = money.applicationFeeOre;
 
-  const lineItems = [
-    { price_data: { currency: 'nok', unit_amount: itemOre, product_data: { name: listing.title } }, quantity: 1 },
-  ];
-  if (shippingOre > 0) {
-    lineItems.push({ price_data: { currency: 'nok', unit_amount: shippingOre, product_data: { name: `Frakt (${tierFallback?.label ?? 'sending'})` } }, quantity: 1 });
-  }
-  if (tbFeeOre > 0) {
-    lineItems.push({ price_data: { currency: 'nok', unit_amount: tbFeeOre, product_data: { name: 'Trygg betaling' } }, quantity: 1 });
-  }
+  const lineItems = money
+    .lineItems({ item: listing.title, shipping: `Frakt (${tierFallback?.label ?? 'sending'})`, fee: 'Trygg betaling' })
+    .map((li) => ({ price_data: { currency: 'nok' as const, unit_amount: li.amountOre, product_data: { name: li.name } }, quantity: 1 }));
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(input.stripeSecretKey);
@@ -250,7 +242,7 @@ export async function purchaseListing(
       listing_id: input.listingId,
       buyer_id: ctx.user.id,
       seller_id: listing.seller_id,
-      tb_fee_nok: String(tbFee),
+      tb_fee_nok: String(money.platformFeeOre / 100),
       shipping_nok: String(shippingNok),
       // Exact application fee, echoed back by the webhook so the recorded
       // platform_fee_nok matches what Stripe actually charged (H3) — the

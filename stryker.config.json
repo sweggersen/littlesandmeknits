@@ -6,14 +6,15 @@
   "coverageAnalysis": "perTest",
   "mutate": [
     "src/lib/services/listings-escrow.ts:79-151",
-    "src/lib/services/listings-escrow.ts:209-243",
-    "src/lib/services/listings-escrow.ts:290-345",
-    "src/lib/services/listings-escrow.ts:381-396",
-    "src/lib/services/listings-escrow.ts:407-419",
-    "src/lib/services/listings-escrow.ts:455-466",
-    "src/lib/services/listings-escrow.ts:479-484",
-    "src/lib/services/listings-escrow.ts:487-498",
-    "src/lib/services/commissions.ts:335-566"
+    "src/lib/services/listings-escrow.ts:213-255",
+    "src/lib/services/listings-escrow.ts:280-335",
+    "src/lib/services/listings-escrow.ts:371-386",
+    "src/lib/services/listings-escrow.ts:397-409",
+    "src/lib/services/listings-escrow.ts:445-456",
+    "src/lib/services/listings-escrow.ts:469-474",
+    "src/lib/services/listings-escrow.ts:477-488",
+    "src/lib/services/commissions.ts:335-560",
+    "src/lib/money.ts"
   ],
   "reporters": ["clear-text", "progress", "html"],
   "htmlReporter": { "fileName": "reports/mutation/index.html" },

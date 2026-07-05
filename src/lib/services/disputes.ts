@@ -5,7 +5,7 @@ import { createNotification } from '../notify';
 import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
 import { updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
-import { COMMISSION_FEE_PERCENT } from './commissions';
+import { MoneyBreakdown } from '../money';
 
 type Decision = 'refund' | 'release';
 const VALID_DECISIONS = new Set<Decision>(['refund', 'release']);
@@ -189,7 +189,7 @@ async function resolveCommissionDispute(
     commissionRequestId: requestId, actorId: ctx.user.id,
     amountNok: offer?.price_nok ?? null,
     feeNok: decision === 'release' && offer
-      ? Math.round(offer.price_nok * COMMISSION_FEE_PERCENT / 100) : null,
+      ? MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100 : null,
     paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'admin_dispute' },
   });
 

@@ -4,6 +4,7 @@ import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
+import { commissionFeeNok } from '../commission-pricing';
 
 // Projection on: reads return only selected columns, so a dropped/blanked
 // `.select(...)` surfaces as a missing field (kills column-list mutants).
@@ -121,13 +122,16 @@ describe('payCommission — builds a real Checkout Session (separate charges & t
       await payCommission(ctxFor(db), { requestId: 'req-1' });
       const args = sessionCreate.mock.calls[0][0] as any;
       const priceOre = price * 100;
-      const expectedFee = Math.round(priceOre * 8 / 100);
+      // The money authority rounds the fee to whole kroner (matching the buyer
+      // display), so it can be 0 for a trivially small price (no fee line item).
+      const expectedFeeOre = commissionFeeNok(price) * 100;
       expect(args.line_items[0].price_data.unit_amount).toBe(priceOre);   // knitter's full price
-      expect(args.line_items[1].price_data.unit_amount).toBe(expectedFee); // fee on top
-      expect(args.metadata.platform_fee_ore).toBe(String(expectedFee));
-      // Buyer pays price + fee; knitter later receives the full price; platform
-      // keeps the fee. Conservation: knitter (priceOre) + platform (fee) = buyer total.
-      expect(priceOre + expectedFee).toBe(priceOre + expectedFee);
+      expect(args.metadata.platform_fee_ore).toBe(String(expectedFeeOre));
+      if (expectedFeeOre > 0) {
+        expect(args.line_items[1].price_data.unit_amount).toBe(expectedFeeOre); // fee on top
+      } else {
+        expect(args.line_items).toHaveLength(1); // fee rounds to 0 → no fee line
+      }
     },
   );
 });
@@ -324,7 +328,7 @@ describe('releaseCommissionFunds', () => {
     const db = seed();
     await releaseCommissionFunds(db.client as any, 'sk_test', { ...args, priceNok: price });
     const [params] = transferCreate.mock.calls[0];
-    const feeOre = Math.round(price * 100 * 8 / 100);
+    const feeOre = commissionFeeNok(price) * 100;         // whole-kroner fee (authority)
     const buyerTotalOre = price * 100 + feeOre;
     expect(params.amount).toBe(price * 100);              // knitter gets 100%
     expect(params.amount + feeOre).toBe(buyerTotalOre);   // + platform fee = buyer total
