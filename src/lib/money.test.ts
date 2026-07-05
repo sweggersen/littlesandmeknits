@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MoneyBreakdown, MoneyInvariantError, krToOre } from './money';
+import { MoneyBreakdown, MoneyInvariantError, krToOre, legacyListingFeeNokFromTotalOre } from './money';
 import { tbFeeForPrice } from './shipping';
 import { commissionFeeNok } from './commission-pricing';
 
@@ -125,5 +125,14 @@ describe('the class refuses to construct a broken breakdown', () => {
     expect(krToOre(15.925)).toBe(1593); // rounds
     expect(() => krToOre(Infinity)).toThrow(MoneyInvariantError);
     expect(() => MoneyBreakdown.commissionPayment({ priceNok: 100.5 })).not.toThrow(); // rounds cleanly
+  });
+
+  it('legacyListingFeeNokFromTotalOre: 13% of the gross in whole kr, 0 for empty', () => {
+    expect(legacyListingFeeNokFromTotalOre(0)).toBe(0);
+    expect(legacyListingFeeNokFromTotalOre(null)).toBe(0);
+    expect(legacyListingFeeNokFromTotalOre(undefined)).toBe(0);
+    expect(legacyListingFeeNokFromTotalOre(10000)).toBe(13);   // 100 kr → 13 kr
+    expect(legacyListingFeeNokFromTotalOre(29900)).toBe(39);   // 299 kr → 38.87 → 39 kr
+    expect(legacyListingFeeNokFromTotalOre(100000)).toBe(130); // 1000 kr → 130 kr
   });
 });
