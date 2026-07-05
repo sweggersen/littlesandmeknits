@@ -3,9 +3,15 @@ import { recordDeadLetter, resolveDeadLetter, domainFromService } from './dead-l
 import { createFakeDb } from './__test_helpers__/fake-db';
 import type { ServiceContext } from './types';
 
-function mockCtx(insertImpl?: (row: unknown) => Promise<{ error: { message: string } | null }>): { ctx: ServiceContext; inserts: unknown[]; updates: unknown[] } {
+function mockCtx(
+  insertImpl?: (row: unknown) => Promise<{ error: { message: string } | null }>,
+  opts?: { actorRole?: string | null },
+): { ctx: ServiceContext; inserts: unknown[]; updates: unknown[] } {
   const inserts: unknown[] = [];
   const updates: unknown[] = [];
+  // resolveDeadLetter reads the actor's role for its authorization check;
+  // default to admin so the happy-path tests pass.
+  const actorRole = opts && 'actorRole' in opts ? opts.actorRole : 'admin';
   const admin = {
     from: (_table: string) => ({
       insert: async (row: unknown) => {
@@ -18,9 +24,17 @@ function mockCtx(insertImpl?: (row: unknown) => Promise<{ error: { message: stri
           return { error: null };
         },
       }),
-      // recordDeadLetter now alerts admins (profiles.select('id').eq('role',...)).
-      // No admins in this lightweight mock — return empty so the alert no-ops.
-      select: () => ({ eq: async () => ({ data: [] }) }),
+      // Two shapes:
+      //  - recordDeadLetter alert: .select('id').eq('role',...) awaited → {data:[]}
+      //  - resolveDeadLetter authz: .select('role').eq('id',...).maybeSingle() → actor
+      select: () => {
+        const chain: any = {
+          eq: () => chain,
+          maybeSingle: async () => ({ data: { role: actorRole } }),
+          then: (cb: (r: { data: unknown[] }) => unknown) => cb({ data: [] }),
+        };
+        return chain;
+      },
     }),
   };
   const ctx = {
@@ -171,6 +185,21 @@ describe('resolveDeadLetter', () => {
     const result = await resolveDeadLetter(ctx, { eventId: '', note: null });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('bad_input');
+  });
+
+  it('forbids a non-staff actor (defense in depth beyond RLS)', async () => {
+    const { ctx, updates } = mockCtx(undefined, { actorRole: 'user' });
+    const result = await resolveDeadLetter(ctx, { eventId: 'evt-1', note: 'x' });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('forbidden');
+    expect(updates).toHaveLength(0);
+  });
+
+  it('allows a moderator', async () => {
+    const { ctx, updates } = mockCtx(undefined, { actorRole: 'moderator' });
+    const result = await resolveDeadLetter(ctx, { eventId: 'evt-1', note: 'x' });
+    expect(result.ok).toBe(true);
+    expect(updates).toHaveLength(1);
   });
 
   it('updates resolved fields when successful', async () => {
