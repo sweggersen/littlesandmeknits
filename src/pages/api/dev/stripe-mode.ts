@@ -22,12 +22,14 @@ export const GET: APIRoute = async ({ request, cookies }) => {
   if (key.startsWith('sk_test_')) mode = 'test';
   else if (key.startsWith('sk_live_')) mode = 'live';
 
-  return new Response(JSON.stringify({
-    mode,
-    // Truncated fingerprint so you can compare against the key shown in
-    // your Stripe dashboard without exposing the secret itself.
-    keyFingerprint: key ? key.slice(0, 12) + '…' + key.slice(-4) : null,
-  }), {
+  // The fingerprint leaks a few real key bytes, so only staff get it — invite
+  // holders get the (non-credential) mode. Even for staff we no longer expose
+  // the 12-char prefix (which included 4 secret key chars): the mode marker
+  // `sk_live_`/`sk_test_` plus the last 4 is enough to match the dashboard.
+  const prefix = key.startsWith('sk_test_') ? 'sk_test_' : key.startsWith('sk_live_') ? 'sk_live_' : '';
+  const keyFingerprint = admin && key ? `${prefix}…${key.slice(-4)}` : null;
+
+  return new Response(JSON.stringify({ mode, keyFingerprint }), {
     headers: { 'content-type': 'application/json' },
   });
 };

@@ -224,6 +224,140 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       await admin.from('store_members').delete().eq('store_id', store!.id);
       await admin.from('stores').delete().eq('id', store!.id);
     });
+
+    // Security review 0097 #3: a seller cannot reassign a listing to a victim.
+    it('seller CANNOT reassign their listing to another user (seller_id pinned)', async () => {
+      const { data: listing, error } = await admin.from('listings').insert({
+        seller_id: bobId, title: 'rls-reassign', description: 'x',
+        price_nok: 100, kind: 'ready_made', category: 'genser',
+        size_label: 'M', shipping_price_nok: 0, status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`insert failed: ${error.message}`);
+      const { error: upErr } = await bobClient.from('listings')
+        .update({ seller_id: aliceId }).eq('id', listing!.id);
+      expect(upErr).not.toBeNull(); // WITH CHECK: new row must still be bob's
+      const { data } = await admin.from('listings').select('seller_id').eq('id', listing!.id).maybeSingle();
+      expect(data?.seller_id).toBe(bobId);
+      await admin.from('listings').delete().eq('id', listing!.id);
+    });
+
+    it('seller CANNOT force an escrow status or set buyer_id on their listing', async () => {
+      const { data: listing, error } = await admin.from('listings').insert({
+        seller_id: bobId, title: 'rls-escrow-grief', description: 'x',
+        price_nok: 100, kind: 'ready_made', category: 'genser',
+        size_label: 'M', shipping_price_nok: 0, status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`insert failed: ${error.message}`);
+      // Try to jump straight to 'sold' + claim a buyer.
+      const { error: upErr } = await bobClient.from('listings')
+        .update({ status: 'sold', buyer_id: charlieId }).eq('id', listing!.id);
+      expect(upErr).not.toBeNull();
+      const { data } = await admin.from('listings').select('status, buyer_id').eq('id', listing!.id).maybeSingle();
+      expect(data?.status).toBe('active');
+      expect(data?.buyer_id).toBeNull();
+      await admin.from('listings').delete().eq('id', listing!.id);
+    });
+
+    it('seller CAN still edit their own active listing (price/title)', async () => {
+      const { data: listing, error } = await admin.from('listings').insert({
+        seller_id: bobId, title: 'rls-editable', description: 'x',
+        price_nok: 100, kind: 'ready_made', category: 'genser',
+        size_label: 'M', shipping_price_nok: 0, status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`insert failed: ${error.message}`);
+      const { error: upErr } = await bobClient.from('listings')
+        .update({ price_nok: 150, title: 'rls-edited' }).eq('id', listing!.id);
+      expect(upErr).toBeNull();
+      const { data } = await admin.from('listings').select('price_nok, title').eq('id', listing!.id).maybeSingle();
+      expect(data?.price_nok).toBe(150);
+      await admin.from('listings').delete().eq('id', listing!.id);
+    });
+  });
+
+  // Security review 0097 #2: a store ADMIN cannot self-promote to owner or
+  // remove owners directly via PostgREST (only owners may write member rows).
+  describe('store_members (0097 hardening)', () => {
+    let storeId: string;
+    beforeAll(async () => {
+      const slug = `rls-sm-${Date.now()}`;
+      const { data: store, error } = await admin.from('stores').insert({
+        slug, orgnr: String(910000000 + (Date.now() % 89999999)),
+        created_by: bobId, legal_name: 'RLS SM AS', legal_address: 'Storgata 2',
+        legal_business_type: 'AS', legal_status: 'aktiv', name: 'RLS SM-butikk',
+        contact_email: 'rls-sm@test.no', status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`store insert failed: ${error.message}`);
+      storeId = store!.id;
+      // bob = owner, charlie = admin (the would-be attacker).
+      await admin.from('store_members').insert([
+        { store_id: storeId, user_id: bobId, role: 'owner', visible_on_storefront: true },
+        { store_id: storeId, user_id: charlieId, role: 'admin', visible_on_storefront: true },
+      ]);
+    });
+
+    it('store admin CANNOT promote themselves to owner', async () => {
+      const { error } = await charlieClient.from('store_members')
+        .update({ role: 'owner' }).eq('store_id', storeId).eq('user_id', charlieId);
+      const { data } = await admin.from('store_members')
+        .select('role').eq('store_id', storeId).eq('user_id', charlieId).maybeSingle();
+      expect(data?.role).toBe('admin'); // unchanged
+      // Either a WITH CHECK error or a no-op filtered update; role must not change.
+      expect(error !== null || data?.role === 'admin').toBe(true);
+    });
+
+    it('store admin CANNOT delete the owner', async () => {
+      await charlieClient.from('store_members')
+        .delete().eq('store_id', storeId).eq('user_id', bobId);
+      const { data } = await admin.from('store_members')
+        .select('user_id').eq('store_id', storeId).eq('user_id', bobId).maybeSingle();
+      expect(data?.user_id).toBe(bobId); // owner still there
+    });
+
+    afterAll(async () => {
+      await admin.from('store_members').delete().eq('store_id', storeId);
+      await admin.from('stores').delete().eq('id', storeId);
+    });
+  });
+
+  // Security review 0097 #4: impressions can no longer be fabricated for
+  // non-existent listings, and a signed-in caller can't attribute one to
+  // someone else. Logged-out impressions for a REAL listing still work.
+  describe('listing_impressions (0097 hardening)', () => {
+    let realListingId: string;
+    beforeAll(async () => {
+      const { data, error } = await admin.from('listings').insert({
+        seller_id: bobId, title: 'rls-impr', description: 'x',
+        price_nok: 100, kind: 'ready_made', category: 'genser',
+        size_label: 'M', shipping_price_nok: 0, status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`insert failed: ${error.message}`);
+      realListingId = data!.id;
+    });
+
+    it('anon CANNOT insert an impression for a non-existent listing', async () => {
+      const anon = createClient(SUPABASE_URL!, ANON_KEY!);
+      const { error } = await anon.from('listing_impressions')
+        .insert({ listing_id: '00000000-0000-0000-0000-000000000000', source: 'feed' });
+      expect(error).not.toBeNull();
+    });
+
+    it('signed-in caller CANNOT attribute an impression to another user', async () => {
+      const { error } = await charlieClient.from('listing_impressions')
+        .insert({ listing_id: realListingId, source: 'feed', viewer_id: aliceId });
+      expect(error).not.toBeNull();
+    });
+
+    it('logged-out impression for a real listing still works', async () => {
+      const anon = createClient(SUPABASE_URL!, ANON_KEY!);
+      const { error } = await anon.from('listing_impressions')
+        .insert({ listing_id: realListingId, source: 'feed' });
+      expect(error).toBeNull();
+    });
+
+    afterAll(async () => {
+      await admin.from('listing_impressions').delete().eq('listing_id', realListingId);
+      await admin.from('listings').delete().eq('id', realListingId);
+    });
   });
 
   describe('marketplace conversations + messages', () => {
@@ -482,8 +616,42 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       await admin.from('profiles').update({ role: null }).eq('id', bobId);
     });
 
+    // Security review 0097 #1: owner cannot self-attest verification.
+    it('owner CANNOT self-attest stripe_onboarded / verified status', async () => {
+      const { error } = await aliceClient.from('seller_profiles')
+        .update({ stripe_onboarded: true, stripe_connect_status: 'verified', seller_verified_at: new Date().toISOString() })
+        .eq('id', aliceId);
+      // The WITH CHECK rejects the write (or it is silently filtered) — either
+      // way the sensitive columns must remain at their seeded values.
+      const { data } = await admin.from('seller_profiles')
+        .select('stripe_onboarded, stripe_connect_status, seller_verified_at').eq('id', aliceId).maybeSingle();
+      expect(data?.stripe_onboarded).toBe(false);
+      expect(data?.stripe_connect_status).toBe('pending');
+      expect(data?.seller_verified_at).toBeNull();
+      expect(error).not.toBeNull(); // RLS WITH CHECK violation surfaces as an error on UPDATE
+    });
+
+    it('owner CAN still edit their non-sensitive seller fields', async () => {
+      const { error } = await aliceClient.from('seller_profiles')
+        .update({ legal_name: 'Alice Renamed', city: 'Bergen' }).eq('id', aliceId);
+      expect(error).toBeNull();
+      const { data } = await admin.from('seller_profiles').select('legal_name, city').eq('id', aliceId).maybeSingle();
+      expect(data?.legal_name).toBe('Alice Renamed');
+      expect(data?.city).toBe('Bergen');
+    });
+
+    it('user CANNOT INSERT a pre-verified seller_profile', async () => {
+      // charlie has no seller_profile yet; try to insert one already verified.
+      const { error } = await charlieClient.from('seller_profiles')
+        .insert({ id: charlieId, stripe_onboarded: true, stripe_connect_status: 'verified' });
+      expect(error).not.toBeNull();
+      const { data } = await admin.from('seller_profiles').select('id').eq('id', charlieId).maybeSingle();
+      expect(data).toBeNull();
+    });
+
     afterAll(async () => {
       await admin.from('seller_profiles').delete().eq('id', aliceId);
+      await admin.from('seller_profiles').delete().eq('id', charlieId);
     });
   });
 

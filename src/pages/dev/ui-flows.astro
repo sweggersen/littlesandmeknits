@@ -1,11 +1,18 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { env } from '../../lib/env';
+import { isDevToolsAllowed } from '../../lib/dev-guard';
 
-if (import.meta.env.PROD) return Astro.redirect('/market');
-
-const host = Astro.url.hostname;
-if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.workers.dev')) {
+// Same gate as /api/dev/* (dev-guard): blocked on prod builds, always allowed on
+// localhost, and on any other host ONLY when the deploy opts in via DEV_TOOLS=
+// 'enabled'. The old inline `.workers.dev` blanket-allow leaked the admin token
+// (below) to any preview host — this page embeds a service-role-derived token,
+// so it MUST use the same trust boundary as the endpoint it talks to.
+if (!isDevToolsAllowed({
+  isProd: import.meta.env.PROD,
+  host: Astro.url.hostname,
+  devToolsFlag: (env as unknown as Record<string, string | undefined>).DEV_TOOLS,
+})) {
   return Astro.redirect('/market');
 }
 
