@@ -53,7 +53,7 @@ function seedReserved(overrides: Record<string, unknown> = {}): FakeDb {
   // applies there (a null override = legacy/free purchase).
   const pi = 'stripe_payment_intent_id' in overrides ? overrides.stripe_payment_intent_id : 'pi_hold';
   return fakeDb({
-    listings: [{ id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1', title: 'Babygenser', status }],
+    listings: [{ id: 'l1', seller_id: 'seller-1', buyer_id: 'buyer-1', title: 'Babygenser', status, shipping_option: (overrides.shipping_option as string) ?? null }],
     // The open order is the source of truth (PII + money + lifecycle).
     orders: [{
       id: 'o1', listing_id: 'l1', buyer_id: 'buyer-1', seller_id: 'seller-1',
@@ -735,6 +735,21 @@ describe('shipListing (escrow capture vs dead auth)', () => {
       kind: 'listing', order_id: 'o1', actor_id: 'seller-1',
       amount_nok: 500, fee_nok: 74, stripe_payment_intent_id: 'pi_hold',
     });
+  });
+
+  it('requires a tracking number for a tracked parcel (fraud control)', async () => {
+    const db = seedReserved({ shipping_option: 'small_parcel' }); // tracked tier
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: '' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toMatch(/sporingsnummer/i); }
+    expect(piCapture).not.toHaveBeenCalled(); // nothing captured without tracking
+  });
+
+  it('allows an empty tracking code for an untracked tier (brev/free)', async () => {
+    const db = seedReserved({ shipping_option: 'small_letter' }); // untracked
+    const r = await shipListing(ctxFor(db, 'seller-1'), { listingId: 'l1', trackingCode: '' });
+    expect(r.ok).toBe(true);
+    expect((db.find('listings', { id: 'l1' }) as any).status).toBe('shipped');
   });
 
   it('skips capture when the PI already succeeded, still ships', async () => {

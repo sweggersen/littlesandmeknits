@@ -266,12 +266,20 @@ export async function shipListing(
 
   const { data: listing } = await ctx.supabase
     .from('listings')
-    .select('id, seller_id, buyer_id, title, status')
+    .select('id, seller_id, buyer_id, title, status, shipping_option')
     .eq('id', input.listingId)
     .maybeSingle();
 
   if (!listing || listing.seller_id !== ctx.user.id) return fail('not_found', 'Not found');
   if (listing.status !== 'reserved') return fail('conflict', 'Listing not in reserved state');
+
+  // Fraud control (P0.2): a tracked parcel MUST ship with a tracking number —
+  // it's the evidence that defeats a false "didn't receive it" claim (and wins
+  // the chargeback). Untracked tiers (brev/free) can't provide one.
+  const { isTrackedTier } = await import('../shipping');
+  if (isTrackedTier(listing.shipping_option as never) && !input.trackingCode.trim()) {
+    return fail('bad_input', 'Legg inn sporingsnummeret fra Posten før du markerer som sendt.');
+  }
 
   // Capture the PaymentIntent now (the seller has shipped). Stripe Connect
   // Custom holds the funds in the seller's pending balance for 7 days

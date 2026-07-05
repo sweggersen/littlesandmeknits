@@ -706,6 +706,13 @@ export async function markCompleted(
 
   if (!offer || offer.knitter_id !== ctx.user.id) return fail('forbidden', 'Not the knitter on this commission');
 
+  // Fraud control (P0.2): the finished item ships between strangers with the
+  // buyer's money in escrow — require a tracking number so a false "didn't
+  // receive it" claim can't take the knitter's payment.
+  if (!input.trackingCode?.trim()) {
+    return fail('bad_input', 'Legg inn sporingsnummeret for pakken før du markerer som ferdig.');
+  }
+
   const autoRelease = new Date();
   autoRelease.setDate(autoRelease.getDate() + 14);
 

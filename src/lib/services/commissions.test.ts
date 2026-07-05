@@ -272,6 +272,21 @@ describe('markCompleted', () => {
     if (!r.ok) expect(r.code).toBe('forbidden');
   });
 
+  it('requires a tracking number (fraud control), after the ownership check', async () => {
+    const { ctx } = mockCtx({
+      actorId: 'k',
+      rows: {
+        commission_requests: { id: 'r1', buyer_id: 'b', status: 'awarded', title: 't', awarded_offer_id: 'o1' },
+        commission_offers: { knitter_id: 'k' },
+      },
+    });
+    const r = await markCompleted(ctx, { requestId: 'r1' }); // no tracking
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toMatch(/sporingsnummer/i); }
+    const blank = await markCompleted(ctx, { requestId: 'r1', trackingCode: '   ' });
+    expect(blank.ok).toBe(false); // whitespace is not a tracking number
+  });
+
   it('sets auto_release_at 14 days out and persists tracking_code', async () => {
     const { ctx, updates } = mockCtx({
       actorId: 'k',

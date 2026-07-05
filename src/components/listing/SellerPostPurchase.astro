@@ -6,9 +6,12 @@
 // Render only on the isOwner branch — the caller is responsible for
 // that gate.
 
+import { isTrackedTier } from '../../lib/shipping';
+
 interface Listing {
   id: string;
   status: string;
+  shipping_option?: string | null;
 }
 
 // The order is the source of truth for the buyer's shipping address +
@@ -27,6 +30,8 @@ interface Props {
   order: Order | null;
 }
 const { listing, order } = Astro.props;
+// Tracked parcels require a tracking number at ship time (fraud control).
+const trackingRequired = isTrackedTier(listing.shipping_option as never);
 ---
 
 {listing.status === 'reserved' && (
@@ -51,8 +56,12 @@ const { listing, order } = Astro.props;
         API, mints a label with the seeded buyer address, and
         auto-fills tracking_code from the response. */}
     <form method="post" action={`/api/marketplace/listings/${listing.id}/ship`} class="space-y-3">
-      <input name="tracking_code" type="text" maxlength="50" placeholder="Sporingskode fra Posten/Bring (valgfritt)"
+      <input name="tracking_code" type="text" maxlength="50" required={trackingRequired}
+        placeholder={trackingRequired ? 'Sporingsnummer fra Posten/Bring' : 'Sporingskode (valgfritt)'}
         class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+      {trackingRequired && (
+        <p class="text-[11px] text-charcoal/45">Pakken sendes med sporing — sporingsnummeret beskytter deg mot falske «ikke mottatt»-krav.</p>
+      )}
       <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
         Merk som sendt
       </button>

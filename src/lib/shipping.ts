@@ -13,6 +13,15 @@ export interface ShippingTier {
   // saved so changes here don't retroactively affect open orders.
   priceNok: number;
   weightLimitGrams: number | null;
+  // Whether the tier ships with a Posten tracking number. Untracked (brev/free)
+  // offers weaker protection against "didn't receive it" claims; tracked
+  // parcels require a tracking code at ship time (fraud control P0.2).
+  tracked: boolean;
+}
+
+/** True if the chosen shipping tier ships with a tracking number. */
+export function isTrackedTier(id: ShippingOption | null | undefined): boolean {
+  return shippingTier(id)?.tracked ?? false;
 }
 
 // Prices reflect Posten's 2026 consumer rates (Norgespakke from
@@ -26,6 +35,7 @@ export const SHIPPING_TIERS: ShippingTier[] = [
     description: 'Selger dekker frakten — kjøper betaler kun varen + trygg betaling.',
     priceNok: 0,
     weightLimitGrams: null,
+    tracked: false,
   },
   {
     id: 'small_letter',
@@ -33,6 +43,7 @@ export const SHIPPING_TIERS: ShippingTier[] = [
     description: 'Babysokker, votter, lue. Sendes i konvolutt med Posten Brev.',
     priceNok: 41,
     weightLimitGrams: 350,
+    tracked: false,
   },
   {
     id: 'small_parcel',
@@ -40,6 +51,7 @@ export const SHIPPING_TIERS: ShippingTier[] = [
     description: 'Cardigan, genser, mindre tepper. Hentes på utleveringssted (35 × 25 × 12 cm).',
     priceNok: 76,
     weightLimitGrams: 5000,
+    tracked: true,
   },
   {
     id: 'parcel',
@@ -47,6 +59,7 @@ export const SHIPPING_TIERS: ShippingTier[] = [
     description: 'Store tepper, ulldresser eller flere plagg samlet (inntil 120 × 60 × 60 cm).',
     priceNok: 140,
     weightLimitGrams: 10000,
+    tracked: true,
   },
 ];
 
