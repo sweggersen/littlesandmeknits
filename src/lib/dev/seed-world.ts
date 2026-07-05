@@ -205,6 +205,8 @@ export async function seedWorld(deps: { db: Db; handle: Handle; emailToId: Map<s
   const oD = await offer(U.ingrid, rD, 750, 2, 'Sett med lue og votter, ja takk!');
   await run('accept-offer', U.liv, { offer_id: oD });
   await run('pay', U.liv, { request_id: rD });
+  // Knitter posts an optional mid-commission progress update (P2.1).
+  await run('add-progress-log', U.ingrid, { request_id: rD, body: 'God start! Luen er ferdig, votter på pinnene nå.' });
 
   // Proven-knitter history: buyer-yarn requests (below) are gated on the
   // knitter having >= 1 delivered commission (P0.3). Backfill that history for

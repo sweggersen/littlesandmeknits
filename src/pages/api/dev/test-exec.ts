@@ -27,6 +27,7 @@ import {
 import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/services/seller-reviews';
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
+import { addProgressLog as svcAddProgressLog } from '../../../lib/services/projects';
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
 import { seedWorld } from '../../../lib/dev/seed-world';
 
@@ -390,6 +391,34 @@ async function handle(
       const result = await svcReceiveYarn(synthCtx(db, actorId), { requestId: p.request_id as string });
       if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'awarded' } };
+    }
+
+    case 'add-progress-log': {
+      // P2.1: knitter posts an optional progress update (photo + note) on the
+      // linked project mid-commission. Drives the real addProgressLog service.
+      if (!actorId) throw new Error('Actor required (the knitter)');
+      const { data: aplReq } = await db.from('commission_requests')
+        .select('awarded_offer_id').eq('id', p.request_id).maybeSingle();
+      if (!aplReq?.awarded_offer_id) throw new Error('No awarded offer on request');
+      const { data: aplOffer } = await db.from('commission_offers')
+        .select('project_id').eq('id', aplReq.awarded_offer_id).maybeSingle();
+      if (!aplOffer?.project_id) throw new Error('Awarded offer has no project');
+      const photos: File[] = [];
+      if (p.with_photo !== false) {
+        const png = await makeTestPng('b7c4a8');
+        // Uint8Array<ArrayBufferLike> isn't a BlobPart in TS's lib types, but a
+        // Blob accepts it fine at runtime (workerd). Wrap it to satisfy File.
+        const blob = new Blob([png as unknown as BlobPart], { type: 'image/png' });
+        photos.push(new File([blob], 'progress.png', { type: 'image/png' }));
+      }
+      const result = await svcAddProgressLog(synthCtx(db, actorId), {
+        projectId: aplOffer.project_id as string,
+        body: (p.body as string) ?? 'Godt i gang! Halvveis på ryggstykket nå.',
+        photos,
+        returnTo: `/market/commissions/${p.request_id}`,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { redirect: result.data.redirect } };
     }
 
     case 'mark-completed': {
@@ -1350,6 +1379,12 @@ async function handle(
               .eq('commission_offer_id', req.awarded_offer_id)
               .maybeSingle();
             result.project = project;
+            if (project) {
+              // Progress-log feed (P2.1) — scenarios assert the count.
+              const { data: logs } = await db.from('project_logs')
+                .select('id, body, photos').eq('project_id', project.id);
+              result.project_logs = logs ?? [];
+            }
           }
 
           // Commission money ledger (separate charges & transfers) so scenarios

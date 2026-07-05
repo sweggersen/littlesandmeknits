@@ -91,6 +91,15 @@ export const SCENARIOS: Record<string, Scenario> = {
         ],
       },
       {
+        id: 'progress', actor: 'eline', action: 'add-progress-log',
+        label: 'Eline deler en framdriftsoppdatering (med bilde)',
+        params: { request_id: '$create-request.id', body: 'Godt i gang, halvveis på ryggstykket!' },
+        expect: (s) => [
+          ['1 log', s.project_logs?.length ?? 0, 1],
+          ['log has photo', (s.project_logs?.[0]?.photos?.length ?? 0) > 0, true],
+        ],
+      },
+      {
         id: 'complete', actor: 'eline', action: 'mark-completed',
         label: 'Eline merker ferdig',
         params: { request_id: '$create-request.id', tracking_code: 'POSTEN-COMM-1' },

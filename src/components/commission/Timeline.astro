@@ -272,6 +272,27 @@ const {
                 </div>
               </a>
             )}
+            {linkedProject && (
+              <details class="bg-white rounded-2xl p-4 border border-sage-500/10 group">
+                <summary class="cursor-pointer list-none flex items-center justify-between">
+                  <span>
+                    <span class="text-sm font-medium block">Del en framdriftsoppdatering</span>
+                    <span class="text-xs text-charcoal/55">Et bilde underveis gir kjøper trygghet (valgfritt).</span>
+                  </span>
+                  <span class="text-charcoal/40 text-lg leading-none group-open:rotate-45 transition-transform">+</span>
+                </summary>
+                <form method="post" action={`/api/projects/${linkedProject.id}/log`} enctype="multipart/form-data" data-astro-reload class="space-y-2 mt-3">
+                  <input type="hidden" name="next" value={`/market/commissions/${req.id}`} />
+                  <textarea name="body" required rows="2" maxlength="1000" placeholder="Hvordan går det? Skriv en kort oppdatering…" data-autogrow
+                    class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+                  <label class="block text-xs text-charcoal/55">
+                    Bilde(r) (valgfritt)
+                    <input name="photos" type="file" accept="image/*" multiple class="mt-1 block w-full text-xs file:mr-2 file:rounded-full file:border-0 file:bg-sage-100 file:px-3 file:py-1.5 file:text-xs file:text-sage-800" />
+                  </label>
+                  <button type="submit" class="w-full bg-sage-600 text-white px-4 py-2 rounded-full text-xs font-medium hover:bg-sage-700 transition-colors">Publiser oppdatering</button>
+                </form>
+              </details>
+            )}
             <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
               <p class="text-sm font-medium mb-1">Ferdig strikket?</p>
               <p class="text-xs text-charcoal/55 mb-3">Kjøper har 14 dager på å bekrefte mottak.</p>

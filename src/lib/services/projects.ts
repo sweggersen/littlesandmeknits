@@ -87,6 +87,10 @@ export async function addProgressLog(
   input: {
     projectId: string; body: string; logDate?: string;
     rowsAt?: string; photos: File[];
+    /** Where to send the user after saving. Only same-origin commission
+     * pages are honoured (open-redirect guard); anything else falls back to
+     * the studio project page. */
+    returnTo?: string;
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.projectId) return fail('bad_input', 'Missing project');
@@ -162,7 +166,17 @@ export async function addProgressLog(
     }
   }
 
-  return ok({ redirect: `/studio/projects/${input.projectId}` });
+  // Honour returnTo only for the knitter's in-context commission update form.
+  return ok({ redirect: safeProgressReturn(input.returnTo, `/studio/projects/${input.projectId}`) });
+}
+
+/**
+ * Open-redirect guard for the progress-log returnTo. Only a same-origin
+ * commission detail path is honoured; anything else (external URL, protocol-
+ * relative `//evil`, a path with query/fragment injection) falls back.
+ */
+export function safeProgressReturn(returnTo: string | undefined, fallback: string): string {
+  return returnTo && /^\/market\/commissions\/[^/?#]+\/?$/.test(returnTo) ? returnTo : fallback;
 }
 
 export async function deleteProgressLog(

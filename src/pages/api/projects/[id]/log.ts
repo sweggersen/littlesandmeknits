@@ -15,6 +15,7 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     logDate: form.get('log_date')?.toString(),
     rowsAt: form.get('rows_at')?.toString(),
     photos,
+    returnTo: form.get('next')?.toString(),
   });
   return toResponse(result, redirect);
 };
