@@ -2,6 +2,20 @@ import type { APIContext, AstroCookies } from 'astro';
 import type { User } from '@supabase/supabase-js';
 import { createServerSupabase, createAdminSupabase } from './supabase';
 
+/** Open-redirect guard for a user-supplied `next`/redirect target. Returns
+ *  `raw` only if it is a clean same-origin path; otherwise `fallback`.
+ *
+ *  Rejects:
+ *   - protocol-relative `//evil.com`
+ *   - backslash variant `/\evil.com` (browsers normalise `\` → `/`, so this
+ *     resolves to `//evil.com` — the classic `startsWith('//')` bypass)
+ *   - absolute URLs / schemes (`https:`, `javascript:` — no leading `/`)
+ *   - whitespace/control chars that could smuggle a second URL or header. */
+export function safeInternalPath(raw: string | null | undefined, fallback: string): string {
+  if (!raw) return fallback;
+  return /^\/(?![/\\])[^\s\x00-\x1f]*$/.test(raw) ? raw : fallback;
+}
+
 /** True when the Cookie header carries a Supabase auth session cookie
  *  (`sb-<ref>-auth-token`, possibly chunked as `.0`/`.1`). Lets the
  *  middleware skip the getUser() NETWORK round-trip for anonymous

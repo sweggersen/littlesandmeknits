@@ -15,6 +15,22 @@ const EMAIL = {
   fontStack: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
 } as const;
 
+// HTML-escape a leaf value before it goes into email markup. Notification
+// title/body and welcome/draft names originate from fully user-controlled
+// strings (display names, message bodies, listing titles) — without escaping,
+// a user could inject <a>/<img>/<style> into a trusted transactional email
+// (phishing links, tracking pixels, content spoofing). Escapes the five HTML-
+// significant characters, which is also sufficient for double-quoted attribute
+// values (used for hrefs in btn()).
+function esc(s: string | null | undefined): string {
+  return (s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function wrap(body: string): string {
   return `<!DOCTYPE html>
 <html lang="nb">
@@ -30,7 +46,7 @@ ${body}
 }
 
 function btn(href: string, label: string): string {
-  return `<p style="margin:24px 0"><a href="${href}" style="display:inline-block;background:${EMAIL.text};color:${EMAIL.bg};padding:12px 24px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:500">${label}</a></p>`;
+  return `<p style="margin:24px 0"><a href="${esc(href)}" style="display:inline-block;background:${EMAIL.text};color:${EMAIL.bg};padding:12px 24px;border-radius:999px;text-decoration:none;font-size:14px;font-weight:500">${label}</a></p>`;
 }
 
 function generic(p: { title: string; body?: string; url?: string; siteUrl: string }): { subject: string; html: string } {
@@ -108,7 +124,7 @@ const templates: Partial<Record<NotificationType, (p: { title: string; body?: st
 };
 
 export function renderWelcomeEmail(opts: { name?: string | null; siteUrl: string }): { subject: string; html: string } {
-  const greeting = opts.name ? `Hei ${opts.name}!` : 'Velkommen!';
+  const greeting = opts.name ? `Hei ${esc(opts.name)}!` : 'Velkommen!';
   const html = wrap(`
 <h2 style="font-size:22px;margin:0 0 12px">${greeting}</h2>
 <p style="font-size:15px;color:${EMAIL.textBody};line-height:1.6;margin:0 0 16px">
@@ -138,11 +154,11 @@ export function renderDraftNudgeEmail(opts: {
   listingId: string;
   siteUrl: string;
 }): { subject: string; html: string } {
-  const greet = opts.name ? `Hei ${opts.name}!` : 'Hei!';
+  const greet = opts.name ? `Hei ${esc(opts.name)}!` : 'Hei!';
   const html = wrap(`
 <h2 style="font-size:22px;margin:0 0 12px">${greet}</h2>
 <p style="font-size:15px;color:${EMAIL.textBody};line-height:1.6;margin:0 0 16px">
-  Du startet på en annonse, <strong>«${opts.listingTitle}»</strong>, men la den ikke ut.
+  Du startet på en annonse, <strong>«${esc(opts.listingTitle)}»</strong>, men la den ikke ut.
   Det eneste som mangler er bilder. Det tar et par minutter.
 </p>
 <p style="font-size:15px;color:${EMAIL.textBody};line-height:1.6;margin:0 0 20px">
@@ -165,7 +181,14 @@ export function renderEmail(
   opts: { title: string; body?: string; url?: string; siteUrl: string },
 ): { subject: string; html: string } {
   const fn = templates[type] ?? generic;
-  const result = fn(opts);
+  // Escape the user-controlled leaves once, centrally, before they reach any
+  // template's markup. `url` is not HTML-escaped here because it is only ever
+  // placed inside an href attribute, which btn() attribute-escapes itself.
+  const safe = { ...opts, title: esc(opts.title), body: esc(opts.body) };
+  const result = fn(safe);
+  // Subjects are plain text, never HTML-escaped. Only `generic` derives its
+  // subject from the title, so restore the raw value there.
+  if (result.subject === safe.title) result.subject = opts.title;
   result.html = result.html.replaceAll('{{siteUrl}}', opts.siteUrl);
   return result;
 }

@@ -4,6 +4,7 @@ import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime, projectPhotoUrl } fr
 import { isValidKontonummer, normalizeKontonummer } from '../kontonummer';
 import { orEither } from '../db/assert';
 import { recordDeadLetter } from './dead-letter';
+import { safeInternalPath } from '../auth';
 import { createSellerConnectAccount } from './stripe-connect';
 
 const VALID_LANGS = new Set(['nb', 'en']);
@@ -535,7 +536,7 @@ export async function updateProfile(
   const language = input.language && VALID_LANGS.has(input.language) ? input.language : null;
 
   const rawNext = input.next ?? '/studio/profile';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/studio/profile';
+  const next = safeInternalPath(rawNext, '/studio/profile');
 
   const merged = {
     ...(ctx.user as any).user_metadata ?? {},

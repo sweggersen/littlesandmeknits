@@ -1,5 +1,6 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
+import { safeInternalPath } from '../auth';
 
 export async function deleteNotification(
   ctx: ServiceContext,
@@ -75,6 +76,6 @@ export async function markAllRead(
     .is('read_at', null);
 
   const referer = input.referer ?? '/notifications';
-  const safeNext = referer.startsWith('/') && !referer.startsWith('//') ? referer : '/notifications';
+  const safeNext = safeInternalPath(referer, '/notifications');
   return ok({ redirect: safeNext });
 }

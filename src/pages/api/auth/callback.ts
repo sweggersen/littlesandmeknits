@@ -1,13 +1,13 @@
 import type { APIRoute } from 'astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
+import { safeInternalPath } from '../../../lib/auth';
 import { env } from '../../../lib/env';
 import { sendEmail } from '../../../lib/email';
 import { renderWelcomeEmail } from '../../../lib/email-templates';
 
 export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
   const code = url.searchParams.get('code');
-  const raw = url.searchParams.get('next') ?? '/studio';
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/studio';
+  const next = safeInternalPath(url.searchParams.get('next'), '/studio');
 
   if (!code) {
     return redirect('/login?error=missing_code');

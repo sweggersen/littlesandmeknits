@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { createAdminSupabase, createServerSupabase } from '../../../lib/supabase';
 import { devToolsBlocked } from '../../../lib/dev-guard';
+import { safeInternalPath } from '../../../lib/auth';
 
 // A GET on this endpoint usually means the user hit refresh on the URL.
 // Bounce them back to the picker form instead of showing a 404.
@@ -14,7 +15,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const form = await request.formData();
   const email = form.get('email')?.toString();
   const rawNext = form.get('next')?.toString() ?? '/market';
-  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/market';
+  const next = safeInternalPath(rawNext, '/market');
 
   if (!email) {
     return new Response('Email required', { status: 400 });

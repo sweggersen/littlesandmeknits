@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { vippsConfig, randomToken, pkceChallenge, authorizationUrl } from '../../../lib/vipps';
 import { checkRateLimit, clientIp } from '../../../lib/rate-limit';
+import { safeInternalPath } from '../../../lib/auth';
 import { log } from '../../../lib/log';
 
 // Cookie names — short-lived, signed by being random + httpOnly.
@@ -33,7 +34,9 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
     return new Response('Vipps Login is not configured', { status: 500 });
   }
 
-  const next = url.searchParams.get('next') ?? '/studio';
+  // Validate before storing so a poisoned cookie can't carry an external
+  // target into the callback (the callback re-validates too, defense in depth).
+  const next = safeInternalPath(url.searchParams.get('next'), '/studio');
   const state = randomToken(24);
   const verifier = randomToken(48);
   const challenge = await pkceChallenge(verifier);

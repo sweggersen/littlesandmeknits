@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { safeInternalPath } from '../../lib/auth';
 
 const user = Astro.locals.user!;  // middleware-gated route
 
@@ -12,8 +13,7 @@ const { data: profile } = await supabase
   .maybeSingle();
 
 // If they already have a birthday saved, don't show the step again.
-const rawNext = Astro.url.searchParams.get('next');
-const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/studio';
+const next = safeInternalPath(Astro.url.searchParams.get('next'), '/studio');
 if (profile?.birthday) return Astro.redirect(next);
 
 const greetName = profile?.first_name || profile?.display_name || null;

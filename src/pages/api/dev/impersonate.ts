@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { createAdminSupabase, createServerSupabase } from '../../../lib/supabase';
 import { devToolsBlocked } from '../../../lib/dev-guard';
+import { safeInternalPath } from '../../../lib/auth';
 
 const EMAIL_DOMAIN = '@test.strikketorget.no';
 
@@ -12,7 +13,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const form = await request.formData();
   const email = form.get('email')?.toString();
   const raw = form.get('next')?.toString() ?? '/market';
-  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/market';
+  const next = safeInternalPath(raw, '/market');
   if (!email?.endsWith(EMAIL_DOMAIN)) {
     return new Response('Only test accounts can be impersonated', { status: 400 });
   }

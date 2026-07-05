@@ -3,6 +3,7 @@ import { env } from '../../../lib/env';
 import { vippsConfig, exchangeCode, fetchUserinfo } from '../../../lib/vipps';
 import { signInWithVippsUserinfo } from '../../../lib/vipps-session';
 import { createAdminSupabase } from '../../../lib/supabase';
+import { safeInternalPath } from '../../../lib/auth';
 import { checkRateLimit, clientIp } from '../../../lib/rate-limit';
 import { log } from '../../../lib/log';
 
@@ -80,7 +81,7 @@ export const GET: APIRoute = async ({ url, cookies, request }) => {
   //   littlesandmeknits -> /studio (no onboarding gate; goes straight in)
   const isStrikketorget = new URL(request.url).hostname.includes('strikketorget');
   const defaultNext = isStrikketorget ? '/market' : '/studio';
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : defaultNext;
+  const safeNext = safeInternalPath(next, defaultNext);
 
   // We can't use the cookie-bound supabase client here because the session
   // cookies were set on the *response* of signInWithVippsUserinfo and aren't

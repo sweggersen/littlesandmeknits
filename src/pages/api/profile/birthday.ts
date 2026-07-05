@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { buildServiceContext } from '../../../lib/services/context';
 import { setBirthday } from '../../../lib/services/profile';
 import { toResponse } from '../../../lib/services/response';
+import { safeInternalPath } from '../../../lib/auth';
 
 export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   const ctx = await buildServiceContext(request, cookies);
@@ -15,7 +16,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   });
 
   const next = form.get('next')?.toString();
-  const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/studio';
+  const safeNext = safeInternalPath(next, '/studio');
 
   if (request.headers.get('Accept')?.includes('application/json')) {
     return toResponse(result);
