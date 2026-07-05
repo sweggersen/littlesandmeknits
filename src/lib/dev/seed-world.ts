@@ -206,6 +206,12 @@ export async function seedWorld(deps: { db: Db; handle: Handle; emailToId: Map<s
   await run('accept-offer', U.liv, { offer_id: oD });
   await run('pay', U.liv, { request_id: rD });
 
+  // Proven-knitter history: buyer-yarn requests (below) are gated on the
+  // knitter having >= 1 delivered commission (P0.3). Backfill that history for
+  // the two knitters who take eget-garn offers.
+  await run('seed-proven-knitter', U.solveig, { buyer_email: `liv${D}` });
+  await run('seed-proven-knitter', U.ingrid, { buyer_email: `liv${D}` });
+
   // (e) awaiting_yarn (buyer provides yarn, paid)
   const rE = await request(U.kari, { title: 'Strikket teppe, mitt eget garn', category: 'teppe', size: 'One size', min: 700, max: 1200, yarn: true });
   const oE = await offer(U.solveig, rE, 1000, 6, 'Kan strikke teppe av ditt garn.');

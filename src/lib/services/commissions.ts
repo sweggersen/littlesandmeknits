@@ -806,7 +806,7 @@ export async function markCompleted(
   if (!req || req.status !== 'awarded') return fail('bad_input', 'Commission cannot be marked completed');
 
   const { data: offer } = await ctx.supabase
-    .from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id!).single();
+    .from('commission_offers').select('knitter_id, project_id').eq('id', req.awarded_offer_id!).single();
 
   if (!offer || offer.knitter_id !== ctx.user.id) return fail('forbidden', 'Not the knitter on this commission');
 
@@ -815,6 +815,17 @@ export async function markCompleted(
   // receive it" claim can't take the knitter's payment.
   if (!input.trackingCode?.trim()) {
     return fail('bad_input', 'Legg inn sporingsnummeret for pakken før du markerer som ferdig.');
+  }
+
+  // Fraud control (P1.2): require a photo of the finished item before shipping.
+  // It lives on the commission's project (server-stamped created_at, visible to
+  // the buyer) — evidence against a false "not as described / damaged" claim.
+  if (offer.project_id) {
+    const { data: project } = await ctx.supabase
+      .from('projects').select('hero_photo_path').eq('id', offer.project_id).maybeSingle();
+    if (!project?.hero_photo_path) {
+      return fail('bad_input', 'Last opp et bilde av det ferdige plagget i prosjektet før du markerer som ferdig.');
+    }
   }
 
   const autoRelease = new Date();

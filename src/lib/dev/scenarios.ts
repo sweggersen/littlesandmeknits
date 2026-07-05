@@ -93,7 +93,7 @@ export const SCENARIOS: Record<string, Scenario> = {
       {
         id: 'complete', actor: 'eline', action: 'mark-completed',
         label: 'Eline merker ferdig',
-        params: { request_id: '$create-request.id' },
+        params: { request_id: '$create-request.id', tracking_code: 'POSTEN-COMM-1' },
         expect: (s) => [
           ['completed', s.request?.status, 'completed'],
           ['completed_at set', !!s.request?.completed_at, true],
@@ -129,6 +129,14 @@ export const SCENARIOS: Record<string, Scenario> = {
           ['open', s.request?.status, 'open'],
           ['yarn by buyer', s.request?.yarn_provided_by_buyer, true],
         ],
+      },
+      {
+        id: 'proven-eline', actor: 'eline', action: 'seed-proven-knitter',
+        label: 'Eline har fullført et oppdrag før (kan ta eget-garn)',
+      },
+      {
+        id: 'proven-maja', actor: 'maja', action: 'seed-proven-knitter',
+        label: 'Maja har fullført et oppdrag før (kan ta eget-garn)',
       },
       {
         id: 'offer-eline', actor: 'eline', action: 'make-offer',
@@ -186,7 +194,7 @@ export const SCENARIOS: Record<string, Scenario> = {
       {
         id: 'complete', actor: 'eline', action: 'mark-completed',
         label: 'Eline merker ferdig',
-        params: { request_id: '$create-request.id' },
+        params: { request_id: '$create-request.id', tracking_code: 'POSTEN-COMM-1' },
         expect: (s) => [['completed', s.request?.status, 'completed']],
       },
       {
@@ -426,7 +434,7 @@ export const SCENARIOS: Record<string, Scenario> = {
         expect: (s) => [['awaiting_payment', s.request?.status, 'awaiting_payment']] },
       { id: 'pay', actor: 'liv', action: 'pay', label: 'Liv betaler', params: { request_id: '$create-request.id' },
         expect: (s) => [['awarded', s.request?.status, 'awarded']] },
-      { id: 'complete', actor: 'eline', action: 'mark-completed', label: 'Eline merker ferdig', params: { request_id: '$create-request.id' },
+      { id: 'complete', actor: 'eline', action: 'mark-completed', label: 'Eline merker ferdig', params: { request_id: '$create-request.id', tracking_code: 'POSTEN-COMM-2' },
         expect: (s) => [['completed', s.request?.status, 'completed']] },
       { id: 'deliver', actor: 'liv', action: 'confirm-delivery', label: 'Liv bekrefter mottak', params: { request_id: '$create-request.id' },
         expect: (s) => [['delivered', s.request?.status, 'delivered']] },

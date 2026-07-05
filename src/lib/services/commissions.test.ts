@@ -287,6 +287,33 @@ describe('markCompleted', () => {
     expect(blank.ok).toBe(false); // whitespace is not a tracking number
   });
 
+  it('requires a finished-item photo on the project before completing (P1.2)', async () => {
+    const { ctx } = mockCtx({
+      actorId: 'k',
+      rows: {
+        commission_requests: { id: 'r1', buyer_id: 'b', status: 'awarded', title: 't', awarded_offer_id: 'o1' },
+        commission_offers: { knitter_id: 'k', project_id: 'proj-1' },
+        projects: { hero_photo_path: null }, // no photo uploaded yet
+      },
+    });
+    const r = await markCompleted(ctx, { requestId: 'r1', trackingCode: 'TRK-1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('bad_input'); expect(r.message).toMatch(/bilde/i); }
+  });
+
+  it('completes when the project has a finished-item photo + tracking', async () => {
+    const { ctx } = mockCtx({
+      actorId: 'k',
+      rows: {
+        commission_requests: { id: 'r1', buyer_id: 'b', status: 'awarded', title: 't', awarded_offer_id: 'o1' },
+        commission_offers: { knitter_id: 'k', project_id: 'proj-1' },
+        projects: { hero_photo_path: 'k/proj-1/hero.jpg' },
+      },
+    });
+    const r = await markCompleted(ctx, { requestId: 'r1', trackingCode: 'TRK-1' });
+    expect(r.ok).toBe(true);
+  });
+
   it('sets auto_release_at 14 days out and persists tracking_code', async () => {
     const { ctx, updates } = mockCtx({
       actorId: 'k',

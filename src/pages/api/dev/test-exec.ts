@@ -269,6 +269,43 @@ async function handle(
       return { data: { ...data, requestId: data.id } };
     }
 
+    case 'seed-proven-knitter': {
+      // Backfill a completed (delivered) commission history so this knitter
+      // passes the P0.3 proven-knitter gate (knitterCompletedCount >= 1) and
+      // can take buyer-yarn requests. Inserts a delivered request + an accepted
+      // offer directly (bypassing the flow) purely as historical fixture data.
+      if (!actorId) throw new Error('Actor required (the knitter)');
+      const buyerEmail = (p.buyer_email as string) ?? 'liv@test.strikketorget.no';
+      const buyerId = emailToId.get(buyerEmail);
+      if (!buyerId) throw new Error(`Unknown buyer_email: ${buyerEmail}`);
+      const { data: histReq, error: hrErr } = await db.from('commission_requests').insert({
+        buyer_id: buyerId,
+        title: p.title ?? 'Tidligere fullført oppdrag',
+        category: 'genser',
+        size_label: '2 år',
+        budget_nok_min: 800,
+        budget_nok_max: 1500,
+        description: 'Historisk oppdrag (seed) for å bevise fullført leveranse.',
+        yarn_provided_by_buyer: false,
+        status: 'delivered',
+        offer_count: 1,
+      }).select('id').single();
+      if (hrErr) throw hrErr;
+      const { data: histOffer, error: hoErr } = await db.from('commission_offers').insert({
+        request_id: histReq.id,
+        knitter_id: actorId,
+        price_nok: 1000,
+        turnaround_weeks: 3,
+        message: 'Historisk tilbud (seed).',
+        status: 'accepted',
+      }).select('id').single();
+      if (hoErr) throw hoErr;
+      await db.from('commission_requests')
+        .update({ awarded_offer_id: histOffer.id })
+        .eq('id', histReq.id);
+      return { data: { request_id: histReq.id, offer_id: histOffer.id } };
+    }
+
     case 'make-offer': {
       if (!actorId) throw new Error('Actor required');
       const result = await svcMakeOffer(synthCtx(db, actorId), {
@@ -357,6 +394,24 @@ async function handle(
 
     case 'mark-completed': {
       if (!actorId) throw new Error('Actor required');
+      // P1.2 gates completion on a finished-item photo on the project. Seed one
+      // (a placeholder) so the seeded/scenario flows can complete.
+      const { data: mcReq } = await db.from('commission_requests')
+        .select('awarded_offer_id').eq('id', p.request_id).maybeSingle();
+      if (mcReq?.awarded_offer_id) {
+        const { data: mcOffer } = await db.from('commission_offers')
+          .select('project_id').eq('id', mcReq.awarded_offer_id).maybeSingle();
+        if (mcOffer?.project_id) {
+          const { data: proj } = await db.from('projects')
+            .select('hero_photo_path').eq('id', mcOffer.project_id).maybeSingle();
+          if (!proj?.hero_photo_path) {
+            const png = await makeTestPng('c9a9a6');
+            const path = `${actorId}/projects/${mcOffer.project_id}/finished-${crypto.randomUUID()}.png`;
+            await db.storage.from('projects').upload(path, png, { contentType: 'image/png', upsert: false });
+            await db.from('projects').update({ hero_photo_path: path }).eq('id', mcOffer.project_id);
+          }
+        }
+      }
       const result = await svcMarkCompleted(synthCtx(db, actorId), {
         requestId: p.request_id as string,
         trackingCode: (p.tracking_code as string | undefined),
