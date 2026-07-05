@@ -9,6 +9,7 @@ import { recordDeadLetter } from './dead-letter';
 import { recordPaymentEvent } from './payment-events';
 import { assertWithinQuota } from './quota';
 import { killGuard } from '../flags';
+import { COMMISSION_FEE_PERCENT as FEE_PERCENT } from '../commission-pricing';
 
 const toIntOrNull = (v: string | undefined): number | null => {
   if (!v) return null;
@@ -330,10 +331,11 @@ export async function cancelCommission(
   return ok({ redirect: '/market/commissions/my-listings' });
 }
 
-// Commission ("Strikk for meg") platform fee, per terms §5: flat 12 % of the
-// agreed price. Deducted from the knitter's transfer at release, NOT charged
-// on top to the buyer.
-export const COMMISSION_FEE_PERCENT = 12;
+// Commission ("Strikk for meg") platform fee, per terms §5: flat 8 % of the
+// agreed price, paid by the BUYER on top of the quote. The knitter keeps 100%.
+// Pure helpers live in ../commission-pricing (importable by Astro components);
+// re-exported here for back-compat with existing importers.
+export { COMMISSION_FEE_PERCENT, commissionFeeNok } from '../commission-pricing';
 
 export async function payCommission(
   ctx: ServiceContext,
@@ -371,8 +373,10 @@ export async function payCommission(
     return fail('conflict', 'Strikkeren har ikke fullført oppsett av utbetaling ennå.');
   }
 
-  const amountOre = offer.price_nok * 100;
-  const platformFee = Math.round(amountOre * COMMISSION_FEE_PERCENT / 100);
+  // Buyer pays the knitter's quote PLUS the platform fee on top (knitter keeps
+  // 100%). Two line items so the buyer sees the breakdown on Stripe's page too.
+  const priceOre = offer.price_nok * 100;
+  const platformFee = Math.round(priceOre * FEE_PERCENT / 100);
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
@@ -388,10 +392,16 @@ export async function payCommission(
   // NOT here, so an abandoned checkout leaves the request untouched.
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
-    line_items: [{
-      price_data: { currency: 'nok', unit_amount: amountOre, product_data: { name: `Strikk for meg: ${req.title}` } },
-      quantity: 1,
-    }],
+    line_items: [
+      {
+        price_data: { currency: 'nok', unit_amount: priceOre, product_data: { name: `Strikk for meg: ${req.title}` } },
+        quantity: 1,
+      },
+      {
+        price_data: { currency: 'nok', unit_amount: platformFee, product_data: { name: 'Strikketorget-gebyr (trygg betaling)' } },
+        quantity: 1,
+      },
+    ],
     payment_method_types: ['vipps' as 'card', 'card'],
     success_url: `${siteUrl}/market/commissions/${input.requestId}?paid=1`,
     cancel_url: `${siteUrl}/market/commissions/${input.requestId}`,
@@ -415,9 +425,9 @@ export async function payCommission(
  *
  *  Handles both payment rails:
  *   - NEW (separate charges & transfers): the PI was auto-captured into the
- *     platform balance at payment; transfer price minus the 12 % platform fee
- *     to the knitter's account, tied to the original charge via
- *     source_transaction. The Stripe idempotency key (per request) makes a
+ *     platform balance at payment (buyer paid price + fee); transfer the FULL
+ *     price to the knitter's account, tied to the original charge via
+ *     source_transaction, and retain the fee. The Stripe idempotency key (per request) makes a
  *     buyer-click/cron race yield ONE transfer.
  *   - LEGACY (manual-capture destination charge): requires_capture → capture
  *     (Stripe routes via the PI's transfer_data); already-succeeded
@@ -457,11 +467,13 @@ export async function releaseCommissionFunds(
       return { released: false, reason: 'no_payout_account' };
     }
 
+    // The buyer paid price + fee; transfer the FULL price to the knitter and
+    // retain the fee in the platform balance. feeOre is recorded in metadata.
     const priceOre = input.priceNok * 100;
-    const feeOre = Math.round(priceOre * COMMISSION_FEE_PERCENT / 100);
+    const feeOre = Math.round(priceOre * FEE_PERCENT / 100);
     const chargeId = typeof pi.latest_charge === 'string' ? pi.latest_charge : pi.latest_charge?.id;
     const transfer = await stripe.transfers.create({
-      amount: priceOre - feeOre,
+      amount: priceOre,
       currency: 'nok',
       destination: knitterSeller.stripe_account_id,
       // Draw against the original charge's funds (not the general balance).
@@ -757,7 +769,7 @@ export async function confirmDelivery(
     await recordPaymentEvent(ctx.admin, {
       kind: 'commission', type: 'released', commissionRequestId: input.requestId,
       actorId: ctx.user.id, amountNok: offer.price_nok,
-      feeNok: Math.round(offer.price_nok * COMMISSION_FEE_PERCENT / 100),
+      feeNok: Math.round(offer.price_nok * FEE_PERCENT / 100),
       paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'buyer_confirmed' },
     });
   }

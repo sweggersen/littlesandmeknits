@@ -325,7 +325,7 @@ describe('confirmDelivery', () => {
     if (!r.ok) expect(r.code).toBe('bad_input');
   });
 
-  it('releases the funds (transfer of price minus 12%) on success', async () => {
+  it('releases the funds (transfer of the full price) on success', async () => {
     stripeCapture.mockClear();
     stripeTransferCreate.mockClear();
     const { ctx } = mockCtx({
@@ -342,7 +342,7 @@ describe('confirmDelivery', () => {
     expect(stripeCapture).not.toHaveBeenCalled();
     expect(stripeTransferCreate).toHaveBeenCalledTimes(1);
     expect((stripeTransferCreate.mock.calls[0] as any)[0]).toMatchObject({
-      amount: 44000, // 50000 - 12%
+      amount: 50000, // full price — knitter keeps 100%; buyer paid the 8% fee on top
       destination: 'acct_k',
     });
   });

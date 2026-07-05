@@ -73,7 +73,7 @@ function seed(o: SeedOpts = {}): FakeDb {
 }
 
 describe('payCommission — builds a real Checkout Session (separate charges & transfers)', () => {
-  it('charges the full price into the PLATFORM balance, 12% fee recorded in metadata', async () => {
+  it('charges price + 8% fee into the PLATFORM balance, fee recorded in metadata', async () => {
     const db = seed();
     const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
     expect(r.ok).toBe(true);
@@ -82,7 +82,10 @@ describe('payCommission — builds a real Checkout Session (separate charges & t
     expect(sessionCreate).toHaveBeenCalledTimes(1);
     const args = sessionCreate.mock.calls[0][0] as any;
     expect(args.mode).toBe('payment');
-    expect(args.line_items[0].price_data.unit_amount).toBe(100000); // 1000 kr -> ore
+    // Buyer pays the knitter's price PLUS the fee on top — two line items.
+    expect(args.line_items[0].price_data.unit_amount).toBe(100000); // 1000 kr knit price
+    expect(args.line_items[1].price_data.unit_amount).toBe(8000);   // 8% fee = 80 kr
+    expect(args.line_items[1].price_data.product_data.name).toContain('gebyr');
     // H2b: NO payment_intent_data — no manual capture (the auth would die in
     // ~7 days, a knit takes weeks) and no destination/application fee. The
     // charge auto-captures into the platform balance; the knitter's share is
@@ -95,7 +98,7 @@ describe('payCommission — builds a real Checkout Session (separate charges & t
     expect(args.cancel_url).toBe('https://test.site/market/commissions/req-1');
     expect(args.customer_email).toBe('buyer@x.io'); // prefilled so Vipps/card receipt reaches the buyer
     expect(args.locale).toBe('nb');
-    expect(args.metadata).toMatchObject({ type: 'commission_payment', commission_request_id: 'req-1', buyer_id: 'buyer-1', platform_fee_ore: '12000' });
+    expect(args.metadata).toMatchObject({ type: 'commission_payment', commission_request_id: 'req-1', buyer_id: 'buyer-1', platform_fee_ore: '8000' });
 
     // No side effects here — the request stays awaiting_payment until the webhook.
     const row = db.find('commission_requests', { id: 'req-1' }) as any;
@@ -110,21 +113,21 @@ describe('payCommission — builds a real Checkout Session (separate charges & t
     expect((sessionCreate.mock.calls[0][0] as any).success_url).toContain('https://www.littlesandmeknits.com');
   });
 
-  // Price sweep: the recorded fee is 12% flat (terms §5) of the agreed price,
-  // echoed in metadata so the webhook stores exactly what will be deducted
-  // from the knitter's transfer.
+  // Price sweep: fee is 8% flat (terms §5), paid by the buyer ON TOP. Two line
+  // items (knit price + fee); metadata echoes the fee the webhook stores.
   it.each([1, 50, 199, 200, 999, 1000, 4999, 5000])(
-    'price %d kr — 12%% fee reconciles', async (price) => {
+    'price %d kr — 8%% fee on top reconciles', async (price) => {
       const db = seed({ offer: { price_nok: price } });
       await payCommission(ctxFor(db), { requestId: 'req-1' });
       const args = sessionCreate.mock.calls[0][0] as any;
-      const amountOre = price * 100;
-      const expectedFee = Math.round(amountOre * 12 / 100);
-      expect(args.line_items[0].price_data.unit_amount).toBe(amountOre);
-      expect(expectedFee).toBeLessThanOrEqual(amountOre); // platform never takes more than the price
+      const priceOre = price * 100;
+      const expectedFee = Math.round(priceOre * 8 / 100);
+      expect(args.line_items[0].price_data.unit_amount).toBe(priceOre);   // knitter's full price
+      expect(args.line_items[1].price_data.unit_amount).toBe(expectedFee); // fee on top
       expect(args.metadata.platform_fee_ore).toBe(String(expectedFee));
-      // Knitter's eventual share is price - fee; conservation holds.
-      expect(amountOre - expectedFee + expectedFee).toBe(amountOre);
+      // Buyer pays price + fee; knitter later receives the full price; platform
+      // keeps the fee. Conservation: knitter (priceOre) + platform (fee) = buyer total.
+      expect(priceOre + expectedFee).toBe(priceOre + expectedFee);
     },
   );
 });
@@ -182,16 +185,16 @@ describe('payCommission — guards', () => {
     expect(sessionCreate).not.toHaveBeenCalled();
   });
 
-  it('charges 12% flat regardless of knitter role (no profiles dependency)', async () => {
+  it('charges 8% flat regardless of knitter role (no profiles dependency)', async () => {
     const db = fakeDb({
       commission_requests: [{ id: 'req-1', buyer_id: 'buyer-1', status: 'awaiting_payment', awarded_offer_id: 'offer-1', title: 'T', yarn_provided_by_buyer: false }],
       commission_offers: [{ id: 'offer-1', knitter_id: 'knitter-1', price_nok: 1000 }],
-      // No profiles row at all — the fee is flat 12% per terms §5.
+      // No profiles row at all — the fee is flat 8% per terms §5.
       seller_profiles: [{ id: 'knitter-1', stripe_account_id: 'acct_knitter', stripe_connect_status: 'verified' }],
     });
     const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
     expect(r.ok).toBe(true);
-    expect((sessionCreate.mock.calls[0][0] as any).metadata.platform_fee_ore).toBe('12000');
+    expect((sessionCreate.mock.calls[0][0] as any).metadata.platform_fee_ore).toBe('8000');
   });
 
   it('is blocked by the commissions kill-switch (no checkout created)', async () => {
@@ -293,7 +296,7 @@ describe('finalizeCommissionPayment — post-payment (webhook)', () => {
 describe('releaseCommissionFunds', () => {
   const args = { requestId: 'req-1', paymentIntentId: 'pi_paid', knitterId: 'knitter-1', priceNok: 1000 };
 
-  it('new rail: transfers price minus 12% to the knitter, tied to the charge, idempotent key', async () => {
+  it('new rail: transfers the FULL price to the knitter, tied to the charge, idempotent key', async () => {
     const db = seed();
     const r = await releaseCommissionFunds(db.client as any, 'sk_test', args);
     expect(r.released).toBe(true);
@@ -301,27 +304,31 @@ describe('releaseCommissionFunds', () => {
     expect(transferCreate).toHaveBeenCalledTimes(1);
     const [params, opts] = transferCreate.mock.calls[0];
     expect(params).toMatchObject({
-      amount: 88000, // 100000 - 12000 (12%)
+      amount: 100000, // full price — buyer paid the 8% fee on top; platform keeps it
       currency: 'nok',
       destination: 'acct_knitter',
       source_transaction: 'ch_1',
       transfer_group: 'commission_req-1',
     });
-    expect(params.metadata.platform_fee_ore).toBe('12000');
+    expect(params.metadata.platform_fee_ore).toBe('8000');
     // The idempotency key makes a confirm/cron race yield ONE transfer.
     expect(opts.idempotencyKey).toBe('commission-transfer-req-1');
     // Transfer id recorded for audit.
     expect((db.find('commission_requests', { id: 'req-1' }) as any).stripe_transfer_id).toBe('tr_1');
   });
 
-  // Money conservation across the sweep: transfer + fee = price, in ore.
+  // Money conservation across the sweep (buyer-pays-on-top): the knitter is
+  // transferred the FULL price, and the platform retains the 8% fee the buyer
+  // paid on top. So knitter transfer + platform fee = buyer total (price + fee).
   it.each([1, 50, 199, 200, 999, 1000, 4999, 5000])('conserves money at %d kr', async (price) => {
     const db = seed();
     await releaseCommissionFunds(db.client as any, 'sk_test', { ...args, priceNok: price });
     const [params] = transferCreate.mock.calls[0];
-    const feeOre = Math.round(price * 100 * 12 / 100);
-    expect(params.amount + feeOre).toBe(price * 100);
-    expect(params.amount).toBeGreaterThanOrEqual(0);
+    const feeOre = Math.round(price * 100 * 8 / 100);
+    const buyerTotalOre = price * 100 + feeOre;
+    expect(params.amount).toBe(price * 100);              // knitter gets 100%
+    expect(params.amount + feeOre).toBe(buyerTotalOre);   // + platform fee = buyer total
+    expect(params.metadata.platform_fee_ore).toBe(String(feeOre));
   });
 
   it('legacy rail requires_capture: captures (transfer_data routes), no transfer', async () => {

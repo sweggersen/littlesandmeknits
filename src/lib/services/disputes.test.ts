@@ -281,16 +281,17 @@ describe('resolveDispute — commission', () => {
     expect(r.ok).toBe(true);
     expect(stripeCapture).not.toHaveBeenCalled();
     expect(stripeTransferCreate).toHaveBeenCalledTimes(1);
-    expect((stripeTransferCreate.mock.calls[0] as any)[0]).toMatchObject({ amount: 44000, destination: 'acct_k' });
+    expect((stripeTransferCreate.mock.calls[0] as any)[0]).toMatchObject({ amount: 50000, destination: 'acct_k' });
     // releaseCommissionFunds records stripe_transfer_id first; the status
     // update is the one carrying `status`.
     const u = updates.find((x: any) => x.table === 'commission_requests' && (x.row as any).status) as any;
     expect(u.row.status).toBe('delivered');
     expect(typeof u.row.delivered_at).toBe('string');
-    // Ledger: dispute closed (release) + the released amount minus the 12% fee.
+    // Ledger: dispute closed (release). Knitter gets the full price; the 8% fee
+    // (500 * 8% = 40) is recorded as the platform's retained cut.
     const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
     expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'dispute_resolved', commission_request_id: 'r1', context: { decision: 'release' } }));
-    expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'released', commission_request_id: 'r1', amount_nok: 500, fee_nok: 60 }));
+    expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'released', commission_request_id: 'r1', amount_nok: 500, fee_nok: 40 }));
   });
 
   it('handles request with no payment intent (no Stripe call)', async () => {

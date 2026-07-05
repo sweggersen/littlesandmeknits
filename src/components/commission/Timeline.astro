@@ -2,6 +2,7 @@
 import ProfileAvatar from '../ProfileAvatar.astro';
 import { projectPhotoUrl } from '../../lib/storage';
 import { PROJECT_STATUS } from '../../lib/labels';
+import { commissionBreakdown } from '../../lib/commission-pricing';
 
 // Six-phase commission timeline shown once a knitter's offer has been
 // accepted: Valgt tilbud → Betaling → Garn (conditional) → Pågår →
@@ -131,7 +132,16 @@ const {
         <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/30 md:text-left">
           <p class="font-medium text-sm mb-1">Betal for oppdraget</p>
           <p class="text-xs text-charcoal/55 mb-3">Pengene holdes til prosjektet er levert.</p>
-          <p class="font-mono tabular-nums text-lg mb-3">{acceptedOffer!.price_nok} NOK</p>
+          {(() => {
+            const b = commissionBreakdown(acceptedOffer!.price_nok);
+            return (
+              <div class="text-xs text-charcoal/60 space-y-1 mb-3">
+                <div class="flex justify-between"><span>Strikkerens pris</span><span class="font-mono tabular-nums">{b.priceNok} kr</span></div>
+                <div class="flex justify-between"><span>Trygg betaling-gebyr</span><span class="font-mono tabular-nums">{b.feeNok} kr</span></div>
+                <div class="flex justify-between font-medium text-charcoal border-t border-sage-500/15 pt-1 mt-1"><span>Å betale</span><span class="font-mono tabular-nums text-base">{b.totalNok} kr</span></div>
+              </div>
+            );
+          })()}
           <form method="post" action="/api/marketplace/commissions/pay" data-astro-reload>
             <input type="hidden" name="request_id" value={req.id} />
             <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Betal nå</button>
