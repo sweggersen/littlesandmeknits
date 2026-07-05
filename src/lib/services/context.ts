@@ -1,5 +1,5 @@
 import type { AstroCookies } from 'astro';
-import { getCurrentUser, extractBearerToken } from '../auth';
+import { getCurrentUser, extractBearerToken, resolveUserEmail } from '../auth';
 import { createServerSupabase, createAdminSupabase, createTokenSupabase } from '../supabase';
 import type { ServiceContext } from './types';
 
@@ -23,7 +23,10 @@ export async function buildServiceContext(
   return {
     supabase: token ? createTokenSupabase(token) : createServerSupabase({ request, cookies }),
     admin: createAdminSupabase(serviceRoleKey),
-    user: { id: user.id, email: user.email },
+    // Real, deliverable email (Vipps logins carry a synthetic auth email but
+    // the real one in user_metadata) — so Stripe receipts + notifications reach
+    // the user, never a black-hole address. null when we have no real email yet.
+    user: { id: user.id, email: resolveUserEmail(user) ?? undefined },
     env,
   };
 }

@@ -122,7 +122,9 @@ export async function createNotification(
     if (!emailEnabled) return;
 
     const { data: authUser } = await admin.auth.admin.getUserById(opts.userId);
-    const email = authUser?.user?.email;
+    // Real, deliverable email only — Vipps synthetic addresses can't receive.
+    const { resolveUserEmail } = await import('./auth');
+    const email = resolveUserEmail(authUser?.user);
     if (!email) return;
 
     const { subject, html } = renderEmail(opts.type, {

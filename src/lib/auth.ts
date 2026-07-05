@@ -21,6 +21,26 @@ export function extractBearerToken(request: Request): string | null {
   return token || null;
 }
 
+/** The synthetic address minted for Vipps logins (src/lib/vipps-session.ts) —
+ *  it can't receive mail, so it must never be used as a send target. */
+const VIPPS_SYNTH_DOMAIN = '@vipps.users.littlesandmeknits.com';
+
+/** The user's REAL, deliverable email, or null. Vipps logins carry a synthetic
+ *  auth email but preserve the real one in user_metadata.vipps_email — prefer
+ *  that; otherwise the auth email if it isn't the synthetic placeholder. Use
+ *  this everywhere we SEND mail or prefill Stripe, never the raw auth email. */
+export function resolveUserEmail(
+  user: { email?: string | null; user_metadata?: Record<string, unknown> | null } | null | undefined,
+): string | null {
+  if (!user) return null;
+  const vippsEmail = user.user_metadata?.vipps_email;
+  if (typeof vippsEmail === 'string' && vippsEmail.includes('@') && !vippsEmail.endsWith(VIPPS_SYNTH_DOMAIN)) {
+    return vippsEmail;
+  }
+  if (user.email && !user.email.endsWith(VIPPS_SYNTH_DOMAIN)) return user.email;
+  return null;
+}
+
 /** Raw user lookup. Prefer `Astro.locals.user` set by middleware for
  *  ordinary pages — this helper is for code paths the middleware
  *  doesn't run (API routes, dev tools, places where you need a fresh

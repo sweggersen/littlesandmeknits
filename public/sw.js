@@ -70,12 +70,12 @@ const OFFLINE_HTML = `<!doctype html>
 <section class="game-card" aria-label="Strikkeklikker">
   <div class="game-header">
     <span class="game-title">Strikkeklikker</span>
-    <span class="stitch-count"><span id="score">0</span> masker</span>
+    <span class="stitch-count"><span id="score">0</span> nøster</span>
   </div>
   <div class="stage">
     <canvas id="game" width="600" height="800"></canvas>
     <div class="over" id="over">
-      <p class="final"><span id="final">0</span> masker</p>
+      <p class="final"><span id="final">0</span> nøster</p>
       <p class="label">Ferdig strikket</p>
       <button id="replay" type="button">Strikk igjen</button>
     </div>
