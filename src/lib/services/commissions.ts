@@ -17,6 +17,27 @@ const toIntOrNull = (v: string | undefined): number | null => {
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
 
+/** How many commissions this knitter has carried to `delivered`. Two plain
+ *  eq/in queries (no join) so it works against the fake-db in tests too. */
+export async function knitterCompletedCount(
+  db: ServiceContext['supabase'],
+  knitterId: string,
+): Promise<number> {
+  const { data: offers } = await db
+    .from('commission_offers')
+    .select('request_id')
+    .eq('knitter_id', knitterId)
+    .eq('status', 'accepted');
+  const ids = (offers ?? []).map((o) => o.request_id).filter(Boolean);
+  if (!ids.length) return 0;
+  const { data: reqs } = await db
+    .from('commission_requests')
+    .select('id')
+    .in('id', ids)
+    .eq('status', 'delivered');
+  return reqs?.length ?? 0;
+}
+
 export async function createRequest(
   ctx: ServiceContext,
   input: {
@@ -98,12 +119,23 @@ export async function makeOffer(
 
   const { data: req } = await ctx.supabase
     .from('commission_requests')
-    .select('id, buyer_id, status, title')
+    .select('id, buyer_id, status, title, yarn_provided_by_buyer')
     .eq('id', input.requestId)
     .maybeSingle();
 
   if (!req || req.status !== 'open') return fail('bad_input', 'Request not open');
   if (req.buyer_id === ctx.user.id) return fail('bad_input', 'Cannot bid on own request');
+
+  // Fraud control (P0.3): the buyer ships physical yarn to the knitter, which
+  // the platform can't insure. Only let a PROVEN knitter (≥1 completed
+  // commission) bid on a buyer-yarn request, so the buyer can only ever award
+  // one with a track record. New knitters build trust on platform-sourced yarn.
+  if (req.yarn_provided_by_buyer) {
+    const completed = await knitterCompletedCount(ctx.supabase, ctx.user.id);
+    if (completed < 1) {
+      return fail('conflict', 'Du må fullføre minst ett oppdrag før du kan ta oppdrag der kjøper sender eget garn.');
+    }
+  }
 
   // Daily quota — prevents an attacker from flooding offers on a
   // popular request. 20/day is generous for any genuine knitter.

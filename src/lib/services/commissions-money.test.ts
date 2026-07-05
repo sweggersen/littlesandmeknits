@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { payCommission, finalizeCommissionPayment, releaseCommissionFunds, refundCommissionPayment } from './commissions';
+import { payCommission, finalizeCommissionPayment, releaseCommissionFunds, refundCommissionPayment, makeOffer, knitterCompletedCount } from './commissions';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
 import { createFakeDb, type FakeDb } from './__test_helpers__/fake-db';
@@ -426,5 +426,56 @@ describe('refundCommissionPayment', () => {
     piRetrieve.mockResolvedValueOnce({ status: 'succeeded', transfer_data: { destination: 'acct_knitter' } });
     await refundCommissionPayment('sk_test', 'pi_x');
     expect(refundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_x', reverse_transfer: true, refund_application_fee: true });
+  });
+});
+
+describe('makeOffer — buyer-yarn requires a proven knitter (P0.3)', () => {
+  const offerInput = { requestId: 'req-1', priceNok: '1000', turnaroundWeeks: '3', message: 'Jeg kan strikke dette!' };
+
+  it('counts a knitter\'s delivered commissions', async () => {
+    const db = createFakeDb({
+      commission_offers: [
+        { id: 'o1', request_id: 'r-done', knitter_id: 'knitter-1', status: 'accepted' },
+        { id: 'o2', request_id: 'r-open', knitter_id: 'knitter-1', status: 'accepted' },
+      ],
+      commission_requests: [
+        { id: 'r-done', status: 'delivered' },
+        { id: 'r-open', status: 'awarded' },
+      ],
+    });
+    expect(await knitterCompletedCount(db.client as any, 'knitter-1')).toBe(1);
+    expect(await knitterCompletedCount(db.client as any, 'nobody')).toBe(0);
+  });
+
+  it('rejects an unproven knitter (0 delivered) on a buyer-yarn request', async () => {
+    const db = createFakeDb({
+      commission_requests: [{ id: 'req-1', buyer_id: 'buyer-1', status: 'open', title: 'Genser', yarn_provided_by_buyer: true }],
+      commission_offers: [],
+    });
+    const r = await makeOffer(ctxFor(db, 'knitter-new'), offerInput);
+    expect(r.ok).toBe(false);
+    if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toMatch(/garn/i); }
+  });
+
+  it('allows a proven knitter (≥1 delivered) on a buyer-yarn request', async () => {
+    const db = createFakeDb({
+      commission_requests: [
+        { id: 'req-1', buyer_id: 'buyer-1', status: 'open', title: 'Genser', yarn_provided_by_buyer: true },
+        { id: 'r-done', buyer_id: 'buyer-2', status: 'delivered', title: 'Old' },
+      ],
+      commission_offers: [{ id: 'o-done', request_id: 'r-done', knitter_id: 'knitter-1', status: 'accepted', price_nok: 500 }],
+    });
+    const r = await makeOffer(ctxFor(db, 'knitter-1'), offerInput);
+    expect(r.ok).toBe(true);
+    expect(db.find('commission_offers', { request_id: 'req-1', knitter_id: 'knitter-1' })).toBeTruthy();
+  });
+
+  it('does not gate a request where the knitter supplies the yarn', async () => {
+    const db = createFakeDb({
+      commission_requests: [{ id: 'req-1', buyer_id: 'buyer-1', status: 'open', title: 'Genser', yarn_provided_by_buyer: false }],
+      commission_offers: [],
+    });
+    const r = await makeOffer(ctxFor(db, 'knitter-new'), offerInput);
+    expect(r.ok).toBe(true);
   });
 });
