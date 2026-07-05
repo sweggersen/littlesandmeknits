@@ -14,6 +14,7 @@ import {
   shipYarn as svcShipYarn,
   receiveYarn as svcReceiveYarn,
   finalizeCommissionPayment as svcFinalizeCommissionPayment,
+  COMMISSION_FEE_PERCENT as svcCommissionFeePercent,
 } from '../../../lib/services/commissions';
 import {
   publishListing as svcPublishListing,
@@ -323,7 +324,7 @@ async function handle(
       const fin = await svcFinalizeCommissionPayment(db, env as unknown as Record<string, string>, {
         requestId: p.request_id as string,
         paymentIntentId: 'pi_sim_comm_' + Date.now(),
-        platformFeeOre: Math.round(priceNok * 100 * 0.12),
+        platformFeeOre: Math.round(priceNok * 100 * svcCommissionFeePercent / 100),
       });
       if (!fin.ok) throw new Error(`finalize: ${fin.code}: ${fin.message}`);
 
