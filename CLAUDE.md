@@ -191,6 +191,20 @@ try { await stripe.something(...); } catch (e) { console.error(e); /* continue *
 ```
 That's a bug report waiting six months. Either roll back or dead-letter.
 
+### All money math goes through `MoneyBreakdown` (`src/lib/money.ts`)
+
+Every payment/fee calculation is assembled and **validated** by the money
+authority — never compute a fee or a buyer total with raw arithmetic in a
+service. `MoneyBreakdown.listingPurchase(...)` / `.commissionPayment(...)` are
+the only home for the fee formulas; the class validates its invariants on
+construction (non-negative integer øre, **conservation** `buyerCharge ===
+sellerCredit + platformFee`, itemised parts reconcile) and throws
+`MoneyInvariantError` otherwise, so a wrong number can't reach Stripe or the
+ledger. `money-boundary.test.ts` fails CI if a service does fee arithmetic
+outside this file; `money.test.ts` sweeps the invariants; `money.ts` is in the
+`npm run test:mutation` gate. Adding a new money flow = add a factory +
+invariant tests, not inline math.
+
 ## Data model rules
 
 - **Don't add columns to `profiles`.** Per refactor item #2, that table is being split into `profiles` (display identity), `seller_profiles` (payout/KYC), `buyer_preferences` (interests/flags), `auth_identities` (provider records). New seller-payout fields, new onboarding flags, new identity providers — all land in the appropriate table.
