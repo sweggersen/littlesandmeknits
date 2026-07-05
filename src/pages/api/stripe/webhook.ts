@@ -415,6 +415,22 @@ async function handleEvent(
         referenceId: prior.id,
       }, notifyEnv);
     }
+
+    // P0.4: Custom Connect makes us responsible for telling the seller when
+    // Stripe needs more info. Notify on the transition INTO restricted/rejected
+    // (not on every account.updated) with a link to the remediation flow.
+    if ((status === 'restricted' || status === 'rejected') && prior && prior.stripe_connect_status !== status) {
+      await createNotification(supabase, {
+        userId: prior.id,
+        type: 'seller_verification_needed',
+        title: 'Vi trenger mer informasjon',
+        body: status === 'rejected'
+          ? 'Utbetalingskontoen din er avvist. Ta kontakt med oss, så hjelper vi deg videre.'
+          : 'Stripe trenger mer informasjon før du kan få utbetalinger. Fullfør verifiseringen fra profilen din.',
+        url: '/profile/become-seller',
+        referenceId: prior.id,
+      }, notifyEnv);
+    }
     return new Response('ok', { status: 200 });
   }
 

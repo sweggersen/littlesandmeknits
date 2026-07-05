@@ -112,6 +112,29 @@ export async function createSellerConnectAccount(
   }
 }
 
+/** A Stripe-hosted Account Link so a seller whose Custom account needs more
+ *  info (restricted) can submit exactly what Stripe requires (P0.4 remediation).
+ *  We're responsible for collecting ongoing requirements on a Custom platform;
+ *  this is the sanctioned path (Stripe-hosted onboarding to finish the account). */
+export async function createSellerVerificationLink(
+  stripeSecretKey: string,
+  accountId: string,
+  urls: { refreshUrl: string; returnUrl: string },
+): Promise<{ ok: true; url: string } | { ok: false; detail: string }> {
+  try {
+    const stripe = createStripe(stripeSecretKey);
+    const link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: urls.refreshUrl,
+      return_url: urls.returnUrl,
+      type: 'account_onboarding',
+    });
+    return { ok: true, url: link.url };
+  } catch (err: unknown) {
+    return { ok: false, detail: err instanceof Error ? err.message : 'unknown' };
+  }
+}
+
 export type ConnectStatus = 'pending' | 'restricted' | 'verified' | 'rejected';
 
 // Derive our coarse status from the Stripe Account object. Verified means

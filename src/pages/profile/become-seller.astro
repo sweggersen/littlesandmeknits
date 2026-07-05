@@ -89,10 +89,15 @@ const defaultName = seller?.legal_name
       )}
 
       {seller?.stripe_connect_status === 'restricted' && (
-        <div class="mb-6">
+        <div class="mb-6 space-y-3">
           <Alert type="warning">
-            Vi trenger mer informasjon for å verifisere deg som selger. Sjekk feltene under og oppdater om nødvendig.
+            Stripe trenger mer informasjon før du kan få utbetalinger. Fullfør verifiseringen for å bli aktivert som selger.
           </Alert>
+          <form method="post" action="/api/seller/verification-link">
+            <button type="submit" class="btn-primary w-full rounded-full py-3 px-5 text-sm font-semibold">
+              Fullfør verifisering
+            </button>
+          </form>
         </div>
       )}
 

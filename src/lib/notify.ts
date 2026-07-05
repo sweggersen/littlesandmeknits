@@ -34,6 +34,7 @@ export type NotificationType =
   | 'payout_failed'
   | 'payment_failed'
   | 'seller_activated'
+  | 'seller_verification_needed'
   | 'listing_reservation_released'
   | 'system_alert';
 
@@ -68,6 +69,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   payout_failed: 'email_payment_received',
   payment_failed: 'email_payment_received',
   seller_activated: 'email_item_approved',
+  seller_verification_needed: 'email_item_approved',
   listing_reservation_released: 'email_listing_purchased',
   // Ops alert to admins when a money-path failure dead-letters. Reuses the
   // money-notification pref column (default on) — admins almost never disable
