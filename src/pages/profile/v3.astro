@@ -185,9 +185,11 @@ function comVariant(s: string) {
           ) : (
             <ul class="space-y-2">
               {d.allBibliotek.slice(0, 4).map((b: any) => (
-                <li class="flex items-center gap-3 p-2">
-                  {b.cover_path ? <img src={projectPhotoUrl(b.cover_path)!} alt="" class="w-9 h-12 rounded object-cover" /> : <div class="w-9 h-12 rounded bg-oatmeal"></div>}
-                  <div class="min-w-0"><p class="text-sm font-medium truncate">{b.title}</p>{b.designer && <p class="text-[11px] text-charcoal/45 truncate">{b.designer}</p>}</div>
+                <li>
+                  <a href={`/profile/library/${b.id}`} class="flex items-center gap-3 p-2 rounded-xl hover:bg-white transition-colors">
+                    {b.cover_path ? <img src={projectPhotoUrl(b.cover_path)!} alt="" class="w-9 h-12 rounded object-cover" /> : <div class="w-9 h-12 rounded bg-oatmeal"></div>}
+                    <div class="min-w-0"><p class="text-sm font-medium truncate">{b.title}</p>{b.designer && <p class="text-[11px] text-charcoal/45 truncate">{b.designer}</p>}</div>
+                  </a>
                 </li>
               ))}
             </ul>

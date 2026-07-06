@@ -117,7 +117,10 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     .filter((e) => e.granted_at >= sevenDaysAgo)
     .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
     .slice(0, 6)
-    .map((e) => ACHIEVEMENT_MAP.get(e.key))
+    .map((e) => {
+      const a = ACHIEVEMENT_MAP.get(e.key);
+      return a ? { ...a, granted_at: e.granted_at } : undefined;
+    })
     .filter((a): a is NonNullable<typeof a> => a !== undefined);
 
   let pendingQueueCount = 0;

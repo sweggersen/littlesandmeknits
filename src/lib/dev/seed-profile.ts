@@ -103,8 +103,10 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
     } catch { /* */ }
   }
 
-  // 4. Purchased patterns (mirrors the Stripe-webhook purchase row).
-  for (const slug of ['solskinn-genseren', 'kveldssol-lue']) {
+  // 4. Purchased patterns (mirrors the Stripe-webhook purchase row). Use REAL
+  // pattern slugs (src/content/patterns/*) so the purchases page resolves the
+  // title instead of falling back to the raw slug.
+  for (const slug of ['solskinn', 'skog']) {
     try {
       await db.from('purchases').upsert({
         user_id: target, pattern_slug: slug, stripe_session_id: `sim_${slug}_${target}`,

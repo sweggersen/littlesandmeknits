@@ -12,6 +12,7 @@ import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { loadProfileDashboard } from '../../lib/profile-dashboard-data';
 import { COMMISSION_STATUS, LISTING_STATUS, PROJECT_STATUS, KIND_LABEL } from '../../lib/labels';
+import { formatDate } from '../../lib/time';
 
 const user = Astro.locals.user!; // middleware-gated
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
@@ -201,9 +202,13 @@ for (const o of d.allOffers.slice(0, 4)) {
               </div>
               <div class="flex flex-wrap gap-2">
                 {d.recentAchievements.map((a) => (
-                  <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-linen border-sage-500/20" title={a.description}>
+                  <a href="/profile/badges" class="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-linen border-sage-500/20 hover:border-sage-500/40 transition-colors">
                     <span>{a.emoji}</span><span>{a.label}</span>
-                  </span>
+                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-charcoal text-linen text-[10px] leading-snug rounded-lg w-max max-w-[200px] text-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
+                      {a.description}
+                      <span class="block text-linen/55 mt-0.5">Oppnådd {formatDate(a.granted_at)}</span>
+                    </span>
+                  </a>
                 ))}
               </div>
             </section>
@@ -243,16 +248,18 @@ for (const o of d.allOffers.slice(0, 4)) {
             {d.allBibliotek.length === 0 ? (
               <p class="text-sm text-charcoal/50">Ingen oppskrifter lagret.</p>
             ) : (
-              <ul class="space-y-2">
+              <ul class="space-y-1">
                 {d.allBibliotek.slice(0, 4).map((b: any) => (
-                  <li class="flex items-center gap-3">
-                    {b.cover_path
-                      ? <img src={projectPhotoUrl(b.cover_path)!} alt="" class="w-9 h-12 rounded object-cover shrink-0" />
-                      : <div class="w-9 h-12 rounded bg-oatmeal/60 shrink-0"></div>}
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium truncate">{b.title}</p>
-                      {b.designer && <p class="text-[11px] text-charcoal/50 truncate">{b.designer}</p>}
-                    </div>
+                  <li>
+                    <a href={`/profile/library/${b.id}`} class="flex items-center gap-3 -mx-1.5 px-1.5 py-1.5 rounded-xl hover:bg-linen/70 transition-colors">
+                      {b.cover_path
+                        ? <img src={projectPhotoUrl(b.cover_path)!} alt="" class="w-9 h-12 rounded object-cover shrink-0" />
+                        : <div class="w-9 h-12 rounded bg-oatmeal/60 shrink-0"></div>}
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium truncate">{b.title}</p>
+                        {b.designer && <p class="text-[11px] text-charcoal/50 truncate">{b.designer}</p>}
+                      </div>
+                    </a>
                   </li>
                 ))}
               </ul>
