@@ -85,7 +85,11 @@ const otherImages = data.gallery.slice(1);
         </span>
       </div>
 
-      <form method="post" action="/api/checkout" class="mb-8">
+      {/* data-astro-reload: do a native form POST. Without it the ClientRouter
+          intercepts the submit, fetches /api/checkout, and mishandles the 303
+          redirect to Stripe's cross-origin Checkout — leaving the user on
+          /api/checkout (a GET → 404). */}
+      <form method="post" action="/api/checkout" class="mb-8" data-astro-reload>
         <input type="hidden" name="pattern" value={pattern.id} />
         <input type="hidden" name="lang" value={lang} />
         <button

@@ -1,6 +1,7 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
+import { SIMULATE_STRIPE_KEY } from '../stripe-sim';
 import { killGuard } from '../flags';
 import { assertWithinQuota } from './quota';
 
@@ -26,6 +27,24 @@ export async function createPatternCheckout(
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const patternPath = input.lang === 'nb' ? `/patterns/${input.slug}` : `/en/patterns/${input.slug}`;
+
+  // Dev only (sk_simulate): there is no real Stripe checkout and no webhook fires
+  // locally, so grant the pattern immediately and land on the success page —
+  // lets localhost exercise the buy → owned-pattern flow. createStripe() throws
+  // if this key ever reaches a prod build, so this branch can't run in prod.
+  if (input.stripeSecretKey === SIMULATE_STRIPE_KEY) {
+    await ctx.admin.from('purchases').upsert({
+      user_id: ctx.user.id,
+      pattern_slug: input.slug,
+      stripe_session_id: `sim_${input.slug}_${ctx.user.id}`,
+      amount_nok: input.priceNok,
+      currency: 'NOK',
+      status: 'completed',
+      pdf_path: `${input.slug}/v1.pdf`,
+      fulfilled_at: new Date().toISOString(),
+    }, { onConflict: 'stripe_session_id' });
+    return ok({ checkoutUrl: `${siteUrl}/profile/purchases?simulated=1` });
+  }
 
   const stripe = createStripe(input.stripeSecretKey);
   const session = await stripe.checkout.sessions.create({
