@@ -28,6 +28,9 @@ test.describe('Profile design variants', () => {
     adminToken = (await (await request.get('/api/dev/test-token')).json()).token;
     await exec(request, 'cleanup');
     await exec(request, 'set-profile-visible', { actor: ELINE });
+    // Fill Eline's dashboard so the variants render against non-empty data
+    // (also exercises the seed-profile dev action).
+    await exec(request, 'seed-profile', { actor: ELINE });
   });
 
   test.afterAll(async ({ request }) => {

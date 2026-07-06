@@ -28,6 +28,25 @@ if (import.meta.env.PROD) return Astro.redirect('/market');
     <p data-status class="text-sm text-charcoal/60 mt-4"></p>
     <pre data-summary class="hidden mt-4 bg-white rounded-2xl border border-sage-500/15 p-4 text-xs overflow-x-auto"></pre>
 
+    <div class="mt-8 rounded-2xl bg-white border border-sage-500/15 p-4">
+      <h2 class="font-serif text-lg mb-1">Fyll én profil (for å teste profilsiden)</h2>
+      <p class="text-sm text-charcoal/60 mb-3">
+        Fyller profil-dashbordet til én persona med annonser, prosjekter, oppdrag (begge veier),
+        kjøpte oppskrifter, en butikk, bibliotek, en ulest melding og merker. Logg deretter inn som
+        samme persona og åpne <a href="/profile" class="text-terracotta-500 hover:underline">/profil</a>
+        (bruk bryteren nederst for V2/V3/V4).
+      </p>
+      <div class="flex flex-wrap gap-2 items-center">
+        <input data-profile-email type="email" value="eline@test.strikketorget.no"
+          class="flex-1 min-w-[16rem] bg-linen rounded-full px-4 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500" />
+        <button data-seed-profile class="btn-primary px-5 py-2 rounded-full text-sm font-semibold disabled:opacity-50">
+          Fyll profil
+        </button>
+      </div>
+      <p data-profile-status class="text-sm text-charcoal/60 mt-3"></p>
+      <pre data-profile-summary class="hidden mt-3 bg-linen rounded-xl p-3 text-xs overflow-x-auto"></pre>
+    </div>
+
     <div class="mt-6 rounded-2xl bg-white border border-sage-500/15 p-4 text-sm text-charcoal/70">
       <p class="font-medium text-charcoal/80 mb-1">Ekte bilder</p>
       <p>Annonsene får enkle fargeplassholdere. For ekte, kategori-matchede
@@ -77,5 +96,38 @@ if (import.meta.env.PROD) return Astro.redirect('/market');
       });
     }
     document.addEventListener('astro:page-load', initSeed);
+
+    function initSeedProfile() {
+      const btn = document.querySelector('[data-seed-profile]') as HTMLButtonElement | null;
+      if (!btn) return;
+      const emailInput = document.querySelector('[data-profile-email]') as HTMLInputElement;
+      const status = document.querySelector('[data-profile-status]') as HTMLElement;
+      const summary = document.querySelector('[data-profile-summary]') as HTMLElement;
+      btn.addEventListener('click', async () => {
+        const actor = emailInput.value.trim();
+        if (!actor) { status.textContent = 'Skriv inn en e-post.'; return; }
+        btn.disabled = true;
+        summary.classList.add('hidden');
+        status.textContent = `Fyller profilen til ${actor} …`;
+        try {
+          const { token } = await (await fetch('/api/dev/test-token')).json();
+          const res = await fetch('/api/dev/test-exec', {
+            method: 'POST',
+            headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'seed-profile', actor }),
+          });
+          const body = await res.json();
+          if (!body.ok) throw new Error(body.error || 'Ukjent feil');
+          status.textContent = `Ferdig. Logg inn som ${actor} og åpne /profil.`;
+          summary.textContent = JSON.stringify(body.data.seeded, null, 2);
+          summary.classList.remove('hidden');
+        } catch (e) {
+          status.textContent = 'Feilet: ' + (e instanceof Error ? e.message : String(e));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+    document.addEventListener('astro:page-load', initSeedProfile);
   </script>
 </Layout>

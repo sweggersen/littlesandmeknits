@@ -30,6 +30,7 @@ import { resolveDispute as svcResolveDispute } from '../../../lib/services/dispu
 import { addProgressLog as svcAddProgressLog } from '../../../lib/services/projects';
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
 import { seedWorld } from '../../../lib/dev/seed-world';
+import { seedProfile } from '../../../lib/dev/seed-profile';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -244,6 +245,19 @@ async function handle(
     // first broken step. See src/lib/dev/seed-world.ts.
     case 'seed-world': {
       const summary = await seedWorld({ db, handle, emailToId });
+      return { data: { seeded: summary } };
+    }
+
+    case 'seed-profile': {
+      // Fill the actor's own profile dashboard with a rich spread (listings,
+      // projects, commissions both directions, purchases, store, library,
+      // unread message, badges) for reviewing the /profile design variants.
+      if (!actorId) throw new Error('Actor required (the profile to fill)');
+      const summary = await seedProfile({
+        db, userId: actorId,
+        genListingPhotos: (listingId, category, count) =>
+          generateListingPhotos(db, actorId, listingId, category, count),
+      });
       return { data: { seeded: summary } };
     }
 
