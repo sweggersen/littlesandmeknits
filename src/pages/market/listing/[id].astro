@@ -18,7 +18,7 @@ import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { roughLocation } from '../../../lib/location';
 import { getSellerConnectStatus } from '../../../lib/services/seller-status';
-import { KIND_LABEL, CONDITION_LABEL, REFUND_REASON } from '../../../lib/labels';
+import { KIND_LABEL, CONDITION_LABEL, CATEGORY_LABEL, REFUND_REASON } from '../../../lib/labels';
 import { extractListingId, listingPath } from '../../../lib/listing-url';
 
 // Accept either a bare UUID (legacy URL) or `<slug>-<uuid>` (pretty URL).
@@ -245,7 +245,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
             </div>
             <div>
               <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kategori</dt>
-              <dd>{listing.category}</dd>
+              <dd>{CATEGORY_LABEL[listing.category] ?? listing.category}</dd>
             </div>
             {listing.condition && (
               <div>

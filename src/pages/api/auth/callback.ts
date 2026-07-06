@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { safeInternalPath } from '../../../lib/auth';
+import { isOwnerEmail } from '../../../lib/owner';
 import { env } from '../../../lib/env';
 import { sendEmail } from '../../../lib/email';
 import { renderWelcomeEmail } from '../../../lib/email-templates';
@@ -44,6 +45,12 @@ export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
       if (Object.keys(update).length) {
         await admin.from('profiles').update(update as never).eq('id', userId);
       }
+    }
+    // The owner always has admin access (bootstraps the first admin; keeps
+    // localhost magic-link logins working where signups start role-less).
+    if (userId && isOwnerEmail(userEmail)) {
+      const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+      await admin.from('profiles').update({ role: 'admin' } as never).eq('id', userId);
     }
   } catch { /* non-fatal */ }
 

@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { devToolsBlocked } from '../../../lib/dev-guard';
+import { isOwnerEmail } from '../../../lib/owner';
 
 // Dev-only endpoint. Signs in as a @test.strikketorget.no user by setting a
 // known password and calling signInWithPassword (which sets the auth cookies).
@@ -14,8 +15,8 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   }
 
   const { email } = await request.json() as { email?: string };
-  if (!email?.endsWith('@test.strikketorget.no')) {
-    return new Response('Only @test.strikketorget.no emails allowed', { status: 400 });
+  if (!email || (!email.endsWith('@test.strikketorget.no') && !isOwnerEmail(email))) {
+    return new Response('Only @test.strikketorget.no or owner emails allowed', { status: 400 });
   }
 
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
@@ -26,7 +27,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   // running seed-world first). Everyone else stays a regular user.
   const localPart = email.split('@')[0];
   const STAFF_ROLE: Record<string, 'moderator' | 'admin'> = { hanne: 'moderator', silje: 'admin' };
-  const role = STAFF_ROLE[localPart] ?? null;
+  const role: 'moderator' | 'admin' | null = isOwnerEmail(email) ? 'admin' : (STAFF_ROLE[localPart] ?? null);
 
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
   let user = list?.users?.find((u) => u.email === email);

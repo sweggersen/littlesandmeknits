@@ -10,7 +10,7 @@ interface Props {
 const { isAdmin, pendingQueueCount } = Astro.props;
 ---
 
-<div class="mb-10 bg-white rounded-2xl border border-sage-500/10 p-5">
+<div class="mb-10 bg-white rounded-2xl border border-sage-500/20 p-5">
   <div class="flex items-center gap-2 mb-4">
     <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{isAdmin ? 'Admin' : 'Moderator'}</span>
     {pendingQueueCount > 0 && (
@@ -18,13 +18,13 @@ const { isAdmin, pendingQueueCount } = Astro.props;
     )}
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-    <a href="/admin" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+    <a href="/admin" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
       <p class="text-sm font-medium">Dashboard</p>
       <p class="text-[10px] text-charcoal/45">Oversikt</p>
     </a>
     <a href="/admin/moderation" class:list={[
-      "bg-linen rounded-xl p-3 text-center transition-colors relative",
-      pendingQueueCount > 0 ? "ring-2 ring-amber-500/40 hover:ring-amber-500/60" : "hover:bg-sage-100/50",
+      "bg-white border rounded-xl p-3 text-center transition-colors relative",
+      pendingQueueCount > 0 ? "border-amber-500/50 ring-1 ring-amber-500/30" : "border-sage-500/15 hover:border-sage-500/35",
     ]}>
       <p class="text-sm font-medium">Modereringskø</p>
       {pendingQueueCount > 0 ? (
@@ -39,21 +39,21 @@ const { isAdmin, pendingQueueCount } = Astro.props;
         <p class="text-[10px] text-charcoal/45">Ingen ventende</p>
       )}
     </a>
-    <a href="/admin/reports" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+    <a href="/admin/reports" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
       <p class="text-sm font-medium">Rapporter</p>
       <p class="text-[10px] text-charcoal/45">Flagget innhold</p>
     </a>
     {isAdmin && (
       <>
-        <a href="/admin/users" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+        <a href="/admin/users" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
           <p class="text-sm font-medium">Brukere</p>
           <p class="text-[10px] text-charcoal/45">Roller og tillit</p>
         </a>
-        <a href="/admin/moderators" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+        <a href="/admin/moderators" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
           <p class="text-sm font-medium">Moderatorer</p>
           <p class="text-[10px] text-charcoal/45">Ytelse og stats</p>
         </a>
-        <a href="/admin/log" class="bg-linen rounded-xl p-3 text-center hover:bg-sage-100/50 transition-colors">
+        <a href="/admin/log" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
           <p class="text-sm font-medium">Aktivitetslogg</p>
           <p class="text-[10px] text-charcoal/45">Revisjon</p>
         </a>
