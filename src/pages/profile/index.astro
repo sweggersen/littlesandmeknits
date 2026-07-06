@@ -3,6 +3,7 @@ import Layout from '../../layouts/Layout.astro';
 import ProfileAvatar from '../../components/ProfileAvatar.astro';
 import AdminModPanel from '../../components/profile/AdminModPanel.astro';
 import DashboardGrid from '../../components/profile/DashboardGrid.astro';
+import VariantSwitcher from '../../components/profile/VariantSwitcher.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../../lib/achievements';
@@ -231,4 +232,5 @@ if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProje
 
     </div>
   </div>
+  <VariantSwitcher current="v1" />
 </Layout>

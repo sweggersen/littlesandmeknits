@@ -1,0 +1,32 @@
+---
+// Fixed switcher for comparing the profile-page design variants. Present on the
+// original (/profile) and v2–v4 so you can flip between layouts on the same
+// data. Purely a review aid — remove once a direction is chosen.
+interface Props {
+  current: 'v1' | 'v2' | 'v3' | 'v4';
+}
+const { current } = Astro.props;
+const variants: Array<{ key: Props['current']; label: string; href: string }> = [
+  { key: 'v1', label: 'Original', href: '/profile' },
+  { key: 'v2', label: 'V2 · Kommando', href: '/profile/v2' },
+  { key: 'v3', label: 'V3 · Redaksjonell', href: '/profile/v3' },
+  { key: 'v4', label: 'V4 · Fokus', href: '/profile/v4' },
+];
+---
+<div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 print:hidden">
+  <div class="flex items-center gap-1 bg-charcoal/92 backdrop-blur rounded-full p-1 shadow-lg ring-1 ring-white/10">
+    <span class="pl-3 pr-1 text-[10px] font-bold uppercase tracking-widest text-linen/50 hidden sm:inline">Design</span>
+    {variants.map((v) => (
+      <a
+        href={v.href}
+        aria-current={v.key === current ? 'page' : undefined}
+        class:list={[
+          'px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap',
+          v.key === current
+            ? 'bg-terracotta-500 text-white'
+            : 'text-linen/70 hover:text-linen hover:bg-white/10',
+        ]}
+      >{v.label}</a>
+    ))}
+  </div>
+</div>
