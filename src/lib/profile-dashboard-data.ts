@@ -1,8 +1,7 @@
-// Shared data loader for the profile dashboard and its design variants
-// (/profile, /profile/v2, /profile/v3, /profile/v4). Extracted verbatim from
-// the original /profile/index.astro frontmatter so every variant renders the
-// SAME real data and is a fair visual comparison. index.astro keeps its own
-// inline copy; the variants import this.
+// Shared data loader for the profile dashboard (/profile — the Command Center
+// layout). Extracted from the original frontmatter so the page (and the kept-
+// but-unlinked /profile/original) have a single source of truth. /profile/index
+// imports this; /profile/original keeps its own inline copy.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { projectPhotoUrl } from './storage';
