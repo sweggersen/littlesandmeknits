@@ -1,8 +1,8 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 
-// E2E smoke for the profile-page design variants (/profile/v2..v4). They render
-// the SAME data as /profile via the shared loader; this asserts each loads for a
-// logged-in user, shows a distinctive marker, and the switcher navigates.
+// E2E smoke for the profile dashboard (/profile — the "Command Center" layout).
+// Seeds a rich profile, then asserts the page renders its sections for a logged-
+// in user.
 
 const ELINE = 'eline@test.strikketorget.no';
 let adminToken: string;
@@ -23,7 +23,7 @@ async function loginAs(page: Page, email: string) {
   await page.request.post('/api/dev/test-login', { data: { email } });
 }
 
-test.describe('Profile design variants', () => {
+test.describe('Profile dashboard', () => {
   test.beforeAll(async ({ request }) => {
     adminToken = (await (await request.get('/api/dev/test-token')).json()).token;
     await exec(request, 'cleanup');
@@ -37,34 +37,22 @@ test.describe('Profile design variants', () => {
     await exec(request, 'cleanup');
   });
 
-  test('V2 Command Center loads with its markers', async ({ page }) => {
+  test('dashboard loads with its stat cards + sections', async ({ page }) => {
     await loginAs(page, ELINE);
-    await page.goto('/profile/v2');
-    await expect(page.getByText('Kommandosenter')).toBeVisible();
+    await page.goto('/profile');
+    // Stat cards (label also appears in the feed, so scope to first).
+    await expect(page.getByText('Uleste meldinger').first()).toBeVisible();
+    await expect(page.getByText('Kjøpte oppskrifter').first()).toBeVisible();
+    // Sections.
     await expect(page.getByRole('heading', { name: 'Trenger oppmerksomhet' })).toBeVisible();
-  });
-
-  test('V3 Editorial loads with its hero', async ({ page }) => {
-    await loginAs(page, ELINE);
-    await page.goto('/profile/v3');
-    // "Min profil" also appears in the nav; scope to the hero eyebrow in <main>.
-    await expect(page.getByRole('main').getByText('Min profil', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Prosjekter' })).toBeVisible();
   });
 
-  test('V4 Focus loads with its today card', async ({ page }) => {
-    await loginAs(page, ELINE);
-    await page.goto('/profile/v4');
-    await expect(page.getByText('I dag', { exact: true })).toBeVisible();
-  });
-
-  test('switcher exposes all four variants with correct links', async ({ page }) => {
+  test('renders the seeded data', async ({ page }) => {
     await loginAs(page, ELINE);
     await page.goto('/profile');
-    await expect(page.getByRole('link', { name: 'V2 · Kommando' })).toHaveAttribute('href', '/profile/v2');
-    await expect(page.getByRole('link', { name: 'V3 · Redaksjonell' })).toHaveAttribute('href', '/profile/v3');
-    await expect(page.getByRole('link', { name: 'V4 · Fokus' })).toHaveAttribute('href', '/profile/v4');
-    // The current-variant chip is marked.
-    await expect(page.getByRole('link', { name: 'Original' })).toHaveAttribute('aria-current', 'page');
+    // A seeded listing and store show up.
+    await expect(page.getByText('Babygenser i merinoull')).toBeVisible();
+    await expect(page.getByText('Min Strikkebutikk')).toBeVisible();
   });
 });

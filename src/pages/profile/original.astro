@@ -1,0 +1,233 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ProfileAvatar from '../../components/ProfileAvatar.astro';
+import AdminModPanel from '../../components/profile/AdminModPanel.astro';
+import DashboardGrid from '../../components/profile/DashboardGrid.astro';
+import { createServerSupabase } from '../../lib/supabase';
+import { projectPhotoUrl } from '../../lib/storage';
+import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from '../../lib/achievements';
+import { getEntry } from 'astro:content';
+
+const user = Astro.locals.user!;  // middleware-gated route
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+const [
+  { data: profile },
+  { data: listings },
+  { data: projects },
+  { data: myRequests },
+  { data: myOffers },
+  { data: unreadMessages },
+  { data: purchases },
+  { data: externalPatterns },
+] = await Promise.all([
+  supabase
+    .from('profiles')
+    .select('display_name, bio, location, avatar_path, seller_tags, instagram_handle, profile_visible, role')
+    .eq('id', user.id)
+    .maybeSingle(),
+  supabase
+    .from('listings')
+    .select('id, title, price_nok, status, kind, hero_photo_path, escrow_enabled, can_meet')
+    .eq('seller_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('projects')
+    .select('id, title, status, hero_photo_path, current_rows, target_rows, commission_offer_id, commission_offers(price_nok, commission_requests!commission_offers_request_id_fkey(title, buyer_id, profiles!commission_requests_buyer_id_fkey(display_name)))')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('commission_requests')
+    .select('id, title, category, status, offer_count, budget_nok_min, budget_nok_max')
+    .eq('buyer_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('commission_offers')
+    .select('id, price_nok, turnaround_weeks, status, request_id, commission_requests!commission_offers_request_id_fkey(id, title, status)')
+    .eq('knitter_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(6),
+  supabase
+    .from('marketplace_messages')
+    .select('id, conversation_id')
+    .is('read_at', null)
+    .neq('sender_id', user.id)
+    .limit(100),
+  supabase
+    .from('purchases')
+    .select('id, pattern_slug, amount_nok, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5),
+  supabase
+    .from('external_patterns')
+    .select('id, title, designer, cover_path, file_path, created_at')
+    .order('created_at', { ascending: false })
+    .limit(5),
+]);
+
+const allPurchases = await Promise.all(
+  (purchases ?? []).map(async (p: any) => {
+    const entry = await getEntry('patterns', p.pattern_slug);
+    return { ...p, title: entry?.data.title.nb ?? p.pattern_slug };
+  })
+);
+
+const allBibliotek = externalPatterns ?? [];
+
+// User's stores (any role, including soft-deleted ones for restore UI)
+const { data: myStoreMemberships } = await supabase
+  .from('store_members')
+  .select('role, stores:stores!inner(id, slug, name, logo_path, status, deleted_at, verified, promo_year_one_free)')
+  .eq('user_id', user.id);
+const STORE_STATUS_LABEL_PROFILE: Record<string, string> = {
+  draft: 'Utkast',
+  pending_review: 'Til moderering',
+  active: 'Aktiv',
+  suspended: 'Suspendert',
+  archived: 'Slettet',
+};
+const myStores: any[] = (myStoreMemberships ?? [])
+  .map((m: any) => {
+    const s = m.stores;
+    const isActive = s.status === 'active';
+    return {
+      ...s,
+      my_role: m.role,
+      href: isActive ? `/market/store/${s.slug}` : `/market/store/${s.slug}/admin`,
+      statusLabel: STORE_STATUS_LABEL_PROFILE[s.status] ?? s.status,
+    };
+  })
+  .filter((s: any) => !s.deleted_at);
+
+const userRole = profile?.role as string | null;
+const isAdmin = userRole === 'admin';
+const isModerator = userRole === 'moderator';
+const isStaff = isAdmin || isModerator;
+
+const earnedWithDates = await getUserAchievementsWithDates(supabase, user.id);
+const earnedKeys = earnedWithDates.map(e => e.key);
+const visibleAchievements = ACHIEVEMENTS.filter(a => isStaff || a.category !== 'moderering');
+const totalEarned = earnedKeys.length;
+
+const sevenDaysAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
+const recentAchievements = earnedWithDates
+  .filter(e => e.granted_at >= sevenDaysAgo)
+  .sort((a, b) => b.granted_at.localeCompare(a.granted_at))
+  .slice(0, 6)
+  .map(e => ACHIEVEMENT_MAP.get(e.key))
+  .filter((a): a is NonNullable<typeof a> => a !== undefined);
+
+let pendingQueueCount = 0;
+if (isStaff) {
+  const { count } = await supabase
+    .from('moderation_queue')
+    .select('id', { count: 'exact', head: true })
+    .in('status', ['pending', 'escalated']);
+  pendingQueueCount = count ?? 0;
+}
+
+const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
+const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? 'Anonym';
+const initial = displayName[0]?.toUpperCase() ?? '?';
+
+const allListings = listings ?? [];
+const allProjects = projects ?? [];
+const allRequests = myRequests ?? [];
+const allOffers = myOffers ?? [];
+const unreadCount = (unreadMessages ?? []).length;
+
+const activeProjects = allProjects.filter(p => p.status === 'active').length;
+const pendingOffers = allOffers.filter(o => o.status === 'pending').length;
+const acceptedOffers = allOffers.filter(o => o.status === 'accepted').length;
+const awaitingPayment = allRequests.filter(r => r.status === 'awaiting_payment').length;
+
+const subtitleParts: string[] = [];
+if (unreadCount > 0) subtitleParts.push(`${unreadCount} ulest${unreadCount === 1 ? '' : 'e'} melding${unreadCount === 1 ? '' : 'er'}`);
+if (awaitingPayment > 0) subtitleParts.push(`${awaitingPayment} venter på betaling`);
+if (acceptedOffers > 0) subtitleParts.push(`${acceptedOffers} akseptert${acceptedOffers === 1 ? '' : 'e'} tilbud`);
+if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ${pendingOffers === 1 ? 'nytt' : 'nye'} tilbud`);
+if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
+// Leave the subtitle empty when there's nothing actionable to surface;
+// the previous fallback ('Alt i orden') reads as machine-translated.
+
+
+---
+
+<Layout title="Min profil — Littles and Me Knits" lang="nb">
+  <div class="bg-linen min-h-[60vh]">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+      <!-- Profile header -->
+      <div class="flex items-center gap-5 mb-10">
+        <ProfileAvatar url={avatarUrl} name={displayName} size="xl" />
+        <div class="min-w-0">
+          <h1 class="font-serif text-3xl truncate">{displayName}</h1>
+          {subtitleParts.length > 0 && (
+            <p class="text-sm text-charcoal/55 mt-0.5">{subtitleParts.join(' · ')}</p>
+          )}
+        </div>
+        <a href="/profile/edit" class="shrink-0 ml-auto text-sm font-medium text-charcoal/45 hover:text-terracotta-500 transition-colors">
+          Rediger profil
+        </a>
+      </div>
+
+      {isStaff && <AdminModPanel isAdmin={isAdmin} pendingQueueCount={pendingQueueCount} />}
+
+      {recentAchievements.length > 0 && (
+        <section class="mb-10">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="font-serif text-lg">Nye merker</h2>
+            <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle merker ({totalEarned}/{visibleAchievements.length}) →</a>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            {recentAchievements.map(a => (
+              <div class="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border bg-white border-sage-500/20 text-charcoal" title={a.description}>
+                <span>{a.emoji}</span>
+                <span>{a.label}</span>
+                <span class="ml-0.5 text-[8px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 px-1.5 py-0.5 rounded-full">NY</span>
+                <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-primary text-primary-fg text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                  {a.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <DashboardGrid
+        unreadCount={unreadCount}
+        allRequests={allRequests}
+        allOffers={allOffers}
+        allPurchases={allPurchases}
+        myStores={myStores}
+        allBibliotek={allBibliotek}
+        allProjects={allProjects}
+        allListings={allListings}
+      />
+
+      <!-- Account links -->
+      <div class="mt-8 pt-6 border-t border-sage-500/10 flex flex-wrap gap-4">
+        <a href="/profile/edit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger profil →</a>
+        <a href={`/market/seller/${user.id}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Offentlig profil →</a>
+        <a href="/market/my-purchases" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine kjøp og kvitteringer →</a>
+        <a href="/market/my-listings" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine annonser →</a>
+        <a href="/market/favorites" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Mine favoritter →</a>
+        <a href="/profile/badges" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Merker ({totalEarned}/{visibleAchievements.length}) →</a>
+        <a href="/profile/data" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Personvern og data →</a>
+        <a href="/innstillinger" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Innstillinger →</a>
+        <form method="post" action="/api/auth/signout" data-signout-form class="inline">
+          <button type="submit" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">Logg ut →</button>
+        </form>
+      </div>
+      <script is:inline>
+        document.querySelector('[data-signout-form]')?.addEventListener('submit', function() {
+          sessionStorage.removeItem('lm-auth');
+        });
+      </script>
+
+    </div>
+  </div></Layout>
