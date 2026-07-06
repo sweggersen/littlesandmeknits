@@ -73,12 +73,19 @@ for (const o of d.allOffers.slice(0, 4)) {
         <div class="min-w-0">
           <h1 class="font-serif text-2xl sm:text-3xl truncate">{d.displayName}</h1>
         </div>
-        <div class="ml-auto flex items-center gap-2 shrink-0">
-          <a href="/profile/edit" class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">
+        <div class="ml-auto flex items-center gap-2 shrink-0" data-view-actions>
+          <button type="button" data-edit-toggle class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
             Rediger
-          </a>
+          </button>
           <a href={`/market/seller/${user.id}`} class="btn-primary px-4 py-2 rounded-full text-sm font-medium">Offentlig profil</a>
+        </div>
+        <!-- shown while editing the layout -->
+        <div class="ml-auto items-center gap-2 shrink-0 hidden" data-edit-actions>
+          <a href="/profile/edit" class="text-sm font-medium text-charcoal/50 hover:text-terracotta-500 transition-colors mr-1">Rediger detaljer →</a>
+          <button type="button" data-edit-reset class="text-sm font-medium px-3 py-2 rounded-full text-charcoal/45 hover:text-terracotta-500 transition-colors">Tilbakestill</button>
+          <button type="button" data-edit-cancel class="text-sm font-medium px-4 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">Avbryt</button>
+          <button type="button" data-edit-save class="btn-primary px-4 py-2 rounded-full text-sm font-medium">Lagre</button>
         </div>
       </div>
 
@@ -98,9 +105,13 @@ for (const o of d.allOffers.slice(0, 4)) {
         ))}
       </div>
 
-      <div class="grid lg:grid-cols-3 gap-6 items-start">
-        <!-- Left: needs attention + projects + listings -->
-        <div class="lg:col-span-2 space-y-6">
+      <div data-edit-hint class="hidden mb-4 rounded-2xl bg-terracotta-500/8 border border-terracotta-500/20 px-4 py-3 text-sm text-terracotta-500">
+        Dra kortene for å flytte dem, og bruk størrelse&shy;knappen (S · M · L) for å endre bredde. Trykk «Lagre» når du er fornøyd.
+      </div>
+
+      <div id="dashgrid" class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-5 items-start" data-user={user.id}>
+        <!-- Trenger oppmerksomhet -->
+        <div class="dash-widget md:col-span-4" data-widget="needsAttention" data-size="m">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Trenger oppmerksomhet</h2>
@@ -137,8 +148,33 @@ for (const o of d.allOffers.slice(0, 4)) {
               </ul>
             )}
           </section>
+        </div>
 
-          <!-- Projects -->
+        <!-- Nye merker -->
+        {d.recentAchievements.length > 0 && (
+          <div class="dash-widget md:col-span-2" data-widget="badges" data-size="s">
+            <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+              <div class="flex items-center justify-between mb-3">
+                <h2 class="font-serif text-lg">Nye merker</h2>
+                <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                {d.recentAchievements.map((a) => (
+                  <a href="/profile/badges" class="group relative flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full text-xs font-medium border bg-linen border-sage-500/20 hover:border-sage-500/40 transition-colors">
+                    <BadgeMedal category={a.category} /><span>{a.label}</span>
+                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-charcoal text-linen text-[10px] leading-snug rounded-lg w-max max-w-[200px] text-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
+                      {a.description}
+                      <span class="block text-linen/55 mt-0.5">Oppnådd {formatDate(a.granted_at)}</span>
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          </div>
+        )}
+
+        <!-- Prosjekter -->
+        <div class="dash-widget md:col-span-4" data-widget="projects" data-size="m">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Prosjekter</h2>
@@ -162,8 +198,39 @@ for (const o of d.allOffers.slice(0, 4)) {
               </div>
             )}
           </section>
+        </div>
 
-          <!-- Listings -->
+        <!-- Mine butikker -->
+        <div class="dash-widget md:col-span-2" data-widget="stores" data-size="s">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-serif text-lg">Mine butikker</h2>
+              <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
+            </div>
+            {d.myStores.length === 0 ? (
+              <p class="text-sm text-charcoal/50">Ingen butikker.</p>
+            ) : (
+              <ul class="space-y-2">
+                {d.myStores.slice(0, 4).map((s) => (
+                  <li>
+                    <a href={s.href} class="flex items-center gap-3 rounded-xl border border-sage-500/20 hover:border-sage-500/30 transition-colors p-2.5">
+                      {s.logo_path
+                        ? <img src={projectPhotoUrl(s.logo_path)!} alt="" class="w-9 h-9 rounded-lg object-cover shrink-0" />
+                        : <div class="w-9 h-9 rounded-lg bg-oatmeal/60 shrink-0 grid place-items-center font-serif text-sm text-charcoal/40">{(s.name?.[0] ?? '?').toUpperCase()}</div>}
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium truncate">{s.name}</p>
+                        <p class="text-[11px] text-charcoal/50">{s.statusLabel}</p>
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <!-- Annonser -->
+        <div class="dash-widget md:col-span-4" data-widget="listings" data-size="m">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Annonser</h2>
@@ -195,55 +262,9 @@ for (const o of d.allOffers.slice(0, 4)) {
           </section>
         </div>
 
-        <!-- Right: side panels -->
-        <div class="space-y-6">
-          {d.recentAchievements.length > 0 && (
-            <section class="bg-white rounded-2xl border border-sage-500/20 p-5">
-              <div class="flex items-center justify-between mb-3">
-                <h2 class="font-serif text-lg">Nye merker</h2>
-                <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
-              </div>
-              <div class="flex flex-wrap gap-2">
-                {d.recentAchievements.map((a) => (
-                  <a href="/profile/badges" class="group relative flex items-center gap-1.5 pl-1.5 pr-3 py-1 rounded-full text-xs font-medium border bg-linen border-sage-500/20 hover:border-sage-500/40 transition-colors">
-                    <BadgeMedal category={a.category} /><span>{a.label}</span>
-                    <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 bg-charcoal text-linen text-[10px] leading-snug rounded-lg w-max max-w-[200px] text-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-20">
-                      {a.description}
-                      <span class="block text-linen/55 mt-0.5">Oppnådd {formatDate(a.granted_at)}</span>
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5">
-            <div class="flex items-center justify-between mb-3">
-              <h2 class="font-serif text-lg">Mine butikker</h2>
-              <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
-            </div>
-            {d.myStores.length === 0 ? (
-              <p class="text-sm text-charcoal/50">Ingen butikker.</p>
-            ) : (
-              <ul class="space-y-2">
-                {d.myStores.slice(0, 4).map((s) => (
-                  <li>
-                    <a href={s.href} class="flex items-center gap-3 rounded-xl border border-sage-500/20 hover:border-sage-500/30 transition-colors p-2.5">
-                      {s.logo_path
-                        ? <img src={projectPhotoUrl(s.logo_path)!} alt="" class="w-9 h-9 rounded-lg object-cover shrink-0" />
-                        : <div class="w-9 h-9 rounded-lg bg-oatmeal/60 shrink-0 grid place-items-center font-serif text-sm text-charcoal/40">{(s.name?.[0] ?? '?').toUpperCase()}</div>}
-                      <div class="min-w-0 flex-1">
-                        <p class="text-sm font-medium truncate">{s.name}</p>
-                        <p class="text-[11px] text-charcoal/50">{s.statusLabel}</p>
-                      </div>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5">
+        <!-- Bibliotek -->
+        <div class="dash-widget md:col-span-2" data-widget="library" data-size="s">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between mb-3">
               <h2 class="font-serif text-lg">Bibliotek</h2>
               <a href="/profile/library/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
@@ -268,8 +289,11 @@ for (const o of d.allOffers.slice(0, 4)) {
               </ul>
             )}
           </section>
+        </div>
 
-          <div class="bg-white rounded-2xl border border-sage-500/20 p-5">
+        <!-- Snarveier -->
+        <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
             <h2 class="font-serif text-lg mb-3">Snarveier</h2>
             <div class="flex flex-col gap-2 text-sm">
               <a href="/market/my-purchases" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Kjøp og kvitteringer →</a>
@@ -280,9 +304,29 @@ for (const o of d.allOffers.slice(0, 4)) {
                 <button type="submit" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Logg ut →</button>
               </form>
             </div>
-          </div>
+          </section>
         </div>
       </div>
     </div>
   </div>
+
+  <style is:global>
+    .dash-widget { position: relative; }
+    .dash-tools { display: none; position: absolute; top: 8px; right: 8px; z-index: 20; gap: 4px; align-items: center; }
+    body.dash-editing .dash-tools { display: flex; pointer-events: auto; }
+    body.dash-editing .dash-widget { cursor: grab; outline: 2px dashed transparent; outline-offset: 3px; border-radius: 18px; transition: outline-color .12s; }
+    body.dash-editing .dash-widget:hover { outline-color: rgba(194,96,74,.35); }
+    /* Freeze card interactions while editing so drags don't fire links. */
+    body.dash-editing .dash-widget > section { pointer-events: none; user-select: none; }
+    .dash-tools .dash-grip { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #3B3733; color: #F7F2EA; cursor: grab; }
+    .dash-tools .dash-size { min-width: 26px; height: 26px; padding: 0 9px; border: 0; border-radius: 8px; background: #3B3733; color: #F7F2EA; font-size: 11px; font-weight: 700; cursor: pointer; }
+    .dash-tools .dash-size:hover { background: #C2604A; }
+    .dash-widget.dash-dragging { opacity: .4; }
+    @media (prefers-reduced-motion: reduce) { body.dash-editing .dash-widget { transition: none; } }
+  </style>
+  <script>
+    import { init } from '../../lib/client/controllers/profile-dashboard-edit';
+    import { registerController } from '../../lib/client/dom';
+    registerController(init);
+  </script>
 </Layout>

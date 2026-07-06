@@ -55,4 +55,20 @@ test.describe('Profile dashboard', () => {
     await expect(page.getByText('Babygenser i merinoull')).toBeVisible();
     await expect(page.getByText('Min Strikkebutikk')).toBeVisible();
   });
+
+  test('Rediger: resizing a widget persists across reload', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/profile');
+    await page.getByRole('button', { name: 'Rediger' }).click();
+    await expect(page.getByRole('button', { name: 'Lagre' })).toBeVisible();
+
+    const widget = page.locator('.dash-widget[data-widget="needsAttention"]');
+    await expect(widget).toHaveAttribute('data-size', 'm');
+    await widget.locator('.dash-size').click(); // m → l
+    await expect(widget).toHaveAttribute('data-size', 'l');
+
+    await page.getByRole('button', { name: 'Lagre' }).click();
+    await page.reload();
+    await expect(page.locator('.dash-widget[data-widget="needsAttention"]')).toHaveAttribute('data-size', 'l');
+  });
 });
