@@ -42,19 +42,95 @@ const hasInvite = isLocalhost
 
 // If the visitor is invited, /login has nothing useful to show — there's
 // only one auth provider and it's behind /auth/vipps/start. Send them
-// straight through.
-if (hasInvite) {
+// straight through. EXCEPT on localhost: Vipps OIDC isn't configured/rate-
+// friendly locally, so we show a dev quick-login (bypasses Vipps entirely).
+if (hasInvite && !isLocalhost) {
   return Astro.redirect(`/auth/vipps/start?next=${encodeURIComponent(next)}`);
 }
+
+const DEV_PERSONAS = [
+  { email: 'eline@test.strikketorget.no', label: 'Eline', role: 'Selger + strikker' },
+  { email: 'liv@test.strikketorget.no', label: 'Liv', role: 'Kjøper' },
+  { email: 'ingrid@test.strikketorget.no', label: 'Ingrid', role: 'Strikker' },
+  { email: 'hanne@test.strikketorget.no', label: 'Hanne', role: 'Moderator' },
+  { email: 'silje@test.strikketorget.no', label: 'Silje', role: 'Admin' },
+];
 ---
 
-<Layout title="Strikketorget — meld interesse" lang="nb" noindex>
-  {registered && (
-    <div class="max-w-md mx-auto px-6 pt-12">
-      <Alert type="success">
-        Takk! Vi sier fra så snart du kan registrere deg.
-      </Alert>
+<Layout title="Logg inn — Littles and Me" lang="nb" noindex>
+  {isLocalhost ? (
+    <div class="max-w-md mx-auto px-6 py-12">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Lokal utvikling</p>
+      <h1 class="font-serif text-3xl mb-1">Rask innlogging</h1>
+      <p class="text-sm text-charcoal/55 mb-6">Uten Vipps. Velg en persona, eller skriv en <code>@test.strikketorget.no</code>-epost.</p>
+
+      <div class="space-y-2 mb-5" data-next={next}>
+        {DEV_PERSONAS.map((p) => (
+          <button data-dev-login={p.email}
+            class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl border border-sage-500/15 hover:border-sage-500/40 transition-colors px-4 py-3 text-left disabled:opacity-50">
+            <span><span class="font-medium">{p.label}</span> <span class="text-charcoal/45 text-sm">· {p.email}</span></span>
+            <span class="text-xs text-charcoal/45">{p.role}</span>
+          </button>
+        ))}
+      </div>
+
+      <form data-dev-login-custom class="flex gap-2 mb-4">
+        <input name="email" type="email" placeholder="egen@test.strikketorget.no"
+          class="flex-1 bg-linen rounded-full px-4 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500" />
+        <button type="submit" class="btn-primary px-5 py-2 rounded-full text-sm font-medium">Logg inn</button>
+      </form>
+
+      <p data-dev-login-status class="text-sm text-charcoal/55 min-h-[1.25rem]"></p>
+
+      <a href={`/auth/vipps/start?next=${encodeURIComponent(next)}`}
+        class="inline-block mt-4 text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors">
+        Eller test ekte Vipps-flyt →
+      </a>
+
+      <script>
+        function initDevLogin() {
+          const status = document.querySelector('[data-dev-login-status]') as HTMLElement | null;
+          const nextEl = document.querySelector('[data-next]') as HTMLElement | null;
+          const next = nextEl?.getAttribute('data-next') || '/profile';
+          if (!status) return;
+          async function login(email: string) {
+            status!.textContent = `Logger inn som ${email} …`;
+            document.querySelectorAll('[data-dev-login]').forEach((b) => ((b as HTMLButtonElement).disabled = true));
+            try {
+              const res = await fetch('/api/dev/test-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email }),
+              });
+              if (!res.ok) throw new Error(await res.text());
+              window.location.href = next;
+            } catch (e) {
+              status!.textContent = 'Feilet: ' + (e instanceof Error ? e.message : String(e));
+              document.querySelectorAll('[data-dev-login]').forEach((b) => ((b as HTMLButtonElement).disabled = false));
+            }
+          }
+          document.querySelectorAll('[data-dev-login]').forEach((btn) => {
+            btn.addEventListener('click', () => login(btn.getAttribute('data-dev-login')!));
+          });
+          document.querySelector('[data-dev-login-custom]')?.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = (e.target as HTMLFormElement).querySelector<HTMLInputElement>('input[name="email"]')?.value.trim();
+            if (email) login(email);
+          });
+        }
+        document.addEventListener('astro:page-load', initDevLogin);
+      </script>
     </div>
+  ) : (
+    <>
+      {registered && (
+        <div class="max-w-md mx-auto px-6 pt-12">
+          <Alert type="success">
+            Takk! Vi sier fra så snart du kan registrere deg.
+          </Alert>
+        </div>
+      )}
+      <InterestForm />
+    </>
   )}
-  <InterestForm />
 </Layout>

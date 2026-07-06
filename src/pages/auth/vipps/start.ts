@@ -13,9 +13,12 @@ const NEXT_COOKIE = 'vipps_oidc_next';
 export const GET: APIRoute = async ({ url, cookies, request }) => {
   // Per-IP rate limit. Each Vipps start spins up a session at Vipps' side
   // and consumes a tiny bit of credential. 10 attempts/minute is plenty
-  // for any real user (an accidental refresh loop won't reach it).
+  // for any real user (an accidental refresh loop won't reach it). Skipped on
+  // localhost, where every request shares one IP bucket and would block dev
+  // testing (and the dev quick-login on /login is the real path anyway).
+  const isLocal = ['localhost', '127.0.0.1'].includes(new URL(request.url).hostname);
   const ip = clientIp(request);
-  if (!checkRateLimit('vipps.start', ip, { limit: 10, windowSeconds: 60 })) {
+  if (!isLocal && !checkRateLimit('vipps.start', ip, { limit: 10, windowSeconds: 60 })) {
     log.warn('vipps.start_rate_limited', { ip });
     return new Response('Too many attempts. Please try again in a minute.', {
       status: 429,

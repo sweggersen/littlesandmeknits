@@ -32,8 +32,10 @@ function fail(reason: string, detail?: string): Response {
 export const GET: APIRoute = async ({ url, cookies, request }) => {
   // Same per-IP guard as /start, with a slightly tighter window — every
   // callback hit triggers a Stripe-style token exchange + userinfo fetch.
+  // Skipped on localhost (shared IP bucket would block dev testing).
+  const isLocal = ['localhost', '127.0.0.1'].includes(new URL(request.url).hostname);
   const ip = clientIp(request);
-  if (!checkRateLimit('vipps.callback', ip, { limit: 20, windowSeconds: 60 })) {
+  if (!isLocal && !checkRateLimit('vipps.callback', ip, { limit: 20, windowSeconds: 60 })) {
     log.warn('vipps.callback_rate_limited', { ip });
     return new Response('Too many attempts. Please try again in a minute.', {
       status: 429,
