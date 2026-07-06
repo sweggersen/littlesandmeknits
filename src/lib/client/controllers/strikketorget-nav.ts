@@ -125,6 +125,9 @@ export function init(): void {
       if (!bindOnce('strikketorget-nav-dev-trigger', btn)) return;
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Mutually exclusive with the profile menu (stopPropagation above means
+        // the outside-click closers don't fire, so close it explicitly).
+        document.querySelector('[data-profile-menu]')?.classList.add('hidden');
         const dd = btn.parentElement?.querySelector('[data-dev-menu-dropdown]');
         dd?.classList.toggle('hidden');
       });
@@ -146,6 +149,8 @@ export function init(): void {
   if (profileTrigger && bindOnce('strikketorget-nav-profile-trigger', profileTrigger)) {
     profileTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
+      // Close the dev dropdown so the two menus never overlap.
+      document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
       profileMenu?.classList.toggle('hidden');
     });
   }
