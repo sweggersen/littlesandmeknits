@@ -57,7 +57,7 @@ const seenMarket = Astro.cookies.get('seen_market')?.value === '1';
 const marketBackLabel = seenMarket ? 'Tilbake til Strikketorget' : 'Strikketorget';
 ---
 
-<nav class="sticky top-0 z-50 bg-linen/80 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
+<nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-sage-500/10" transition:animate="none">
   <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-8">
       <a href={brandHref} class="group sm:min-w-[180px] flex items-center gap-2.5 min-w-0 max-w-full" transition:name="brand-logo">
