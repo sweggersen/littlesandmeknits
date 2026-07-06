@@ -14,9 +14,30 @@ import { releaseCommissionFunds } from '../../../lib/services/commissions';
 import { log } from '../../../lib/log';
 
 export const POST: APIRoute = async ({ request }) => {
-  const env = import.meta.env;
+  // Runtime SECRETS (SUPABASE_SERVICE_ROLE_KEY, STRIPE_SECRET_KEY,
+  // RESEND_API_KEY, VAPID_PRIVATE_KEY, CRON_SECRET) live ONLY in the Cloudflare
+  // runtime binding (cfEnv / lib/env.ts). `import.meta.env` at runtime carries
+  // only the build-time-baked PUBLIC_* values. Reading the service-role key from
+  // import.meta.env therefore yielded `undefined` in prod, so
+  // createAdminSupabase(undefined) THREW before the per-section isolation and
+  // 500'd the whole run — which got the cron auto-disabled by cron-job.org after
+  // 26 failures. Prefer the runtime binding, fall back to the baked value (local
+  // dev + PUBLIC_*). This mirrors what the Stripe webhook already does.
+  const bake = import.meta.env as unknown as Record<string, string | undefined>;
+  const cf = cfEnv as unknown as Record<string, string | undefined>;
+  const pick = (k: string) => cf[k] ?? bake[k] ?? '';
+  const env = {
+    SUPABASE_SERVICE_ROLE_KEY: pick('SUPABASE_SERVICE_ROLE_KEY'),
+    STRIPE_SECRET_KEY: pick('STRIPE_SECRET_KEY'),
+    RESEND_API_KEY: pick('RESEND_API_KEY'),
+    CRON_SECRET: pick('CRON_SECRET'),
+    PUBLIC_SITE_URL: pick('PUBLIC_SITE_URL') || 'https://www.littlesandmeknits.com',
+    PUBLIC_VAPID_KEY: pick('PUBLIC_VAPID_KEY'),
+    VAPID_PRIVATE_KEY: pick('VAPID_PRIVATE_KEY'),
+  } as Record<string, string>;
+
   const secret = request.headers.get('x-cron-secret');
-  const expectedSecret = (cfEnv as any).CRON_SECRET ?? env.CRON_SECRET;
+  const expectedSecret = env.CRON_SECRET;
   const encoder = new TextEncoder();
   const a = encoder.encode(secret ?? '');
   const b = encoder.encode(expectedSecret ?? '');
@@ -30,7 +51,19 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+  // Last-resort guard: a throw OUTSIDE the per-section isolation (client init,
+  // bad env) must NOT 500 the run — that's what got the cron auto-disabled.
+  // Return 200 so cron-job.org keeps it enabled; the body names the failure.
+  let admin: ReturnType<typeof createAdminSupabase>;
+  try {
+    admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+  } catch (fatal) {
+    log.error('cron.fatal_init', { error: fatal });
+    return new Response(
+      JSON.stringify({ ok: false, fatal: fatal instanceof Error ? fatal.message : String(fatal) }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
   const results: Record<string, number> = { expired: 0, released: 0, listingsReleased: 0, reservationsReleased: 0, nudged: 0, reviewsRevealed: 0, trustRecalculated: 0, achievementsGranted: 0, staleShadowAlerts: 0, promotionsExpired: 0, moderationThreadsAutoClosed: 0, userPreferencesRefreshed: 0, promotionDailyWindowsReset: 0, draftsNudged: 0 };
 
   // One shared timestamp for the whole tick (all the "past-due" comparisons).
@@ -81,8 +114,8 @@ export const POST: APIRoute = async ({ request }) => {
 
   // Nudge stale photo-less drafts. One-shot per listing.
   await runSection('draft_nudge', async () => {
-    const apiKey = (cfEnv as any).RESEND_API_KEY ?? env.RESEND_API_KEY;
-    const siteUrl = (cfEnv as any).PUBLIC_SITE_URL ?? env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
+    const apiKey = env.RESEND_API_KEY;
+    const siteUrl = env.PUBLIC_SITE_URL;
     if (apiKey) {
       const cutoff = new Date(Date.now() - 24 * 3600_000).toISOString();
       const { data: staleDrafts } = await admin
