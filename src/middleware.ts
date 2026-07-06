@@ -130,5 +130,26 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     }
   }
 
-  return next();
+  const response = await next();
+
+  // Security headers (adversarial review). Deliberately conservative: NO
+  // enforcing Content-Security-Policy for scripts/styles — the site relies on
+  // Astro island hydration, inline navbar scripts, Stripe + Supabase + Vipps,
+  // and a wrong allowlist would white-screen prod. `frame-ancestors 'self'`
+  // (+ X-Frame-Options) is the safe half: it blocks clickjacking without
+  // touching what the page may load. HSTS only on HTTPS.
+  try {
+    const h = response.headers;
+    if (!h.has('X-Content-Type-Options')) h.set('X-Content-Type-Options', 'nosniff');
+    if (!h.has('X-Frame-Options')) h.set('X-Frame-Options', 'SAMEORIGIN');
+    if (!h.has('Referrer-Policy')) h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (!h.has('Content-Security-Policy')) h.set('Content-Security-Policy', "frame-ancestors 'self'");
+    if (ctx.url.protocol === 'https:' && !h.has('Strict-Transport-Security')) {
+      h.set('Strict-Transport-Security', 'max-age=15552000; includeSubDomains');
+    }
+  } catch {
+    // Some responses (immutable/streamed) reject header mutation — never let a
+    // header tweak break the actual response.
+  }
+  return response;
 });

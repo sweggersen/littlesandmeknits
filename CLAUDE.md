@@ -175,7 +175,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
 ## Authorization rules
 
-- **One canonical path:** services receive a verified `ctx.user` and check ownership/role against the resource using `ensureAuthorized()` helpers in `src/lib/services/types.ts` (per refactor item #4).
+- **One canonical path:** services receive a verified `ctx.user` and authorize before mutating. Two shapes:
+  - **Role checks** (staff/admin gates) go through `ensureStaff(ctx)` / `ensureAdmin(ctx)` / `ensureRole(ctx, [...])` in `src/lib/services/types.ts` — one greppable chokepoint (`grep ensureStaff` answers "which services are staff-gated"). Pattern: `const denied = await ensureStaff(ctx); if (denied) return denied;`
+  - **Ownership checks** (is this the resource's buyer/seller/knitter) stay inline in the service, comparing `ctx.user.id` against the fetched row, since they're resource-specific.
+  - **RLS is a second gate, not the only one.** The `0085` blanket `authenticated` grant means a direct PostgREST caller (public anon key + a user JWT) can skip the service entirely, so every table's RLS must carry a real `WITH CHECK` that pins server-controlled columns — a `USING`-only or partial-`WITH CHECK` policy is a live hole (see `0097` / `docs/SECURITY_REVIEW_2026-07.md`). New tables/sensitive columns land with column-pinned RLS **and** the positive+negative RLS test.
 - **Never gate authorization in a UI page.** Pages display, services authorize. If you find yourself writing `if (user.id !== listing.seller_id) return Astro.redirect(...)` in a page, that logic belongs in a service.
 - **No silent admin-bypass.** Reaching for `ctx.admin` to "make the query simpler" is the classic foot-gun. Use it only when the operation genuinely transcends a single user.
 

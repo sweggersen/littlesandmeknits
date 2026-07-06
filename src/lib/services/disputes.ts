@@ -1,5 +1,5 @@
 import type { ServiceContext, ServiceResult } from './types';
-import { ok, fail } from './types';
+import { ok, fail, ensureAdmin } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
@@ -23,9 +23,8 @@ export async function resolveDispute(
   if (!input.itemId) return fail('bad_input', 'Missing item ID');
   if (!VALID_DECISIONS.has(input.decision as Decision)) return fail('bad_input', 'Invalid decision');
 
-  const { data: profile } = await ctx.admin
-    .from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
-  if (profile?.role !== 'admin') return fail('forbidden', 'Admin access required');
+  const denied = await ensureAdmin(ctx);
+  if (denied) return denied;
 
   const decision = input.decision as Decision;
   const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);

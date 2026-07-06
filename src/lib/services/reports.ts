@@ -1,6 +1,7 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createNotification } from '../notify';
+import { assertWithinQuota } from './quota';
 
 const VALID_TARGET_TYPES = new Set(['listing', 'commission_request', 'profile', 'store']);
 const TARGET_LABEL: Record<string, string> = {
@@ -18,6 +19,11 @@ export async function submitReport(
       !input.reason || !VALID_REASONS.includes(input.reason)) {
     return fail('bad_input', 'Invalid input');
   }
+
+  // Daily quota — a griefer can't mass-flag many different targets (the
+  // per-target dedup below only stops repeat-reporting the SAME target).
+  const quotaFail = await assertWithinQuota(ctx, 'report_create');
+  if (quotaFail) return quotaFail;
 
   const { count } = await ctx.supabase
     .from('reports')

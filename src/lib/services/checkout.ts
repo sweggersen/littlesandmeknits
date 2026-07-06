@@ -2,6 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { killGuard } from '../flags';
+import { assertWithinQuota } from './quota';
 
 export async function createPatternCheckout(
   ctx: ServiceContext,
@@ -18,6 +19,10 @@ export async function createPatternCheckout(
   if (!input.stripeSecretKey) return fail('server_error', 'Stripe not configured');
   const blocked = await killGuard(['purchases'], ctx.env);
   if (blocked) return blocked;
+  // Daily quota — each call creates a Stripe Checkout Session (API cost); cap
+  // session-creation spam from an authenticated account.
+  const quotaFail = await assertWithinQuota(ctx, 'pattern_checkout');
+  if (quotaFail) return quotaFail;
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const patternPath = input.lang === 'nb' ? `/patterns/${input.slug}` : `/en/patterns/${input.slug}`;

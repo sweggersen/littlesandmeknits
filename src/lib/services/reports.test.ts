@@ -11,30 +11,43 @@ function mockCtx(opts?: {
   insertError?: { message: string } | null;
   openCount?: number;
   mods?: { id: string }[];
+  quotaUsed?: number;
 }) {
   const inserts: unknown[] = [];
   // Order-sensitive: first select() is the "already_reported" check,
   // second is the openCount check.
   let selectCall = 0;
   const client = {
-    from: (table: string) => ({
-      select: () => ({
-        eq: () => ({
+    from: (table: string) => {
+      // assertWithinQuota (report_create): read user_action_counts then upsert.
+      if (table === 'user_action_counts') {
+        const q: any = {
+          select: () => q,
+          eq: () => q,
+          maybeSingle: async () => ({ data: { count: opts?.quotaUsed ?? 0 } }),
+          upsert: async () => ({ error: null }),
+        };
+        return q;
+      }
+      return {
+        select: () => ({
           eq: () => ({
-            eq: async () => {
-              selectCall++;
-              if (selectCall === 1) return { count: opts?.existingCount ?? 0 };
-              return { count: opts?.openCount ?? 1 };
-            },
+            eq: () => ({
+              eq: async () => {
+                selectCall++;
+                if (selectCall === 1) return { count: opts?.existingCount ?? 0 };
+                return { count: opts?.openCount ?? 1 };
+              },
+            }),
           }),
+          in: async () => ({ data: opts?.mods ?? [] }),
         }),
-        in: async () => ({ data: opts?.mods ?? [] }),
-      }),
-      insert: async (row: unknown) => {
-        inserts.push({ table, row });
-        return { error: opts?.insertError ?? null };
-      },
-    }),
+        insert: async (row: unknown) => {
+          inserts.push({ table, row });
+          return { error: opts?.insertError ?? null };
+        },
+      };
+    },
   };
   const ctx: ServiceContext = {
     supabase: client as any,
@@ -79,6 +92,17 @@ describe('submitReport — input validation', () => {
 });
 
 describe('submitReport — happy path', () => {
+  it('enforces the daily report quota', async () => {
+    // report_create limit is 20/day; simulate already at the limit.
+    const { ctx, inserts } = mockCtx({ quotaUsed: 20 });
+    const r = await submitReport(ctx, {
+      targetType: 'listing', targetId: validUuid, reason: 'inappropriate',
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict'); // quota returns 'conflict'
+    expect(inserts.find((i: any) => i.table === 'reports')).toBeUndefined();
+  });
+
   it('inserts the report row when input is valid', async () => {
     const { ctx, inserts } = mockCtx({ existingCount: 0 });
     const r = await submitReport(ctx, {

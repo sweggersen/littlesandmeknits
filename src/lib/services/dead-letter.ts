@@ -1,5 +1,5 @@
 import type { ServiceContext, ServiceResult } from './types';
-import { ok, fail } from './types';
+import { ok, fail, ensureStaff } from './types';
 import { log } from '../log';
 import { captureException } from '../observability';
 import { createNotification } from '../notify';
@@ -118,13 +118,9 @@ export async function resolveDeadLetter(
   if (!input.eventId) return fail('bad_input', 'Missing event id');
   // Explicit authorization (defense in depth). This is the only admin service
   // that relied SOLELY on the dead_letter_events UPDATE RLS being staff-only; an
-  // accidental RLS loosening would have silently opened it. Check the role here
-  // too, matching the other admin services.
-  const { data: actor } = await ctx.admin
-    .from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
-  if (actor?.role !== 'admin' && actor?.role !== 'moderator') {
-    return fail('forbidden', 'Staff access required');
-  }
+  // accidental RLS loosening would have silently opened it.
+  const denied = await ensureStaff(ctx);
+  if (denied) return denied;
   const { error } = await ctx.supabase
     .from('dead_letter_events')
     .update({

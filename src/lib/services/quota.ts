@@ -12,13 +12,21 @@ export type QuotaAction =
   | 'commission_request_create'
   | 'commission_offer_make'
   | 'marketplace_message_send'
-  | 'support_request_create';
+  | 'support_request_create'
+  | 'report_create'
+  | 'pattern_checkout';
 
 const DAILY_LIMITS: Record<QuotaAction, number> = {
   commission_request_create: 5,
   commission_offer_make: 20,
   marketplace_message_send: 100,
   support_request_create: 10,
+  // A genuine user reports a handful of times a day at most; a griefer
+  // mass-flagging different targets is what this caps.
+  report_create: 20,
+  // Each pattern checkout creates a Stripe Checkout Session (API cost). A buyer
+  // comparing patterns clicks a few times; this caps session-creation spam.
+  pattern_checkout: 30,
 };
 
 function today(): string {
