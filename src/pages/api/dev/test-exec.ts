@@ -200,7 +200,11 @@ export const POST: APIRoute = async ({ request, cookies }) => {
     if (createErr) throw new Error(`Could not create test user ${email}: ${createErr.message}`);
     if (created.user) {
       emailToId.set(email, created.user.id);
-      await admin.from('profiles').upsert({ id: created.user.id, display_name: name }, { onConflict: 'id' });
+      // Give each test user a deterministic Norwegian city so the listing page's
+      // rough-location fallback has something to show in dev.
+      const CITIES = ['Oslo', 'Bergen', 'Trondheim', 'Stavanger', 'Tromsø', 'Kristiansand', 'Drammen', 'Bodø'];
+      const city = CITIES[name.charCodeAt(0) % CITIES.length];
+      await admin.from('profiles').upsert({ id: created.user.id, display_name: name, location: city }, { onConflict: 'id' });
     }
   }
 

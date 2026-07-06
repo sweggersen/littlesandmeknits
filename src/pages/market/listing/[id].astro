@@ -16,6 +16,7 @@ import PromotePanel from '../../../components/listing/PromotePanel.astro';
 import MarkSoldPanel from '../../../components/listing/MarkSoldPanel.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
+import { roughLocation } from '../../../lib/location';
 import { getSellerConnectStatus } from '../../../lib/services/seller-status';
 import { KIND_LABEL, CONDITION_LABEL, REFUND_REASON } from '../../../lib/labels';
 import { extractListingId, listingPath } from '../../../lib/listing-url';
@@ -93,6 +94,13 @@ const [{ data: sellerProfile }, sellerConnectStatus, { data: photoRows }, { data
 ]);
 const isFollowing = !!followRow;
 const isStoreListing = !!storeRow;
+
+// Rough (privacy-safe) location of the item: prefer the listing's own location,
+// else fall back to the seller's profile / store area. Coarsening lives in
+// src/lib/location.ts (unit-tested) so a precise address can't leak.
+const roughLoc = roughLocation(listing.location)
+  ?? roughLocation(sellerProfile?.location)
+  ?? roughLocation(storeRow?.location_city);
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
 
@@ -249,10 +257,13 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                 <dd>{listing.colorway}</dd>
               </div>
             )}
-            {listing.location && (
+            {roughLoc && (
               <div>
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Sted</dt>
-                <dd>{listing.location}</dd>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Omtrentlig sted</dt>
+                <dd class="flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5 text-charcoal/40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>
+                  <span>{roughLoc}</span>
+                </dd>
               </div>
             )}
             {listing.shipping_info && (
