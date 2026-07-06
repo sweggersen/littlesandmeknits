@@ -132,7 +132,7 @@ jobs:
             wizard.spec.ts become-seller.spec.ts kjop-og-levering.spec.ts seed-world.spec.ts
       - name: Upload trace on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-trace
           path: test-results/
