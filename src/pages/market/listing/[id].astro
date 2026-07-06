@@ -95,12 +95,13 @@ const [{ data: sellerProfile }, sellerConnectStatus, { data: photoRows }, { data
 const isFollowing = !!followRow;
 const isStoreListing = !!storeRow;
 
-// Item location = the SELLER's location (we don't ask per item). Prefer the
-// seller's profile area, then the store city, and only fall back to any legacy
-// per-listing value. Coarsening lives in src/lib/location.ts (unit-tested) so a
-// precise address can't leak.
-const roughLoc = roughLocation(sellerProfile?.location)
-  ?? roughLocation(storeRow?.location_city)
+// Item location = the location of whoever is selling it (we don't ask per item).
+// For a STORE listing that's the store's city; for an individual seller it's
+// their profile area. Legacy per-listing value only as a last resort.
+// Coarsening lives in src/lib/location.ts (unit-tested) so a precise address
+// can't leak.
+const roughLoc = roughLocation(storeRow?.location_city)
+  ?? roughLocation(sellerProfile?.location)
   ?? roughLocation(listing.location);
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
