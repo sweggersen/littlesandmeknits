@@ -21,6 +21,13 @@ export const POST: APIRoute = async ({ request, cookies }) => {
   const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
   const password = 'test-tower-dev-only-pw';
 
+  // Designated staff personas get their role on login, so "log in as Hanne
+  // (moderator)" actually grants moderator access even on a fresh DB (without
+  // running seed-world first). Everyone else stays a regular user.
+  const localPart = email.split('@')[0];
+  const STAFF_ROLE: Record<string, 'moderator' | 'admin'> = { hanne: 'moderator', silje: 'admin' };
+  const role = STAFF_ROLE[localPart] ?? null;
+
   const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
   let user = list?.users?.find((u) => u.email === email);
   if (!user) {
@@ -28,15 +35,17 @@ export const POST: APIRoute = async ({ request, cookies }) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: email.split('@')[0] },
+      user_metadata: { display_name: localPart },
     });
     if (cErr || !created.user) {
       return new Response(`Create failed: ${cErr?.message}`, { status: 500 });
     }
     user = created.user;
-    await admin.from('profiles').upsert({ id: user.id, display_name: email.split('@')[0] });
+    await admin.from('profiles').upsert({ id: user.id, display_name: localPart, ...(role ? { role } : {}) });
   } else {
     await admin.auth.admin.updateUserById(user.id, { password });
+    // Ensure the staff role is set even if a prior cleanup wiped it.
+    if (role) await admin.from('profiles').update({ role }).eq('id', user.id);
   }
 
   const server = createServerSupabase({ request, cookies });

@@ -87,7 +87,7 @@ for (const o of d.allOffers.slice(0, 4)) {
       <!-- Stat cards -->
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
         {stats.map((s) => (
-          <a href={s.href} class="bg-white rounded-2xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
+          <a href={s.href} class="bg-white rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
             <div class="flex items-center justify-between mb-3">
               <StatIcon name={s.icon} class="text-charcoal/35" />
               {s.hot && <span class="w-2 h-2 rounded-full bg-terracotta-500"></span>}
@@ -101,8 +101,8 @@ for (const o of d.allOffers.slice(0, 4)) {
       <div class="grid lg:grid-cols-3 gap-6 items-start">
         <!-- Left: needs attention + projects + listings -->
         <div class="lg:col-span-2 space-y-6">
-          <section class="bg-white rounded-2xl border border-sage-500/10 overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/10">
+          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Trenger oppmerksomhet</h2>
               <a href="/market/commissions/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
             </div>
@@ -139,8 +139,8 @@ for (const o of d.allOffers.slice(0, 4)) {
           </section>
 
           <!-- Projects -->
-          <section class="bg-white rounded-2xl border border-sage-500/10 overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/10">
+          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Prosjekter</h2>
               <a href="/studio" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
             </div>
@@ -149,7 +149,7 @@ for (const o of d.allOffers.slice(0, 4)) {
             ) : (
               <div class="grid sm:grid-cols-2 gap-3 p-4">
                 {d.allProjects.slice(0, 4).map((p) => (
-                  <a href={`/studio/projects/${p.id}`} class="flex items-center gap-3 rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-2.5">
+                  <a href={`/studio/projects/${p.id}`} class="flex items-center gap-3 rounded-xl border border-sage-500/20 hover:border-sage-500/30 transition-colors p-2.5">
                     {p.hero_photo_path
                       ? <img src={projectPhotoUrl(p.hero_photo_path)!} alt="" class="w-12 h-12 rounded-lg object-cover shrink-0" />
                       : <div class="w-12 h-12 rounded-lg bg-oatmeal/60 shrink-0"></div>}
@@ -164,8 +164,8 @@ for (const o of d.allOffers.slice(0, 4)) {
           </section>
 
           <!-- Listings -->
-          <section class="bg-white rounded-2xl border border-sage-500/10 overflow-hidden">
-            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/10">
+          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Annonser</h2>
               <a href="/market/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
             </div>
@@ -198,7 +198,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Right: side panels -->
         <div class="space-y-6">
           {d.recentAchievements.length > 0 && (
-            <section class="bg-white rounded-2xl border border-sage-500/10 p-5">
+            <section class="bg-white rounded-2xl border border-sage-500/20 p-5">
               <div class="flex items-center justify-between mb-3">
                 <h2 class="font-serif text-lg">Nye merker</h2>
                 <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
@@ -217,7 +217,7 @@ for (const o of d.allOffers.slice(0, 4)) {
             </section>
           )}
 
-          <section class="bg-white rounded-2xl border border-sage-500/10 p-5">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5">
             <div class="flex items-center justify-between mb-3">
               <h2 class="font-serif text-lg">Mine butikker</h2>
               <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
@@ -228,7 +228,7 @@ for (const o of d.allOffers.slice(0, 4)) {
               <ul class="space-y-2">
                 {d.myStores.slice(0, 4).map((s) => (
                   <li>
-                    <a href={s.href} class="flex items-center gap-3 rounded-xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-2.5">
+                    <a href={s.href} class="flex items-center gap-3 rounded-xl border border-sage-500/20 hover:border-sage-500/30 transition-colors p-2.5">
                       {s.logo_path
                         ? <img src={projectPhotoUrl(s.logo_path)!} alt="" class="w-9 h-9 rounded-lg object-cover shrink-0" />
                         : <div class="w-9 h-9 rounded-lg bg-oatmeal/60 shrink-0 grid place-items-center font-serif text-sm text-charcoal/40">{(s.name?.[0] ?? '?').toUpperCase()}</div>}
@@ -243,7 +243,7 @@ for (const o of d.allOffers.slice(0, 4)) {
             )}
           </section>
 
-          <section class="bg-white rounded-2xl border border-sage-500/10 p-5">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5">
             <div class="flex items-center justify-between mb-3">
               <h2 class="font-serif text-lg">Bibliotek</h2>
               <a href="/profile/library/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
@@ -269,7 +269,7 @@ for (const o of d.allOffers.slice(0, 4)) {
             )}
           </section>
 
-          <div class="bg-white rounded-2xl border border-sage-500/10 p-5">
+          <div class="bg-white rounded-2xl border border-sage-500/20 p-5">
             <h2 class="font-serif text-lg mb-3">Snarveier</h2>
             <div class="flex flex-col gap-2 text-sm">
               <a href="/market/my-purchases" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Kjøp og kvitteringer →</a>
