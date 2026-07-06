@@ -95,12 +95,13 @@ const [{ data: sellerProfile }, sellerConnectStatus, { data: photoRows }, { data
 const isFollowing = !!followRow;
 const isStoreListing = !!storeRow;
 
-// Rough (privacy-safe) location of the item: prefer the listing's own location,
-// else fall back to the seller's profile / store area. Coarsening lives in
-// src/lib/location.ts (unit-tested) so a precise address can't leak.
-const roughLoc = roughLocation(listing.location)
-  ?? roughLocation(sellerProfile?.location)
-  ?? roughLocation(storeRow?.location_city);
+// Item location = the SELLER's location (we don't ask per item). Prefer the
+// seller's profile area, then the store city, and only fall back to any legacy
+// per-listing value. Coarsening lives in src/lib/location.ts (unit-tested) so a
+// precise address can't leak.
+const roughLoc = roughLocation(sellerProfile?.location)
+  ?? roughLocation(storeRow?.location_city)
+  ?? roughLocation(listing.location);
 const buyerReview = (reviews ?? []).find((r) => r.reviewer_id === user?.id);
 const hasReviewed = !!buyerReview;
 
@@ -259,7 +260,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
             )}
             {roughLoc && (
               <div>
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Omtrentlig sted</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Sted</dt>
                 <dd class="flex items-center gap-1">
                   <svg class="w-3.5 h-3.5 text-charcoal/40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>
                   <span>{roughLoc}</span>

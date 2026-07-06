@@ -408,6 +408,17 @@ export async function becomeSeller(
     return fail('server_error', 'Could not save seller profile');
   }
 
+  // Item location = the seller's location, so every seller must have one. Seed
+  // the public profile location from the address city they just entered, but
+  // don't overwrite a location they've already chosen themselves.
+  if (input.city?.trim()) {
+    const { data: existingProfile } = await ctx.admin
+      .from('profiles').select('location').eq('id', ctx.user.id).maybeSingle();
+    if (!existingProfile?.location?.trim()) {
+      await ctx.admin.from('profiles').update({ location: input.city.trim() }).eq('id', ctx.user.id);
+    }
+  }
+
   return ok({ redirect: '/profile/become-seller?submitted=1' });
 }
 
