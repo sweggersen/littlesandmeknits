@@ -438,9 +438,12 @@ for (const o of d.allOffers.slice(0, 4)) {
   </div>
 
   <style is:global>
+    #dashgrid { position: relative; }
     .dash-widget { position: relative; }
     /* Removed panels are hidden from the grid; they live in the palette. */
     .dash-widget.dash-removed { display: none; }
+    /* Drop indicator shown while dragging (out of grid flow, no reflow). */
+    .dash-drop-bar { position: absolute; z-index: 30; width: 4px; border-radius: 3px; background: #C2604A; box-shadow: 0 0 0 3px rgba(194,96,74,.18); pointer-events: none; display: none; }
     /* Grouped panels (stats, admin): header sits inside a bordered box like every
        other panel. The header bar is solid white to match the other panels; the
        body stays transparent so the white tiles inside still pop. */
