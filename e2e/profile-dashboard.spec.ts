@@ -64,8 +64,9 @@ test.describe('Profile dashboard', () => {
 
     const widget = page.locator('.dash-widget[data-widget="needsAttention"]');
     await expect(widget).toHaveAttribute('data-size', 'm');
-    await widget.locator('.dash-size').click(); // m → l
+    await widget.locator('.dash-size[data-size="l"]').click();
     await expect(widget).toHaveAttribute('data-size', 'l');
+    await expect(widget.locator('.dash-size[data-size="l"]')).toHaveClass(/is-active/);
 
     await page.getByRole('button', { name: 'Lagre' }).click();
     await page.reload();
@@ -77,10 +78,8 @@ test.describe('Profile dashboard', () => {
     await page.goto('/profile');
     await page.getByRole('button', { name: 'Rediger' }).click();
     const widget = page.locator('.dash-widget[data-widget="snarveier"]');
-    const before = await widget.getAttribute('data-size');
-    await widget.locator('.dash-size').click(); // cycle size
-    const after = await widget.getAttribute('data-size');
-    expect(after).not.toBe(before);
+    await widget.locator('.dash-size[data-size="l"]').click();
+    await expect(widget).toHaveAttribute('data-size', 'l');
 
     // Wait for the save POST to land, then wipe the local mirror so the reload
     // can only come from the dashboard_layouts row (the cross-device case).
@@ -89,6 +88,37 @@ test.describe('Profile dashboard', () => {
     await saved;
     await page.evaluate(() => localStorage.clear());
     await page.reload();
-    await expect(page.locator('.dash-widget[data-widget="snarveier"]')).toHaveAttribute('data-size', after!);
+    await expect(page.locator('.dash-widget[data-widget="snarveier"]')).toHaveAttribute('data-size', 'l');
+  });
+
+  test('Rediger: remove a panel and add an optional one from the palette', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/profile');
+
+    // "Om meg" is an optional panel — hidden by default, offered in the palette.
+    const about = page.locator('.dash-widget[data-widget="about"]');
+    await expect(about).toHaveClass(/dash-removed/);
+
+    await page.getByRole('button', { name: 'Rediger' }).click();
+
+    // Add it from the palette; it becomes visible.
+    await page.locator('.dash-add[data-add="about"]').click();
+    await expect(about).not.toHaveClass(/dash-removed/);
+
+    // Remove a default panel; it drops into the palette.
+    const stores = page.locator('.dash-widget[data-widget="stores"]');
+    await stores.locator('.dash-remove').click();
+    await expect(stores).toHaveClass(/dash-removed/);
+    await expect(page.locator('.dash-add[data-add="stores"]')).toBeVisible();
+
+    const saved = page.waitForResponse((r) => r.url().includes('/api/dashboard/layout') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Lagre' }).click();
+    await saved;
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+
+    // Persisted: "Om meg" now shown, "Mine butikker" now hidden.
+    await expect(page.locator('.dash-widget[data-widget="about"]')).not.toHaveClass(/dash-removed/);
+    await expect(page.locator('.dash-widget[data-widget="stores"]')).toHaveClass(/dash-removed/);
   });
 });

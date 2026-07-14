@@ -12,7 +12,7 @@ import AdminModPanel from '../../components/profile/AdminModPanel.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { loadProfileDashboard } from '../../lib/profile-dashboard-data';
-import { COMMISSION_STATUS, LISTING_STATUS, PROJECT_STATUS, KIND_LABEL } from '../../lib/labels';
+import { COMMISSION_STATUS, LISTING_STATUS, PROJECT_STATUS, KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
 import { formatDate } from '../../lib/time';
 
 const user = Astro.locals.user!; // middleware-gated
@@ -111,7 +111,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
       <div id="dashgrid" class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-5 items-start" data-user={user.id} data-saved-layout={JSON.stringify(d.savedLayout)}>
         <!-- Trenger oppmerksomhet -->
-        <div class="dash-widget md:col-span-4" data-widget="needsAttention" data-size="m">
+        <div class="dash-widget md:col-span-4" data-widget="needsAttention" data-size="m" data-default="1" data-label="Trenger oppmerksomhet">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Trenger oppmerksomhet</h2>
@@ -152,7 +152,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Nye merker -->
         {d.recentAchievements.length > 0 && (
-          <div class="dash-widget md:col-span-2" data-widget="badges" data-size="s">
+          <div class="dash-widget md:col-span-2" data-widget="badges" data-size="s" data-default="1" data-label="Nye merker">
             <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
               <div class="flex items-center justify-between mb-3">
                 <h2 class="font-serif text-lg">Nye merker</h2>
@@ -174,7 +174,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         )}
 
         <!-- Prosjekter -->
-        <div class="dash-widget md:col-span-4" data-widget="projects" data-size="m">
+        <div class="dash-widget md:col-span-4" data-widget="projects" data-size="m" data-default="1" data-label="Prosjekter">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Prosjekter</h2>
@@ -201,7 +201,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         </div>
 
         <!-- Mine butikker -->
-        <div class="dash-widget md:col-span-2" data-widget="stores" data-size="s">
+        <div class="dash-widget md:col-span-2" data-widget="stores" data-size="s" data-default="1" data-label="Mine butikker">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between mb-3">
               <h2 class="font-serif text-lg">Mine butikker</h2>
@@ -230,7 +230,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         </div>
 
         <!-- Annonser -->
-        <div class="dash-widget md:col-span-4" data-widget="listings" data-size="m">
+        <div class="dash-widget md:col-span-4" data-widget="listings" data-size="m" data-default="1" data-label="Annonser">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Annonser</h2>
@@ -263,7 +263,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         </div>
 
         <!-- Bibliotek -->
-        <div class="dash-widget md:col-span-2" data-widget="library" data-size="s">
+        <div class="dash-widget md:col-span-2" data-widget="library" data-size="s" data-default="1" data-label="Bibliotek">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between mb-3">
               <h2 class="font-serif text-lg">Bibliotek</h2>
@@ -292,7 +292,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         </div>
 
         <!-- Snarveier -->
-        <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s">
+        <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s" data-default="1" data-label="Snarveier">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
             <h2 class="font-serif text-lg mb-3">Snarveier</h2>
             <div class="flex flex-col gap-2 text-sm">
@@ -306,22 +306,145 @@ for (const o of d.allOffers.slice(0, 4)) {
             </div>
           </section>
         </div>
+
+        <!-- Kjøpte oppskrifter (valgfritt panel) -->
+        <div class="dash-widget md:col-span-2" data-widget="purchases" data-size="s" data-default="0" data-label="Kjøpte oppskrifter">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
+              <a href="/market/my-purchases" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
+            </div>
+            {d.allPurchases.length === 0 ? (
+              <p class="text-sm text-charcoal/50">Ingen kjøpte oppskrifter.</p>
+            ) : (
+              <ul class="space-y-1">
+                {d.allPurchases.slice(0, 5).map((p: any) => (
+                  <li>
+                    <a href="/market/my-purchases" class="flex items-center justify-between gap-3 -mx-1.5 px-1.5 py-1.5 rounded-xl hover:bg-linen/70 transition-colors">
+                      <span class="text-sm font-medium truncate">{p.title}</span>
+                      <span class="text-[11px] text-charcoal/50 shrink-0">{p.amount_nok} kr</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <!-- Mine tilbud (valgfritt panel) -->
+        <div class="dash-widget md:col-span-4" data-widget="offers" data-size="m" data-default="0" data-label="Mine tilbud">
+          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
+              <h2 class="font-serif text-lg">Mine tilbud</h2>
+              <a href="/market/commissions" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Oppdrag →</a>
+            </div>
+            {d.allOffers.length === 0 ? (
+              <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Du har ikke sendt noen tilbud.</p>
+            ) : (
+              <ul class="divide-y divide-sage-500/8">
+                {d.allOffers.slice(0, 5).map((o: any) => (
+                  <li>
+                    <a href={o.commission_requests?.id ? `/market/commissions/${o.commission_requests.id}` : '/market/commissions'} class="flex items-center gap-3 px-5 py-3 hover:bg-linen/60 transition-colors">
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium truncate">{o.commission_requests?.title ?? 'Oppdrag'}</p>
+                        <p class="text-[11px] text-charcoal/50">{o.price_nok} kr · {o.turnaround_weeks} uker</p>
+                      </div>
+                      <StatusBadge label={COMMISSION_STATUS[o.status] ?? o.status} variant={comVariant(o.status) as any} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <!-- Mine forespørsler (valgfritt panel) -->
+        <div class="dash-widget md:col-span-4" data-widget="requests" data-size="m" data-default="0" data-label="Mine forespørsler">
+          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+            <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
+              <h2 class="font-serif text-lg">Mine forespørsler</h2>
+              <a href="/market/commissions/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
+            </div>
+            {d.allRequests.length === 0 ? (
+              <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Ingen forespørsler ennå.</p>
+            ) : (
+              <ul class="divide-y divide-sage-500/8">
+                {d.allRequests.slice(0, 5).map((r: any) => (
+                  <li>
+                    <a href={`/market/commissions/${r.id}`} class="flex items-center gap-3 px-5 py-3 hover:bg-linen/60 transition-colors">
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-medium truncate">{r.title}</p>
+                        <p class="text-[11px] text-charcoal/50">{CATEGORY_LABEL[r.category] ?? r.category} · {r.budget_nok_min}–{r.budget_nok_max} kr · {r.offer_count} tilbud</p>
+                      </div>
+                      <StatusBadge label={COMMISSION_STATUS[r.status] ?? r.status} variant={comVariant(r.status) as any} />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        <!-- Om meg (valgfritt panel) -->
+        <div class="dash-widget md:col-span-2" data-widget="about" data-size="s" data-default="0" data-label="Om meg">
+          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="font-serif text-lg">Om meg</h2>
+              <a href="/innstillinger" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger →</a>
+            </div>
+            {d.profile?.bio
+              ? <p class="text-sm text-charcoal/70 leading-relaxed whitespace-pre-line">{d.profile.bio}</p>
+              : <p class="text-sm text-charcoal/50">Ingen presentasjon ennå.</p>}
+            <div class="mt-3 space-y-1.5 text-[13px] text-charcoal/60">
+              {d.profile?.location && <p>📍 {d.profile.location}</p>}
+              {d.profile?.instagram_handle && <p>Instagram: @{d.profile.instagram_handle.replace(/^@/, '')}</p>}
+            </div>
+            {Array.isArray(d.profile?.seller_tags) && d.profile.seller_tags.length > 0 && (
+              <div class="mt-3 flex flex-wrap gap-1.5">
+                {d.profile.seller_tags.map((t: string) => (
+                  <span class="px-2.5 py-1 rounded-full text-[11px] font-medium bg-linen border border-sage-500/20">{t}</span>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
+      <!-- Panel-palett (kun i redigeringsmodus): fjernede paneler du kan legge til igjen -->
+      <div data-dash-palette class="hidden mt-5 bg-white rounded-2xl border border-dashed border-sage-500/30 p-5">
+        <h2 class="font-serif text-base mb-1">Legg til paneler</h2>
+        <p class="text-[11px] text-charcoal/45 mb-3">Paneler du har fjernet dukker opp her. Klikk for å legge dem tilbake.</p>
+        <div data-dash-palette-list class="flex flex-wrap gap-2"></div>
+        <p data-dash-palette-empty class="text-sm text-charcoal/45">Alle paneler er i bruk.</p>
       </div>
     </div>
   </div>
 
   <style is:global>
     .dash-widget { position: relative; }
-    .dash-tools { display: none; position: absolute; top: 8px; right: 8px; z-index: 20; gap: 4px; align-items: center; }
+    /* Removed panels are hidden from the grid; they live in the palette. */
+    .dash-widget.dash-removed { display: none; }
+    .dash-tools { display: none; position: absolute; top: 8px; right: 8px; z-index: 20; gap: 6px; align-items: center; }
     body.dash-editing .dash-tools { display: flex; pointer-events: auto; }
     body.dash-editing .dash-widget { cursor: grab; outline: 2px dashed transparent; outline-offset: 3px; border-radius: 18px; transition: outline-color .12s; }
     body.dash-editing .dash-widget:hover { outline-color: rgba(194,96,74,.35); }
     /* Freeze card interactions while editing so drags don't fire links. */
     body.dash-editing .dash-widget > section { pointer-events: none; user-select: none; }
     .dash-tools .dash-grip { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #3B3733; color: #F7F2EA; cursor: grab; }
-    .dash-tools .dash-size { min-width: 26px; height: 26px; padding: 0 9px; border: 0; border-radius: 8px; background: #3B3733; color: #F7F2EA; font-size: 11px; font-weight: 700; cursor: pointer; }
-    .dash-tools .dash-size:hover { background: #C2604A; }
+    /* Segmented size control: S / M / L, active highlighted. */
+    .dash-sizes { display: inline-flex; border-radius: 8px; overflow: hidden; background: #3B3733; }
+    .dash-sizes .dash-size { min-width: 24px; height: 26px; padding: 0 8px; border: 0; background: transparent; color: rgba(247,242,234,.55); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .12s, color .12s; }
+    .dash-sizes .dash-size:hover { color: #F7F2EA; }
+    .dash-sizes .dash-size.is-active { background: #C2604A; color: #fff; }
+    .dash-tools .dash-remove { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; border: 0; background: #3B3733; color: #F7F2EA; font-size: 15px; line-height: 1; cursor: pointer; }
+    .dash-tools .dash-remove:hover { background: #C2604A; }
     .dash-widget.dash-dragging { opacity: .4; }
+    /* Palette add-chips. */
+    [data-dash-palette] { display: none; }
+    body.dash-editing [data-dash-palette] { display: block; }
+    .dash-add { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; border: 1px solid rgba(122,138,110,.3); background: #F7F2EA; color: #3B3733; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .12s, background .12s; }
+    .dash-add:hover { border-color: rgba(194,96,74,.5); background: #fff; }
+    .dash-add .dash-add-plus { color: #C2604A; font-weight: 700; }
     @media (prefers-reduced-motion: reduce) { body.dash-editing .dash-widget { transition: none; } }
   </style>
   <script>

@@ -1622,6 +1622,9 @@ async function handle(
       // Daily action quotas (0075) — reset so repeated seeding doesn't trip the
       // per-user rate limits (e.g. 20 offers/day).
       await db.from('user_action_counts').delete().in('user_id', testUserIds);
+      // Saved dashboard arrangements (0099) — reset so a prior run's layout
+      // doesn't leak into the next (e.g. a widget left resized/removed).
+      await db.from('dashboard_layouts').delete().in('user_id', testUserIds);
 
       // Queue items submitted by or decided by test users
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);
