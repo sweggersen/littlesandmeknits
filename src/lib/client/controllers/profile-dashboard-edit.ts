@@ -205,25 +205,41 @@ export function init(): void {
     if (w && document.body.classList.contains('dash-editing')) w.classList.add('dash-dragging');
   });
   grid.addEventListener('dragend', (e) => {
+    if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
     (e.target as HTMLElement)?.closest?.('.dash-widget')?.classList.remove('dash-dragging');
     relayout();
   });
+  // dragover fires many times per frame; doing a nearest-search + reorder +
+  // relayout on every event thrashes the layout (visible stutter). Coalesce to
+  // one pass per animation frame, and only reorder when the target position
+  // actually changes.
+  let dragRaf = 0;
+  let dragX = 0, dragY = 0;
   function onDragOver(e: DragEvent) {
-    e.preventDefault();
+    e.preventDefault(); // must stay synchronous so the drop is allowed
+    dragX = e.clientX; dragY = e.clientY;
+    if (dragRaf) return;
+    dragRaf = requestAnimationFrame(processDrag);
+  }
+  function processDrag() {
+    dragRaf = 0;
     const dragging = grid.querySelector<HTMLElement>('.dash-dragging');
     if (!dragging) return;
     let target: HTMLElement | null = null;
     let best = Infinity;
     for (const el of grid.querySelectorAll<HTMLElement>('.dash-widget:not(.dash-dragging):not(.dash-removed)')) {
       const b = el.getBoundingClientRect();
-      const d = Math.hypot(b.left + b.width / 2 - e.clientX, b.top + b.height / 2 - e.clientY);
+      const d = Math.hypot(b.left + b.width / 2 - dragX, b.top + b.height / 2 - dragY);
       if (d < best) { best = d; target = el; }
     }
     if (!target) return;
     const b = target.getBoundingClientRect();
-    const before = e.clientY < b.top + b.height / 2
-      || (e.clientX < b.left + b.width / 2 && Math.abs(e.clientY - (b.top + b.height / 2)) < b.height / 2);
-    grid.insertBefore(dragging, before ? target : target.nextSibling);
+    const before = dragY < b.top + b.height / 2
+      || (dragX < b.left + b.width / 2 && Math.abs(dragY - (b.top + b.height / 2)) < b.height / 2);
+    const ref = before ? target : target.nextSibling;
+    // No-op if it's already in that slot — avoids the flicker of re-inserting.
+    if (ref === dragging || dragging.nextSibling === ref) return;
+    grid.insertBefore(dragging, ref);
     relayout();
   }
   const bindDnD = () => { liveWidgets().forEach((w) => makeDraggable(w, true)); grid.addEventListener('dragover', onDragOver); };
