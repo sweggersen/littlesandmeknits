@@ -7,6 +7,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { projectPhotoUrl } from './storage';
 import { getUserAchievementsWithDates, ACHIEVEMENTS, ACHIEVEMENT_MAP } from './achievements';
 import { getEntry } from 'astro:content';
+import { sanitizeLayout, type DashboardLayoutItem } from './services/dashboard-layout';
 
 interface DashUser {
   id: string;
@@ -131,6 +132,17 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     pendingQueueCount = count ?? 0;
   }
 
+  // Saved dashboard arrangement (order + widget sizes). RLS scopes this to the
+  // owner; empty array means "server default". Rendered into a data attribute so
+  // the edit controller can apply it without an extra client round-trip.
+  const { data: layoutRow } = await supabase
+    .from('dashboard_layouts')
+    .select('layout')
+    .eq('user_id', user.id)
+    .eq('context', 'profile')
+    .maybeSingle();
+  const savedLayout: DashboardLayoutItem[] = sanitizeLayout(layoutRow?.layout) ?? [];
+
   const avatarUrl = profile?.avatar_path ? projectPhotoUrl(profile.avatar_path) : null;
   const displayName = profile?.display_name ?? user.user_metadata?.display_name ?? 'Anonym';
 
@@ -160,6 +172,7 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     unreadCount, activeProjects, pendingOffers, acceptedOffers, awaitingPayment,
     subtitleParts,
     recentAchievements, totalEarned, visibleAchievements,
+    savedLayout,
   };
 }
 

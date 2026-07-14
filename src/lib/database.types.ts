@@ -377,6 +377,35 @@ export type Database = {
         }
         Relationships: []
       }
+      dashboard_layouts: {
+        Row: {
+          context: string
+          layout: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context: string
+          layout?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: string
+          layout?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_layouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       dead_letter_events: {
         Row: {
           context: Json

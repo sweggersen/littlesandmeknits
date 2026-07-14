@@ -71,4 +71,24 @@ test.describe('Profile dashboard', () => {
     await page.reload();
     await expect(page.locator('.dash-widget[data-widget="needsAttention"]')).toHaveAttribute('data-size', 'l');
   });
+
+  test('Rediger: layout persists server-side (survives a localStorage wipe)', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/profile');
+    await page.getByRole('button', { name: 'Rediger' }).click();
+    const widget = page.locator('.dash-widget[data-widget="snarveier"]');
+    const before = await widget.getAttribute('data-size');
+    await widget.locator('.dash-size').click(); // cycle size
+    const after = await widget.getAttribute('data-size');
+    expect(after).not.toBe(before);
+
+    // Wait for the save POST to land, then wipe the local mirror so the reload
+    // can only come from the dashboard_layouts row (the cross-device case).
+    const saved = page.waitForResponse((r) => r.url().includes('/api/dashboard/layout') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Lagre' }).click();
+    await saved;
+    await page.evaluate(() => localStorage.clear());
+    await page.reload();
+    await expect(page.locator('.dash-widget[data-widget="snarveier"]')).toHaveAttribute('data-size', after!);
+  });
 });

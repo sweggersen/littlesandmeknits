@@ -1,12 +1,13 @@
 // Editable profile dashboard: "Rediger" toggles an inline layout editor where
 // each widget can be dragged to reorder and resized S/M/L (column span). The
-// layout (order + sizes) is remembered per user in localStorage; "Tilbakestill"
-// clears it back to the server default.
-//
-// (Follow-up: persist to a dashboard_layouts table so it syncs across devices.)
+// layout (order + sizes) is persisted per user to the dashboard_layouts table
+// (via /api/dashboard/layout) so it syncs across devices, with a localStorage
+// mirror for instant apply on the next load. "Tilbakestill" clears both back to
+// the server default.
 
 const SIZE_SPAN: Record<string, string> = { s: 'md:col-span-2', m: 'md:col-span-4', l: 'md:col-span-6' };
 const SIZES = ['s', 'm', 'l'];
+const CONTEXT = 'profile';
 
 interface LayoutItem { widget: string; size: string; }
 
@@ -18,6 +19,16 @@ export function init(): void {
 
   const key = `lm-dash-${grid.dataset.user || 'anon'}`;
   const widgets = () => [...grid.querySelectorAll<HTMLElement>('.dash-widget')];
+
+  const persist = (layout: LayoutItem[]) => {
+    // Fire-and-forget: the localStorage mirror already made the change durable
+    // for this device, so a failed sync just means it won't cross devices yet.
+    void fetch('/api/dashboard/layout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: CONTEXT, layout }),
+    }).catch(() => { /* offline / transient — localStorage still holds it */ });
+  };
 
   const setSize = (w: HTMLElement, size: string) => {
     for (const s of SIZES) w.classList.remove(SIZE_SPAN[s]);
@@ -38,10 +49,25 @@ export function init(): void {
     for (const w of byKey.values()) grid.appendChild(w); // new widgets go last
   };
 
-  // Apply the saved layout on load.
+  // Apply the saved layout on load. The server-rendered layout (from the
+  // dashboard_layouts row) is authoritative because it syncs across devices;
+  // localStorage is only a fallback when the row hasn't loaded or is empty.
   try {
-    const raw = localStorage.getItem(key);
-    if (raw) applyLayout(JSON.parse(raw) as LayoutItem[]);
+    let layout: LayoutItem[] | null = null;
+    const server = grid.dataset.savedLayout;
+    if (server) {
+      const parsed = JSON.parse(server) as LayoutItem[];
+      if (Array.isArray(parsed) && parsed.length) layout = parsed;
+    }
+    if (!layout) {
+      const raw = localStorage.getItem(key);
+      if (raw) layout = JSON.parse(raw) as LayoutItem[];
+    }
+    if (layout) {
+      applyLayout(layout);
+      // Keep the mirror in step with the server on load.
+      try { localStorage.setItem(key, JSON.stringify(currentLayout())); } catch { /* quota */ }
+    }
   } catch { /* ignore corrupt state */ }
 
   // --- edit chrome --------------------------------------------------------
@@ -113,8 +139,11 @@ export function init(): void {
     bindDnD();
   }
   function exitEdit(save: boolean) {
-    if (save) { try { localStorage.setItem(key, JSON.stringify(currentLayout())); } catch { /* quota */ } }
-    else if (snapshot) applyLayout(snapshot);
+    if (save) {
+      const layout = currentLayout();
+      try { localStorage.setItem(key, JSON.stringify(layout)); } catch { /* quota */ }
+      persist(layout); // sync to dashboard_layouts so it crosses devices
+    } else if (snapshot) applyLayout(snapshot);
     document.body.classList.remove('dash-editing');
     editActions?.classList.add('hidden');
     editActions?.classList.remove('flex');
@@ -129,6 +158,13 @@ export function init(): void {
   document.querySelector('[data-edit-cancel]')?.addEventListener('click', () => exitEdit(false));
   document.querySelector('[data-edit-reset]')?.addEventListener('click', () => {
     try { localStorage.removeItem(key); } catch { /* */ }
-    location.reload();
+    // Clear the server row too, then reload to the server default. Await the
+    // delete so the reloaded page doesn't re-render the just-cleared layout.
+    fetch('/api/dashboard/layout', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: CONTEXT }),
+    }).catch(() => { /* offline — localStorage cleared, will drift until next save */ })
+      .finally(() => location.reload());
   });
 }

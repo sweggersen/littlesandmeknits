@@ -683,6 +683,48 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  describe('dashboard_layouts (0099)', () => {
+    beforeAll(async () => {
+      const { error } = await admin.from('dashboard_layouts').upsert({
+        user_id: aliceId,
+        context: 'profile',
+        layout: [{ widget: 'badges', size: 'l' }],
+      });
+      if (error) throw new Error(`dashboard_layouts setup upsert failed: ${error.message} | code=${error.code}`);
+    });
+
+    it('owner reads + writes own layout', async () => {
+      const { error: upErr } = await aliceClient.from('dashboard_layouts').upsert({
+        user_id: aliceId, context: 'profile', layout: [{ widget: 'projects', size: 'm' }],
+      });
+      expect(upErr).toBeNull();
+      const { data } = await aliceClient.from('dashboard_layouts')
+        .select('layout').eq('user_id', aliceId).eq('context', 'profile').maybeSingle();
+      expect(data?.layout).toEqual([{ widget: 'projects', size: 'm' }]);
+    });
+
+    it('third party CANNOT read another user\'s layout', async () => {
+      const { data } = await charlieClient.from('dashboard_layouts')
+        .select('user_id').eq('user_id', aliceId);
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('user CANNOT write a layout row for another user (user_id pinned)', async () => {
+      const { error } = await charlieClient.from('dashboard_layouts').insert({
+        user_id: aliceId, context: 'profile', layout: [{ widget: 'x', size: 's' }],
+      });
+      expect(error).not.toBeNull(); // WITH CHECK rejects the foreign user_id
+      // And Alice's real row is untouched.
+      const { data } = await admin.from('dashboard_layouts')
+        .select('layout').eq('user_id', aliceId).eq('context', 'profile').maybeSingle();
+      expect(data?.layout).toEqual([{ widget: 'projects', size: 'm' }]);
+    });
+
+    afterAll(async () => {
+      await admin.from('dashboard_layouts').delete().eq('user_id', aliceId);
+    });
+  });
+
   // ──────────────────────────────────────────────────────────────
   // orders (migration 0088). The purchase entity carries buyer PII
   // (shipping address) + money fields, so the posture is: parties +

@@ -109,7 +109,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         Dra kortene for å flytte dem, og bruk størrelse&shy;knappen (S · M · L) for å endre bredde. Trykk «Lagre» når du er fornøyd.
       </div>
 
-      <div id="dashgrid" class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-5 items-start" data-user={user.id}>
+      <div id="dashgrid" class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-5 items-start" data-user={user.id} data-saved-layout={JSON.stringify(d.savedLayout)}>
         <!-- Trenger oppmerksomhet -->
         <div class="dash-widget md:col-span-4" data-widget="needsAttention" data-size="m">
           <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
