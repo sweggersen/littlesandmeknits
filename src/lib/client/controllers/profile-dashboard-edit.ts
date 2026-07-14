@@ -201,8 +201,16 @@ export function init(): void {
     else w.removeAttribute('draggable');
   };
   grid.addEventListener('dragstart', (e) => {
-    const w = (e.target as HTMLElement)?.closest?.('.dash-widget');
-    if (w && document.body.classList.contains('dash-editing')) w.classList.add('dash-dragging');
+    const w = (e.target as HTMLElement)?.closest?.('.dash-widget') as HTMLElement | null;
+    if (w && document.body.classList.contains('dash-editing')) {
+      w.classList.add('dash-dragging');
+      // Grab offset: the cursor sits on the grip (top-left), but the user is
+      // aiming with the panel's *body*. Record cursor→panel-centre so targeting
+      // follows where the panel would land, not where the pointer is.
+      const r = w.getBoundingClientRect();
+      grabCX = (r.left + r.width / 2) - (e as DragEvent).clientX;
+      grabCY = (r.top + r.height / 2) - (e as DragEvent).clientY;
+    }
   });
   grid.addEventListener('dragend', (e) => {
     if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
@@ -215,6 +223,7 @@ export function init(): void {
   // actually changes.
   let dragRaf = 0;
   let dragX = 0, dragY = 0;
+  let grabCX = 0, grabCY = 0; // cursor→panel-centre offset, set on dragstart
   function onDragOver(e: DragEvent) {
     e.preventDefault(); // must stay synchronous so the drop is allowed
     dragX = e.clientX; dragY = e.clientY;
@@ -225,17 +234,32 @@ export function init(): void {
     dragRaf = 0;
     const dragging = grid.querySelector<HTMLElement>('.dash-dragging');
     if (!dragging) return;
+    // Project where the panel's *body* is: cursor + the grab→centre offset.
+    const dr = dragging.getBoundingClientRect();
+    const cx = dragX + grabCX, cy = dragY + grabCY;
+    const pl = cx - dr.width / 2, pr = cx + dr.width / 2;
+    const pt = cy - dr.height / 2, pb = cy + dr.height / 2;
+
+    // Pick the panel the drag box overlaps most (largest weight); fall back to
+    // the nearest centre when there's no overlap (e.g. dragging past the edge).
     let target: HTMLElement | null = null;
-    let best = Infinity;
+    let bestOverlap = 0;
+    let nearest: HTMLElement | null = null;
+    let bestDist = Infinity;
     for (const el of grid.querySelectorAll<HTMLElement>('.dash-widget:not(.dash-dragging):not(.dash-removed)')) {
       const b = el.getBoundingClientRect();
-      const d = Math.hypot(b.left + b.width / 2 - dragX, b.top + b.height / 2 - dragY);
-      if (d < best) { best = d; target = el; }
+      const ox = Math.max(0, Math.min(pr, b.right) - Math.max(pl, b.left));
+      const oy = Math.max(0, Math.min(pb, b.bottom) - Math.max(pt, b.top));
+      const area = ox * oy;
+      if (area > bestOverlap) { bestOverlap = area; target = el; }
+      const d = Math.hypot(b.left + b.width / 2 - cx, b.top + b.height / 2 - cy);
+      if (d < bestDist) { bestDist = d; nearest = el; }
     }
+    target = target ?? nearest;
     if (!target) return;
     const b = target.getBoundingClientRect();
-    const before = dragY < b.top + b.height / 2
-      || (dragX < b.left + b.width / 2 && Math.abs(dragY - (b.top + b.height / 2)) < b.height / 2);
+    const before = cy < b.top + b.height / 2
+      || (cx < b.left + b.width / 2 && Math.abs(cy - (b.top + b.height / 2)) < b.height / 2);
     const ref = before ? target : target.nextSibling;
     // No-op if it's already in that slot — avoids the flicker of re-inserting.
     if (ref === dragging || dragging.nextSibling === ref) return;
