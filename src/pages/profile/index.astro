@@ -171,7 +171,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         {d.recentAchievements.length > 0 && (
           <div class="dash-widget md:col-span-2" data-widget="badges" data-size="s" data-default="1" data-label="Nye merker">
             <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
-              <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
                 <h2 class="font-serif text-lg">Nye merker</h2>
                 <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
               </div>
@@ -220,7 +220,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Mine butikker -->
         <div class="dash-widget md:col-span-2" data-widget="stores" data-size="s" data-default="1" data-label="Mine butikker">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Mine butikker</h2>
               <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
@@ -282,7 +282,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Bibliotek -->
         <div class="dash-widget md:col-span-2" data-widget="library" data-size="s" data-default="1" data-label="Bibliotek">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Bibliotek</h2>
               <a href="/profile/library/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
@@ -311,7 +311,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Snarveier -->
         <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s" data-default="1" data-label="Snarveier">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
-            <h2 class="font-serif text-lg mb-3">Snarveier</h2>
+            <h2 class="font-serif text-lg px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">Snarveier</h2>
             <div class="flex flex-col gap-2 text-sm">
               <a href="/market/my-purchases" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Kjøp og kvitteringer →</a>
               <a href="/market/favorites" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Favoritter →</a>
@@ -327,7 +327,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Kjøpte oppskrifter (valgfritt panel) -->
         <div class="dash-widget md:col-span-2" data-widget="purchases" data-size="s" data-default="0" data-label="Kjøpte oppskrifter">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
               <a href="/market/my-purchases" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
             </div>
@@ -405,7 +405,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Om meg (valgfritt panel) -->
         <div class="dash-widget md:col-span-2" data-widget="about" data-size="s" data-default="0" data-label="Om meg">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Om meg</h2>
               <a href="/innstillinger" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger →</a>
             </div>
@@ -438,12 +438,9 @@ for (const o of d.allOffers.slice(0, 4)) {
   </div>
 
   <style is:global>
-    #dashgrid { position: relative; }
     .dash-widget { position: relative; }
     /* Removed panels are hidden from the grid; they live in the palette. */
     .dash-widget.dash-removed { display: none; }
-    /* Drop indicator shown while dragging (out of grid flow, no reflow). */
-    .dash-drop-bar { position: absolute; z-index: 30; width: 4px; border-radius: 3px; background: #C2604A; box-shadow: 0 0 0 3px rgba(194,96,74,.18); pointer-events: none; display: none; }
     /* Grouped panels (stats, admin): header sits inside a bordered box like every
        other panel. The header bar is solid white to match the other panels; the
        body stays transparent so the white tiles inside still pop. */

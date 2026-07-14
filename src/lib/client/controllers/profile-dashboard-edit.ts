@@ -200,24 +200,18 @@ export function init(): void {
     if (on) w.setAttribute('draggable', 'true');
     else w.removeAttribute('draggable');
   };
-  // A drop indicator (absolutely positioned, out of grid flow) shows where the
-  // panel will land. We DON'T reorder the DOM during the drag — reordering live
-  // shifts the geometry, which flips the next frame's target and ping-pongs
-  // (the stutter). The move happens once, on drop.
-  const dropBar = document.createElement('div');
-  dropBar.className = 'dash-drop-bar';
-  grid.appendChild(dropBar);
-  const hideBar = () => { dropBar.style.display = 'none'; };
-  let pendingRef: Element | null | undefined; // undefined = no valid target yet; null = append at end
-
+  // Live swap while dragging. The dragged panel is the source of truth: on each
+  // frame we swap it with whichever panel its *projected centre* sits inside.
+  // That "centre inside" rule gives natural hysteresis — right after a swap the
+  // centre is over the dragged panel's own new slot, so nothing flips until the
+  // pointer crosses into a different panel. No indicator, no oscillation.
   grid.addEventListener('dragstart', (e) => {
     const w = (e.target as HTMLElement)?.closest?.('.dash-widget') as HTMLElement | null;
     if (w && document.body.classList.contains('dash-editing')) {
       w.classList.add('dash-dragging');
-      pendingRef = undefined;
-      // Grab offset: the cursor sits on the grip (top-left), but the user is
-      // aiming with the panel's *body*. Record cursor→panel-centre so targeting
-      // follows where the panel would land, not where the pointer is.
+      // Grab offset: the cursor sits on the grip (top-left), but the user aims
+      // with the panel's *body*. Record cursor→panel-centre so the swap tracks
+      // where the panel is, not where the pointer is.
       const r = w.getBoundingClientRect();
       grabCX = (r.left + r.width / 2) - (e as DragEvent).clientX;
       grabCY = (r.top + r.height / 2) - (e as DragEvent).clientY;
@@ -225,16 +219,10 @@ export function init(): void {
   });
   grid.addEventListener('dragend', () => {
     if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
-    const dragging = grid.querySelector<HTMLElement>('.dash-dragging');
-    // Commit the move exactly once, now that the pointer is released.
-    if (dragging && pendingRef !== undefined) grid.insertBefore(dragging, pendingRef);
-    dragging?.classList.remove('dash-dragging');
-    pendingRef = undefined;
-    hideBar();
+    grid.querySelector<HTMLElement>('.dash-dragging')?.classList.remove('dash-dragging');
     relayout();
   });
-  // dragover fires many times per frame; coalesce to one pass per animation
-  // frame. The pass only moves the (cheap, absolute) indicator — no reflow.
+  // dragover fires many times per frame; coalesce to one pass per frame.
   let dragRaf = 0;
   let dragX = 0, dragY = 0;
   let grabCX = 0, grabCY = 0; // cursor→panel-centre offset, set on dragstart
@@ -244,60 +232,27 @@ export function init(): void {
     if (dragRaf) return;
     dragRaf = requestAnimationFrame(processDrag);
   }
+  // Swap two grid children in place (marker keeps it correct when adjacent).
+  function swapNodes(a: Element, b: Element) {
+    const marker = document.createComment('');
+    grid.insertBefore(marker, a);
+    grid.insertBefore(a, b);
+    grid.insertBefore(b, marker);
+    marker.remove();
+  }
   function processDrag() {
     dragRaf = 0;
     const dragging = grid.querySelector<HTMLElement>('.dash-dragging');
     if (!dragging) return;
-    // Project where the panel's *body* is: cursor + the grab→centre offset.
-    const dr = dragging.getBoundingClientRect();
-    const cx = dragX + grabCX, cy = dragY + grabCY;
-    const pl = cx - dr.width / 2, pr = cx + dr.width / 2;
-    const pt = cy - dr.height / 2, pb = cy + dr.height / 2;
-
-    // Pick the panel the drag box overlaps most (largest weight); fall back to
-    // the nearest centre when there's no overlap (e.g. dragging past the edge).
-    let target: HTMLElement | null = null;
-    let bestOverlap = 0;
-    let nearest: HTMLElement | null = null;
-    let bestDist = Infinity;
+    const cx = dragX + grabCX, cy = dragY + grabCY; // projected panel centre
     for (const el of grid.querySelectorAll<HTMLElement>('.dash-widget:not(.dash-dragging):not(.dash-removed)')) {
       const b = el.getBoundingClientRect();
-      const ox = Math.max(0, Math.min(pr, b.right) - Math.max(pl, b.left));
-      const oy = Math.max(0, Math.min(pb, b.bottom) - Math.max(pt, b.top));
-      const area = ox * oy;
-      if (area > bestOverlap) { bestOverlap = area; target = el; }
-      const d = Math.hypot(b.left + b.width / 2 - cx, b.top + b.height / 2 - cy);
-      if (d < bestDist) { bestDist = d; nearest = el; }
+      if (cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom) {
+        swapNodes(dragging, el);
+        relayout();
+        return;
+      }
     }
-    target = target ?? nearest;
-    if (!target) { hideBar(); pendingRef = undefined; return; }
-    const b = target.getBoundingClientRect();
-    const before = cy < b.top + b.height / 2
-      || (cx < b.left + b.width / 2 && Math.abs(cy - (b.top + b.height / 2)) < b.height / 2);
-    // Reference sibling the panel would be inserted before (null = end). Skip the
-    // dragged panel + the indicator itself.
-    let ref: Element | null = before ? target : target.nextElementSibling;
-    while (ref && (ref === dragging || ref === dropBar)) ref = ref.nextElementSibling;
-    pendingRef = ref;
-    positionBar(ref);
-  }
-  function positionBar(ref: Element | null) {
-    const gr = grid.getBoundingClientRect();
-    let left: number, top: number, height: number;
-    if (ref) {
-      const rr = ref.getBoundingClientRect();
-      left = rr.left - gr.left - 6; top = rr.top - gr.top; height = rr.height;
-    } else {
-      const live = liveWidgets();
-      const last = live[live.length - 1];
-      if (!last) { hideBar(); return; }
-      const rr = last.getBoundingClientRect();
-      left = rr.right - gr.left + 2; top = rr.top - gr.top; height = rr.height;
-    }
-    dropBar.style.left = `${left}px`;
-    dropBar.style.top = `${top}px`;
-    dropBar.style.height = `${height}px`;
-    dropBar.style.display = 'block';
   }
   const bindDnD = () => { liveWidgets().forEach((w) => makeDraggable(w, true)); grid.addEventListener('dragover', onDragOver); };
   const unbindDnD = () => { allWidgets().forEach((w) => makeDraggable(w, false)); grid.removeEventListener('dragover', onDragOver); };
