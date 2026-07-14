@@ -32,6 +32,35 @@ export function init(): void {
   };
   const setRemoved = (w: HTMLElement, removed: boolean) => w.classList.toggle('dash-removed', removed);
 
+  // --- grid vs staggered (masonry) ---------------------------------------
+  // Masonry packs short panels beside tall ones instead of leaving a full row
+  // gap. It works by giving the grid fine 8px auto-rows and setting each panel's
+  // row span from its measured content height (see the CSS). Only meaningful at
+  // md+, where the S/M/L column spans apply; on mobile it's a single column.
+  const modeKey = `lm-dash-${grid.dataset.user || 'anon'}-mode`;
+  const MD = () => window.matchMedia('(min-width: 768px)').matches;
+  let mode: 'grid' | 'masonry' =
+    grid.dataset.savedMode === 'masonry' ? 'masonry'
+    : grid.dataset.savedMode === 'grid' ? 'grid'
+    : (localStorage.getItem(modeKey) === 'masonry' ? 'masonry' : 'grid');
+
+  const clearSpans = () => allWidgets().forEach((w) => { w.style.gridRowEnd = ''; });
+  const relayout = () => {
+    if (mode !== 'masonry' || !MD()) { clearSpans(); return; }
+    const ROW = 8, GAP = 20; // GAP reserves the visual row gap (row-gap is 0 in masonry)
+    for (const w of liveWidgets()) {
+      const content = (w.firstElementChild as HTMLElement | null);
+      const h = content ? content.getBoundingClientRect().height : w.getBoundingClientRect().height;
+      w.style.gridRowEnd = `span ${Math.max(1, Math.ceil((h + GAP) / ROW))}`;
+    }
+  };
+  function applyMode() {
+    grid.classList.toggle('dash-masonry', mode === 'masonry');
+    if (mode === 'masonry') relayout(); else clearSpans();
+    const lbl = document.querySelector('[data-mode-label]');
+    if (lbl) lbl.textContent = mode === 'masonry' ? 'Stablet' : 'Rutenett';
+  }
+
   const currentLayout = (): LayoutItem[] =>
     liveWidgets().map((w) => ({ widget: w.dataset.widget ?? '', size: w.dataset.size ?? 'm' }));
   const defaultLayout = (): LayoutItem[] =>
@@ -53,7 +82,16 @@ export function init(): void {
       grid.appendChild(w); // move into saved order
       listed.add(item.widget);
     }
-    for (const [k, w] of byKey) if (!listed.has(k)) setRemoved(w, true);
+    // Unlisted widgets: locked ones (stats, admin) can't be removed, so a saved
+    // layout that predates them still shows them, pinned to the top; everything
+    // else drops into the palette.
+    const unlistedLocked: HTMLElement[] = [];
+    for (const [k, w] of byKey) {
+      if (listed.has(k)) continue;
+      if (w.dataset.lock === '1') { setRemoved(w, false); unlistedLocked.push(w); }
+      else setRemoved(w, true);
+    }
+    for (const w of unlistedLocked.reverse()) grid.prepend(w); // keep original order at front
   };
 
   // Apply the saved layout on load. Server row (data-saved-layout) is
@@ -74,11 +112,19 @@ export function init(): void {
     try { localStorage.setItem(key, JSON.stringify(currentLayout())); } catch { /* quota */ }
   } catch { applyLayout(defaultLayout()); }
 
+  applyMode();
+  // Re-pack after first paint + on resize + once content (images) settles.
+  requestAnimationFrame(relayout);
+  window.addEventListener('load', relayout);
+  let resizeT: number | undefined;
+  window.addEventListener('resize', () => { window.clearTimeout(resizeT); resizeT = window.setTimeout(relayout, 120); });
+
   const persist = (layout: LayoutItem[]) => {
+    try { localStorage.setItem(modeKey, mode); } catch { /* quota */ }
     void fetch('/api/dashboard/layout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ context: CONTEXT, layout }),
+      body: JSON.stringify({ context: CONTEXT, layout, mode }),
     }).catch(() => { /* offline / transient — localStorage still holds it */ });
   };
 
@@ -89,29 +135,33 @@ export function init(): void {
   const paletteList = document.querySelector<HTMLElement>('[data-dash-palette-list]');
   const paletteEmpty = document.querySelector<HTMLElement>('[data-dash-palette-empty]');
   let snapshot: LayoutItem[] | null = null;
+  let snapshotMode: 'grid' | 'masonry' = mode;
 
   const grip = '<svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2.5" cy="3" r="1.3"/><circle cx="7.5" cy="3" r="1.3"/><circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/><circle cx="2.5" cy="13" r="1.3"/><circle cx="7.5" cy="13" r="1.3"/></svg>';
 
   function addToolsTo(w: HTMLElement) {
     if (w.querySelector('.dash-tools')) return;
     const size = w.dataset.size ?? 'm';
+    const locked = w.dataset.lock === '1';
     const bar = document.createElement('div');
     bar.className = 'dash-tools';
     const sizeBtns = SIZES.map((s) =>
       `<button type="button" class="dash-size${s === size ? ' is-active' : ''}" data-size="${s}" title="Størrelse ${s.toUpperCase()}">${s.toUpperCase()}</button>`,
     ).join('');
+    // Locked panels (stats, admin) can be moved + resized but never removed.
     bar.innerHTML =
       `<span class="dash-grip" title="Dra for å flytte">${grip}</span>` +
       `<span class="dash-sizes">${sizeBtns}</span>` +
-      `<button type="button" class="dash-remove" title="Fjern panel" aria-label="Fjern panel">×</button>`;
+      (locked ? '' : `<button type="button" class="dash-remove" title="Fjern panel" aria-label="Fjern panel">×</button>`);
     w.appendChild(bar);
     bar.querySelectorAll<HTMLElement>('.dash-size').forEach((btn) =>
-      btn.addEventListener('click', (e) => { e.stopPropagation(); setSize(w, btn.dataset.size ?? 'm'); }));
-    bar.querySelector('.dash-remove')!.addEventListener('click', (e) => {
+      btn.addEventListener('click', (e) => { e.stopPropagation(); setSize(w, btn.dataset.size ?? 'm'); relayout(); }));
+    bar.querySelector('.dash-remove')?.addEventListener('click', (e) => {
       e.stopPropagation();
       setRemoved(w, true);
       makeDraggable(w, false);
       rebuildPalette();
+      relayout();
     });
   }
   const addTools = () => liveWidgets().forEach(addToolsTo);
@@ -142,6 +192,7 @@ export function init(): void {
     addToolsTo(w);
     makeDraggable(w, true);
     rebuildPalette();
+    relayout();
   }
 
   // --- drag + drop --------------------------------------------------------
@@ -155,6 +206,7 @@ export function init(): void {
   });
   grid.addEventListener('dragend', (e) => {
     (e.target as HTMLElement)?.closest?.('.dash-widget')?.classList.remove('dash-dragging');
+    relayout();
   });
   function onDragOver(e: DragEvent) {
     e.preventDefault();
@@ -172,6 +224,7 @@ export function init(): void {
     const before = e.clientY < b.top + b.height / 2
       || (e.clientX < b.left + b.width / 2 && Math.abs(e.clientY - (b.top + b.height / 2)) < b.height / 2);
     grid.insertBefore(dragging, before ? target : target.nextSibling);
+    relayout();
   }
   const bindDnD = () => { liveWidgets().forEach((w) => makeDraggable(w, true)); grid.addEventListener('dragover', onDragOver); };
   const unbindDnD = () => { allWidgets().forEach((w) => makeDraggable(w, false)); grid.removeEventListener('dragover', onDragOver); };
@@ -179,6 +232,7 @@ export function init(): void {
   // --- enter / exit -------------------------------------------------------
   function enterEdit() {
     snapshot = currentLayout();
+    snapshotMode = mode;
     document.body.classList.add('dash-editing');
     viewActions?.classList.add('hidden');
     editActions?.classList.remove('hidden');
@@ -193,7 +247,10 @@ export function init(): void {
       const layout = currentLayout();
       try { localStorage.setItem(key, JSON.stringify(layout)); } catch { /* quota */ }
       persist(layout); // sync to dashboard_layouts so it crosses devices
-    } else if (snapshot) applyLayout(snapshot);
+    } else {
+      if (snapshot) applyLayout(snapshot);
+      mode = snapshotMode; applyMode(); // revert a previewed grid/masonry switch
+    }
     document.body.classList.remove('dash-editing');
     editActions?.classList.add('hidden');
     editActions?.classList.remove('flex');
@@ -206,8 +263,12 @@ export function init(): void {
   document.querySelector('[data-edit-toggle]')?.addEventListener('click', enterEdit);
   document.querySelector('[data-edit-save]')?.addEventListener('click', () => exitEdit(true));
   document.querySelector('[data-edit-cancel]')?.addEventListener('click', () => exitEdit(false));
+  document.querySelector('[data-edit-mode]')?.addEventListener('click', () => {
+    mode = mode === 'masonry' ? 'grid' : 'masonry';
+    applyMode();
+  });
   document.querySelector('[data-edit-reset]')?.addEventListener('click', () => {
-    try { localStorage.removeItem(key); } catch { /* */ }
+    try { localStorage.removeItem(key); localStorage.removeItem(modeKey); } catch { /* */ }
     // Clear the server row too, then reload to the server default.
     fetch('/api/dashboard/layout', {
       method: 'DELETE',

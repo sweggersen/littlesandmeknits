@@ -1,30 +1,33 @@
 ---
-// Admin / moderator quick-links panel on the profile dashboard.
-// Shows pending moderation queue count with a soft pulse when > 0.
-// Extracted from src/pages/profile/index.astro.
+// Admin / moderator quick-links, rendered inside a dashboard widget. Tiles are
+// individual white cards on the linen page (matching the stat row) and auto-fit
+// so they reflow when the widget is resized S/M/L. Shows the pending moderation
+// count with a soft amber highlight + pulse when > 0.
 
 interface Props {
   isAdmin: boolean;
   pendingQueueCount: number;
 }
 const { isAdmin, pendingQueueCount } = Astro.props;
+
+const tileBase = 'bg-white rounded-2xl border border-sage-500/20 p-4 text-center hover:border-sage-500/30 transition-colors';
 ---
 
-<div class="mb-10 bg-white rounded-2xl border border-sage-500/20 p-5">
-  <div class="flex items-center gap-2 mb-4">
-    <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{isAdmin ? 'Admin' : 'Moderator'}</span>
+<section class="dash-group rounded-2xl border border-sage-500/20 overflow-hidden">
+  <div class="dash-group-head flex items-center gap-2 px-5 py-3.5 border-b border-sage-500/15">
+    <h2 class="font-serif text-lg">{isAdmin ? 'Admin' : 'Moderator'}</h2>
     {pendingQueueCount > 0 && (
       <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-terracotta-500 text-white text-[10px] font-bold">{pendingQueueCount}</span>
     )}
   </div>
-  <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-    <a href="/admin" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
+  <div class="p-4 dash-tiles">
+    <a href="/admin" data-tile class={tileBase}>
       <p class="text-sm font-medium">Dashboard</p>
-      <p class="text-[10px] text-charcoal/45">Oversikt</p>
+      <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Oversikt</p>
     </a>
-    <a href="/admin/moderation" class:list={[
-      "bg-white border rounded-xl p-3 text-center transition-colors relative",
-      pendingQueueCount > 0 ? "border-amber-500/50 ring-1 ring-amber-500/30" : "border-sage-500/15 hover:border-sage-500/35",
+    <a href="/admin/moderation" data-tile class:list={[
+      'rounded-2xl border p-4 text-center transition-colors relative',
+      pendingQueueCount > 0 ? 'bg-amber-500/5 border-amber-500/50 ring-1 ring-amber-500/30' : 'bg-white border-sage-500/20 hover:border-sage-500/30',
     ]}>
       <p class="text-sm font-medium">Modereringskø</p>
       {pendingQueueCount > 0 ? (
@@ -36,28 +39,28 @@ const { isAdmin, pendingQueueCount } = Astro.props;
           <p class="text-[11px] text-amber-600 font-bold">{pendingQueueCount} venter</p>
         </div>
       ) : (
-        <p class="text-[10px] text-charcoal/45">Ingen ventende</p>
+        <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Ingen ventende</p>
       )}
     </a>
-    <a href="/admin/reports" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
+    <a href="/admin/reports" data-tile class={tileBase}>
       <p class="text-sm font-medium">Rapporter</p>
-      <p class="text-[10px] text-charcoal/45">Flagget innhold</p>
+      <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Flagget innhold</p>
     </a>
     {isAdmin && (
       <>
-        <a href="/admin/users" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
+        <a href="/admin/users" data-tile class={tileBase}>
           <p class="text-sm font-medium">Brukere</p>
-          <p class="text-[10px] text-charcoal/45">Roller og tillit</p>
+          <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Roller og tillit</p>
         </a>
-        <a href="/admin/moderators" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
+        <a href="/admin/moderators" data-tile class={tileBase}>
           <p class="text-sm font-medium">Moderatorer</p>
-          <p class="text-[10px] text-charcoal/45">Ytelse og stats</p>
+          <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Ytelse og stats</p>
         </a>
-        <a href="/admin/log" class="bg-white border border-sage-500/15 rounded-xl p-3 text-center hover:border-sage-500/35 transition-colors">
+        <a href="/admin/log" data-tile class={tileBase}>
           <p class="text-sm font-medium">Aktivitetslogg</p>
-          <p class="text-[10px] text-charcoal/45">Revisjon</p>
+          <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Revisjon</p>
         </a>
       </>
     )}
   </div>
-</div>
+</section>

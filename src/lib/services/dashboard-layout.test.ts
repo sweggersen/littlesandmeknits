@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizeLayout } from './dashboard-layout';
+import { sanitizeLayout, parseStored } from './dashboard-layout';
 
 describe('sanitizeLayout', () => {
   it('keeps well-formed items in order', () => {
@@ -50,5 +50,29 @@ describe('sanitizeLayout', () => {
   it('ignores junk entries without throwing', () => {
     const out = sanitizeLayout([null, 42, 'x', { widget: 'ok', size: 'm' }, undefined]);
     expect(out).toEqual([{ widget: 'ok', size: 'm' }]);
+  });
+});
+
+describe('parseStored', () => {
+  it('treats a legacy bare array as grid mode', () => {
+    const out = parseStored([{ widget: 'stats', size: 'l' }]);
+    expect(out).toEqual({ mode: 'grid', items: [{ widget: 'stats', size: 'l' }] });
+  });
+
+  it('reads the { v, mode, items } wrapper', () => {
+    const out = parseStored({ v: 2, mode: 'masonry', items: [{ widget: 'a', size: 'm' }] });
+    expect(out).toEqual({ mode: 'masonry', items: [{ widget: 'a', size: 'm' }] });
+  });
+
+  it('falls back to grid mode for an unknown mode value', () => {
+    const out = parseStored({ mode: 'diagonal', items: [{ widget: 'a', size: 's' }] });
+    expect(out.mode).toBe('grid');
+    expect(out.items).toEqual([{ widget: 'a', size: 's' }]);
+  });
+
+  it('returns an empty grid layout for junk', () => {
+    expect(parseStored(null)).toEqual({ mode: 'grid', items: [] });
+    expect(parseStored(42)).toEqual({ mode: 'grid', items: [] });
+    expect(parseStored({ mode: 'masonry' })).toEqual({ mode: 'masonry', items: [] });
   });
 });

@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   const body = await request.json().catch(() => null);
   const context = (body?.context ?? 'profile') as DashboardContext;
-  const result = await saveDashboardLayout(ctx, { context, layout: body?.layout });
+  const result = await saveDashboardLayout(ctx, { context, layout: body?.layout, mode: body?.mode });
   return toResponse(result);
 };
 
