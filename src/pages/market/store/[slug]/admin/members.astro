@@ -87,6 +87,12 @@ const roleOptions: StoreRole[] = role === 'owner'
                 <p class="truncate">{inv.email}</p>
                 <p class="text-xs text-charcoal/55">{ROLE_LABEL_NB[inv.role as StoreRole]} · utløper {new Date(inv.expires_at).toLocaleDateString('nb-NO')}</p>
               </div>
+              <form method="post" action={`/api/stores/${store.slug}/members`} class="shrink-0">
+                <input type="hidden" name="action" value="revoke-invite" />
+                <input type="hidden" name="invitation_id" value={inv.id} />
+                <button type="submit" class="text-xs text-red-600/70 hover:text-red-700" title="Kanseller invitasjon"
+                  onclick="return confirm('Kanseller denne invitasjonen?')">Kanseller</button>
+              </form>
             </li>
           ))}
         </ul>

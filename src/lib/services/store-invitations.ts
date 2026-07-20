@@ -107,6 +107,51 @@ export async function listInvitations(
   return ok(data ?? []);
 }
 
+export interface MyInvitation {
+  token: string;
+  role: StoreRole;
+  expires_at: string;
+  store_id: string;
+  store_name: string;
+  store_slug: string;
+  store_logo_path: string | null;
+}
+
+/** Pending invitations addressed to the logged-in user's email, so they can be
+ *  surfaced + accepted in-app (there's no invite email yet). Uses the admin
+ *  client because store_invitations RLS is store-admin-scoped — the invitee
+ *  isn't a member yet, so can't read the row under their own grants; we pin the
+ *  read to their own email, which is the safe equivalent. */
+export async function listMyInvitations(ctx: ServiceContext): Promise<ServiceResult<MyInvitation[]>> {
+  const email = (ctx.user.email ?? '').toLowerCase();
+  if (!email) return ok([]);
+  const { data, error } = await ctx.admin
+    .from('store_invitations')
+    .select('token, role, expires_at, stores!inner(id, name, slug, logo_path)')
+    .eq('email', email)
+    .is('accepted_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false });
+  if (error) { console.error('listMyInvitations failed', error); return fail('server_error', 'Kunne ikke hente invitasjoner'); }
+  const out: MyInvitation[] = (data ?? []).map((r: any) => ({
+    token: r.token, role: r.role, expires_at: r.expires_at,
+    store_id: r.stores.id, store_name: r.stores.name, store_slug: r.stores.slug, store_logo_path: r.stores.logo_path,
+  }));
+  return ok(out);
+}
+
+/** The invitee declines an invitation addressed to their email. */
+export async function declineMyInvitation(ctx: ServiceContext, token: string): Promise<ServiceResult<{ ok: true }>> {
+  const email = (ctx.user.email ?? '').toLowerCase();
+  const { data: inv } = await ctx.admin
+    .from('store_invitations').select('id, email').eq('token', token).maybeSingle();
+  if (!inv) return fail('not_found', 'Invitasjon ikke funnet');
+  if (inv.email.toLowerCase() !== email) return fail('forbidden', 'Invitasjonen er for en annen e-postadresse');
+  const { error } = await ctx.admin.from('store_invitations').delete().eq('id', inv.id);
+  if (error) return fail('server_error', 'Kunne ikke avslå invitasjon');
+  return ok({ ok: true });
+}
+
 export interface AcceptInvitationResult {
   storeId: string;
   storeSlug: string;

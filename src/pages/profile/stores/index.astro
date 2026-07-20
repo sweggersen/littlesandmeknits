@@ -2,7 +2,9 @@
 import Layout from '../../../layouts/Layout.astro';
 import { buildServiceContext } from '../../../lib/services/context';
 import { listMyStores } from '../../../lib/services/stores';
+import { listMyInvitations } from '../../../lib/services/store-invitations';
 import { ROLE_LABEL_NB } from '../../../lib/services/store-permissions';
+import type { StoreRole } from '../../../lib/types/stores';
 import { projectPhotoUrl } from '../../../lib/storage';
 
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);
@@ -10,6 +12,10 @@ if (!ctx) return Astro.redirect('/login?next=/profile/stores');
 
 const res = await listMyStores(ctx);
 const stores = res.ok ? res.data : [];
+
+// Pending invitations addressed to this user (accept/decline in-app).
+const invRes = await listMyInvitations(ctx);
+const myInvites = invRes.ok ? invRes.data : [];
 
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Utkast',
@@ -43,7 +49,43 @@ const STATUS_TONE: Record<string, string> = {
         </a>
       </div>
 
-      {stores.length === 0 && (
+      {myInvites.length > 0 && (
+        <section class="mb-8">
+          <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Invitasjoner til deg</h2>
+          <ul class="space-y-3">
+            {myInvites.map((inv) => (
+              <li class="bg-white rounded-2xl border border-terracotta-500/25 p-5 flex items-center gap-4">
+                {inv.store_logo_path ? (
+                  <img src={projectPhotoUrl(inv.store_logo_path)} alt="" class="w-12 h-12 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div class="w-12 h-12 rounded-xl bg-sage-100 flex items-center justify-center font-serif text-lg text-sage-700 shrink-0">
+                    {inv.store_name?.[0]?.toUpperCase() ?? '?'}
+                  </div>
+                )}
+                <div class="flex-1 min-w-0">
+                  <p class="font-serif text-lg truncate">{inv.store_name}</p>
+                  <p class="text-xs text-charcoal/55">
+                    Invitert som {ROLE_LABEL_NB[inv.role as StoreRole]} · utløper {new Date(inv.expires_at).toLocaleDateString('nb-NO')}
+                  </p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                  <form method="post" action={`/api/invitations/${inv.token}/accept`}>
+                    <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+                      Godta
+                    </button>
+                  </form>
+                  <form method="post" action={`/api/invitations/${inv.token}/decline`}>
+                    <button type="submit" class="text-sm text-charcoal/50 hover:text-terracotta-500 transition-colors px-2"
+                      onclick="return confirm('Avslå invitasjonen?')">Avslå</button>
+                  </form>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {stores.length === 0 && myInvites.length === 0 && (
         <div class="bg-white rounded-3xl border border-sage-500/10 p-8 text-center">
           <p class="text-charcoal/70 mb-3">Du har ingen butikker ennå.</p>
           <p class="text-sm text-charcoal/55 mb-6">

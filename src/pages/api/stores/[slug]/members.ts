@@ -4,7 +4,7 @@ import type { APIRoute } from 'astro';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getStoreBySlugAdmin } from '../../../../lib/services/stores';
 import { changeMemberRole, removeMember, updateMyPresentation } from '../../../../lib/services/store-members';
-import { inviteMember } from '../../../../lib/services/store-invitations';
+import { inviteMember, revokeInvitation } from '../../../../lib/services/store-invitations';
 import { toResponse } from '../../../../lib/services/response';
 import type { StoreRole } from '../../../../lib/types/stores';
 
@@ -39,6 +39,11 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
   }
   if (action === 'remove') {
     const result = await removeMember(ctx, store.id, body.user_id ?? '');
+    if (result.ok && !isJson) return redirect(`/market/store/${store.slug}/admin/members`);
+    return toResponse(result);
+  }
+  if (action === 'revoke-invite') {
+    const result = await revokeInvitation(ctx, body.invitation_id ?? '');
     if (result.ok && !isJson) return redirect(`/market/store/${store.slug}/admin/members`);
     return toResponse(result);
   }
