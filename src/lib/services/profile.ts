@@ -6,6 +6,7 @@ import { orEither } from '../db/assert';
 import { recordDeadLetter } from './dead-letter';
 import { safeInternalPath } from '../auth';
 import { createSellerConnectAccount } from './stripe-connect';
+import { SIMULATE_STRIPE_KEY } from '../stripe-sim';
 
 const VALID_LANGS = new Set(['nb', 'en']);
 const VALID_TAGS = new Set(['knitter', 'sells_pre_loved', 'sells_ready_made', 'open_for_requests', 'dyer']);
@@ -384,6 +385,13 @@ export async function becomeSeller(
     accountId = result.accountId ?? null;
   }
 
+  // Locally (sk_simulate) no account.updated webhook ever fires, so a seller
+  // would be stuck 'pending' forever. Treat the simulated account as verified so
+  // the full local flow works. Guarded by the sim key, which createStripe
+  // refuses in a prod build.
+  const simulated = ctx.env.STRIPE_SECRET_KEY === SIMULATE_STRIPE_KEY;
+  const verified = existing?.stripe_connect_status === 'verified' || simulated;
+
   // Upsert into seller_profiles. Service-role because the table's
   // RLS is owner-read but app uses admin client for writes so
   // server-controlled fields (status, account_id) stay tamper-proof.
@@ -399,9 +407,8 @@ export async function becomeSeller(
       city: input.city,
       seller_terms_accepted_at: new Date().toISOString(),
       stripe_account_id: accountId,
-      stripe_connect_status: existing?.stripe_connect_status === 'verified'
-        ? 'verified'
-        : 'pending',
+      stripe_connect_status: verified ? 'verified' : 'pending',
+      ...(verified ? { seller_verified_at: new Date().toISOString() } : {}),
     });
   if (updateError) {
     console.error('Become-seller seller_profile upsert failed', updateError);

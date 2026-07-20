@@ -56,6 +56,26 @@ export function createSimulatedStripe(): Stripe {
     refunds: {
       create: async () => ({ id: `re_sim_${Date.now()}` }),
     },
+    // Connect Custom accounts (become-seller). A simulated account is returned
+    // fully enabled so statusFromAccount() derives 'verified' — locally there's
+    // no account.updated webhook to flip it later.
+    accounts: {
+      create: async () => ({
+        id: `acct_sim_${Date.now()}`,
+        charges_enabled: true,
+        payouts_enabled: true,
+        requirements: { currently_due: [], disabled_reason: null },
+      }),
+      retrieve: async (id: string) => ({
+        id,
+        charges_enabled: true,
+        payouts_enabled: true,
+        requirements: { currently_due: [], disabled_reason: null },
+      }),
+    },
+    accountLinks: {
+      create: async () => ({ url: 'https://sim.stripe.local/connect-onboarding' }),
+    },
   };
   return sim as unknown as Stripe;
 }

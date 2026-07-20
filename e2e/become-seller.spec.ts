@@ -32,7 +32,10 @@ test.describe('Strikketorget — become-seller form', () => {
     adminToken = (await r.json()).token;
     // test-login auto-creates the user if it doesn't exist
     await request.post('/api/dev/test-login', { data: { email: SELLER } });
+    // Ensure not already a verified seller (the page redirects those away).
+    await exec(request, 'cleanup');
   });
+  test.afterAll(async ({ request }) => { await exec(request, 'cleanup'); });
 
   test('renders the form with the right fields and copy', async ({ page }) => {
     await loginAs(page, SELLER);
@@ -120,5 +123,23 @@ test.describe('Strikketorget — become-seller form', () => {
     await page.getByRole('button', { name: 'Bli selger' }).click();
     // Browser-native required validation prevents submit; URL stays put.
     await expect(page).toHaveURL(/\/profile\/become-seller$/);
+  });
+
+  // Runs last: a successful submit verifies the seller, after which the page
+  // redirects them away — so no later test can still see the form.
+  test('valid submission onboards the seller (sim account) and forwards to profile', async ({ page }) => {
+    await loginAs(page, SELLER);
+    await page.goto('/profile/become-seller');
+    await page.getByLabel('Fullt navn').fill('Sam Mathias Weggersen');
+    await page.getByLabel('Fødselsdato').fill('1985-07-13');
+    await page.getByLabel('Kontonummer').fill('1234 56 78903'); // valid MOD-11
+    await page.getByLabel('Adresse').fill('Storgata 1');
+    await page.getByLabel('Postnr').fill('0123');
+    await page.getByLabel('Sted').fill('Oslo');
+    await page.locator('input[name="terms"]').check();
+    await page.getByRole('button', { name: 'Bli selger' }).click();
+    // Locally the simulated Connect account is treated as verified, so the page
+    // forwards a verified seller to their profile (no Stripe error).
+    await page.waitForURL('**/profile?seller=verified');
   });
 });
