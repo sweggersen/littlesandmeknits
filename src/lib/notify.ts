@@ -37,6 +37,7 @@ export type NotificationType =
   | 'seller_verification_needed'
   | 'commission_cancelled'
   | 'listing_reservation_released'
+  | 'store_invite'
   | 'system_alert';
 
 const EMAIL_PREF_COL: Record<NotificationType, string> = {
@@ -73,6 +74,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   seller_verification_needed: 'email_item_approved',
   commission_cancelled: 'email_request_expired',
   listing_reservation_released: 'email_listing_purchased',
+  store_invite: 'email_item_approved',
   // Ops alert to admins when a money-path failure dead-letters. Reuses the
   // money-notification pref column (default on) — admins almost never disable
   // payment emails, and the in-app row lands regardless of the pref.

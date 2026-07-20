@@ -3,8 +3,9 @@
 
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
-import { can, canAssignRole } from './store-permissions';
+import { can, canAssignRole, ROLE_LABEL_NB } from './store-permissions';
 import { getMyRole } from './store-members';
+import { createNotification } from '../notify';
 import type { StoreRole } from '../types/stores';
 
 const INVITE_TTL_DAYS = 14;
@@ -27,10 +28,11 @@ export async function inviteMember(
   const email = input.email.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('bad_input', 'Ugyldig e-post');
 
-  // Reject if already a member by email
-  const { data: existingUser } = await ctx.admin.auth.admin.listUsers({ perPage: 1 });
-  // (We don't have a direct "find by email" — listing all is fine for now,
-  // but in production switch to admin.auth.getUserByEmail when available.)
+  // Find the invited user by email (used for the already-member check + the
+  // in-app notification). listUsers has no direct by-email filter, so page
+  // through a large batch — perPage:1 (the old value) returned a single user and
+  // silently missed almost everyone. TODO: admin.auth.getUserByEmail when avail.
+  const { data: existingUser } = await ctx.admin.auth.admin.listUsers({ perPage: 1000 });
   const userByEmail = (existingUser?.users ?? []).find((u) => u.email?.toLowerCase() === email);
   if (userByEmail) {
     const { data: alreadyMember } = await ctx.admin
@@ -64,6 +66,21 @@ export async function inviteMember(
   if (error) {
     console.error('Invite insert failed', error);
     return fail('server_error', 'Kunne ikke opprette invitasjon');
+  }
+
+  // If the invitee already has an account, drop an in-app notification so they
+  // discover the invite in their inbox (and on /profile/stores). No email yet.
+  if (userByEmail) {
+    const { data: store } = await ctx.admin.from('stores').select('name').eq('id', storeId).maybeSingle();
+    await createNotification(ctx.admin, {
+      userId: userByEmail.id,
+      type: 'store_invite',
+      title: `Invitasjon til ${store?.name ?? 'en butikk'}`,
+      body: `Du er invitert som ${ROLE_LABEL_NB[input.role]}. Godta i «Mine butikker».`,
+      url: '/profile/stores',
+      actorId: ctx.user.id,
+      referenceId: storeId,
+    }, ctx.env);
   }
 
   const inviteUrl = `/invite/${token}`;

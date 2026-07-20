@@ -1572,6 +1572,14 @@ async function handle(
       const { data: testListings } = await db.from('listings')
         .select('id')
         .in('seller_id', testUserIds);
+      // Notifications that *reference* a test listing (e.g. "Ny tvist" dispute
+      // alerts fan out to ALL admins/moderators — including real accounts like
+      // the owner — so deleting only by recipient (below) leaves those behind.
+      // Clearing by reference_id here keeps re-seeds from piling them up.
+      const testListingIds = (testListings ?? []).map((l) => l.id);
+      if (testListingIds.length) {
+        await db.from('notifications').delete().in('reference_id', testListingIds);
+      }
       for (const l of testListings ?? []) {
         const { data: photos } = await db.from('listing_photos')
           .select('path').eq('listing_id', l.id);

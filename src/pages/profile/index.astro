@@ -13,6 +13,8 @@ import DashboardEngine from '../../components/dashboard/DashboardEngine.astro';
 import DashboardEditChrome from '../../components/dashboard/DashboardEditChrome.astro';
 import DashboardPalette from '../../components/dashboard/DashboardPalette.astro';
 import { createServerSupabase } from '../../lib/supabase';
+import { buildServiceContext } from '../../lib/services/context';
+import { listMyInvitations } from '../../lib/services/store-invitations';
 import { projectPhotoUrl } from '../../lib/storage';
 import { loadProfileDashboard } from '../../lib/profile-dashboard-data';
 import { COMMISSION_STATUS, LISTING_STATUS, PROJECT_STATUS, KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
@@ -21,6 +23,11 @@ import { formatDate } from '../../lib/time';
 const user = Astro.locals.user!; // middleware-gated
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const d = await loadProfileDashboard(supabase, user);
+
+// Pending store invitations addressed to this user (surfaced in the stores panel).
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+const invRes = ctx ? await listMyInvitations(ctx) : null;
+const pendingInvites = invRes?.ok ? invRes.data.length : 0;
 
 // Status → StatusBadge colour.
 function comVariant(s: string) {
@@ -214,8 +221,14 @@ for (const o of d.allOffers.slice(0, 4)) {
               <a href="/profile/stores" class="font-serif text-lg hover:text-terracotta-500 transition-colors">Mine butikker</a>
               <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
+            {pendingInvites > 0 && (
+              <a href="/profile/stores" class="flex items-center justify-between gap-2 mb-2 rounded-xl bg-terracotta-500/8 border border-terracotta-500/25 px-3 py-2 text-sm text-terracotta-500 hover:bg-terracotta-500/12 transition-colors">
+                <span>{pendingInvites} invitasjon{pendingInvites === 1 ? '' : 'er'} venter</span>
+                <span>→</span>
+              </a>
+            )}
             {d.myStores.length === 0 ? (
-              <p class="text-sm text-charcoal/50">Ingen butikker.</p>
+              <p class="text-sm text-charcoal/50">{pendingInvites > 0 ? 'Ingen butikker enda.' : 'Ingen butikker.'}</p>
             ) : (
               <ul class="space-y-2">
                 {d.myStores.slice(0, 4).map((s) => (

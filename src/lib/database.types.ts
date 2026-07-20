@@ -2848,6 +2848,7 @@ export type Database = {
         | "payment_failed"
         | "seller_activated"
         | "listing_reservation_released"
+        | "store_invite"
         | "system_alert"
       order_status:
         | "reserved"
@@ -3082,6 +3083,7 @@ export const Constants = {
         "payment_failed",
         "seller_activated",
         "listing_reservation_released",
+        "store_invite",
         "system_alert",
       ],
       order_status: [

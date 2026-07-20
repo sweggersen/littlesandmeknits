@@ -50,8 +50,14 @@ test.describe('Store invitations', () => {
     await expect(page.getByText(INVITEE)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Kanseller' })).toBeVisible();
 
-    // Invitee sees it in-app and accepts.
+    // Invitee gets an in-app notification and a profile-panel indicator.
     await loginAs(page, INVITEE);
+    await page.goto('/inbox');
+    await expect(page.getByText(/Invitasjon til/)).toBeVisible();
+    await page.goto('/profile');
+    await expect(page.getByText(/invitasjon.*venter/i)).toBeVisible();
+
+    // Invitee sees it in-app and accepts.
     await page.goto('/profile/stores');
     await expect(page.getByText('Min Strikkebutikk')).toBeVisible();
     await page.getByRole('button', { name: 'Godta' }).click();

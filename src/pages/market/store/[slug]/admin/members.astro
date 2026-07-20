@@ -64,7 +64,7 @@ const roleOptions: StoreRole[] = role === 'owner'
           <input type="hidden" name="action" value="invite" />
           <input type="email" name="email" required placeholder="navn@example.no"
             class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
-          <select name="role" class="bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
+          <select name="role" class="bg-linen rounded-xl pl-3 pr-8 py-2 text-sm border border-sage-500/15">
             {roleOptions.map((r) => (
               <option value={r}>{ROLE_LABEL_NB[r]}</option>
             ))}
@@ -118,7 +118,7 @@ const roleOptions: StoreRole[] = role === 'owner'
               <form method="post" action={`/api/stores/${store.slug}/members`} class="flex items-center gap-1">
                 <input type="hidden" name="action" value="change-role" />
                 <input type="hidden" name="user_id" value={m.user_id} />
-                <select name="role" class="bg-linen rounded-lg px-2 py-1 text-xs border border-sage-500/15" onchange="this.form.requestSubmit()">
+                <select name="role" class="bg-linen rounded-lg pl-2 pr-7 py-1 text-xs border border-sage-500/15" onchange="this.form.requestSubmit()">
                   {roleOptions.map((r) => (
                     <option value={r} selected={m.role === r}>{ROLE_LABEL_NB[r]}</option>
                   ))}
