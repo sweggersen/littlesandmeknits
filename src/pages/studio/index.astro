@@ -4,9 +4,12 @@ import InstallAppButton from '../../components/InstallAppButton.astro';
 import DashboardEngine from '../../components/dashboard/DashboardEngine.astro';
 import DashboardEditChrome from '../../components/dashboard/DashboardEditChrome.astro';
 import DashboardPalette from '../../components/dashboard/DashboardPalette.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { useTranslations } from '../../lib/i18n';
 import { parseStored } from '../../lib/services/dashboard-layout';
+import { projectPhotoUrl } from '../../lib/storage';
+import { PROJECT_STATUS } from '../../lib/labels';
 
 const t = useTranslations('nb');
 
@@ -27,7 +30,7 @@ const now = new Date();
 const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
 
 const [projectsRes, yarnsRes, needlesRes, externalRes, deductionsRes] = await Promise.all([
-  supabase.from('projects').select('id, status, started_at, finished_at, created_at').eq('user_id', user!.id),
+  supabase.from('projects').select('id, title, status, hero_photo_path, updated_at, started_at, finished_at, created_at').eq('user_id', user!.id),
   supabase.from('yarns').select('id, total_grams'),
   supabase.from('needles').select('id'),
   supabase.from('external_patterns').select('id'),
@@ -36,7 +39,10 @@ const [projectsRes, yarnsRes, needlesRes, externalRes, deductionsRes] = await Pr
 
 type ProjectStatRow = {
   id: string;
+  title: string;
   status: 'planning' | 'active' | 'finished' | 'frogged';
+  hero_photo_path: string | null;
+  updated_at: string | null;
   started_at: string | null;
   finished_at: string | null;
   created_at: string;
@@ -129,6 +135,11 @@ const meta = (user?.user_metadata ?? {}) as { display_name?: string };
 const hasDisplayName = !!(meta.display_name && meta.display_name.trim());
 const greeting = hasDisplayName ? meta.display_name!.trim() : firstNameFromEmail(user?.email);
 const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} g`);
+
+// Most-recently-touched projects, for the optional "Siste prosjekter" panel.
+const recentProjects = [...projects]
+  .sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))
+  .slice(0, 4);
 
 const studioStats: Array<{ label: string; value: string; href: string }> = [
   { label: 'I gang', value: String(active.length), href: '/studio/projects' },
@@ -268,6 +279,43 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
             ))}
           </div>
         </div>
+      </section>
+    </div>
+
+    <!-- Siste prosjekter (valgfritt panel) -->
+    <div class="dash-widget md:col-span-4" data-widget="projects" data-size="m" data-default="0" data-label="Siste prosjekter">
+      <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden h-full">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
+          <h2 class="font-serif text-lg">Siste prosjekter</h2>
+          <a href="/studio/projects" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
+        </div>
+        {recentProjects.length === 0 ? (
+          <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Ingen prosjekter ennå.</p>
+        ) : (
+          <div class="grid sm:grid-cols-2 gap-3 p-4">
+            {recentProjects.map((p) => (
+              <a href={`/studio/projects/${p.id}`} class="flex items-center gap-3 rounded-xl border border-sage-500/20 hover:border-sage-500/30 transition-colors p-2.5">
+                {p.hero_photo_path
+                  ? <img src={projectPhotoUrl(p.hero_photo_path)!} alt="" class="w-12 h-12 rounded-lg object-cover shrink-0" />
+                  : <div class="w-12 h-12 rounded-lg bg-oatmeal/60 shrink-0"></div>}
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium truncate">{p.title}</p>
+                  <StatusBadge label={PROJECT_STATUS[p.status] ?? p.status} variant={p.status === 'active' ? 'sage' : 'muted'} class="mt-1" />
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+
+    <!-- Bibliotek (valgfritt panel) -->
+    <div class="dash-widget md:col-span-2" data-widget="library" data-size="s" data-default="0" data-label="Bibliotek">
+      <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+        <h2 class="font-serif text-lg px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">Bibliotek</h2>
+        <p class="font-serif text-3xl leading-none tabular-nums">{externals.length}</p>
+        <p class="text-xs text-charcoal/55 mt-1">oppskrifter lagret</p>
+        <a href="/profile/library" class="inline-block mt-3 text-sm text-charcoal/60 hover:text-terracotta-500 transition-colors">Åpne bibliotek →</a>
       </section>
     </div>
   </div>

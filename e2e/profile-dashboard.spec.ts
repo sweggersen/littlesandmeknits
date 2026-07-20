@@ -155,8 +155,9 @@ test.describe('Profile dashboard', () => {
     await expect(grid).not.toHaveClass(/dash-masonry/);
 
     await page.getByRole('button', { name: 'Rediger' }).click();
-    await page.getByRole('button', { name: 'Rutenett' }).click(); // → Stablet
+    await page.locator('[data-set-mode="masonry"]').click(); // Rutenett | Stablet segmented control
     await expect(grid).toHaveClass(/dash-masonry/);
+    await expect(page.locator('[data-set-mode="masonry"]')).toHaveClass(/is-active/);
 
     const saved = page.waitForResponse((r) => r.url().includes('/api/dashboard/layout') && r.request().method() === 'POST');
     await page.getByRole('button', { name: 'Lagre' }).click();

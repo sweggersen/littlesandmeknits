@@ -57,6 +57,12 @@
   .dash-add { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; border: 1px solid rgba(122,138,110,.3); background: #F7F2EA; color: #3B3733; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .12s, background .12s; }
   .dash-add:hover { border-color: rgba(194,96,74,.5); background: #fff; }
   .dash-add .dash-add-plus { color: #C2604A; font-weight: 700; }
+  /* Grid/staggered view: a segmented control, active segment highlighted. */
+  .dash-modes { display: inline-flex; border: 1px solid rgba(122,138,110,.3); border-radius: 9999px; overflow: hidden; }
+  .dash-modes .dash-mode { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; border: 0; background: transparent; color: rgba(59,55,51,.6); font-size: 13px; font-weight: 500; cursor: pointer; transition: background .12s, color .12s; }
+  .dash-modes .dash-mode + .dash-mode { border-left: 1px solid rgba(122,138,110,.25); }
+  .dash-modes .dash-mode:hover { color: #3B3733; }
+  .dash-modes .dash-mode.is-active { background: #3B3733; color: #F7F2EA; }
   @media (prefers-reduced-motion: reduce) { body.dash-editing .dash-widget { transition: none; } }
 </style>
 <script>

@@ -59,8 +59,9 @@ export function init(): void {
   function applyMode() {
     grid.classList.toggle('dash-masonry', mode === 'masonry');
     if (mode === 'masonry') relayout(); else clearSpans();
-    const lbl = document.querySelector('[data-mode-label]');
-    if (lbl) lbl.textContent = mode === 'masonry' ? 'Stablet' : 'Rutenett';
+    // Highlight the active segment of the Rutenett/Stablet control.
+    document.querySelectorAll<HTMLElement>('[data-set-mode]').forEach((b) =>
+      b.classList.toggle('is-active', b.dataset.setMode === mode));
   }
 
   const currentLayout = (): LayoutItem[] =>
@@ -293,10 +294,11 @@ export function init(): void {
   document.querySelector('[data-edit-toggle]')?.addEventListener('click', enterEdit);
   document.querySelector('[data-edit-save]')?.addEventListener('click', () => exitEdit(true));
   document.querySelector('[data-edit-cancel]')?.addEventListener('click', () => exitEdit(false));
-  document.querySelector('[data-edit-mode]')?.addEventListener('click', () => {
-    mode = mode === 'masonry' ? 'grid' : 'masonry';
-    applyMode();
-  });
+  document.querySelectorAll<HTMLElement>('[data-set-mode]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const m = b.dataset.setMode;
+      if (m === 'grid' || m === 'masonry') { mode = m; applyMode(); }
+    }));
   document.querySelector('[data-edit-reset]')?.addEventListener('click', () => {
     try { localStorage.removeItem(key); localStorage.removeItem(modeKey); } catch { /* */ }
     // Clear the server row too, then reload to the server default.

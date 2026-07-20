@@ -16,9 +16,16 @@
 </div>
 <div class="ml-auto items-center gap-2 shrink-0 hidden" data-edit-actions>
   <slot name="edit-extra" />
-  <button type="button" data-edit-mode title="Bytt mellom rutenett og stablet visning" class="text-sm font-medium px-3 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">
-    <span data-mode-label>Rutenett</span>
-  </button>
+  <div class="dash-modes" role="group" aria-label="Visning">
+    <button type="button" data-set-mode="grid" class="dash-mode" title="Rutenett — like store paneler i rader">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Rutenett
+    </button>
+    <button type="button" data-set-mode="masonry" class="dash-mode" title="Stablet — pakk korte paneler tett inntil høye">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="10" rx="1"/><rect x="14" y="3" width="7" height="6" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/></svg>
+      Stablet
+    </button>
+  </div>
   <button type="button" data-edit-reset class="text-sm font-medium px-3 py-2 rounded-full text-charcoal/45 hover:text-terracotta-500 transition-colors">Tilbakestill</button>
   <button type="button" data-edit-cancel class="text-sm font-medium px-4 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">Avbryt</button>
   <button type="button" data-edit-save class="btn-primary px-4 py-2 rounded-full text-sm font-medium">Lagre</button>

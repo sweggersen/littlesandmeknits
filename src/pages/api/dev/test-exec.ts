@@ -1625,6 +1625,11 @@ async function handle(
       // Saved dashboard arrangements (0099) — reset so a prior run's layout
       // doesn't leak into the next (e.g. a widget left resized/removed).
       await db.from('dashboard_layouts').delete().in('user_id', testUserIds);
+      // Studio library + pattern purchases + earned badges — these were never
+      // cleaned, so repeated seeding piled up duplicate rows (Nalle-genser ×N).
+      await db.from('external_patterns').delete().in('user_id', testUserIds);
+      await db.from('purchases').delete().in('user_id', testUserIds);
+      await db.from('user_achievements').delete().in('user_id', testUserIds);
 
       // Queue items submitted by or decided by test users
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);

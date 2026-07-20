@@ -58,6 +58,11 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
   const listingIds: string[] = [];
   for (const s of listingSpecs) {
     try {
+      // Idempotent: skip (but still track the id) if this user already has a
+      // listing with this title, so re-seeding doesn't pile up duplicates.
+      const { data: existing } = await db.from('listings')
+        .select('id').eq('seller_id', target).eq('title', s.title).maybeSingle();
+      if (existing) { listingIds.push(existing.id); continue; }
       const { data: l, error } = await db.from('listings').insert({
         seller_id: target, kind: s.kind, title: s.title, category: s.category,
         size_label: s.size, price_nok: s.price,
@@ -79,6 +84,9 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
   ] as const;
   for (const pr of projSpecs) {
     try {
+      const { data: existing } = await db.from('projects')
+        .select('id').eq('user_id', target).eq('title', pr.title).maybeSingle();
+      if (existing) continue;
       await db.from('projects').insert({
         user_id: target, title: pr.title, status: pr.status,
         current_rows: pr.current, target_rows: pr.target,
@@ -95,6 +103,9 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
     { title: 'Nalle-genser', designer: 'Novita' },
   ]) {
     try {
+      const { data: existing } = await db.from('external_patterns')
+        .select('id').eq('user_id', target).eq('title', b.title).maybeSingle();
+      if (existing) continue;
       await db.from('external_patterns').insert({
         user_id: target, title: b.title, designer: b.designer,
         file_path: `library/${crypto.randomUUID()}.pdf`,
@@ -137,56 +148,74 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
 
   // 6. Commission request the target posted (as buyer) + an offer from the mate.
   try {
-    const { data: req } = await db.from('commission_requests').insert({
-      buyer_id: target, title: 'Ønsker strikket dåpskjole', category: 'kjole', size_label: '0-3 mnd',
-      budget_nok_min: 1200, budget_nok_max: 2200, description: 'Testdata.',
-      yarn_provided_by_buyer: false, status: 'open', offer_count: 1,
-    }).select('id').single();
-    if (req) {
-      bump('requests');
-      await db.from('commission_offers').insert({
-        request_id: req.id, knitter_id: mateId, price_nok: 1800, turnaround_weeks: 5,
-        message: 'Jeg kan lage denne dåpskjolen!', status: 'pending',
-      });
-      bump('offers_received');
+    const { data: existing } = await db.from('commission_requests')
+      .select('id').eq('buyer_id', target).eq('title', 'Ønsker strikket dåpskjole').maybeSingle();
+    if (!existing) {
+      const { data: req } = await db.from('commission_requests').insert({
+        buyer_id: target, title: 'Ønsker strikket dåpskjole', category: 'kjole', size_label: '0-3 mnd',
+        budget_nok_min: 1200, budget_nok_max: 2200, description: 'Testdata.',
+        yarn_provided_by_buyer: false, status: 'open', offer_count: 1,
+      }).select('id').single();
+      if (req) {
+        bump('requests');
+        await db.from('commission_offers').insert({
+          request_id: req.id, knitter_id: mateId, price_nok: 1800, turnaround_weeks: 5,
+          message: 'Jeg kan lage denne dåpskjolen!', status: 'pending',
+        });
+        bump('offers_received');
+      }
     }
   } catch { /* */ }
 
   // 7. Commission offer the target made (as knitter) on the mate's request.
   try {
-    const { data: mreq } = await db.from('commission_requests').insert({
-      buyer_id: mateId, title: 'Strikket genser til bursdag', category: 'genser', size_label: '3 år',
-      budget_nok_min: 900, budget_nok_max: 1600, description: 'Testdata.',
-      yarn_provided_by_buyer: false, status: 'open', offer_count: 1,
-    }).select('id').single();
-    if (mreq) {
-      await db.from('commission_offers').insert({
-        request_id: mreq.id, knitter_id: target, price_nok: 1400, turnaround_weeks: 4,
-        message: 'Kan strikke denne for deg.', status: 'pending',
-      });
-      bump('offers_made');
+    const { data: existing } = await db.from('commission_requests')
+      .select('id').eq('buyer_id', mateId).eq('title', 'Strikket genser til bursdag').maybeSingle();
+    if (!existing) {
+      const { data: mreq } = await db.from('commission_requests').insert({
+        buyer_id: mateId, title: 'Strikket genser til bursdag', category: 'genser', size_label: '3 år',
+        budget_nok_min: 900, budget_nok_max: 1600, description: 'Testdata.',
+        yarn_provided_by_buyer: false, status: 'open', offer_count: 1,
+      }).select('id').single();
+      if (mreq) {
+        await db.from('commission_offers').insert({
+          request_id: mreq.id, knitter_id: target, price_nok: 1400, turnaround_weeks: 4,
+          message: 'Kan strikke denne for deg.', status: 'pending',
+        });
+        bump('offers_made');
+      }
     }
   } catch { /* */ }
 
   // 8. An unread message on one of the target's listings (mate -> target).
   try {
     if (listingIds.length) {
-      const { data: conv } = await db.from('marketplace_conversations').insert({
-        listing_id: listingIds[0], buyer_id: mateId, seller_id: target,
-      }).select('id').single();
-      if (conv) {
-        await db.from('marketplace_messages').insert({
-          conversation_id: conv.id, sender_id: mateId, body: 'Hei! Er denne fortsatt ledig?',
-        });
-        bump('unread_messages');
+      const { data: existing } = await db.from('marketplace_conversations')
+        .select('id').eq('listing_id', listingIds[0]).eq('buyer_id', mateId).maybeSingle();
+      if (!existing) {
+        const { data: conv } = await db.from('marketplace_conversations').insert({
+          listing_id: listingIds[0], buyer_id: mateId, seller_id: target,
+        }).select('id').single();
+        if (conv) {
+          await db.from('marketplace_messages').insert({
+            conversation_id: conv.id, sender_id: mateId, body: 'Hei! Er denne fortsatt ledig?',
+          });
+          bump('unread_messages');
+        }
       }
     }
   } catch { /* */ }
 
-  // 9. A handful of badges.
+  // 9. A handful of badges (idempotent: skip ones already earned so a re-seed
+  // doesn't stack duplicate achievement rows).
   for (const key of ['first_avatar', 'bio_written', 'first_project', 'first_log', 'project_finished']) {
-    try { await db.from('user_achievements').insert({ user_id: target, achievement_key: key }); bump('badges'); }
-    catch { /* likely already earned */ }
+    try {
+      const { data: existing } = await db.from('user_achievements')
+        .select('id').eq('user_id', target).eq('achievement_key', key).maybeSingle();
+      if (existing) continue;
+      await db.from('user_achievements').insert({ user_id: target, achievement_key: key });
+      bump('badges');
+    } catch { /* likely already earned */ }
   }
 
   return summary;
