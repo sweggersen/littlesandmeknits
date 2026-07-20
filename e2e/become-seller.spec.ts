@@ -75,6 +75,24 @@ test.describe('Strikketorget — become-seller form', () => {
     await expect(page.getByLabel('Kontonummer')).toHaveValue('');
   });
 
+  test('live kontonummer validation reflects MOD-11 as you type', async ({ page }) => {
+    await loginAs(page, SELLER);
+    await page.goto('/profile/become-seller');
+    const konto = page.getByLabel('Kontonummer');
+    const status = page.locator('[data-konto-status]');
+
+    await konto.fill('1234 56'); // incomplete
+    await expect(status).toContainText('Skriv inn 11 siffer');
+
+    await konto.fill('1234 56 78901'); // valid shape, bad check digit
+    await expect(status).toContainText('ikke gyldig');
+    await expect(konto).toHaveClass(/konto-bad/);
+
+    await konto.fill('1234 56 78903'); // valid MOD-11
+    await expect(status).toContainText('Gyldig kontonummer');
+    await expect(konto).toHaveClass(/konto-ok/);
+  });
+
   test('rejects single-word name', async ({ page }) => {
     await loginAs(page, SELLER);
     await page.goto('/profile/become-seller');

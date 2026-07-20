@@ -171,7 +171,7 @@ const val = {
             value={val.kontonummer}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
-          <span class="block text-xs text-charcoal/45 mt-1.5">11 siffer. Vi sjekker at det er gyldig før vi lagrer.</span>
+          <span data-konto-status class="block text-xs text-charcoal/45 mt-1.5">11 siffer. Vi sjekker at det er gyldig før vi lagrer.</span>
         </div>
 
         <div>
@@ -239,4 +239,17 @@ const val = {
       )}
     </div>
   </div>
+
+  <style>
+    /* Live kontonummer validation states (toggled by the controller). */
+    #kontonummer.konto-ok { border-color: #7a8a6e !important; }
+    #kontonummer.konto-bad { border-color: #c0392b !important; }
+    [data-konto-status].konto-status-ok { color: #5f6f54; }
+    [data-konto-status].konto-status-bad { color: #b23c2a; }
+  </style>
+  <script>
+    import { init } from '../../lib/client/controllers/kontonummer-validate';
+    import { registerController } from '../../lib/client/dom';
+    registerController(init);
+  </script>
 </Layout>
