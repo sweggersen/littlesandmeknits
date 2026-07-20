@@ -1,7 +1,9 @@
 ---
 import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
 import EmptyState from '../../../../../components/EmptyState.astro';
+import StatusBadge from '../../../../../components/StatusBadge.astro';
 import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { LISTING_STATUS } from '../../../../../lib/labels';
 import { projectPhotoUrl } from '../../../../../lib/storage';
 import { createServerSupabase } from '../../../../../lib/supabase';
 
@@ -14,11 +16,16 @@ if (role !== 'owner') return Astro.redirect(`/market/store/${store.slug}/admin/l
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const { data: personal } = await supabase
   .from('listings')
-  .select('id, title, price_nok, hero_photo_path, size_label')
+  .select('id, title, price_nok, hero_photo_path, size_label, status')
   .eq('seller_id', ctx.user.id)
   .is('store_id', null)
   .order('created_at', { ascending: false });
 const listings = personal ?? [];
+
+const STATUS_VARIANT: Record<string, 'sage' | 'amber' | 'red' | 'muted' | 'blue' | 'default'> = {
+  draft: 'muted', pending_review: 'amber', active: 'sage', reserved: 'amber',
+  shipped: 'blue', sold: 'sage', rejected: 'red', archived: 'muted', disputed: 'red', frozen: 'amber',
+};
 ---
 
 <StoreAdminLayout store={store} myRole={role} current="listings">
@@ -60,6 +67,7 @@ const listings = personal ?? [];
                   <p class="font-medium truncate">{l.title}</p>
                   <p class="text-xs text-charcoal/55">{l.price_nok} kr {l.size_label && `· str ${l.size_label}`}</p>
                 </div>
+                <StatusBadge label={LISTING_STATUS[l.status] ?? l.status} variant={STATUS_VARIANT[l.status] ?? 'default'} />
               </label>
             </li>
           ))}
