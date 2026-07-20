@@ -61,6 +61,18 @@ test.describe('Strikketorget — become-seller form', () => {
     await page.getByRole('button', { name: 'Bli selger' }).click();
     await page.waitForURL('**/profile/become-seller?error=bad_kontonummer');
     await expect(page.getByText('Kontonummeret ser ikke ut til å være gyldig')).toBeVisible();
+
+    // A failed attempt must NOT wipe what the user typed (flash cookie refill).
+    await expect(page.getByLabel('Fullt navn')).toHaveValue('Sam Mathias Weggersen');
+    await expect(page.getByLabel('Fødselsdato')).toHaveValue('1985-07-13');
+    await expect(page.getByLabel('Kontonummer')).toHaveValue('1234 56 78901');
+    await expect(page.getByLabel('Adresse')).toHaveValue('Storgata 1');
+    await expect(page.getByLabel('Postnr')).toHaveValue('0123');
+    await expect(page.getByLabel('Sted')).toHaveValue('Oslo');
+
+    // Flash is one-shot: a fresh visit doesn't keep resurrecting the values.
+    await page.goto('/profile/become-seller');
+    await expect(page.getByLabel('Kontonummer')).toHaveValue('');
   });
 
   test('rejects single-word name', async ({ page }) => {

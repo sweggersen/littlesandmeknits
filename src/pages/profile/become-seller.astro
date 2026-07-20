@@ -40,11 +40,35 @@ const errorMessages: Record<string, string> = {
   server_error: 'Noe gikk galt. Prøv igjen om litt.',
 };
 
-// Pre-fill from existing profile data when available
-const defaultName = seller?.legal_name
+// On a validation error the API stashes the submitted values in a short-lived
+// flash cookie so a failed attempt doesn't clear the form. Read + clear it, and
+// let it win over the saved/profile defaults below.
+type FlashForm = Partial<Record<'legal_name' | 'birthdate' | 'kontonummer' | 'address' | 'postal_code' | 'city' | 'uid', string>>;
+let flash: FlashForm = {};
+const flashRaw = Astro.cookies.get('bs_form')?.value;
+if (flashRaw) {
+  try {
+    const parsed = JSON.parse(flashRaw) as FlashForm;
+    // Only trust the prefill if it belongs to the current user (guards against
+    // a stale cookie from a different account on a shared browser).
+    if (parsed?.uid === user.id) flash = parsed;
+  } catch { /* ignore corrupt */ }
+  Astro.cookies.delete('bs_form', { path: '/profile/become-seller' });
+}
+
+// Pre-fill: flash (last attempt) → saved seller_profile → profile identity.
+const defaultName = flash.legal_name
+  || seller?.legal_name
   || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ')
   || profile?.display_name
   || '';
+const val = {
+  birthdate: flash.birthdate ?? seller?.birthdate ?? '',
+  kontonummer: flash.kontonummer ?? seller?.kontonummer ?? '',
+  address: flash.address ?? seller?.address ?? '',
+  postal_code: flash.postal_code ?? seller?.postal_code ?? '',
+  city: flash.city ?? seller?.city ?? '',
+};
 ---
 
 <Layout title="Bli selger — Strikketorget" lang="nb" noindex>
@@ -129,7 +153,7 @@ const defaultName = seller?.legal_name
             type="date"
             required
             max={`${new Date().getFullYear() - 18}-12-31`}
-            value={seller?.birthdate ?? ''}
+            value={val.birthdate}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
         </div>
@@ -144,7 +168,7 @@ const defaultName = seller?.legal_name
             inputmode="numeric"
             pattern="[0-9 .-]{11,15}"
             placeholder="1234 56 78901"
-            value={seller?.kontonummer ?? ''}
+            value={val.kontonummer}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
           <span class="block text-xs text-charcoal/45 mt-1.5">11 siffer. Vi sjekker at det er gyldig før vi lagrer.</span>
@@ -159,7 +183,7 @@ const defaultName = seller?.legal_name
             required
             maxlength="120"
             autocomplete="street-address"
-            value={seller?.address ?? ''}
+            value={val.address}
             class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
           />
         </div>
@@ -176,7 +200,7 @@ const defaultName = seller?.legal_name
               pattern="[0-9]{4}"
               inputmode="numeric"
               autocomplete="postal-code"
-              value={seller?.postal_code ?? ''}
+              value={val.postal_code}
               class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
             />
           </div>
@@ -189,7 +213,7 @@ const defaultName = seller?.legal_name
               required
               maxlength="60"
               autocomplete="address-level2"
-              value={seller?.city ?? ''}
+              value={val.city}
               class="w-full rounded-2xl border border-sage-500/20 bg-linen/50 px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500"
             />
           </div>
