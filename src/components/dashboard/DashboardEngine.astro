@@ -1,0 +1,66 @@
+---
+// Shared editable-dashboard engine: the .dash-* styles + the controller
+// registration. Used by both homes — /profile (context 'profile') and /studio
+// ('studio'). A page supplies the #dashgrid (with data-context/data-user/
+// data-saved-layout/data-saved-mode), the .dash-widget children, and the edit
+// chrome (Rediger toggle, edit-actions bar, hint, palette); this wires up the
+// behaviour and look. Include once per page.
+---
+<style is:global>
+  .dash-widget { position: relative; }
+  /* Removed panels are hidden from the grid; they live in the palette. */
+  .dash-widget.dash-removed { display: none; }
+  /* Grouped panels (stats, admin): header sits inside a bordered box like every
+     other panel. The header bar is solid white to match the other panels; the
+     body stays transparent so the white tiles inside still pop. */
+  .dash-group { background-color: transparent; }
+  .dash-group-head { background-color: #fff; }
+  /* Staggered / masonry mode: fine auto-rows + JS-set row spans let short
+     panels sit beside tall ones instead of leaving a full-height gap. Only at
+     md+, where the S/M/L column spans apply; mobile stays a single column. */
+  @media (min-width: 768px) {
+    #dashgrid.dash-masonry { grid-auto-rows: 8px; row-gap: 0; align-items: start; grid-auto-flow: row dense; }
+  }
+  /* Tile grids (stats, admin): fixed column counts per widget size so every
+     row is evenly filled — auto-fit left orphan tiles (5+1) at M. Mobile is
+     always 2-up; the S/M/L split only applies at md+ where col-span kicks in. */
+  .dash-tiles { display: grid; gap: .75rem; grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 768px) {
+    .dash-widget[data-size="s"] .dash-tiles { grid-template-columns: repeat(2, 1fr); }
+    .dash-widget[data-size="m"] .dash-tiles { grid-template-columns: repeat(3, 1fr); }
+    .dash-widget[data-size="l"] .dash-tiles { grid-template-columns: repeat(6, 1fr); }
+  }
+  /* At small width, tiles drop their subtext + tighten for a compact look. */
+  .dash-widget[data-size="s"] .dash-sub { display: none; }
+  .dash-widget[data-size="s"] [data-tile] { padding: .7rem .75rem; }
+  .dash-widget[data-size="s"] .dash-tiles .font-serif { font-size: 1.5rem; }
+  .dash-tools { display: none; position: absolute; top: 8px; right: 8px; z-index: 20; gap: 6px; align-items: center; }
+  body.dash-editing .dash-tools { display: flex; pointer-events: auto; }
+  body.dash-editing .dash-widget { cursor: grab; outline: 2px dashed transparent; outline-offset: 3px; border-radius: 18px; transition: outline-color .12s; }
+  body.dash-editing .dash-widget:hover { outline-color: rgba(194,96,74,.35); }
+  /* Freeze card interactions while editing so drags don't fire links. Covers
+     every widget whether its content is a <section> (bordered panels) or bare
+     header+cards (stats, admin) — everything except the tools bar. */
+  body.dash-editing .dash-widget > *:not(.dash-tools) { pointer-events: none; user-select: none; }
+  .dash-tools .dash-grip { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #3B3733; color: #F7F2EA; cursor: grab; }
+  /* Segmented size control: S / M / L, active highlighted. */
+  .dash-sizes { display: inline-flex; border-radius: 8px; overflow: hidden; background: #3B3733; }
+  .dash-sizes .dash-size { min-width: 24px; height: 26px; padding: 0 8px; border: 0; background: transparent; color: rgba(247,242,234,.55); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .12s, color .12s; }
+  .dash-sizes .dash-size:hover { color: #F7F2EA; }
+  .dash-sizes .dash-size.is-active { background: #C2604A; color: #fff; }
+  .dash-tools .dash-remove { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; border: 0; background: #3B3733; color: #F7F2EA; font-size: 15px; line-height: 1; cursor: pointer; }
+  .dash-tools .dash-remove:hover { background: #C2604A; }
+  .dash-widget.dash-dragging { opacity: .4; }
+  /* Palette add-chips. */
+  [data-dash-palette] { display: none; }
+  body.dash-editing [data-dash-palette] { display: block; }
+  .dash-add { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; border: 1px solid rgba(122,138,110,.3); background: #F7F2EA; color: #3B3733; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .12s, background .12s; }
+  .dash-add:hover { border-color: rgba(194,96,74,.5); background: #fff; }
+  .dash-add .dash-add-plus { color: #C2604A; font-weight: 700; }
+  @media (prefers-reduced-motion: reduce) { body.dash-editing .dash-widget { transition: none; } }
+</style>
+<script>
+  import { init } from '../../lib/client/controllers/dashboard-edit';
+  import { registerController } from '../../lib/client/dom';
+  registerController(init);
+</script>

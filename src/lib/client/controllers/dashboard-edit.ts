@@ -8,7 +8,6 @@
 
 const SIZE_SPAN: Record<string, string> = { s: 'md:col-span-2', m: 'md:col-span-4', l: 'md:col-span-6' };
 const SIZES = ['s', 'm', 'l'];
-const CONTEXT = 'profile';
 
 interface LayoutItem { widget: string; size: string; }
 
@@ -18,7 +17,10 @@ export function init(): void {
   gridEl.dataset.dashInit = '1';
   const grid: HTMLElement = gridEl; // non-null for the nested closures below
 
-  const key = `lm-dash-${grid.dataset.user || 'anon'}`;
+  // The dashboard engine serves both homes: /profile (context 'profile') and
+  // /studio ('studio'). Persistence + localStorage keys are per (context, user).
+  const CONTEXT = grid.dataset.context || 'profile';
+  const key = `lm-dash-${CONTEXT}-${grid.dataset.user || 'anon'}`;
   const allWidgets = () => [...grid.querySelectorAll<HTMLElement>('.dash-widget')];
   const liveWidgets = () => [...grid.querySelectorAll<HTMLElement>('.dash-widget:not(.dash-removed)')];
 
@@ -37,7 +39,7 @@ export function init(): void {
   // gap. It works by giving the grid fine 8px auto-rows and setting each panel's
   // row span from its measured content height (see the CSS). Only meaningful at
   // md+, where the S/M/L column spans apply; on mobile it's a single column.
-  const modeKey = `lm-dash-${grid.dataset.user || 'anon'}-mode`;
+  const modeKey = `${key}-mode`;
   const MD = () => window.matchMedia('(min-width: 768px)').matches;
   let mode: 'grid' | 'masonry' =
     grid.dataset.savedMode === 'masonry' ? 'masonry'
