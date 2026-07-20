@@ -1,13 +1,25 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
 import InstallAppButton from '../../components/InstallAppButton.astro';
+import DashboardEngine from '../../components/dashboard/DashboardEngine.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { useTranslations } from '../../lib/i18n';
+import { parseStored } from '../../lib/services/dashboard-layout';
 
 const t = useTranslations('nb');
 
 const user = Astro.locals.user!;  // middleware-gated route
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+
+// Saved studio dashboard arrangement (shares the engine with /profile, but a
+// separate 'studio' context row).
+const { data: layoutRow } = await supabase
+  .from('dashboard_layouts')
+  .select('layout')
+  .eq('user_id', user.id)
+  .eq('context', 'studio')
+  .maybeSingle();
+const { mode: savedMode, items: savedLayout } = parseStored(layoutRow?.layout);
 
 const now = new Date();
 const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
@@ -115,150 +127,183 @@ const meta = (user?.user_metadata ?? {}) as { display_name?: string };
 const hasDisplayName = !!(meta.display_name && meta.display_name.trim());
 const greeting = hasDisplayName ? meta.display_name!.trim() : firstNameFromEmail(user?.email);
 const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} g`);
+
+const studioStats: Array<{ label: string; value: string; href: string }> = [
+  { label: 'I gang', value: String(active.length), href: '/studio/projects' },
+  { label: 'Planlegges', value: String(planning.length), href: '/studio/projects' },
+  { label: `Ferdig ${now.getFullYear()}`, value: String(finishedThisYear.length), href: '/studio/projects' },
+  { label: 'Strikket totalt', value: fmtKg(totalGramsKnit), href: '/studio/projects' },
+  { label: 'I lager', value: fmtKg(stashTotalGrams), href: '/studio/yarn' },
+  { label: 'Pinner', value: String(needles.length), href: '/studio/needles' },
+];
 ---
 
 <StudioLayout title="Strikkestua — Littles and Me Knits" lang="nb">
-  <section>
-    <h1 class="font-serif text-3xl sm:text-4xl mb-2 leading-tight">
-      {greeting ? `Hei, ${greeting}` : 'Velkommen tilbake'}
-    </h1>
-    <p class="text-charcoal/60 text-sm sm:text-base max-w-prose">
-      Oversikt over alt du driver med — prosjekter, garnlager, oppskriftene dine, og verktøyene som hjelper deg fra plan til ferdig plagg.
-    </p>
-
-    {!hasDisplayName && (
-      <form
-        method="post"
-        action="/api/profile/update"
-        class="mt-4 sm:mt-6 bg-sage-100 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-3 max-w-xl"
-      >
-        <input type="hidden" name="next" value="/studio" />
-        <div class="flex-1">
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-sage-900/80 mb-1">Hva skal jeg kalle deg?</label>
-          <input
-            type="text"
-            name="display_name"
-            maxlength="60"
-            required
-            placeholder="Sam"
-            class="w-full bg-white rounded-xl px-3 py-2 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500"
-          />
-        </div>
-        <button
-          type="submit"
-          class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
-        >
-          Lagre
-        </button>
-      </form>
-    )}
-
-    <div class="mt-6 sm:mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">I gang</p>
-        <p class="font-serif text-3xl text-charcoal">{active.length}</p>
-      </div>
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Planlegges</p>
-        <p class="font-serif text-3xl text-charcoal">{planning.length}</p>
-      </div>
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Ferdig {now.getFullYear()}</p>
-        <p class="font-serif text-3xl text-sage-900">{finishedThisYear.length}</p>
-      </div>
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Strikket totalt</p>
-        <p class="font-serif text-3xl text-charcoal">{fmtKg(totalGramsKnit)}</p>
-      </div>
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">I lager</p>
-        <p class="font-serif text-3xl text-charcoal">{fmtKg(stashTotalGrams)}</p>
-      </div>
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Pinner</p>
-        <p class="font-serif text-3xl text-charcoal">{needles.length}</p>
-      </div>
-    </div>
-
-    {longestDays > 0 && (
-      <p class="mt-4 text-xs text-charcoal/55 italic">
-        Lengste prosjekt: {longestDays} dager fra start til ferdig.
+  <!-- Header: greeting + Rediger (same editable-dashboard chrome as /profile) -->
+  <div class="flex items-start gap-4 mb-6">
+    <div class="min-w-0 flex-1">
+      <h1 class="font-serif text-3xl sm:text-4xl mb-1 leading-tight">
+        {greeting ? `Hei, ${greeting}` : 'Velkommen tilbake'}
+      </h1>
+      <p class="text-charcoal/60 text-sm sm:text-base max-w-prose">
+        Oversikt over alt du driver med — prosjekter, garnlager, oppskriftene dine, og verktøyene som hjelper deg fra plan til ferdig plagg.
       </p>
-    )}
-
-    <div class="mt-6">
-      <InstallAppButton />
     </div>
+    <div class="shrink-0 flex items-center gap-2" data-view-actions>
+      <button type="button" data-edit-toggle class="inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Rediger
+      </button>
+    </div>
+    <div class="shrink-0 items-center gap-2 hidden" data-edit-actions>
+      <button type="button" data-edit-mode title="Bytt mellom rutenett og stablet visning" class="text-sm font-medium px-3 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">
+        <span data-mode-label>Rutenett</span>
+      </button>
+      <button type="button" data-edit-reset class="text-sm font-medium px-3 py-2 rounded-full text-charcoal/45 hover:text-terracotta-500 transition-colors">Tilbakestill</button>
+      <button type="button" data-edit-cancel class="text-sm font-medium px-4 py-2 rounded-full border border-sage-500/25 text-charcoal/70 hover:border-sage-500/50 transition-colors">Avbryt</button>
+      <button type="button" data-edit-save class="btn-primary px-4 py-2 rounded-full text-sm font-medium">Lagre</button>
+    </div>
+  </div>
 
-    <a
-      href="/studio/learn"
-      class="mt-10 sm:mt-12 group flex items-center gap-4 bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 hover:shadow-sm transition-all"
+  {!hasDisplayName && (
+    <form
+      method="post"
+      action="/api/profile/update"
+      class="mb-6 bg-sage-100 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-end gap-3 max-w-xl"
     >
-      <div class="shrink-0 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center text-sage-900">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none" />
-        </svg>
+      <input type="hidden" name="next" value="/studio" />
+      <div class="flex-1">
+        <label class="block text-[10px] font-bold uppercase tracking-widest text-sage-900/80 mb-1">Hva skal jeg kalle deg?</label>
+        <input
+          type="text"
+          name="display_name"
+          maxlength="60"
+          required
+          placeholder="Sam"
+          class="w-full bg-white rounded-xl px-3 py-2 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500"
+        />
       </div>
-      <div class="flex-1 min-w-0">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-0.5">Lær å strikke</p>
-        <h3 class="font-serif text-lg leading-tight">Begynnerkurs i video</h3>
-        <p class="text-xs text-charcoal/55 mt-0.5">17 leksjoner fra NimbleNeedles, fra første maske til ferdig plagg.</p>
-      </div>
-      <span class="hidden sm:flex items-center text-charcoal/30 group-hover:text-charcoal/60 transition-colors pr-1">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m9 18 6-6-6-6" />
-        </svg>
-      </span>
-    </a>
+      <button
+        type="submit"
+        class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors whitespace-nowrap"
+      >
+        Lagre
+      </button>
+    </form>
+  )}
 
-    <h2 class="font-serif text-2xl mt-12 mb-4">Snarveier</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {[
-        { href: '/studio/projects/new', title: 'Nytt prosjekt', body: 'Start en ny logg.' },
-        { href: '/studio/yarn/new', title: 'Nytt garn', body: 'Legg til i lageret.' },
-        { href: '/studio/needles/new', title: 'Ny pinne', body: 'Registrer pinner.' },
-        { href: '/profile/library/new', title: 'Last opp oppskrift', body: 'PDF eller bilde.' },
-      ].map((card) => (
-        <a
-          href={card.href}
-          class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors"
-        >
-          <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-1">+ Ny</p>
-          <h3 class="font-serif text-lg leading-tight mb-1">{card.title}</h3>
-          <p class="text-xs text-charcoal/55">{card.body}</p>
-        </a>
-      ))}
-    </div>
+  <div data-edit-hint class="hidden mb-4 rounded-2xl bg-terracotta-500/8 border border-terracotta-500/20 px-4 py-3 text-sm text-terracotta-500">
+    Dra kortene for å flytte dem, og bruk størrelse&shy;knappen (S · M · L) for å endre bredde. Trykk «Lagre» når du er fornøyd.
+  </div>
 
-    <h2 class="font-serif text-2xl mt-12 mb-1">Merker</h2>
-    <p class="text-sm text-charcoal/55 mb-6">
-      {earnedBadges.length === 0
-        ? 'Strikk ferdig ditt første prosjekt for å låse opp første merke.'
-        : `${earnedBadges.length} av ${badges.length} merker oppnådd.`}
-    </p>
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      {badges.map((b) => (
-        <div
-          class:list={[
-            'bg-white rounded-2xl p-4 border text-center transition-all',
-            b.earned ? 'border-sage-500/30 shadow-sm' : 'border-sage-500/10 opacity-50',
-          ]}
-        >
-          <div class={`text-3xl mb-1 ${b.earned ? '' : 'grayscale'}`}>{b.emoji}</div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal mb-1">{b.label}</p>
-          <p class="text-[10px] text-charcoal/55 leading-tight">{b.description}</p>
+  <div id="dashgrid" class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-5 items-start" data-context="studio" data-user={user.id} data-saved-layout={JSON.stringify(savedLayout)} data-saved-mode={savedMode}>
+    <!-- Nøkkeltall (låst: alltid synlig) -->
+    <div class="dash-widget md:col-span-6" data-widget="stats" data-size="l" data-default="1" data-lock="1" data-label="Nøkkeltall">
+      <section class="dash-group rounded-2xl border border-sage-500/20 overflow-hidden">
+        <div class="dash-group-head px-5 py-3.5 border-b border-sage-500/15">
+          <h2 class="font-serif text-lg">Nøkkeltall</h2>
         </div>
-      ))}
+        <div class="p-4">
+          <div class="dash-tiles">
+            {studioStats.map((s) => (
+              <a href={s.href} data-tile class="bg-white rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
+                <p class="font-serif text-3xl leading-none tabular-nums">{s.value}</p>
+                <p class="text-[11px] text-charcoal/55 mt-1.5 leading-tight">{s.label}</p>
+              </a>
+            ))}
+          </div>
+          {longestDays > 0 && (
+            <p class="mt-3 text-xs text-charcoal/55 italic">Lengste prosjekt: {longestDays} dager fra start til ferdig.</p>
+          )}
+        </div>
+      </section>
     </div>
 
-    {projects.length === 0 && (
-      <div class="mt-12 bg-sage-100 rounded-3xl p-8 text-center">
-        <p class="font-serif text-2xl text-sage-900 mb-3">Ny her?</p>
-        <p class="text-sage-900/80 max-w-md mx-auto mb-5">{t('studio.empty.projects')}</p>
-        <a href="/studio/projects/new" class="inline-block bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
-          Start et prosjekt
-        </a>
-      </div>
-    )}
-  </section>
+    <!-- Lær å strikke -->
+    <div class="dash-widget md:col-span-4" data-widget="learn" data-size="m" data-default="1" data-label="Lær å strikke">
+      <a href="/studio/learn" class="group flex items-center gap-4 bg-white rounded-2xl p-5 border border-sage-500/20 hover:border-sage-500/30 hover:shadow-sm transition-all h-full">
+        <div class="shrink-0 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center text-sage-900">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-sage-900 mb-0.5">Lær å strikke</p>
+          <h3 class="font-serif text-lg leading-tight">Begynnerkurs i video</h3>
+          <p class="text-xs text-charcoal/55 mt-0.5">17 leksjoner fra NimbleNeedles, fra første maske til ferdig plagg.</p>
+        </div>
+        <span class="hidden sm:flex items-center text-charcoal/30 group-hover:text-charcoal/60 transition-colors pr-1">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </span>
+      </a>
+    </div>
+
+    <!-- Snarveier -->
+    <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s" data-default="1" data-label="Snarveier">
+      <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+        <h2 class="font-serif text-lg px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">Snarveier</h2>
+        <div class="flex flex-col gap-2 text-sm">
+          <a href="/studio/projects/new" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Nytt prosjekt →</a>
+          <a href="/studio/yarn/new" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Nytt garn →</a>
+          <a href="/studio/needles/new" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Ny pinne →</a>
+          <a href="/profile/library/new" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Last opp oppskrift →</a>
+        </div>
+      </section>
+    </div>
+
+    <!-- Merker -->
+    <div class="dash-widget md:col-span-6" data-widget="badges" data-size="l" data-default="1" data-label="Merker">
+      <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
+          <h2 class="font-serif text-lg">Merker</h2>
+          <span class="text-xs text-charcoal/45">
+            {earnedBadges.length === 0 ? 'Ingen ennå' : `${earnedBadges.length} av ${badges.length}`}
+          </span>
+        </div>
+        <div class="p-4">
+          <div class="dash-tiles">
+            {badges.map((b) => (
+              <div
+                data-tile
+                class:list={[
+                  'bg-white rounded-2xl p-4 border text-center transition-all',
+                  b.earned ? 'border-sage-500/30 shadow-sm' : 'border-sage-500/10 opacity-50',
+                ]}
+              >
+                <div class={`text-3xl mb-1 ${b.earned ? '' : 'grayscale'}`}>{b.emoji}</div>
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal mb-1">{b.label}</p>
+                <p class="text-[10px] text-charcoal/55 leading-tight dash-sub">{b.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Panel-palett (kun i redigeringsmodus) -->
+  <div data-dash-palette class="hidden mt-5 bg-white rounded-2xl border border-dashed border-sage-500/30 p-5">
+    <h2 class="font-serif text-base mb-1">Legg til paneler</h2>
+    <p class="text-[11px] text-charcoal/45 mb-3">Paneler du har fjernet dukker opp her. Klikk for å legge dem tilbake.</p>
+    <div data-dash-palette-list class="flex flex-wrap gap-2"></div>
+    <p data-dash-palette-empty class="text-sm text-charcoal/45">Alle paneler er i bruk.</p>
+  </div>
+
+  <div class="mt-6">
+    <InstallAppButton />
+  </div>
+
+  {projects.length === 0 && (
+    <div class="mt-10 bg-sage-100 rounded-3xl p-8 text-center">
+      <p class="font-serif text-2xl text-sage-900 mb-3">Ny her?</p>
+      <p class="text-sage-900/80 max-w-md mx-auto mb-5">{t('studio.empty.projects')}</p>
+      <a href="/studio/projects/new" class="inline-block bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+        Start et prosjekt
+      </a>
+    </div>
+  )}
+
+  <DashboardEngine />
 </StudioLayout>
