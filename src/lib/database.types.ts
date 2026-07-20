@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -409,6 +414,7 @@ export type Database = {
       dead_letter_events: {
         Row: {
           context: Json
+          domain: string
           error: string
           id: string
           occurred_at: string
@@ -420,6 +426,7 @@ export type Database = {
         }
         Insert: {
           context?: Json
+          domain?: string
           error: string
           id?: string
           occurred_at?: string
@@ -431,6 +438,7 @@ export type Database = {
         }
         Update: {
           context?: Json
+          domain?: string
           error?: string
           id?: string
           occurred_at?: string
@@ -1576,10 +1584,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: false
             referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_seller_id_fkey"
+            columns: ["seller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
             referencedColumns: ["id"]
           },
         ]
@@ -1630,7 +1659,15 @@ export type Database = {
           stripe_object_id?: string | null
           stripe_payment_intent_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -2711,12 +2748,31 @@ export type Database = {
       is_admin: { Args: { uid: string }; Returns: boolean }
       is_admin_or_moderator: { Args: { uid: string }; Returns: boolean }
       is_store_member: { Args: { p_store_id: string }; Returns: boolean }
+      listing_seller_update_ok: {
+        Args: {
+          p_id: string
+          p_new_buyer: string
+          p_new_status: Database["public"]["Enums"]["listing_status"]
+        }
+        Returns: boolean
+      }
       promotion_audience_breakdown: {
         Args: { p_listing_id: string }
         Returns: Json
       }
       refresh_user_preferences: { Args: never; Returns: undefined }
       reset_promotion_daily_windows: { Args: never; Returns: number }
+      seller_profile_locked_unchanged: {
+        Args: {
+          p_account: string
+          p_id: string
+          p_onboarded: boolean
+          p_reqs: Json
+          p_status: string
+          p_verified: string
+        }
+        Returns: boolean
+      }
       upsert_moderator_review: {
         Args: { p_decision: string; p_rate: number; p_user_id: string }
         Returns: undefined
@@ -2760,20 +2816,6 @@ export type Database = {
         | "rejected"
         | "disputed"
         | "frozen"
-      order_status:
-        | "reserved"
-        | "shipped"
-        | "delivered"
-        | "cancelled"
-        | "disputed"
-      payment_event_type:
-        | "reserved"
-        | "captured"
-        | "released"
-        | "refunded"
-        | "cancelled"
-        | "dispute_opened"
-        | "dispute_resolved"
       notification_type:
         | "new_offer"
         | "offer_accepted"
@@ -2807,6 +2849,20 @@ export type Database = {
         | "seller_activated"
         | "listing_reservation_released"
         | "system_alert"
+      order_status:
+        | "reserved"
+        | "shipped"
+        | "delivered"
+        | "cancelled"
+        | "disputed"
+      payment_event_type:
+        | "reserved"
+        | "captured"
+        | "released"
+        | "refunded"
+        | "cancelled"
+        | "dispute_opened"
+        | "dispute_resolved"
       project_status: "planning" | "active" | "finished" | "frogged"
       purchase_status: "pending" | "completed" | "refunded"
       report_reason:
@@ -2994,16 +3050,6 @@ export const Constants = {
         "disputed",
         "frozen",
       ],
-      order_status: ["reserved", "shipped", "delivered", "cancelled", "disputed"],
-      payment_event_type: [
-        "reserved",
-        "captured",
-        "released",
-        "refunded",
-        "cancelled",
-        "dispute_opened",
-        "dispute_resolved",
-      ],
       notification_type: [
         "new_offer",
         "offer_accepted",
@@ -3038,6 +3084,22 @@ export const Constants = {
         "listing_reservation_released",
         "system_alert",
       ],
+      order_status: [
+        "reserved",
+        "shipped",
+        "delivered",
+        "cancelled",
+        "disputed",
+      ],
+      payment_event_type: [
+        "reserved",
+        "captured",
+        "released",
+        "refunded",
+        "cancelled",
+        "dispute_opened",
+        "dispute_resolved",
+      ],
       project_status: ["planning", "active", "finished", "frogged"],
       purchase_status: ["pending", "completed", "refunded"],
       report_reason: [
@@ -3060,4 +3122,3 @@ export const Constants = {
     },
   },
 } as const
-
