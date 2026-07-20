@@ -192,7 +192,7 @@ const storeShare = storeShareMeta({
 
           {publicMembers.length > 0 && (
             <section class="bg-white rounded-3xl border border-sage-500/10 p-6">
-              <h2 class="font-serif text-xl mb-4">Teamet</h2>
+              <h2 class="font-serif text-xl mb-4">{publicMembers.length === 1 ? 'Eier' : 'Teamet'}</h2>
               <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {publicMembers.map((m) => (
                   <li class="flex items-center gap-3 min-w-0">
