@@ -80,12 +80,17 @@ const STATUS_LABEL: Record<string, string> = {
             vurderinger samles ett sted.
           </p>
         </div>
-        <form method="post" action={`/api/stores/${store.slug}/convert`}
-          onsubmit="return confirm('Flytte alle dine private annonser inn i butikken? Dette kan ikke reverseres automatisk.')">
-          <button type="submit" class="bg-primary text-primary-fg px-4 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
-            Flytt {personalListingsCount}
-          </button>
-        </form>
+        <div class="flex flex-col sm:items-end gap-2 shrink-0">
+          <form method="post" action={`/api/stores/${store.slug}/convert`}
+            onsubmit="return confirm('Flytte alle dine private annonser inn i butikken? Dette kan ikke reverseres automatisk.')">
+            <button type="submit" class="bg-primary text-primary-fg px-4 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors whitespace-nowrap">
+              Flytt alle {personalListingsCount}
+            </button>
+          </form>
+          <a href={`/market/store/${store.slug}/admin/import`} class="text-sm text-terracotta-500 hover:underline whitespace-nowrap">
+            Velg hvilke →
+          </a>
+        </div>
       </div>
     )}
 

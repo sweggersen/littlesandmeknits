@@ -211,7 +211,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <div class="dash-widget md:col-span-2" data-widget="stores" data-size="s" data-default="1" data-label="Mine butikker">
           <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
-              <h2 class="font-serif text-lg">Mine butikker</h2>
+              <a href="/profile/stores" class="font-serif text-lg hover:text-terracotta-500 transition-colors">Mine butikker</a>
               <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
             {d.myStores.length === 0 ? (

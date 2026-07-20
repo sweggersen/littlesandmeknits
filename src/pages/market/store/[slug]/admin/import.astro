@@ -1,0 +1,76 @@
+---
+import StoreAdminLayout from '../../../../../components/StoreAdminLayout.astro';
+import EmptyState from '../../../../../components/EmptyState.astro';
+import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { projectPhotoUrl } from '../../../../../lib/storage';
+import { createServerSupabase } from '../../../../../lib/supabase';
+
+const guard = await guardStoreAdmin(Astro.request, Astro.cookies, Astro.params.slug ?? '');
+if (guard instanceof Response) return guard;
+const { ctx, store, role } = guard;
+// Moving personal listings into the store is an owner-only action.
+if (role !== 'owner') return Astro.redirect(`/market/store/${store.slug}/admin/listings`);
+
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: personal } = await supabase
+  .from('listings')
+  .select('id, title, price_nok, hero_photo_path, size_label')
+  .eq('seller_id', ctx.user.id)
+  .is('store_id', null)
+  .order('created_at', { ascending: false });
+const listings = personal ?? [];
+---
+
+<StoreAdminLayout store={store} myRole={role} current="listings">
+  <div class="space-y-6">
+    <div>
+      <a href={`/market/store/${store.slug}/admin/listings`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors">← Annonser</a>
+      <h1 class="font-serif text-2xl sm:text-3xl mt-2 mb-1">Flytt annonser inn i butikken</h1>
+      <p class="text-charcoal/55 text-sm">Velg hvilke private annonser som skal flyttes. De vises da i butikkens katalog, og vurderinger samles ett sted.</p>
+    </div>
+
+    {listings.length === 0 ? (
+      <EmptyState message="Du har ingen private annonser å flytte." />
+    ) : (
+      <form
+        method="post"
+        action={`/api/stores/${store.slug}/convert`}
+        data-move-form
+        onsubmit="return confirm('Flytte de valgte annonsene inn i butikken? Dette kan ikke reverseres automatisk.')"
+      >
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <label class="flex items-center gap-2 text-sm text-charcoal/70 cursor-pointer">
+            <input type="checkbox" data-select-all class="w-4 h-4" /> Velg alle ({listings.length})
+          </label>
+          <button type="submit" disabled class="btn-primary px-4 py-2 rounded-full text-sm font-medium opacity-40">
+            Flytt valgte (<span data-count>0</span>)
+          </button>
+        </div>
+        <ul class="space-y-2">
+          {listings.map((l) => (
+            <li>
+              <label class="bg-white rounded-2xl border border-sage-500/10 p-3 flex items-center gap-3 cursor-pointer hover:border-sage-500/30 transition-colors">
+                <input type="checkbox" name="listing_ids" value={l.id} data-move-cb class="w-4 h-4 shrink-0" />
+                <div class="w-12 h-12 rounded-xl bg-oatmeal/40 overflow-hidden shrink-0">
+                  {l.hero_photo_path && (
+                    <img src={projectPhotoUrl(l.hero_photo_path)} alt="" class="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate">{l.title}</p>
+                  <p class="text-xs text-charcoal/55">{l.price_nok} kr {l.size_label && `· str ${l.size_label}`}</p>
+                </div>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </form>
+    )}
+  </div>
+</StoreAdminLayout>
+
+<script>
+  import { init } from '../../../../../lib/client/controllers/store-move-select';
+  import { registerController } from '../../../../../lib/client/dom';
+  registerController(init);
+</script>

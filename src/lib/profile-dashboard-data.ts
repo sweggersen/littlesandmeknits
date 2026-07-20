@@ -96,7 +96,10 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
       return {
         ...s,
         my_role: m.role,
-        href: isActive ? `/market/store/${s.slug}` : `/market/store/${s.slug}/admin`,
+        // From the owner's own panel, clicking a store goes to manage/edit it
+        // (matches /profile/stores). The admin page links out to the public view.
+        href: `/market/store/${s.slug}/admin`,
+        storefrontHref: isActive ? `/market/store/${s.slug}` : null,
         statusLabel: STORE_STATUS_LABEL[s.status] ?? s.status,
       };
     })
