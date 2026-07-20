@@ -1580,6 +1580,20 @@ async function handle(
       if (testListingIds.length) {
         await db.from('notifications').delete().in('reference_id', testListingIds);
       }
+      // Also sweep orphaned dispute notifications — ones referencing a listing
+      // that's already gone (legacy stragglers from before this reference-based
+      // cleanup existed). Dev-only, so nuking all dispute alerts that no longer
+      // point at a live listing is safe.
+      {
+        const { data: dNotifs } = await db.from('notifications')
+          .select('id, reference_id').in('type', ['dispute_opened', 'dispute_resolved']);
+        if (dNotifs?.length) {
+          const { data: liveL } = await db.from('listings').select('id');
+          const live = new Set((liveL ?? []).map((l) => l.id));
+          const orphanIds = dNotifs.filter((n) => !n.reference_id || !live.has(n.reference_id)).map((n) => n.id);
+          if (orphanIds.length) await db.from('notifications').delete().in('id', orphanIds);
+        }
+      }
       for (const l of testListings ?? []) {
         const { data: photos } = await db.from('listing_photos')
           .select('path').eq('listing_id', l.id);
