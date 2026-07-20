@@ -160,11 +160,28 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
   const acceptedOffers = allOffers.filter((o) => o.status === 'accepted').length;
   const awaitingPayment = allRequests.filter((r) => r.status === 'awaiting_payment').length;
 
+  // "Nye tilbud" = pending offers *received* on the user's own requests (the
+  // actionable buyer inbox), with a deep-link to review them. If they all sit on
+  // one request, link straight to it; otherwise to the requests overview.
+  const requestIds = allRequests.map((r) => r.id);
+  let newOffersReceived = 0;
+  let newOffersHref = '/market/commissions/my-listings';
+  if (requestIds.length) {
+    const { data: received } = await supabase
+      .from('commission_offers')
+      .select('request_id')
+      .in('request_id', requestIds)
+      .eq('status', 'pending');
+    newOffersReceived = (received ?? []).length;
+    const distinctReqs = [...new Set((received ?? []).map((o: any) => o.request_id))];
+    if (distinctReqs.length === 1) newOffersHref = `/market/commissions/${distinctReqs[0]}`;
+  }
+
   const subtitleParts: string[] = [];
   if (unreadCount > 0) subtitleParts.push(`${unreadCount} ulest${unreadCount === 1 ? '' : 'e'} melding${unreadCount === 1 ? '' : 'er'}`);
   if (awaitingPayment > 0) subtitleParts.push(`${awaitingPayment} venter på betaling`);
   if (acceptedOffers > 0) subtitleParts.push(`${acceptedOffers} akseptert${acceptedOffers === 1 ? '' : 'e'} tilbud`);
-  if (pendingOffers > 0) subtitleParts.push(`${pendingOffers} ${pendingOffers === 1 ? 'nytt' : 'nye'} tilbud`);
+  if (newOffersReceived > 0) subtitleParts.push(`${newOffersReceived} ${newOffersReceived === 1 ? 'nytt' : 'nye'} tilbud`);
   if (activeProjects > 0) subtitleParts.push(`${activeProjects} aktiv${activeProjects === 1 ? 't' : 'e'} prosjekt${activeProjects === 1 ? '' : 'er'}`);
 
   return {
@@ -173,6 +190,7 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     allListings, allProjects, allRequests, allOffers,
     allPurchases, allBibliotek, myStores,
     unreadCount, activeProjects, pendingOffers, acceptedOffers, awaitingPayment,
+    newOffersReceived, newOffersHref,
     subtitleParts,
     recentAchievements, totalEarned, visibleAchievements,
     savedLayout, savedMode,

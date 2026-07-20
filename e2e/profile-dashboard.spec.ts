@@ -50,6 +50,15 @@ test.describe('Profile dashboard', () => {
     await expect(page.getByRole('heading', { name: 'Prosjekter' })).toBeVisible();
   });
 
+  test('Nye tilbud stat deep-links to the request holding the offer', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/profile');
+    await page.locator('a', { hasText: 'Nye tilbud' }).first().click();
+    // Lands on the specific commission request (where the buyer reviews offers),
+    // not the generic list.
+    await expect(page).toHaveURL(/\/market\/commissions\/[0-9a-f-]{36}/);
+  });
+
   test('renders the seeded data', async ({ page }) => {
     await loginAs(page, ELINE);
     await page.goto('/profile');

@@ -45,7 +45,7 @@ function listVariant(s: string) {
 
 const stats = [
   { label: 'Uleste meldinger', value: d.unreadCount, icon: 'mail' as const, href: '/market/messages', hot: d.unreadCount > 0 },
-  { label: 'Nye tilbud', value: d.pendingOffers, icon: 'offer' as const, href: '/market/commissions/my-listings', hot: d.pendingOffers > 0 },
+  { label: 'Nye tilbud', value: d.newOffersReceived, icon: 'offer' as const, href: d.newOffersHref, hot: d.newOffersReceived > 0 },
   { label: 'Venter på betaling', value: d.awaitingPayment, icon: 'clock' as const, href: '/market/commissions/my-listings', hot: d.awaitingPayment > 0 },
   { label: 'Aktive prosjekter', value: d.activeProjects, icon: 'project' as const, href: '/studio', hot: false },
   { label: 'Annonser', value: d.allListings.length, icon: 'tag' as const, href: '/market/my-listings', hot: false },
