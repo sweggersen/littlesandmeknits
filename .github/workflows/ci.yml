@@ -124,12 +124,12 @@ jobs:
           export PUBLIC_SUPABASE_URL="$SB_API_URL"
           export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
-          # stores.spec.ts is intentionally excluded: it exercises the real
-          # Brønnøysund (data.brreg.no) orgnr lookup, an external dependency CI
-          # can't rely on. Run it locally. Everything here is network-free
-          # (Stripe is the sk_simulate double; no other external calls).
-          npx playwright test ci-smoke.spec.ts scenarios.spec.ts api-v1.spec.ts \
-            wizard.spec.ts become-seller.spec.ts kjop-og-levering.spec.ts seed-world.spec.ts
+          # Run EVERY e2e spec by auto-discovery — no hand-maintained allowlist
+          # (which silently skipped new specs). PW_SKIP_EXTERNAL=1 excludes only
+          # stores.spec.ts, which hits the real Brønnøysund orgnr lookup CI can't
+          # depend on (run it locally). Everything else is network-free (Stripe
+          # is the sk_simulate double; no other external calls).
+          PW_SKIP_EXTERNAL=1 npx playwright test
       - name: Upload trace on failure
         if: failure()
         uses: actions/upload-artifact@v4

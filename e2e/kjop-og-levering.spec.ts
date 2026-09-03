@@ -95,9 +95,13 @@ test.describe('Strikketorget — kjøp og levering', () => {
     await loginAs(page, ELINE);
     await page.goto(`/market/listing/${listingId}`);
     await expect(page.getByText('Noen har kjøpt varen din!')).toBeVisible();
-    await expect(page.getByText('Liv Johansen')).toBeVisible();
-    await expect(page.getByText('Storgata 12')).toBeVisible();
-    await expect(page.getByText(/0155\s+Oslo/)).toBeVisible();
+    // Scope to main: the nav header can briefly show the previous session's
+    // cached display name (localStorage survives clearCookies — the navbar
+    // persistence dance), which would collide with the buyer name here.
+    const soldPanel = page.getByRole('main');
+    await expect(soldPanel.getByText('Liv Johansen')).toBeVisible();
+    await expect(soldPanel.getByText('Storgata 12')).toBeVisible();
+    await expect(soldPanel.getByText(/0155\s+Oslo/)).toBeVisible();
 
     // ── Step 5: Eline marks as shipped with a tracking code
     await exec(request, 'ship-listing', {
