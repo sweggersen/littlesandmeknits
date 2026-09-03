@@ -6,6 +6,7 @@ import {
   renderEmail,
   renderWelcomeEmail,
   renderDraftNudgeEmail,
+  renderStoreInviteEmail,
 } from './email-templates';
 import type { NotificationType } from './notify';
 
@@ -54,6 +55,14 @@ export const EMAIL_SAMPLES: Record<string, SampleFn> = {
     title: 'Liv ga deg en omtale',
     body: '«Fantastisk kvalitet og kjapp levering. Vil definitivt kjøpe igjen!» ★★★★★',
     url: '/market/seller/example',
+    siteUrl,
+  }),
+  store_invite: (siteUrl) => renderStoreInviteEmail({
+    storeName: 'Elines Strikk',
+    inviterName: 'Eline Berg',
+    roleLabel: 'Bidragsyter',
+    acceptUrl: `${siteUrl}/invite/example-token`,
+    expiresAt: '2026-08-15T00:00:00.000Z',
     siteUrl,
   }),
 };

@@ -1,7 +1,48 @@
 import { describe, it, expect } from 'vitest';
-import { renderWelcomeEmail, renderEmail } from './email-templates';
+import { renderWelcomeEmail, renderEmail, renderStoreInviteEmail } from './email-templates';
 
 const SITE = 'https://strikketorget.no';
+
+describe('renderStoreInviteEmail', () => {
+  const base = {
+    storeName: 'Elines Strikk',
+    inviterName: 'Eline Berg',
+    roleLabel: 'Bidragsyter',
+    acceptUrl: `${SITE}/invite/abc123`,
+    expiresAt: '2026-08-15T00:00:00.000Z',
+    siteUrl: SITE,
+  };
+
+  it('carries the store, inviter, role, and a working accept link', () => {
+    const { subject, html } = renderStoreInviteEmail(base);
+    expect(subject).toContain('Elines Strikk');
+    expect(html).toContain('Eline Berg');
+    expect(html).toContain('Bidragsyter');
+    expect(html).toContain(`${SITE}/invite/abc123`);
+  });
+
+  it('uses an invite footer, not the account-holder one', () => {
+    const { html } = renderStoreInviteEmail(base);
+    expect(html).not.toContain('du har en konto');
+    expect(html).toContain('inviterte deg');
+  });
+
+  it('escapes user-controlled store + inviter names (no HTML injection)', () => {
+    const { html } = renderStoreInviteEmail({
+      ...base,
+      storeName: '<img src=x onerror=alert(1)>',
+      inviterName: '<b>evil</b>',
+    });
+    expect(html).not.toContain('<img src=x');
+    expect(html).not.toContain('<b>evil</b>');
+    expect(html).toContain('&lt;img');
+  });
+
+  it('keeps user-facing copy free of em-dashes', () => {
+    const { html } = renderStoreInviteEmail(base);
+    expect(html).not.toContain('—');
+  });
+});
 
 describe('renderWelcomeEmail', () => {
   it('greets by name when provided and links to first listing', () => {

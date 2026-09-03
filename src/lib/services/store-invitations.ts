@@ -6,6 +6,8 @@ import { ok, fail } from './types';
 import { can, canAssignRole, ROLE_LABEL_NB } from './store-permissions';
 import { getMyRole } from './store-members';
 import { createNotification } from '../notify';
+import { sendEmail } from '../email';
+import { renderStoreInviteEmail } from '../email-templates';
 import type { StoreRole } from '../types/stores';
 
 const INVITE_TTL_DAYS = 14;
@@ -68,14 +70,16 @@ export async function inviteMember(
     return fail('server_error', 'Kunne ikke opprette invitasjon');
   }
 
+  const { data: store } = await ctx.admin.from('stores').select('name').eq('id', storeId).maybeSingle();
+  const storeName = store?.name ?? 'en butikk';
+
   // If the invitee already has an account, drop an in-app notification so they
-  // discover the invite in their inbox (and on /profile/stores). No email yet.
+  // discover the invite in their inbox (and on /profile/stores).
   if (userByEmail) {
-    const { data: store } = await ctx.admin.from('stores').select('name').eq('id', storeId).maybeSingle();
     await createNotification(ctx.admin, {
       userId: userByEmail.id,
       type: 'store_invite',
-      title: `Invitasjon til ${store?.name ?? 'en butikk'}`,
+      title: `Invitasjon til ${storeName}`,
       body: `Du er invitert som ${ROLE_LABEL_NB[input.role]}. Godta i «Mine butikker».`,
       url: '/profile/stores',
       actorId: ctx.user.id,
@@ -83,8 +87,31 @@ export async function inviteMember(
     }, ctx.env);
   }
 
+  // Email the invite — the ONLY channel that reaches someone without an account
+  // yet (in-app notifications require a user). Best-effort: the invite row +
+  // any in-app notification already landed, so a Resend failure doesn't fail
+  // the request. Skipped when RESEND_API_KEY / PUBLIC_SITE_URL aren't set (dev).
+  const apiKey = ctx.env.RESEND_API_KEY;
+  const siteUrl = ctx.env.PUBLIC_SITE_URL;
+  if (apiKey && siteUrl) {
+    try {
+      const { data: inviter } = await ctx.admin
+        .from('profiles').select('display_name').eq('id', ctx.user.id).maybeSingle();
+      const { subject, html } = renderStoreInviteEmail({
+        storeName,
+        inviterName: inviter?.display_name || 'Noen',
+        roleLabel: ROLE_LABEL_NB[input.role],
+        acceptUrl: `${siteUrl}/invite/${token}`,
+        expiresAt,
+        siteUrl,
+      });
+      await sendEmail(apiKey, { to: email, subject, html }, ctx.env.EMAIL_FROM);
+    } catch (e) {
+      console.error('Invite email send failed', e);
+    }
+  }
+
   const inviteUrl = `/invite/${token}`;
-  // TODO(email): send invitation email here once email service is wired
   return ok({ token, inviteUrl });
 }
 

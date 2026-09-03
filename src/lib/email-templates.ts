@@ -31,7 +31,12 @@ function esc(s: string | null | undefined): string {
     .replace(/'/g, '&#39;');
 }
 
-function wrap(body: string): string {
+const DEFAULT_FOOTER = `Du mottar denne e-posten fordi du har en konto på Strikketorget. <a href="{{siteUrl}}/innstillinger" style="color:${EMAIL.textMuted}">Endre varslingsinnstillinger</a>`;
+
+// `footer` overrides the default account-holder footer — used by the store
+// invite, which can go to someone who doesn't have an account yet (so the
+// "you have an account" line + settings link would be wrong).
+function wrap(body: string, footer: string = DEFAULT_FOOTER): string {
   return `<!DOCTYPE html>
 <html lang="nb">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"></head>
@@ -39,7 +44,7 @@ function wrap(body: string): string {
 <div style="max-width:480px;margin:0 auto;padding:32px 20px">
 <p style="font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:${EMAIL.brand};margin:0 0 24px">Strikketorget</p>
 ${body}
-<p style="margin:32px 0 0;font-size:12px;color:${EMAIL.textMuted}">Du mottar denne e-posten fordi du har en konto på Strikketorget. <a href="{{siteUrl}}/innstillinger" style="color:${EMAIL.textMuted}">Endre varslingsinnstillinger</a></p>
+<p style="margin:32px 0 0;font-size:12px;color:${EMAIL.textMuted}">${footer}</p>
 </div>
 </body>
 </html>`;
@@ -174,6 +179,35 @@ ${btn(opts.siteUrl + '/market/listing/' + opts.listingId + '/foto', 'Last opp bi
 </p>
 `);
   return { subject: 'Du er nesten ferdig, bare bildene mangler', html: html.replaceAll('{{siteUrl}}', opts.siteUrl) };
+}
+
+// Store invitation email — sent directly (not via createNotification) because
+// the recipient may not have an account yet. Carries the tokenised accept link
+// and an invite-appropriate footer. All user-controlled leaves are escaped.
+export function renderStoreInviteEmail(opts: {
+  storeName: string;
+  inviterName: string;
+  roleLabel: string;
+  acceptUrl: string; // absolute URL to /invite/{token}
+  expiresAt: string; // ISO date
+  siteUrl: string;
+}): { subject: string; html: string } {
+  const store = esc(opts.storeName);
+  const inviter = esc(opts.inviterName);
+  const role = esc(opts.roleLabel);
+  const expires = esc(new Date(opts.expiresAt).toLocaleDateString('nb-NO'));
+  const footer = `Du fikk denne e-posten fordi ${inviter} inviterte deg til butikken «${store}» på Strikketorget. Kjenner du ikke avsenderen, kan du trygt ignorere den.`;
+  const html = wrap(
+    `<h2 style="font-size:20px;margin:0 0 12px">Du er invitert til «${store}»</h2>` +
+    `<p style="font-size:15px;color:${EMAIL.textBody};line-height:1.5">${inviter} har invitert deg til å bli med i butikken «${store}» som <strong>${role}</strong> på Strikketorget.</p>` +
+    btn(opts.acceptUrl, 'Godta invitasjon') +
+    `<p style="margin:16px 0 0;font-size:13px;color:${EMAIL.textSoft};line-height:1.5">Invitasjonen utløper ${expires}. Du må logge inn (eller opprette en konto) med denne e-postadressen for å godta.</p>`,
+    footer,
+  );
+  return {
+    subject: `Invitasjon til «${opts.storeName}» på Strikketorget`,
+    html: html.replaceAll('{{siteUrl}}', opts.siteUrl),
+  };
 }
 
 export function renderEmail(
