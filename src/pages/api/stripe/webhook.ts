@@ -6,7 +6,7 @@ import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supa
 import { createNotification } from '../../../lib/notify';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { completeListingPurchase } from '../../../lib/services/listings';
-import { finalizeCommissionPayment } from '../../../lib/services/commissions';
+import { finalizeCommissionPayment, refundOrphanCommissionCharge } from '../../../lib/services/commissions';
 import {
   isEventProcessed,
   markEventProcessed,
@@ -323,8 +323,25 @@ async function handleEvent(
         platformFeeOre: Number.isFinite(feeOre) ? feeOre : null,
       });
       if (!result.ok) {
-        // Buyer has paid; finalize failed. Stripe retries; dead-letter so
-        // support sees the commission stuck in awaiting_payment with a paid PI.
+        // Duplicate charge: the request was already paid by a DIFFERENT payment
+        // intent (buyer ran two concurrent checkouts). Refund this orphaned PI
+        // now so the buyer isn't double-charged, dead-letter for audit, and
+        // return 200 — this is a permanent, handled state, not a retryable error.
+        if (result.code === 'conflict' && commPiId) {
+          try {
+            await refundOrphanCommissionCharge(env.STRIPE_SECRET_KEY, commPiId);
+          } catch (e) {
+            log.error('webhook.commission_dup_refund_failed', { paymentIntentId: commPiId, error: String(e) });
+          }
+          await recordDeadLetter(dlCtx(supabase, session.metadata.buyer_id), {
+            service: 'stripe.webhook:commission_duplicate_charge',
+            context: { commission_request_id: requestId, session_id: session.id, payment_intent_id: commPiId },
+            error: result.message,
+          });
+          return new Response('ok', { status: 200 });
+        }
+        // Buyer has paid; finalize failed transiently. Stripe retries; dead-letter
+        // so support sees the commission stuck in awaiting_payment with a paid PI.
         await recordDeadLetter(dlCtx(supabase, session.metadata.buyer_id), {
           service: 'stripe.webhook:commission_payment',
           context: { commission_request_id: requestId, session_id: session.id, payment_intent_id: commPiId ?? null },

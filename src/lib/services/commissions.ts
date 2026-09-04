@@ -448,7 +448,7 @@ export async function payCommission(
 
   const { data: req } = await ctx.supabase
     .from('commission_requests')
-    .select('id, buyer_id, status, awarded_offer_id, title, category, size_label, colorway, yarn_preference, pattern_external_title, yarn_provided_by_buyer')
+    .select('id, buyer_id, status, awarded_offer_id, title, category, size_label, colorway, yarn_preference, pattern_external_title, yarn_provided_by_buyer, stripe_checkout_session_id')
     .eq('id', input.requestId)
     .single();
 
@@ -482,6 +482,25 @@ export async function payCommission(
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
 
+  // Double-charge guard: automatic capture means every paid session takes the
+  // buyer's money in full. If the buyer already has a checkout session for this
+  // request, reuse it rather than minting a second capturable one. If it's
+  // already paid, don't create another — the webhook will finalize shortly.
+  if (req.stripe_checkout_session_id) {
+    const existing = await stripe.checkout.sessions
+      .retrieve(req.stripe_checkout_session_id)
+      .catch(() => null);
+    if (existing) {
+      if (existing.payment_status === 'paid' || existing.status === 'complete') {
+        return ok({ redirect: `${siteUrl}/market/commissions/${input.requestId}?paid=1` });
+      }
+      if (existing.status === 'open' && existing.url) {
+        return ok({ redirect: existing.url });
+      }
+      // expired / canceled → fall through and mint a fresh session
+    }
+  }
+
   // Separate charges & transfers (H2b): a knit takes weeks but a manual-capture
   // auth dies in ~7 days, so we charge the buyer IN FULL now (automatic
   // capture, no transfer_data — funds land in the PLATFORM balance and sit
@@ -501,6 +520,9 @@ export async function payCommission(
     cancel_url: `${siteUrl}/market/commissions/${input.requestId}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,
+    // Bound the session so an abandoned checkout can't be paid days later and
+    // become a duplicate charge. 2h is comfortable for a real buyer.
+    expires_at: Math.floor(Date.now() / 1000) + 2 * 60 * 60,
     metadata: {
       type: 'commission_payment',
       commission_request_id: input.requestId,
@@ -691,6 +713,22 @@ export async function refundCommissionPayment(
   }
 }
 
+/** Refund a *duplicate* commission charge — a second concurrent checkout that
+ *  also captured while the request was already finalized by the first. The
+ *  request's real payment stays; only this orphaned PI is returned. Commission
+ *  payments have no transfer_data before release, so it's a plain platform-balance
+ *  refund. Idempotent per PI (a webhook replay can't double-refund). */
+export async function refundOrphanCommissionCharge(
+  stripeSecretKey: string,
+  paymentIntentId: string,
+): Promise<void> {
+  const stripe = createStripe(stripeSecretKey);
+  await stripe.refunds.create(
+    { payment_intent: paymentIntentId },
+    { idempotencyKey: `commission-dup-refund-${paymentIntentId}` },
+  );
+}
+
 /** Finalize a commission payment after Stripe confirms the Checkout Session.
  *  Called from the webhook (no user session). Idempotent: acts only while the
  *  request is still awaiting_payment, so a Stripe retry is a safe no-op. */
@@ -701,11 +739,28 @@ export async function finalizeCommissionPayment(
 ): Promise<ServiceResult<{ updated: boolean }>> {
   const { data: req } = await admin
     .from('commission_requests')
-    .select('id, buyer_id, status, awarded_offer_id, title, description, size_label, yarn_preference, pattern_external_title, colorway, yarn_provided_by_buyer')
+    .select('id, buyer_id, status, awarded_offer_id, title, description, size_label, yarn_preference, pattern_external_title, colorway, yarn_provided_by_buyer, stripe_payment_intent_id')
     .eq('id', input.requestId)
     .maybeSingle();
   if (!req) return fail('not_found', 'Request not found');
-  if (req.status !== 'awaiting_payment') return ok({ updated: false }); // already finalized
+  if (req.status !== 'awaiting_payment') {
+    // Already finalized. A webhook replay of the SAME payment is a benign no-op.
+    // But a DIFFERENT payment intent that also captured means the buyer was
+    // charged twice (concurrent checkouts) — surface it as a conflict so the
+    // caller can refund the duplicate + dead-letter, instead of silently
+    // swallowing an orphaned captured charge.
+    if (
+      input.paymentIntentId &&
+      req.stripe_payment_intent_id &&
+      req.stripe_payment_intent_id !== input.paymentIntentId
+    ) {
+      return fail(
+        'conflict',
+        `duplicate_charge: request already paid by ${req.stripe_payment_intent_id}; ${input.paymentIntentId} also captured and must be refunded`,
+      );
+    }
+    return ok({ updated: false });
+  }
 
   const { data: offer } = await admin
     .from('commission_offers')
