@@ -100,15 +100,14 @@ Confirm in the Stripe test dashboard that each PI/transfer/refund matches the
 
 ---
 
-## M4 — Oppdrag (commissions)
+## M4 — Oppdrag (commissions) *(code done)*
 
-Money engine is production-grade (H2b escrow, rail-aware refund/release, idempotency, double-transfer guard, no stubs) — the gap is operational coverage.
-- [ ] M3 complete (shares the escrow/dispute infra).
-- [ ] **Commission e2e scenarios** with `payment_events` ledger assertions for: dispute→resolve, cancel-late→refund, auto-release cron. Listings have all three; commissions are unit-tested only.
-- [ ] **Reconciliation sweep** — a cron pass for paid-but-unfinalized commissions (automatic capture takes the money before the DB reflects it; a lost webhook leaves the buyer charged and the request stuck in `awaiting_payment`). Today recovery is dead-letter + manual support.
-- [ ] *(already covered by the section flag)* the `KILL_COMMISSIONS` switch only blocks payment, not the browse/offer UI — `FLAG_SECTION_OPPDRAG` gives the full-surface rollback.
+Money engine is production-grade (H2b escrow, rail-aware refund/release, idempotency, double-transfer guard, no stubs) — the gap was operational coverage, now closed.
+- [x] **Commission e2e scenarios** with `payment_events` ledger assertions: `commission-dispute` (dispute_opened + dispute_resolved + released), `commission-cancel-late` (refunded), `commission-auto-release` (released). Building these caught a **real bug**: the cron auto-release moved the money + marked delivered but never recorded the `released` ledger event — now fixed.
+- [x] **Reconciliation sweep** — `reconcileStuckCommissionPayments` (new cron section `reconcile_commissions`): finds `awaiting_payment` requests with a stored checkout session that are stale (>30 min), re-checks Stripe, and finalizes the ones Stripe says are `paid` (self-heals a lost webhook), leaving abandoned checkouts alone. `payCommission` now stores `stripe_checkout_session_id` (migration 0103). Unit-tested (selection + paid/unpaid branching).
+- [x] *(already covered)* `FLAG_SECTION_OPPDRAG` gives the full-surface rollback (`KILL_COMMISSIONS` only blocks payment).
 
-**Flip:** `FLAG_SECTION_OPPDRAG=on`.
+**Flip:** `FLAG_SECTION_OPPDRAG=on` (after M0 + M3's real-Stripe smoke, since it shares the rail).
 
 ---
 

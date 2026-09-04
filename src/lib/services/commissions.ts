@@ -511,7 +511,65 @@ export async function payCommission(
   });
 
   if (!session.url) return fail('server_error', 'Checkout URL missing');
+
+  // Record the session id so a reconcile sweep can self-heal a lost
+  // checkout.session.completed webhook (buyer charged, request stuck in
+  // awaiting_payment). Best-effort — the happy path is the webhook.
+  await ctx.admin.from('commission_requests')
+    .update({ stripe_checkout_session_id: session.id })
+    .eq('id', input.requestId);
+
   return ok({ redirect: session.url });
+}
+
+/** Reconcile commissions that are paid on Stripe but stuck in awaiting_payment
+ *  because the checkout.session.completed webhook was lost. Automatic capture
+ *  takes the buyer's money before the DB reflects it, so without this a lost
+ *  webhook leaves the buyer charged and the request frozen. Runs from the cron.
+ *  Re-checks each stale request's session and finalizes it if Stripe says paid;
+ *  leaves abandoned checkouts (unpaid) alone. Idempotent via the status gate. */
+export async function reconcileStuckCommissionPayments(
+  admin: ServiceContext['admin'],
+  stripeSecretKey: string,
+  notifyEnv: Parameters<typeof finalizeCommissionPayment>[1],
+  opts: { staleMinutes?: number; now?: Date } = {},
+): Promise<{ checked: number; finalized: number }> {
+  const staleMs = (opts.staleMinutes ?? 30) * 60_000;
+  const cutoff = new Date((opts.now?.getTime() ?? Date.now()) - staleMs).toISOString();
+
+  const { data: rows } = await admin
+    .from('commission_requests')
+    .select('id, stripe_checkout_session_id')
+    .eq('status', 'awaiting_payment')
+    .lte('updated_at', cutoff);
+  // Only ones the buyer actually started paying for (a session was created).
+  const stuck = (rows ?? []).filter((r) => r.stripe_checkout_session_id);
+
+  let finalized = 0;
+  const stripe = createStripe(stripeSecretKey);
+  for (const req of stuck) {
+    try {
+      const session = await stripe.checkout.sessions.retrieve(req.stripe_checkout_session_id!);
+      if (session.payment_status !== 'paid') continue; // buyer abandoned checkout
+      const piId = typeof session.payment_intent === 'string'
+        ? session.payment_intent
+        : session.payment_intent?.id ?? null;
+      const feeOre = session.metadata?.platform_fee_ore
+        ? parseInt(session.metadata.platform_fee_ore, 10)
+        : null;
+      const r = await finalizeCommissionPayment(admin, notifyEnv, {
+        requestId: req.id, paymentIntentId: piId, platformFeeOre: feeOre,
+      });
+      if (r.ok && r.data.updated) finalized++;
+    } catch (e) {
+      await recordDeadLetter({ admin }, {
+        service: 'commissions.reconcileStuckCommissionPayments',
+        context: { commission_request_id: req.id, session_id: req.stripe_checkout_session_id },
+        error: e,
+      });
+    }
+  }
+  return { checked: stuck.length, finalized };
 }
 
 /** Release a paid commission's funds to the knitter when the work is

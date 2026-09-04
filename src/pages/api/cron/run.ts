@@ -12,7 +12,7 @@ import { recordPaymentEvent } from '../../../lib/services/payment-events';
 import { MoneyBreakdown } from '../../../lib/money';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
-import { releaseCommissionFunds } from '../../../lib/services/commissions';
+import { releaseCommissionFunds, reconcileStuckCommissionPayments } from '../../../lib/services/commissions';
 import { log } from '../../../lib/log';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -384,6 +384,21 @@ export const POST: APIRoute = async ({ request }) => {
         });
       }
     }
+  });
+
+  // 3c. Reconcile commissions paid on Stripe but stuck in awaiting_payment
+  //     (lost checkout.session.completed webhook). Automatic capture already
+  //     took the buyer's money, so this only writes the DB state Stripe already
+  //     reflects — not gated by the payouts kill-switch.
+  await runSection('reconcile_commissions', async () => {
+    const notifyEnv = {
+      RESEND_API_KEY: env.RESEND_API_KEY,
+      PUBLIC_SITE_URL: import.meta.env.PUBLIC_SITE_URL,
+      PUBLIC_VAPID_KEY: import.meta.env.PUBLIC_VAPID_KEY,
+      VAPID_PRIVATE_KEY: env.VAPID_PRIVATE_KEY,
+    };
+    const { finalized } = await reconcileStuckCommissionPayments(admin, env.STRIPE_SECRET_KEY, notifyEnv);
+    results.reconciled = finalized;
   });
 
   // 4. Nudge knitters with no project updates in 7+ days

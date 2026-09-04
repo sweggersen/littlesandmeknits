@@ -206,6 +206,7 @@ export type Database = {
           stripe_dispute_id: string | null
           stripe_payment_intent_id: string | null
           stripe_transfer_id: string | null
+          stripe_checkout_session_id: string | null
           target_knitter_id: string | null
           title: string
           updated_at: string
@@ -257,6 +258,7 @@ export type Database = {
           stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
+          stripe_checkout_session_id?: string | null
           target_knitter_id?: string | null
           title: string
           updated_at?: string
@@ -308,6 +310,7 @@ export type Database = {
           stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
+          stripe_checkout_session_id?: string | null
           target_knitter_id?: string | null
           title?: string
           updated_at?: string
