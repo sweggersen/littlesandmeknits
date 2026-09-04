@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { createListing } from './listings';
 import { createMockSupabase, type MockSupabase } from './__test_helpers__/mock-supabase';
 import type { ServiceContext } from './types';
+import { assertWithinQuota } from './quota';
 
 // R2-15 — input-validation + persistence coverage for createListing.
 // Was 9 validations with zero tests.
@@ -13,6 +14,9 @@ vi.mock('../notify', () => ({
 }));
 vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 vi.mock('../stripe', () => ({ createStripe: vi.fn(() => ({})) }));
+// Quota has its own tests; here it must always allow so we test createListing's
+// own logic (the recording stub isn't quota-aware).
+vi.mock('./quota', () => ({ assertWithinQuota: vi.fn(async () => null) }));
 
 function ctxFor(mock: MockSupabase, userId = 'seller-1'): ServiceContext {
   return {
@@ -57,6 +61,15 @@ describe('createListing — validation', () => {
     const r = await createListing(ctxFor(mock), { ...validInput, category: 'spaceship' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('bad_input');
+  });
+
+  it('surfaces the daily quota block (rate-limited) and creates nothing', async () => {
+    vi.mocked(assertWithinQuota).mockResolvedValueOnce({ ok: false, code: 'conflict', message: 'Dagsgrense' } as any);
+    const mock = createMockSupabase({});
+    const r = await createListing(ctxFor(mock), { ...validInput });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('conflict');
+    expect(mock.inserts('listings')).toHaveLength(0);
   });
 
   it('rejects an empty size label', async () => {

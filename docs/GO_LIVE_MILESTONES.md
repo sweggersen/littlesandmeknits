@@ -153,7 +153,7 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 
 **Security / abuse**
 - [ ] **CSRF defense-in-depth.** `astro.config.mjs` sets `checkOrigin: false` and no explicit `SameSite`; protection is the library `Lax` default only. Re-enable origin checks or set `SameSite`.
-- [ ] **Rate limiting** on store creation, listing creation, and invitations (commissions/messages/reports already have it).
+- [x] **Rate limiting** on store creation (5/day, gated before the brreg lookup), listing creation (50/day), and store invitations (30/day) via the existing `assertWithinQuota` daily-quota helper. Wired + tested (fake-db limit-hit for createStore, mocked-block for createListing).
 - [x] **`admin/dead-letters.astro` page guard** — it relied only on `AdminLayout`'s guard, which runs *after* the page frontmatter's `dead_letter_events` query. Added `requireModerator` at the top of the page frontmatter (before the query), matching every sibling admin page.
 
 **Frontend / perf / UX**

@@ -14,7 +14,10 @@ export type QuotaAction =
   | 'marketplace_message_send'
   | 'support_request_create'
   | 'report_create'
-  | 'pattern_checkout';
+  | 'pattern_checkout'
+  | 'listing_create'
+  | 'store_create'
+  | 'store_invite';
 
 const DAILY_LIMITS: Record<QuotaAction, number> = {
   commission_request_create: 5,
@@ -27,6 +30,14 @@ const DAILY_LIMITS: Record<QuotaAction, number> = {
   // Each pattern checkout creates a Stripe Checkout Session (API cost). A buyer
   // comparing patterns clicks a few times; this caps session-creation spam.
   pattern_checkout: 30,
+  // A busy seller lists a lot in one session; this only bites a bot flooding
+  // drafts. (Publishing is separate and requires a photo.)
+  listing_create: 50,
+  // Creating a store hits Brønnøysund + writes a moderation-queue item; a real
+  // user makes one or two, so a low cap stops spam-store flooding.
+  store_create: 5,
+  // Invite-flooding back-pressure (each can send an email).
+  store_invite: 30,
 };
 
 function today(): string {

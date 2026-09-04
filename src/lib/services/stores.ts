@@ -7,6 +7,7 @@ import { lookupOrgnr } from '../brreg';
 import { ensureUniqueSlug, isReserved, isValidSlugSyntax, slugify } from './store-slug';
 import { can } from './store-permissions';
 import { getMyRole } from './store-members';
+import { assertWithinQuota } from './quota';
 import type { Store, StoreStatus, PublicStorefront } from '../types/stores';
 
 const STORE_SELECT = '*';
@@ -32,6 +33,10 @@ export async function createStore(
   const contactEmail = input.contact_email?.trim().toLowerCase();
   if (!contactEmail) return fail('bad_input', 'Kontakt-e-post er påkrevd');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return fail('bad_input', 'Ugyldig e-postadresse');
+
+  // Back-pressure BEFORE the Brønnøysund lookup + writes (spam-store flooding).
+  const quotaFail = await assertWithinQuota(ctx, 'store_create');
+  if (quotaFail) return quotaFail;
 
   const lookup = await lookupOrgnr(input.orgnr);
   if (!lookup.ok || !lookup.data) {

@@ -9,6 +9,7 @@ import { createNotification } from '../notify';
 import { sendEmail } from '../email';
 import { renderStoreInviteEmail } from '../email-templates';
 import { findAuthUserByEmail } from '../user-lookup';
+import { assertWithinQuota } from './quota';
 import type { StoreRole } from '../types/stores';
 
 const INVITE_TTL_DAYS = 14;
@@ -30,6 +31,10 @@ export async function inviteMember(
 
   const email = input.email.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('bad_input', 'Ugyldig e-post');
+
+  // Back-pressure: cap invites per user/day (each can send an email).
+  const quotaFail = await assertWithinQuota(ctx, 'store_invite');
+  if (quotaFail) return quotaFail;
 
   // Find the invited user by email (used for the already-member check + the
   // in-app notification). Paginates all pages — a single perPage:1000 call

@@ -84,6 +84,18 @@ describe('createStore', () => {
     expect(lookupOrgnr).not.toHaveBeenCalled();
   });
 
+  it('is rate-limited: refuses (before the brreg lookup) once the daily quota is hit', async () => {
+    const day = new Date().toISOString().slice(0, 10);
+    const { db, ctx } = ctxWith({
+      user_action_counts: [{ user_id: USER, action: 'store_create', day, count: 5 }], // at the limit
+    });
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no' });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe('conflict');
+    expect(lookupOrgnr).not.toHaveBeenCalled();     // gated before the network call
+    expect(db.find('stores', { orgnr: '971524960' })).toBeUndefined();
+  });
+
   it('rejects a provided slug that is already taken', async () => {
     const { ctx } = ctxWith({
       stores: [{ id: 's0', orgnr: '111111111', slug: 'strikkebua', deleted_at: null, status: 'active' }],

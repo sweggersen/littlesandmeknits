@@ -4,6 +4,7 @@ import { ok, fail } from './types';
 import { VALID_CATEGORIES } from '../labels';
 import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
 import { recordDeadLetter } from './dead-letter';
+import { assertWithinQuota } from './quota';
 
 const VALID_KIND = new Set(['pre_loved', 'ready_made']);
 const VALID_CONDITION = new Set(['som_ny', 'lite_brukt', 'brukt', 'slitt']);
@@ -43,6 +44,10 @@ export async function createListing(
     }
     condition = input.condition;
   }
+
+  // Back-pressure: cap listing creation per user/day (bot/flood protection).
+  const quotaFail = await assertWithinQuota(ctx, 'listing_create');
+  if (quotaFail) return quotaFail;
 
   // If selling under a store, verify membership AND that the store is active.
   let storeId: string | null = null;
