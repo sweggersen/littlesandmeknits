@@ -1,6 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { resolveRedirect } from './lib/routing/redirects';
 import { sectionEnabled, type Section } from './lib/sections';
+import { captureException } from './lib/observability';
 
 const STRIKKETORGET_HOSTS = ['strikketorget.no', 'www.strikketorget.no'];
 const LITTLES_HOSTS = ['littlesandmeknits.com', 'www.littlesandmeknits.com'];
@@ -162,7 +163,20 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     }
   }
 
-  const response = await next();
+  let response: Response;
+  try {
+    response = await next();
+  } catch (err) {
+    // An SSR page (or a downstream middleware) threw. Astro will render the
+    // branded 500.astro, but Sentry is otherwise only wired into the money
+    // dead-letter path — so a 500 on any interior route would be invisible.
+    // Report it here, then rethrow so the framework still serves the error page.
+    await captureException(err, {
+      service: 'ssr',
+      extra: { path, method: ctx.request.method },
+    });
+    throw err;
+  }
 
   // Security headers (adversarial review). Deliberately conservative: NO
   // enforcing Content-Security-Policy for scripts/styles — the site relies on

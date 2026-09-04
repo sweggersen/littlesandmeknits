@@ -149,7 +149,7 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 - [ ] **Cron is external + no active alert.** cron-job.org triggers `/api/cron/run` (already auto-disabled once); `CRON_HEARTBEAT_URL` dead-man's-switch is opt-in and likely unset. Set it, or move to a Cloudflare cron trigger in `wrangler.jsonc`.
 
 **Observability**
-- [ ] **Generic prod 500s are invisible.** Sentry (`observability.ts`) is only wired into the money dead-letter path; `middleware.ts` has no top-level catch → `captureException`, and uptime probes only 2 homepages. Wrap the middleware/error page + confirm `SENTRY_DSN` is set in prod.
+- [x] **Generic prod 500s now report to Sentry.** `middleware.ts` wraps `next()` in a try/catch that calls `captureException({ service: 'ssr', extra: { path, method } })` and rethrows (so the branded 500.astro still renders). Also bounded `captureException`'s own fetch (5s) so a hung Sentry can't stall the error path. *Still owner:* confirm `SENTRY_DSN` is set in the prod Worker (otherwise it silently no-ops), and broaden uptime probes beyond the 2 homepages.
 
 **Security / abuse**
 - [ ] **CSRF defense-in-depth.** `astro.config.mjs` sets `checkOrigin: false` and no explicit `SameSite`; protection is the library `Lax` default only. Re-enable origin checks or set `SameSite`.

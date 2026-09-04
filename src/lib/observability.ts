@@ -8,6 +8,8 @@
 // Wired into recordDeadLetter, so every money-path failure the §1.2 hardening
 // captures also lands in Sentry. Also exported for ad-hoc captureException.
 
+import { fetchWithTimeout } from './http';
+
 export interface ParsedDsn {
   envelopeUrl: string;
   publicKey: string;
@@ -87,11 +89,13 @@ export async function captureException(error: unknown, meta: CaptureMeta = {}): 
     const dsn = parseDsn(await runtimeDsn());
     if (!dsn) return;
     const body = buildEnvelope(dsn, error, meta);
-    await fetch(dsn.envelopeUrl, {
+    // Bounded: this runs on request/error paths — a hung Sentry must never
+    // stall the response it's reporting on.
+    await fetchWithTimeout(dsn.envelopeUrl, {
       method: 'POST',
       headers: { 'content-type': 'application/x-sentry-envelope' },
       body,
-    });
+    }, 5000);
   } catch {
     // swallow — never let telemetry failure surface to the caller
   }
