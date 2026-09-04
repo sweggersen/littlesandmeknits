@@ -5,7 +5,7 @@ import { createStripe } from '../../../lib/stripe';
 import { createAdminSupabase, type TypedSupabaseClient } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
-import { completeListingPurchase } from '../../../lib/services/listings';
+import { completeListingPurchase, releaseLosingPurchaseHold } from '../../../lib/services/listings';
 import { finalizeCommissionPayment, refundOrphanCommissionCharge } from '../../../lib/services/commissions';
 import {
   isEventProcessed,
@@ -300,6 +300,21 @@ async function handleEvent(
           actorId: buyerId,
           referenceId: purchaseListingId,
         }, notifyEnv);
+      } else if (piId) {
+        // updated=false: the listing wasn't 'active' at capture time — either a
+        // benign Stripe retry of the winner's event, or a LOSING concurrent
+        // buyer whose manual-capture hold must be released (else it sits ~7 days).
+        try {
+          await releaseLosingPurchaseHold(supabase, env.STRIPE_SECRET_KEY, { paymentIntentId: piId });
+        } catch (e) {
+          // Couldn't release the hold — dead-letter so support refunds the
+          // losing buyer rather than leaving funds authorized for a week.
+          await recordDeadLetter(dlCtx(supabase, buyerId), {
+            service: 'stripe.webhook:listing_purchase_race_release',
+            context: { listing_id: purchaseListingId, session_id: session.id, payment_intent_id: piId },
+            error: e,
+          });
+        }
       }
 
       return new Response('ok', { status: 200 });

@@ -326,5 +326,6 @@ export {
   confirmListingDelivery,
   releaseExpiredReservation,
   disputeListing,
+  releaseLosingPurchaseHold,
 } from './listings-escrow';
 export type { CompletePurchaseParams, CompletePurchaseResult } from './listings-escrow';

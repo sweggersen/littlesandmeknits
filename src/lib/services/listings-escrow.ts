@@ -583,3 +583,33 @@ export async function disputeListing(
 
   return ok({ redirect: `/market/listing/${input.listingId}` });
 }
+
+/** Release the manual-capture hold of a LOSING concurrent buyer. When two
+ *  buyers check out the same listing, only the first flips it to 'reserved';
+ *  the second's `checkout.session.completed` matches 0 rows (updated=false) and
+ *  their authorization would otherwise sit until Stripe expires it (~7 days).
+ *
+ *  Idempotent + safe: returns without canceling when an order already carries
+ *  this payment intent (the WINNER, or a Stripe retry of the winner's event) or
+ *  when the auth is no longer an uncaptured hold (already captured/canceled), so
+ *  a webhook redelivery can't cancel a legitimate charge. Kept out of the money
+ *  gate's line-ranges (appended at EOF) on purpose. */
+export async function releaseLosingPurchaseHold(
+  admin: TypedSupabaseClient,
+  stripeSecretKey: string,
+  input: { paymentIntentId: string },
+): Promise<{ released: boolean; reason: string }> {
+  const { data: ownOrder } = await admin
+    .from('orders')
+    .select('id')
+    .eq('stripe_payment_intent_id', input.paymentIntentId)
+    .maybeSingle();
+  if (ownOrder) return { released: false, reason: 'has_order' };
+
+  const stripe = createStripe(stripeSecretKey);
+  const pi = await stripe.paymentIntents.retrieve(input.paymentIntentId);
+  // Only an uncaptured authorization can (and should) be canceled.
+  if (pi.status !== 'requires_capture') return { released: false, reason: pi.status };
+  await stripe.paymentIntents.cancel(input.paymentIntentId);
+  return { released: true, reason: 'canceled' };
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { purchaseListing, confirmListingDelivery, completeListingPurchase, releaseExpiredReservation, shipListing } from './listings';
+import { purchaseListing, confirmListingDelivery, completeListingPurchase, releaseExpiredReservation, shipListing, releaseLosingPurchaseHold } from './listings';
 import { createNotification } from '../notify';
 import { recordDeadLetter } from './dead-letter';
 import { tbFeeForPrice } from '../shipping';
@@ -449,6 +449,32 @@ describe('purchaseListing — guards', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) { expect(r.code).toBe('conflict'); expect(r.message).toBeTruthy(); }
     expect(checkoutCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe('releaseLosingPurchaseHold (concurrent-buyer race)', () => {
+  it('does NOT cancel when an order already carries the PI (winner / retry)', async () => {
+    const db = createFakeDb({ orders: [{ id: 'o1', stripe_payment_intent_id: 'pi_win' }] });
+    const r = await releaseLosingPurchaseHold(db.client as any, 'sk_test', { paymentIntentId: 'pi_win' });
+    expect(r).toEqual({ released: false, reason: 'has_order' });
+    expect(piRetrieve).not.toHaveBeenCalled();
+    expect(piCancel).not.toHaveBeenCalled();
+  });
+
+  it('cancels a losing buyer’s uncaptured hold', async () => {
+    const db = createFakeDb({ orders: [] }); // no order carries this PI
+    piRetrieve.mockResolvedValueOnce({ status: 'requires_capture' } as any);
+    const r = await releaseLosingPurchaseHold(db.client as any, 'sk_test', { paymentIntentId: 'pi_lose' });
+    expect(r).toEqual({ released: true, reason: 'canceled' });
+    expect(piCancel).toHaveBeenCalledWith('pi_lose');
+  });
+
+  it('leaves an already-captured PI alone (never cancels a real charge)', async () => {
+    const db = createFakeDb({ orders: [] });
+    piRetrieve.mockResolvedValueOnce({ status: 'succeeded' } as any);
+    const r = await releaseLosingPurchaseHold(db.client as any, 'sk_test', { paymentIntentId: 'pi_captured' });
+    expect(r).toEqual({ released: false, reason: 'succeeded' });
+    expect(piCancel).not.toHaveBeenCalled();
   });
 });
 
