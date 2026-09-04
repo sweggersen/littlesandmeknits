@@ -3,6 +3,7 @@ import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import CommissionCard from '../../../components/CommissionCard.astro';
 import EmptyState from '../../../components/EmptyState.astro';
+import Alert from '../../../components/Alert.astro';
 import LoadMore from '../../../components/LoadMore.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { CATEGORY_LABEL } from '../../../lib/labels';
@@ -28,7 +29,8 @@ if (Number.isFinite(budgetMin)) q = q.gte('budget_nok_max', budgetMin);
 if (Number.isFinite(budgetMax)) q = q.lte('budget_nok_min', budgetMax);
 if (cursor) q = q.lt('created_at', cursor);
 
-const { data: requests } = await q.limit(PAGE_SIZE);
+const { data: requests, error: reqErr } = await q.limit(PAGE_SIZE);
+if (reqErr) console.error('commissions/index.astro requests query failed', reqErr);
 const hasMore = (requests?.length ?? 0) === PAGE_SIZE;
 const lastCursor = requests?.length ? requests[requests.length - 1].created_at : null;
 
@@ -87,7 +89,9 @@ function expiryDays(expiresAt: string | null): number | null {
         </button>
       </form>
 
-      {(requests ?? []).length === 0 ? (
+      {reqErr ? (
+        <Alert type="error" class="my-4">Vi klarte ikke å hente forespørslene akkurat nå. Prøv igjen om litt.</Alert>
+      ) : (requests ?? []).length === 0 ? (
         <EmptyState message="Ingen åpne forespørsler ennå." ctaText="Opprett den første" ctaHref="/market/commissions/new" />
       ) : (
         <Fragment>

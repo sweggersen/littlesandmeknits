@@ -154,11 +154,11 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 **Security / abuse**
 - [ ] **CSRF defense-in-depth.** `astro.config.mjs` sets `checkOrigin: false` and no explicit `SameSite`; protection is the library `Lax` default only. Re-enable origin checks or set `SameSite`.
 - [ ] **Rate limiting** on store creation, listing creation, and invitations (commissions/messages/reports already have it).
-- [ ] **`admin/dead-letters.astro` page guard** — verify it carries `requireAdmin` like its siblings (may rely on RLS only).
+- [x] **`admin/dead-letters.astro` page guard** — it relied only on `AdminLayout`'s guard, which runs *after* the page frontmatter's `dead_letter_events` query. Added `requireModerator` at the top of the page frontmatter (before the query), matching every sibling admin page.
 
 **Frontend / perf / UX**
 - [~] **ListingCard images** — added `loading="lazy"` + `decoding="async"` + intrinsic `width`/`height` (defers offscreen images across a 24-card grid; reserves space so no layout shift). *Still TODO:* server-side resize (`?width=`/`srcset`) — needs Supabase image transformations, which are plan-gated; enabling them blind would 404 every thumbnail, so it's an infra step, not a code one.
-- [ ] **Query errors render as empty state** — market list pages destructure only `data`, so a DB/RLS failure shows "Ingen treff". Inspect `error` and show a real error state.
+- [x] **Query errors no longer masquerade as empty** — `used`, `new`, and `commissions/index` now capture the query `error`, log it, and render an error `Alert` ("Vi klarte ikke å hente ...") instead of the "Ingen treff" empty state, so a DB/RLS outage reads as a failure, not "no results".
 - [x] **Branded 404/500 pages** — `src/pages/404.astro` + `500.astro` replace the bare "Not found"/framework error responses; e2e asserts the 404 renders with a 404 status.
 - [x] **`ListingPhotos` gallery double-bind fixed** — the is:inline gallery now binds once per DOM instance (`mainPhoto.dataset.galleryWired` guard) and re-inits via a direct call on each is:inline re-run instead of accumulating an `astro:page-load` listener per navigation. Kills the duplicate gallery-advance / duplicate photo-delete-submit bug.
 
