@@ -440,6 +440,44 @@ async function handleEvent(
         referenceId: prior.id,
       }, notifyEnv);
     }
+
+    // Store-level Connect accounts — a store is its own seller of record, so
+    // the same account.updated event may target a store (not a seller_profiles
+    // row). Look it up by account id; the two never collide.
+    const { data: storeRow } = await supabase
+      .from('stores')
+      .select('id, created_by, name, slug, stripe_connect_status')
+      .eq('stripe_account_id', account.id)
+      .maybeSingle();
+    if (storeRow) {
+      const { error: storeErr } = await supabase
+        .from('stores')
+        .update({
+          stripe_connect_status: status,
+          stripe_connect_requirements: account.requirements ?? null,
+          stripe_onboarded: status === 'verified',
+        } as never)
+        .eq('stripe_account_id', account.id);
+      if (storeErr) {
+        await recordDeadLetter(dlCtx(supabase), {
+          service: 'stripe.webhook:account_updated_store',
+          context: { stripe_account_id: account.id, new_status: status },
+          error: storeErr,
+        });
+        return new Response('DB error', { status: 500 });
+      }
+      // Notify the owner once, on the transition into verified.
+      if (status === 'verified' && storeRow.stripe_connect_status !== 'verified') {
+        await createNotification(supabase, {
+          userId: storeRow.created_by,
+          type: 'seller_activated',
+          title: 'Butikken kan motta betalinger',
+          body: `${storeRow.name} er verifisert hos Stripe. Nå kan butikken selge og få utbetalingene rett på konto.`,
+          url: `/market/store/${storeRow.slug}/admin`,
+          referenceId: storeRow.id,
+        }, notifyEnv);
+      }
+    }
     return new Response('ok', { status: 200 });
   }
 

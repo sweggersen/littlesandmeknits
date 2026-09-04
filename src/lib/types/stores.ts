@@ -49,6 +49,7 @@ export interface Store {
   // Stripe Connect
   stripe_account_id: string | null;
   stripe_onboarded: boolean;
+  stripe_connect_status: 'pending' | 'restricted' | 'verified' | 'rejected' | null;
 
   // Lifecycle
   status: StoreStatus;

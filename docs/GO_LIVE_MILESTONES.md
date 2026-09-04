@@ -31,7 +31,7 @@ Section names: `brukt`, `nytt`, `oppdrag`, `butikker`, `profil`, `strikkestua`, 
 | **Brukt** (pre-loved) | `/market/used` | 🟡 GATE | **OFF → M3** | Bring tracking stubbed (manual code = fraud surface); no real-Stripe escrow smoke |
 | **Nytt** (ready-made) | `/market/new` | 🟡 GATE | **OFF → M3** | same rail as Brukt (shared escrow flow) |
 | **Oppdrag** (commissions) | `/market/commissions` | 🟡 GATE | **OFF → M4** | no e2e for dispute/refund/cancel-late/auto-release + ledger; paid-but-unfinalized needs a reconciliation sweep |
-| **Butikker** (stores) | `/market/stores` | 🟡 GATE | **OFF → M5** | store payouts route to the *personal* Stripe account, not the store; subscription/billing stubbed; `listUsers` 1000 cap |
+| **Butikker** (stores) | `/market/stores` | 🟡 GATE | **OFF → M5** | store Connect onboarding now built (store-level payouts); `listUsers` cap fixed. Remaining before flip: live store-Connect payout smoke (M0) + optional Brønnøysund CI mock. Subscription/billing deferred (not launch-blocking). |
 
 ---
 
@@ -113,15 +113,20 @@ Money engine is production-grade (H2b escrow, rail-aware refund/release, idempot
 
 ## M5 — Butikker (stores)
 
-The membership/roles/invitations/storefront/conversion machinery is complete and RLS-hardened. The **defining "business store" money layer is stubbed** — this is the largest remaining decision.
-- [ ] **Scope decision (owner):** are stores *store-level payouts* (registered company receives revenue) or *branding-only over personal payouts* at launch?
-  - Today: a sold store listing pays the **personal** member's Connect account (`createListing` keeps `seller_id = ctx.user.id`); store Connect columns are never read/written. `can.withdrawFunds` / `editStripeSettings` predicates exist but have no callers.
-  - Branding-only → can open sooner with clear copy; store-level payouts → a real build (store Connect onboarding + payout routing + optional subscription/billing).
+The membership/roles/invitations/storefront/conversion machinery is complete and RLS-hardened.
+- [x] **Scope decision (owner): store-level payouts.** A store is its own seller of record — the registered company receives the revenue on its **own** Stripe Connect account, not a member's personal one.
+- [x] **Built store Connect onboarding.** The escrow payout path already routed store-owned listings to `stores.stripe_account_id` (refusing the sale if the store wasn't onboarded), but *nothing populated it* — so store listings could never actually sell. Added:
+  - `startStoreOnboarding` (`store-connect.ts`) — owner-only; creates the store's **Express** Connect account (NO company, orgnr as `tax_id`, prefilled from Brønnøysund), persists `stripe_account_id`, and returns a Stripe-hosted onboarding Account Link. Reuses an existing account rather than minting a second. 6 unit tests.
+  - `POST /api/stores/:slug/connect` — owner-gated endpoint that redirects to the hosted link.
+  - `account.updated` webhook now also syncs stores (by `stripe_account_id`): sets `stripe_connect_status` + `stripe_connect_requirements`, flips `stripe_onboarded` on `verified`, and notifies the owner once. Migration `0104` adds those two columns.
+  - Store admin **Utbetalinger** card: "Sett opp utbetalinger med Stripe" / "Fortsett Stripe-oppsett" / "Klar", owner-only.
+  - *Deferred (not launch-blocking):* store subscription/billing.
 - [x] **Fixed the `listUsers` cap** — extracted a paginated `findAuthUserByEmail` (scans all pages, not just the first 1000) and used it in `inviteMember`. The old single `perPage:1000` call silently missed anyone past position 1000 (broke the already-member check + in-app invite). Unit-tested incl. a match at position 1235. `vips-session.ts` has the same inline pattern it can adopt later.
 - [x] **Confirmed `store_invitations` RLS is secure** — SELECT/INSERT are admin-gated (INSERT carries a `WITH CHECK` pinning the store role); there is **no UPDATE/DELETE policy**, so accept/decline/revoke are service-role-only. A direct PostgREST caller can't forge, accept, or revoke an invite. No fix needed.
 - [ ] **Brønnøysund resilience / CI** — the orgnr lookup is a synchronous hard dependency on `data.brreg.no` with no caching/retry; an outage blocks store creation, and its e2e (`stores.spec.ts`) is CI-excluded (external dep) so the create/lookup path has no CI gate. Add a mocked-lookup CI variant (+ optional retry/cache). *(remaining code item)*
+- [ ] **Live store-Connect payout smoke (M0, owner):** onboard a real store to Stripe Connect (live), sell a store-owned listing, confirm the payout lands on the **store's** account (not a member's). Gates the flag flip.
 
-**Flip:** `FLAG_SECTION_BUTIKKER=on`.
+**Flip:** `FLAG_SECTION_BUTIKKER=on` — after the live store-Connect smoke passes.
 
 ---
 

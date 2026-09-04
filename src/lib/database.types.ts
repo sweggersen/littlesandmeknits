@@ -2360,6 +2360,8 @@ export type Database = {
           slug: string
           status: Database["public"]["Enums"]["store_status"]
           stripe_account_id: string | null
+          stripe_connect_requirements: Json | null
+          stripe_connect_status: string | null
           stripe_customer_id: string | null
           stripe_onboarded: boolean | null
           stripe_subscription_id: string | null
@@ -2402,6 +2404,8 @@ export type Database = {
           slug: string
           status?: Database["public"]["Enums"]["store_status"]
           stripe_account_id?: string | null
+          stripe_connect_requirements?: Json | null
+          stripe_connect_status?: string | null
           stripe_customer_id?: string | null
           stripe_onboarded?: boolean | null
           stripe_subscription_id?: string | null
@@ -2444,6 +2448,8 @@ export type Database = {
           slug?: string
           status?: Database["public"]["Enums"]["store_status"]
           stripe_account_id?: string | null
+          stripe_connect_requirements?: Json | null
+          stripe_connect_status?: string | null
           stripe_customer_id?: string | null
           stripe_onboarded?: boolean | null
           stripe_subscription_id?: string | null
