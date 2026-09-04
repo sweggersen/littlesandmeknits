@@ -36,7 +36,15 @@ export function createServerSupabase(opts: {
       },
       setAll(cookiesToSet) {
         for (const { name, value, options } of cookiesToSet) {
-          opts.cookies.set(name, value, options);
+          // Pin SameSite=Lax on the auth cookies (CSRF defense-in-depth). Lax
+          // means the cookie is NOT sent on a cross-site POST, so a forged
+          // form-submit from another origin arrives unauthenticated. This is
+          // the real compensating control for astro.config's checkOrigin:false;
+          // it matches @supabase/ssr's default but makes it explicit and immune
+          // to an accidental change. Other options (httpOnly/secure/path) stay
+          // as the library set them — don't override, the browser client relies
+          // on them.
+          opts.cookies.set(name, value, { ...options, sameSite: options?.sameSite ?? 'lax' });
         }
       },
     },

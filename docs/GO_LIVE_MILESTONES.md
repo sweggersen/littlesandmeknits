@@ -152,7 +152,7 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 - [x] **Generic prod 500s now report to Sentry.** `middleware.ts` wraps `next()` in a try/catch that calls `captureException({ service: 'ssr', extra: { path, method } })` and rethrows (so the branded 500.astro still renders). Also bounded `captureException`'s own fetch (5s) so a hung Sentry can't stall the error path. *Still owner:* confirm `SENTRY_DSN` is set in the prod Worker (otherwise it silently no-ops), and broaden uptime probes beyond the 2 homepages.
 
 **Security / abuse**
-- [ ] **CSRF defense-in-depth.** `astro.config.mjs` sets `checkOrigin: false` and no explicit `SameSite`; protection is the library `Lax` default only. Re-enable origin checks or set `SameSite`.
+- [x] **CSRF defense-in-depth.** Pinned `SameSite=Lax` explicitly on the auth cookies in `createServerSupabase`'s `setAll` (was the library's *implicit* default), so a cross-site POST can't carry the session — it arrives unauthenticated. Documented *why* `checkOrigin` stays off (form-encoded API/mobile clients POST without an Origin header; flipping it needs re-testing every form-POST). Auth-session e2e still green.
 - [x] **Rate limiting** on store creation (5/day, gated before the brreg lookup), listing creation (50/day), and store invitations (30/day) via the existing `assertWithinQuota` daily-quota helper. Wired + tested (fake-db limit-hit for createStore, mocked-block for createListing).
 - [x] **`admin/dead-letters.astro` page guard** — it relied only on `AdminLayout`'s guard, which runs *after* the page frontmatter's `dead_letter_events` query. Added `requireModerator` at the top of the page frontmatter (before the query), matching every sibling admin page.
 

@@ -11,6 +11,11 @@ export default defineConfig({
   site: 'https://littlesandmeknits.com',
   prefetch: { prefetchAll: false, defaultStrategy: 'hover' },
 
+  // checkOrigin is OFF because form-encoded API/mobile clients POST without a
+  // browser Origin header (Astro would 403 them). CSRF is instead covered by
+  // SameSite=Lax on the auth cookie (see createServerSupabase setAll): a
+  // cross-site POST can't carry the session, so it arrives unauthenticated.
+  // Flipping this to true requires re-testing every form-POST + API client.
   security: { checkOrigin: false },
   output: 'server',
   adapter: cloudflare({
