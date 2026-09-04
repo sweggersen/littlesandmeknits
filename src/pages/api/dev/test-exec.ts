@@ -1564,9 +1564,14 @@ async function handle(
       }
       await db.from('commission_offers').delete().in('knitter_id', testUserIds);
 
-      // Projects owned by test users
+      // Projects owned by test users. Deleting a project cascades to its
+      // project_yarns rows (FK on delete cascade), which frees the yarn rows
+      // (yarn FK is on delete restrict) so the yarn delete below can't block.
       await db.from('project_logs').delete().in('user_id', testUserIds);
       await db.from('projects').delete().in('user_id', testUserIds);
+      // Studio stash + tools (seed-profile/seed-world populate these).
+      await db.from('yarns').delete().in('user_id', testUserIds);
+      await db.from('needles').delete().in('user_id', testUserIds);
 
       // Listings + conversations
       const { data: testListings } = await db.from('listings')

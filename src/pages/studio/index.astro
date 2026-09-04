@@ -30,8 +30,8 @@ const now = new Date();
 const startOfYear = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
 
 const [projectsRes, yarnsRes, needlesRes, externalRes, deductionsRes] = await Promise.all([
-  supabase.from('projects').select('id, title, status, hero_photo_path, updated_at, started_at, finished_at, created_at').eq('user_id', user!.id),
-  supabase.from('yarns').select('id, total_grams'),
+  supabase.from('projects').select('id, title, status, hero_photo_path, current_rows, target_rows, updated_at, started_at, finished_at, created_at').eq('user_id', user!.id),
+  supabase.from('yarns').select('id, weight, total_grams'),
   supabase.from('needles').select('id'),
   supabase.from('external_patterns').select('id'),
   supabase.from('project_yarns').select('grams_used, deducted_at'),
@@ -42,6 +42,8 @@ type ProjectStatRow = {
   title: string;
   status: 'planning' | 'active' | 'finished' | 'frogged';
   hero_photo_path: string | null;
+  current_rows: number | null;
+  target_rows: number | null;
   updated_at: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -49,7 +51,7 @@ type ProjectStatRow = {
 };
 
 const projects = (projectsRes.data ?? []) as ProjectStatRow[];
-const yarns = (yarnsRes.data ?? []) as Array<{ id: string; total_grams: number | null }>;
+const yarns = (yarnsRes.data ?? []) as Array<{ id: string; weight: string | null; total_grams: number | null }>;
 const needles = (needlesRes.data ?? []) as Array<{ id: string }>;
 const externals = (externalRes.data ?? []) as Array<{ id: string }>;
 const deductions = (deductionsRes.data ?? []) as Array<{ grams_used: number; deducted_at: string | null }>;
@@ -136,10 +138,34 @@ const hasDisplayName = !!(meta.display_name && meta.display_name.trim());
 const greeting = hasDisplayName ? meta.display_name!.trim() : firstNameFromEmail(user?.email);
 const fmtKg = (g: number) => (g >= 1000 ? `${(g / 1000).toFixed(1)} kg` : `${g} g`);
 
-// Most-recently-touched projects, for the optional "Siste prosjekter" panel.
+// Most-recently-touched projects, for the "Siste prosjekter" panel. Active ones
+// with a row target get a progress bar.
 const recentProjects = [...projects]
   .sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at))
-  .slice(0, 4);
+  .slice(0, 4)
+  .map((p) => {
+    const pct = p.status === 'active' && p.target_rows && p.target_rows > 0
+      ? Math.min(100, Math.round(((p.current_rows ?? 0) / p.target_rows) * 100))
+      : null;
+    return { ...p, pct };
+  });
+
+// Yarn stash grouped by weight, for the optional "Garnlager" panel. Largest
+// gram total first; unknown weight bucketed under "Uspesifisert".
+const stashByWeight = (() => {
+  const acc = new Map<string, { grams: number; count: number }>();
+  for (const y of yarns) {
+    const key = y.weight?.trim() || 'Uspesifisert';
+    const cur = acc.get(key) ?? { grams: 0, count: 0 };
+    cur.grams += y.total_grams ?? 0;
+    cur.count += 1;
+    acc.set(key, cur);
+  }
+  return [...acc.entries()]
+    .map(([weight, v]) => ({ weight, grams: v.grams, count: v.count }))
+    .sort((a, b) => b.grams - a.grams);
+})();
+const stashMaxGrams = Math.max(1, ...stashByWeight.map((s) => s.grams));
 
 const studioStats: Array<{ label: string; value: string; href: string }> = [
   { label: 'I gang', value: String(active.length), href: '/studio/projects' },
@@ -300,7 +326,19 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
                   : <div class="w-12 h-12 rounded-lg bg-oatmeal/60 shrink-0"></div>}
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium truncate">{p.title}</p>
-                  <StatusBadge label={PROJECT_STATUS[p.status] ?? p.status} variant={p.status === 'active' ? 'sage' : 'muted'} class="mt-1" />
+                  {p.pct !== null ? (
+                    <div class="mt-1.5">
+                      <div class="flex items-center justify-between text-[10px] text-charcoal/50 mb-1">
+                        <span>{p.current_rows ?? 0} / {p.target_rows} rader</span>
+                        <span class="tabular-nums">{p.pct}%</span>
+                      </div>
+                      <div class="h-1.5 rounded-full bg-sage-500/15 overflow-hidden">
+                        <div class="h-full rounded-full bg-sage-500" style={`width:${p.pct}%`}></div>
+                      </div>
+                    </div>
+                  ) : (
+                    <StatusBadge label={PROJECT_STATUS[p.status] ?? p.status} variant={p.status === 'active' ? 'sage' : 'muted'} class="mt-1" />
+                  )}
                 </div>
               </a>
             ))}
@@ -316,6 +354,33 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
         <p class="font-serif text-3xl leading-none tabular-nums">{externals.length}</p>
         <p class="text-xs text-charcoal/55 mt-1">oppskrifter lagret</p>
         <a href="/profile/library" class="inline-block mt-3 text-sm text-charcoal/60 hover:text-terracotta-500 transition-colors">Åpne bibliotek →</a>
+      </section>
+    </div>
+
+    <!-- Garnlager (valgfritt panel): fordeling per garntykkelse -->
+    <div class="dash-widget md:col-span-4" data-widget="stash" data-size="m" data-default="0" data-label="Garnlager">
+      <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden h-full">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
+          <h2 class="font-serif text-lg">Garnlager</h2>
+          <a href="/studio/yarn" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Åpne →</a>
+        </div>
+        {stashByWeight.length === 0 ? (
+          <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Ingen garn i lageret ennå.</p>
+        ) : (
+          <div class="p-4 space-y-2.5">
+            {stashByWeight.map((s) => (
+              <div>
+                <div class="flex items-center justify-between text-xs mb-1">
+                  <span class="text-charcoal/70 truncate">{s.weight}</span>
+                  <span class="text-charcoal/45 tabular-nums shrink-0 ml-2">{fmtKg(s.grams)} · {s.count}</span>
+                </div>
+                <div class="h-2 rounded-full bg-sage-500/12 overflow-hidden">
+                  <div class="h-full rounded-full bg-sage-500/70" style={`width:${Math.max(4, Math.round((s.grams / stashMaxGrams) * 100))}%`}></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   </div>

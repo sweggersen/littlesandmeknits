@@ -97,6 +97,27 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
     } catch { /* */ }
   }
 
+  // 2b. Yarn stash (Strikkestua) — a spread of weights so the Garnlager panel
+  // has a real breakdown.
+  const yarnSpecs = [
+    { brand: 'Sandnes', name: 'Sunday', weight: 'Tynn (Fingering)', grams: 500 },
+    { brand: 'Sandnes', name: 'Tynn Silk Mohair', weight: 'Lace (Tråd)', grams: 150 },
+    { brand: 'Rauma', name: 'Finull', weight: 'Tynn (Fingering)', grams: 350 },
+    { brand: 'Dale', name: 'Freestyle', weight: 'Mellomtykt (DK)', grams: 600 },
+    { brand: 'Drops', name: 'Nepal', weight: 'Tykk (Aran)', grams: 400 },
+  ];
+  for (const y of yarnSpecs) {
+    try {
+      const { data: existing } = await db.from('yarns')
+        .select('id').eq('user_id', target).eq('brand', y.brand).eq('name', y.name).maybeSingle();
+      if (existing) continue;
+      await db.from('yarns').insert({
+        user_id: target, brand: y.brand, name: y.name, weight: y.weight, total_grams: y.grams,
+      });
+      bump('yarns');
+    } catch { /* */ }
+  }
+
   // 3. Library (external patterns).
   for (const b of [
     { title: 'Sunday Sweater', designer: 'PetiteKnit' },

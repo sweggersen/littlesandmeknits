@@ -24,6 +24,10 @@ test.describe('Studio dashboard', () => {
   test.beforeAll(async ({ request }) => {
     adminToken = (await (await request.get('/api/dev/test-token')).json()).token;
     await exec(request, 'cleanup'); // fresh: no saved studio layout
+    // Seed projects (with row progress) + a yarn stash so the optional
+    // "Siste prosjekter" / "Garnlager" panels have real data.
+    await request.post('/api/dev/test-login', { data: { email: ELINE } });
+    await exec(request, 'seed-profile', { actor: ELINE });
   });
   test.afterAll(async ({ request }) => { await exec(request, 'cleanup'); });
 
@@ -62,5 +66,24 @@ test.describe('Studio dashboard', () => {
     await expect(stats.locator('.dash-sizes')).toBeVisible();
     await expect(stats.locator('.dash-remove')).toHaveCount(0);
     await expect(page.locator('.dash-add[data-add="stats"]')).toHaveCount(0);
+  });
+
+  test('optional panels: projects show row progress, Garnlager shows a weight breakdown', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/studio');
+    // Both are opt-in — add them from the palette.
+    await page.getByRole('button', { name: 'Rediger' }).click();
+    await page.locator('.dash-add[data-add="projects"]').click();
+    await page.locator('.dash-add[data-add="stash"]').click();
+
+    const projects = page.locator('.dash-widget[data-widget="projects"]');
+    // Seeded active project "Marius-genser til Emma" is 120/300 rows → a bar + %.
+    await expect(projects.getByText('120 / 300 rader')).toBeVisible();
+    await expect(projects.getByText('40%')).toBeVisible();
+
+    const stash = page.locator('.dash-widget[data-widget="stash"]');
+    // Seeded yarns bucket into weight rows with gram totals.
+    await expect(stash.getByText('Tynn (Fingering)')).toBeVisible();
+    await expect(stash.getByText('Mellomtykt (DK)')).toBeVisible();
   });
 });
