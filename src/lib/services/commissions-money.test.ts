@@ -19,7 +19,8 @@ const fakeDb = (seed: Record<string, Record<string, unknown>[]>) =>
 vi.mock('../notify', () => ({ createNotification: vi.fn() }));
 vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
 
-const sessionCreate = vi.fn(async (_args?: any) => ({ url: 'https://checkout.stripe.com/c/sess_1' }));
+const sessionCreate = vi.fn(async (_args?: any) => ({ id: 'sess_1', url: 'https://checkout.stripe.com/c/sess_1' }));
+const sessionRetrieve = vi.fn(async (_id?: any): Promise<any> => ({ status: 'open', url: 'https://checkout.stripe.com/c/existing' }));
 const piRetrieve = vi.fn(async (_id?: any): Promise<any> => ({ status: 'succeeded', transfer_data: null, latest_charge: 'ch_1' }));
 const piCapture = vi.fn(async (_id?: any) => ({}));
 const piCancel = vi.fn(async (_id?: any) => ({}));
@@ -27,7 +28,7 @@ const transferCreate = vi.fn(async (_args?: any, _opts?: any) => ({ id: 'tr_1' }
 const refundCreate = vi.fn(async (_args?: any) => ({}));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
-    checkout: { sessions: { create: sessionCreate } },
+    checkout: { sessions: { create: sessionCreate, retrieve: sessionRetrieve } },
     paymentIntents: { retrieve: piRetrieve, capture: piCapture, cancel: piCancel },
     transfers: { create: transferCreate },
     refunds: { create: refundCreate },
@@ -36,6 +37,7 @@ vi.mock('../stripe', () => ({
 
 beforeEach(() => {
   sessionCreate.mockClear();
+  sessionRetrieve.mockClear();
   piRetrieve.mockClear();
   piCapture.mockClear();
   piCancel.mockClear();
@@ -226,6 +228,41 @@ describe('payCommission — guards', () => {
     const r = await payCommission(ctxFor(seed()), { requestId: 'req-1' });
     expect(r.ok).toBe(false);
     if (!r.ok) { expect(r.code).toBe('server_error'); expect(r.message).toBeTruthy(); }
+  });
+
+  // Double-charge guard: automatic capture means every paid session takes money.
+  it('reuses an existing OPEN checkout session instead of minting a second', async () => {
+    sessionRetrieve.mockResolvedValueOnce({ status: 'open', url: 'https://checkout.stripe.com/c/existing' });
+    const db = seed({ req: { stripe_checkout_session_id: 'sess_existing' } });
+    const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.redirect).toBe('https://checkout.stripe.com/c/existing');
+    expect(sessionRetrieve).toHaveBeenCalledWith('sess_existing');
+    expect(sessionCreate).not.toHaveBeenCalled(); // no second capturable session
+  });
+
+  it('does NOT mint a new session when the existing one is already paid', async () => {
+    sessionRetrieve.mockResolvedValueOnce({ status: 'complete', payment_status: 'paid' });
+    const db = seed({ req: { stripe_checkout_session_id: 'sess_paid' } });
+    const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.redirect).toBe('https://test.site/market/commissions/req-1?paid=1');
+    expect(sessionCreate).not.toHaveBeenCalled();
+  });
+
+  it('mints a fresh session when the stored one is expired — does NOT reuse its stale URL', async () => {
+    // Expired session still carries a url; only an OPEN session may be reused.
+    sessionRetrieve.mockResolvedValueOnce({ status: 'expired', url: 'https://checkout.stripe.com/c/STALE' });
+    const db = seed({ req: { stripe_checkout_session_id: 'sess_gone' } });
+    const r = await payCommission(ctxFor(db), { requestId: 'req-1' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.redirect).toBe('https://checkout.stripe.com/c/sess_1'); // fresh, not STALE
+    expect(sessionCreate).toHaveBeenCalledTimes(1);
+    // New session carries a bounded expiry ~2h out so it can't be paid days later.
+    const args = sessionCreate.mock.calls[0][0] as any;
+    const nowSec = Math.floor(Date.now() / 1000);
+    expect(args.expires_at).toBeGreaterThan(nowSec + 60 * 60);      // > 1h out
+    expect(args.expires_at).toBeLessThanOrEqual(nowSec + 2 * 60 * 60 + 5); // ~2h
   });
 });
 
@@ -533,6 +570,27 @@ describe('cancelLateCommission — buyer cancels an overdue commission (P1.1)', 
     expect(refundCreate).not.toHaveBeenCalled();
   });
 
+  it('allows cancel exactly AT the cutoff, refuses one second before (< vs <= boundary)', async () => {
+    // cutoff = needed_by + LATE_CANCEL_GRACE_DAYS (7). The code refuses while
+    // `now < cutoff`, so exactly at the cutoff is ALLOWED — this pins the strict
+    // `<` (a `<=` mutant would wrongly refuse at the boundary).
+    const neededBy = new Date('2026-02-10T12:00:00.000Z');
+    const cutoff = new Date(neededBy); cutoff.setDate(cutoff.getDate() + 7);
+
+    const atCutoff = await cancelLateCommission(
+      ctxFor(seedInProgress({ needed_by: neededBy.toISOString() }), 'buyer-1'),
+      { requestId: 'req-1', now: cutoff },
+    );
+    expect(atCutoff.ok).toBe(true); // exactly at cutoff → allowed (kills `<=`)
+
+    const justBefore = await cancelLateCommission(
+      ctxFor(seedInProgress({ needed_by: neededBy.toISOString() }), 'buyer-1'),
+      { requestId: 'req-1', now: new Date(cutoff.getTime() - 1000) },
+    );
+    expect(justBefore.ok).toBe(false); // one second before → still too early
+    if (!justBefore.ok) expect(justBefore.code).toBe('conflict');
+  });
+
   it('refuses for a non-buyer', async () => {
     const db = seedInProgress();
     const r = await cancelLateCommission(ctxFor(db, 'someone-else'), { requestId: 'req-1', now: NOW });
@@ -553,5 +611,38 @@ describe('cancelLateCommission — buyer cancels an overdue commission (P1.1)', 
     const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('conflict');
+  });
+
+  it('dead-letters (does not lose) a status update that fails AFTER the refund', async () => {
+    // Refund succeeds, then the status flip fails: the buyer is already made
+    // whole but the knitter would still see an active job — must dead-letter.
+    const db = createFakeDb({
+      commission_requests: [{
+        id: 'req-1', buyer_id: 'buyer-1', status: 'awarded', title: 'Genser',
+        needed_by: overdue, stripe_payment_intent_id: 'pi_c', awarded_offer_id: 'o1',
+      }],
+      commission_offers: [{ id: 'o1', knitter_id: 'knitter-1', status: 'accepted', price_nok: 1000 }],
+    }, { updateError: { commission_requests: { message: 'update boom' } } });
+
+    const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('server_error');
+    expect(refundCreate).toHaveBeenCalledTimes(1); // buyer WAS refunded
+    expect(vi.mocked(recordDeadLetter)).toHaveBeenCalledTimes(1);
+    const [, dl] = vi.mocked(recordDeadLetter).mock.calls[0] as any[];
+    expect(dl.service).toBe('commissions.cancelLateCommission:status-update');
+    expect(dl.context.refunded).toBe(true);
+  });
+
+  it('is blocked while payouts are killed — no refund issued', async () => {
+    const db = seedInProgress();
+    const ctx = ctxFor(db, 'buyer-1');
+    (ctx.env as any).KILL_PAYOUTS = 'on';
+    const r = await cancelLateCommission(ctx, { requestId: 'req-1', now: NOW });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('service_unavailable');
+    expect(refundCreate).not.toHaveBeenCalled();
+    // Left in-progress so it can be retried once Stripe is back.
+    expect((db.find('commission_requests', { id: 'req-1' }) as any).status).toBe('awarded');
   });
 });

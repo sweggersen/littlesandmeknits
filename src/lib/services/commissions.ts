@@ -400,15 +400,39 @@ export async function cancelLateCommission(
     return fail('conflict', 'Fristen er ikke passert ennå. Du kan avbestille hvis strikkeren blir forsinket.');
   }
 
+  // Refunding is money movement — honour the payouts kill-switch like the other
+  // refund paths (a paused switch leaves the request in-progress so it can be
+  // retried once Stripe is back, rather than half-cancelling it).
+  const blocked = await killGuard(['payouts'], ctx.env);
+  if (blocked) return blocked;
+
   // Refund the buyer (money is still in the platform balance / escrow).
   if (req.stripe_payment_intent_id) {
     await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
   }
   // commission_requests has no cancel_reason column — the reason ('late_knitter')
   // is captured in the payment_events ledger below.
-  await ctx.admin.from('commission_requests')
+  const { error: cancelErr } = await ctx.admin.from('commission_requests')
     .update({ status: 'cancelled' })
     .eq('id', input.requestId);
+  if (cancelErr) {
+    // Buyer is already refunded; if we can't flip the status the knitter still
+    // sees an active job. Dead-letter so support reconciles, rather than losing
+    // the failure to the console.
+    await recordDeadLetter(
+      { admin: ctx.admin, user: ctx.user, env: ctx.env },
+      {
+        service: 'commissions.cancelLateCommission:status-update',
+        context: {
+          commission_request_id: input.requestId,
+          payment_intent_id: req.stripe_payment_intent_id ?? null,
+          refunded: !!req.stripe_payment_intent_id,
+        },
+        error: cancelErr,
+      },
+    );
+    return fail('server_error', 'Refundert, men kunne ikke oppdatere status. Vi følger opp.');
+  }
 
   await recordPaymentEvent(ctx.admin, {
     kind: 'commission', type: 'refunded', commissionRequestId: input.requestId,

@@ -130,6 +130,38 @@ The membership/roles/invitations/storefront/conversion machinery is complete and
 
 ---
 
+## M6 — Launch hardening (cross-cutting, not a section)
+
+Not gated by any flag — these harden the whole platform for launch. Surfaced by a four-way codebase survey (security/authz, money/data-integrity, ops/reliability, frontend/perf/a11y). Ticked items are done this session; unticked are the remaining backlog, roughly severity-ordered.
+
+**Money-path integrity**
+- [x] **Commission double-charge fixed.** `payCommission` reused an open checkout session + refuses to mint a second when one is already paid (2h `expires_at` on new sessions); `finalizeCommissionPayment` now tells a benign same-PI replay from a DIFFERENT paid PI (a real duplicate) and the webhook auto-refunds that orphan (`refundOrphanCommissionCharge`, idempotent) + dead-letters it. Previously two concurrent checkouts could both capture and the second was silently swallowed.
+- [x] **Refund both-paths-fail now dead-letters.** `respondToRefund` accept: when cancel AND refund both fail, it records a `dead_letter_events` row (was console-only).
+- [x] **`cancelLateCommission` hardened.** Now honours the payouts kill-switch, and dead-letters if the post-refund status update fails (was unchecked → buyer refunded but job still "active").
+- [ ] **Listing double-sell hold.** Losing concurrent buyer's manual-capture auth is never cancelled (~7-day hold). Cancel it on the 0-row `completeListingPurchase`.
+- [ ] **No listing reconcile sweep.** Commissions self-heal a lost webhook; listings don't (and store no session id on the order). Add the analog.
+- [ ] **`acceptOffer` race** — status writes aren't conditional (`.eq('status','pending')`); double-click can accept two offers.
+
+**Ops / deploy / recovery**
+- [x] **CI migrate-after-build.** `supabase db push` moved to run only after the build + bake-assert pass (was before → a failed build left prod schema ahead of code with no rollback).
+- [x] **Outbound calls bounded.** Shared `fetchWithTimeout` (`src/lib/http.ts`) on Bring/Resend/Helthjem/Vipps/web-push; Stripe SDK capped at 20s/1 retry. Only Brønnøysund was bounded before.
+- [ ] **Backup/PITR posture (owner).** No down-migrations exist, destructive drops already shipped, and PITR/backups are undocumented. Write the recovery runbook + adopt expand/contract for destructive migrations.
+- [ ] **Cron is external + no active alert.** cron-job.org triggers `/api/cron/run` (already auto-disabled once); `CRON_HEARTBEAT_URL` dead-man's-switch is opt-in and likely unset. Set it, or move to a Cloudflare cron trigger in `wrangler.jsonc`.
+
+**Observability**
+- [ ] **Generic prod 500s are invisible.** Sentry (`observability.ts`) is only wired into the money dead-letter path; `middleware.ts` has no top-level catch → `captureException`, and uptime probes only 2 homepages. Wrap the middleware/error page + confirm `SENTRY_DSN` is set in prod.
+
+**Security / abuse**
+- [ ] **CSRF defense-in-depth.** `astro.config.mjs` sets `checkOrigin: false` and no explicit `SameSite`; protection is the library `Lax` default only. Re-enable origin checks or set `SameSite`.
+- [ ] **Rate limiting** on store creation, listing creation, and invitations (commissions/messages/reports already have it).
+- [ ] **`admin/dead-letters.astro` page guard** — verify it carries `requireAdmin` like its siblings (may rely on RLS only).
+
+**Frontend / perf / UX**
+- [ ] **ListingCard images** — `storage.ts` serves raw full-size objects; `ListingCard` has no `loading="lazy"`/resize/`srcset`. Biggest real-world perf hit (24 full-res photos per grid).
+- [ ] **Query errors render as empty state** — market list pages destructure only `data`, so a DB/RLS failure shows "Ingen treff". Inspect `error` and show a real error state.
+- [ ] **No 404/500 pages** — add branded `src/pages/404.astro` + `500.astro`.
+- [ ] **`ListingPhotos` gallery double-binds** after view transitions (accumulating handlers). Add a `bindOnce`/`dataset` guard.
+
 ## Session plan (order of execution)
 
 1. **M0** — go-live foundation (owner + one smoke). *Unblocks all money.*
