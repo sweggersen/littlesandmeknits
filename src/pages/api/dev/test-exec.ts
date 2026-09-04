@@ -14,6 +14,9 @@ import {
   shipYarn as svcShipYarn,
   receiveYarn as svcReceiveYarn,
   finalizeCommissionPayment as svcFinalizeCommissionPayment,
+  disputeCommission as svcDisputeCommission,
+  cancelLateCommission as svcCancelLateCommission,
+  releaseCommissionFunds as svcReleaseCommissionFunds,
   COMMISSION_FEE_PERCENT as svcCommissionFeePercent,
 } from '../../../lib/services/commissions';
 import {
@@ -472,6 +475,55 @@ async function handle(
       const result = await svcConfirmDelivery(synthCtx(db, actorId), { requestId: p.request_id as string });
       if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
       return { data: { status: 'delivered' } };
+    }
+
+    case 'dispute-commission': {
+      if (!actorId) throw new Error('Actor required');
+      const result = await svcDisputeCommission(synthCtx(db, actorId), {
+        requestId: p.request_id as string,
+        reason: (p.reason as string) ?? 'Varen kom aldri.',
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { status: 'disputed' } };
+    }
+
+    case 'cancel-late-commission': {
+      if (!actorId) throw new Error('Actor required');
+      // `now` lets a scenario fast-forward past the deadline + grace window.
+      const result = await svcCancelLateCommission(synthCtx(db, actorId), {
+        requestId: p.request_id as string,
+        now: p.now ? new Date(p.now as string) : undefined,
+      });
+      if (!result.ok) throw new Error(`${result.code}: ${result.message}`);
+      return { data: { status: 'cancelled' } };
+    }
+
+    case 'release-commission': {
+      // Simulates the cron auto-releasing a completed commission after the
+      // delivery window (mirrors api/cron/run.ts). System action.
+      const { data: req } = await db.from('commission_requests')
+        .select('id, stripe_payment_intent_id, awarded_offer_id').eq('id', p.request_id as string).single();
+      if (!req?.awarded_offer_id || !req.stripe_payment_intent_id) throw new Error('Commission not payable');
+      const { data: offer } = await db.from('commission_offers')
+        .select('knitter_id, price_nok').eq('id', req.awarded_offer_id).single();
+      if (!offer) throw new Error('Awarded offer not found');
+      const r = await svcReleaseCommissionFunds(db, env.STRIPE_SECRET_KEY, {
+        requestId: req.id, paymentIntentId: req.stripe_payment_intent_id,
+        knitterId: offer.knitter_id, priceNok: offer.price_nok,
+      });
+      // Mirror the cron: record the released ledger event + mark delivered.
+      if (r.released) {
+        const { recordPaymentEvent } = await import('../../../lib/services/payment-events');
+        const { MoneyBreakdown } = await import('../../../lib/money');
+        await recordPaymentEvent(db, {
+          kind: 'commission', type: 'released', commissionRequestId: req.id,
+          amountNok: offer.price_nok,
+          feeNok: Math.round(MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100),
+          paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'auto_release' },
+        });
+        await db.from('commission_requests').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', req.id);
+      }
+      return { data: { released: r.released } };
     }
 
     // ── Listing purchase flow ────────────────────────

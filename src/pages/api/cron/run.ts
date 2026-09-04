@@ -8,6 +8,8 @@ import { checkAndGrantAchievements } from '../../../lib/achievements';
 import { sendEmail } from '../../../lib/email';
 import { renderDraftNudgeEmail } from '../../../lib/email-templates';
 import { isKilled } from '../../../lib/flags';
+import { recordPaymentEvent } from '../../../lib/services/payment-events';
+import { MoneyBreakdown } from '../../../lib/money';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds } from '../../../lib/services/commissions';
@@ -274,6 +276,18 @@ export const POST: APIRoute = async ({ request }) => {
           }
         }
         if (!commissionReleased) continue;
+
+        // Ledger: escrow released to the knitter — same event confirmDelivery
+        // records, so the auto-release path has an equivalent audit trail
+        // (trigger distinguishes it). Only when money actually moved.
+        if (req.stripe_payment_intent_id && offer) {
+          await recordPaymentEvent(admin, {
+            kind: 'commission', type: 'released', commissionRequestId: req.id,
+            amountNok: offer.price_nok,
+            feeNok: Math.round(MoneyBreakdown.commissionPayment({ priceNok: offer.price_nok }).platformFeeOre / 100),
+            paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'auto_release' },
+          });
+        }
 
         await admin
           .from('commission_requests')
