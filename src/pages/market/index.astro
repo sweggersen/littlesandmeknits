@@ -10,9 +10,20 @@ import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
 import { rankPromoted, type UserPreferences } from '../../lib/promotion-ranker';
+import { sectionEnabled } from '../../lib/sections';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
+
+// Section feature-flag gate (soft launch): hide a category card when its section
+// is flagged off, so it doesn't link to a page that redirects to /kommer-snart.
+const _flagSrc = import.meta.env as Record<string, string | undefined>;
+const [showBrukt, showNytt, showOppdrag] = await Promise.all([
+  sectionEnabled('brukt', _flagSrc),
+  sectionEnabled('nytt', _flagSrc),
+  sectionEnabled('oppdrag', _flagSrc),
+]);
+const visibleCategoryCards = [showBrukt, showNytt, showOppdrag].filter(Boolean).length;
 
 const SLOTS = 8;
 const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_min, size_age_months_max, hero_photo_path, published_at, promoted_until, promoted_at, promotion_tier, category, favorite_count, seller_id, store_id, escrow_enabled, can_meet';
@@ -225,8 +236,10 @@ const orgJsonLd = {
         registerController(init);
       </script>
 
-      <!-- Categories: compact horizontal cards on mobile, rich cards with art on sm+ -->
-      <div class="grid grid-cols-3 sm:grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
+      <!-- Categories: compact horizontal cards on mobile, rich cards with art on sm+.
+           Columns follow the number of enabled sections (soft-launch flag gate). -->
+      <div class:list={["grid gap-2 sm:gap-4 mb-6 sm:mb-8", visibleCategoryCards >= 3 ? 'grid-cols-3' : visibleCategoryCards === 2 ? 'grid-cols-2' : 'grid-cols-1']}>
+        {showBrukt && (
         <a href="/market/used" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-[#b08968]/40 transition-all hover:shadow-md bg-white sm:bg-[#f3ece1]">
           <img src="/category/brukt.png" alt="" aria-hidden="true" class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-[6.3rem] h-[6.3rem] object-contain z-0 transition-transform group-hover:scale-110" />
           <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-white/85 blur-2xl rounded-full"></div>
@@ -236,6 +249,8 @@ const orgJsonLd = {
             <p class="hidden sm:block text-sm text-charcoal/55">Håndstrikkede plagg med mye liv igjen.</p>
           </div>
         </a>
+        )}
+        {showNytt && (
         <a href="/market/new" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-sage-500/40 transition-all hover:shadow-md bg-white sm:bg-[#e6f0e9]">
           <img src="/category/nytt.png" alt="" aria-hidden="true" class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-[6.3rem] h-[6.3rem] object-contain z-0 transition-transform group-hover:scale-110" />
           <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-white/85 blur-2xl rounded-full"></div>
@@ -245,6 +260,8 @@ const orgJsonLd = {
             <p class="hidden sm:block text-sm text-charcoal/55">Nystrikkede plagg fra strikkere, klare til bruk.</p>
           </div>
         </a>
+        )}
+        {showOppdrag && (
         <a href="/market/commissions" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-[#9b7fc4]/40 transition-all hover:shadow-md bg-white sm:bg-[#efe9f7]">
           <img src="/category/oppdrag.png" alt="" aria-hidden="true" class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-[6.3rem] h-[6.3rem] object-contain z-0 transition-transform group-hover:scale-110" />
           <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-white/85 blur-2xl rounded-full"></div>
@@ -254,6 +271,7 @@ const orgJsonLd = {
             <p class="hidden sm:block text-sm text-charcoal/55">Bestill et plagg fra en strikker i fellesskapet.</p>
           </div>
         </a>
+        )}
       </div>
 
       {followedListings.length > 0 && (
@@ -299,7 +317,7 @@ const orgJsonLd = {
           ))}
         </ul>
       )}
-      {(latestRequests ?? []).length > 0 && (
+      {showOppdrag && (latestRequests ?? []).length > 0 && (
         <>
           <h2 class="font-serif text-2xl mb-4 mt-12">Nyeste forespørsler</h2>
           <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">

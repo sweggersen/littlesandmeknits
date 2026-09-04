@@ -7,9 +7,33 @@ interface Props {
   variant?: 'strikketorget' | 'strikkestua' | 'home';
   lang?: 'nb' | 'en';
 }
+import { sectionEnabled, type Section } from '../lib/sections';
+
 const { variant = 'strikketorget', lang = 'nb' } = Astro.props;
 const isStudio = variant === 'strikkestua';
 const isHome = variant === 'home';
+
+// Which section each nav link belongs to, for feature-flag gating. A link with
+// no mapping (Oppdrag-adjacent pages, etc.) is always shown.
+const LINK_SECTION: Record<string, Section> = {
+  '/market/used': 'brukt',
+  '/market/new': 'nytt',
+  '/market/commissions': 'oppdrag',
+  '/market/stores': 'butikker',
+  '/oppskrifter': 'oppskrifter',
+};
+// Resolve the enabled set once. import.meta.env carries .dev.vars locally;
+// sectionEnabled also reads the Cloudflare runtime binding in prod. Default-on.
+const SECTION_ON = new Map<Section, boolean>();
+await Promise.all(
+  ([...new Set(Object.values(LINK_SECTION))] as Section[]).map(async (s) => {
+    SECTION_ON.set(s, await sectionEnabled(s, import.meta.env as Record<string, string | undefined>));
+  }),
+);
+const linkEnabled = (href: string) => {
+  const s = LINK_SECTION[href];
+  return s ? SECTION_ON.get(s) !== false : true;
+};
 
 const currentPath = Astro.url.pathname.replace(/\/$/, '') || (isStudio ? '/studio' : '/market');
 
@@ -45,6 +69,8 @@ const navLinks = isStudio
       { href: '/market/commissions', label: 'Oppdrag' },
       { href: '/market/stores', label: 'Butikker' },
     ];
+// Hide links whose section is flagged off (soft launch — docs/GO_LIVE_MILESTONES.md).
+const visibleNavLinks = navLinks.filter((l) => linkEnabled(l.href));
 
 // Active section-pill colour per category, matching the home cards + icons.
 const PILL_ACTIVE: Record<string, string> = {
@@ -113,7 +139,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
       </a>
 
       <div class="hidden sm:flex items-center gap-1">
-      {navLinks.map((l) => {
+      {visibleNavLinks.map((l) => {
         // 'exact' items only match an exact equality (used by /studio
         // Oversikt, which would otherwise match all /studio/* sub-pages).
         const isActive = ('exact' in l && (l as any).exact)
@@ -292,7 +318,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
 
   <div class="hidden absolute left-0 right-0 top-full bg-linen border-t border-sage-500/10 px-6 py-4 shadow-lg z-50 lg:hidden" data-mobile-menu>
     <ul class="flex flex-col gap-1">
-      {navLinks.map((l) => (
+      {visibleNavLinks.map((l) => (
         <li>
           <a href={l.href} data-mobile-nav-link={l.href} class="block py-2 text-base font-medium text-charcoal/80">
             {l.label}

@@ -2,6 +2,8 @@
 interface Props {
   current?: 'home' | 'brukt' | 'nytt' | 'oppdrag' | 'butikker' | 'mine' | 'mine-oppdrag' | 'meldinger' | 'ny' | 'listing' | 'profil' | 'favoritter';
 }
+import { sectionEnabled, type Section } from '../lib/sections';
+
 const { current } = Astro.props;
 
 const links = [
@@ -20,6 +22,23 @@ const authLinks = [
   { href: '/profile/stores', key: 'butikker', label: 'Mine butikker' },
 ];
 
+// Section feature-flag gate (soft launch — docs/GO_LIVE_MILESTONES.md). A link
+// tied to a flagged-off section is hidden. Keys that map to a section:
+const KEY_SECTION: Record<string, Section> = {
+  brukt: 'brukt', nytt: 'nytt', oppdrag: 'oppdrag', butikker: 'butikker', 'mine-oppdrag': 'oppdrag',
+};
+const _src = import.meta.env as Record<string, string | undefined>;
+const _sections = [...new Set(Object.values(KEY_SECTION))] as Section[];
+const _on = new Map<Section, boolean>(
+  await Promise.all(_sections.map(async (s) => [s, await sectionEnabled(s, _src)] as const)),
+);
+const keyEnabled = (key: string) => {
+  const s = KEY_SECTION[key];
+  return s ? _on.get(s) !== false : true;
+};
+const visibleLinks = links.filter((l) => keyEnabled(l.key));
+const visibleAuthLinks = authLinks.filter((l) => keyEnabled(l.key));
+
 // Active-tab colour per category, matching the home category cards + icons.
 // Anything not listed falls back to the brand terracotta.
 const ACTIVE_COLOR: Record<string, string> = {
@@ -33,7 +52,7 @@ const activeClass = (key: string) => ACTIVE_COLOR[key] ?? 'border-terracotta-500
 <nav class="sticky top-[72px] z-40 sm:static sm:top-auto bg-linen/95 backdrop-blur-md sm:backdrop-blur-none sm:bg-linen border-b border-sage-500/10 transition-transform duration-300 ease-out" data-hide-on-scroll transition:animate="none">
   <div class="max-w-6xl mx-auto px-4 sm:px-6">
     <div class="flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px">
-      {links.map((l) => (
+      {visibleLinks.map((l) => (
         <a
           href={l.href}
           class:list={[
@@ -49,7 +68,7 @@ const activeClass = (key: string) => ACTIVE_COLOR[key] ?? 'border-terracotta-500
 
       <div class="flex-1" />
 
-      {authLinks.map((l) => (
+      {visibleAuthLinks.map((l) => (
         <a
           href={l.href}
           class:list={[

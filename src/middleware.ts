@@ -1,8 +1,28 @@
 import { defineMiddleware } from 'astro:middleware';
 import { resolveRedirect } from './lib/routing/redirects';
+import { sectionEnabled, type Section } from './lib/sections';
 
 const STRIKKETORGET_HOSTS = ['strikketorget.no', 'www.strikketorget.no'];
 const LITTLES_HOSTS = ['littlesandmeknits.com', 'www.littlesandmeknits.com'];
+
+// Path prefix → section, for the section feature-flag gate. Only the sections
+// we actually flag off at launch are route-guarded (the marketplace + pattern
+// shop); Profil/Strikkestua are shipped-on core areas gated at the nav only.
+// Longest-prefix-first so /market/store beats /market.
+const GATED_SECTION_PREFIXES: Array<[string, Section]> = [
+  ['/market/commissions', 'oppdrag'],
+  ['/market/stores', 'butikker'],
+  ['/market/store', 'butikker'],
+  ['/market/used', 'brukt'],
+  ['/market/new', 'nytt'],
+  ['/oppskrifter', 'oppskrifter'],
+];
+function matchGatedSection(path: string): Section | null {
+  for (const [prefix, section] of GATED_SECTION_PREFIXES) {
+    if (path === prefix || path.startsWith(prefix + '/')) return section;
+  }
+  return null;
+}
 
 export const onRequest = defineMiddleware(async (ctx, next) => {
   const host = ctx.url.hostname;
@@ -66,6 +86,18 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
       status: redirect.status,
       headers: { Location: redirect.location + ctx.url.search },
     });
+  }
+
+  // Section feature-flag gate (soft launch — docs/GO_LIVE_MILESTONES.md). When a
+  // section is flagged off, its routes redirect to /kommer-snart. Longest prefix
+  // wins so /market/store/* maps to butikker before a broader /market rule could.
+  // Default-on: no redirect unless FLAG_SECTION_<NAME> is explicitly off.
+  const gated = matchGatedSection(path);
+  if (gated && path !== '/kommer-snart') {
+    const on = await sectionEnabled(gated, import.meta.env as Record<string, string | undefined>);
+    if (!on) {
+      return ctx.redirect(`/kommer-snart?s=${gated}`, 302);
+    }
   }
 
   // All authenticated routes live on strikketorget.no exclusively. This
