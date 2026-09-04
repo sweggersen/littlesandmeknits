@@ -140,7 +140,7 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 - [x] **`cancelLateCommission` hardened.** Now honours the payouts kill-switch, and dead-letters if the post-refund status update fails (was unchecked → buyer refunded but job still "active").
 - [x] **Listing double-sell hold released.** `releaseLosingPurchaseHold` (called from the webhook's `updated=false` branch) cancels a losing concurrent buyer's uncaptured authorization instead of leaving it to sit ~7 days. Idempotent: skips when an order already carries the PI (winner / Stripe retry) or the auth is no longer `requires_capture`, and dead-letters if the release fails. 3 unit tests.
 - [~] **Listing reconcile sweep — assessed, deferred (not launch-blocking).** Unlike commissions (automatic capture → a lost webhook leaves the buyer *charged* and stuck), listings use **manual capture**: a lost `checkout.session.completed` leaves the listing `active` with an uncaptured hold that Stripe auto-expires in ~7 days — the buyer is **never charged**. Combined with Stripe's own 3-day webhook retries and the new hold-release above, there's no money-loss path, so the full self-heal (which needs a new session-id anchor + migration + cron) isn't warranted pre-launch. Revisit if we ever move listings to automatic capture.
-- [ ] **`acceptOffer` race** — status writes aren't conditional (`.eq('status','pending')`); double-click can accept two offers.
+- [x] **`acceptOffer` race closed.** The request flip `open -> awaiting_payment` is now a conditional UPDATE (`.eq('status','open')`) checked for 0 rows — the single serialization point, so two concurrent accepts can't both win (the loser gets a `conflict` and never marks its offer accepted or spawns a project). Fake-db happy-path + already-claimed tests.
 
 **Ops / deploy / recovery**
 - [x] **CI migrate-after-build.** `supabase db push` moved to run only after the build + bake-assert pass (was before → a failed build left prod schema ahead of code with no rollback).
@@ -159,7 +159,7 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 **Frontend / perf / UX**
 - [ ] **ListingCard images** — `storage.ts` serves raw full-size objects; `ListingCard` has no `loading="lazy"`/resize/`srcset`. Biggest real-world perf hit (24 full-res photos per grid).
 - [ ] **Query errors render as empty state** — market list pages destructure only `data`, so a DB/RLS failure shows "Ingen treff". Inspect `error` and show a real error state.
-- [ ] **No 404/500 pages** — add branded `src/pages/404.astro` + `500.astro`.
+- [x] **Branded 404/500 pages** — `src/pages/404.astro` + `500.astro` replace the bare "Not found"/framework error responses; e2e asserts the 404 renders with a 404 status.
 - [ ] **`ListingPhotos` gallery double-binds** after view transitions (accumulating handlers). Add a `bindOnce`/`dataset` guard.
 
 ## Session plan (order of execution)
