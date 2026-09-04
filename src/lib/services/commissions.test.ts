@@ -8,6 +8,7 @@ import {
   confirmDelivery,
 } from './commissions';
 import type { ServiceContext } from './types';
+import { createFakeDb } from './__test_helpers__/fake-db';
 
 vi.mock('../notify', () => ({ createNotification: vi.fn() }));
 vi.mock('./dead-letter', () => ({ recordDeadLetter: vi.fn() }));
@@ -144,6 +145,48 @@ describe('acceptOffer', () => {
     const r = await acceptOffer(ctx, { offerId: 'o1' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('bad_input');
+  });
+
+  // Happy path + the conditional-claim over fake-db (which applies filters).
+  it('claims the request conditionally, accepts the offer, declines the rest', async () => {
+    const db = createFakeDb({
+      commission_requests: [{ id: 'r1', buyer_id: 'buyer', status: 'open', title: 'Lue', awarded_offer_id: null }],
+      commission_offers: [
+        { id: 'o1', request_id: 'r1', status: 'pending', knitter_id: 'k1', project_id: null },
+        { id: 'o2', request_id: 'r1', status: 'pending', knitter_id: 'k2', project_id: null },
+      ],
+      projects: [],
+    });
+    const ctx: ServiceContext = {
+      supabase: db.client as any, admin: db.client as any,
+      user: { id: 'buyer', email: 'b@x.io' }, env: {} as any,
+    };
+    const r = await acceptOffer(ctx, { offerId: 'o1' });
+    expect(r.ok).toBe(true);
+    // The request is claimed exactly once, pinned to the accepted offer.
+    expect(db.find('commission_requests', { id: 'r1' })!.status).toBe('awaiting_payment');
+    expect(db.find('commission_requests', { id: 'r1' })!.awarded_offer_id).toBe('o1');
+    expect(db.find('commission_offers', { id: 'o1' })!.status).toBe('accepted');
+    expect(db.find('commission_offers', { id: 'o2' })!.status).toBe('declined');
+  });
+
+  it('a second accept after the request left "open" is rejected (no double-claim)', async () => {
+    // Simulates the loser of a race: by the time this runs, the request is no
+    // longer open. The read-guard catches it; the conditional UPDATE is the
+    // backstop for the true-concurrent interleaving.
+    const db = createFakeDb({
+      commission_requests: [{ id: 'r1', buyer_id: 'buyer', status: 'awaiting_payment', title: 'Lue', awarded_offer_id: 'o1' }],
+      commission_offers: [{ id: 'o2', request_id: 'r1', status: 'pending', knitter_id: 'k2', project_id: null }],
+    });
+    const ctx: ServiceContext = {
+      supabase: db.client as any, admin: db.client as any,
+      user: { id: 'buyer', email: 'b@x.io' }, env: {} as any,
+    };
+    const r = await acceptOffer(ctx, { offerId: 'o2' });
+    expect(r.ok).toBe(false);
+    // Second offer never gets accepted; the award stays on o1.
+    expect(db.find('commission_requests', { id: 'r1' })!.awarded_offer_id).toBe('o1');
+    expect(db.find('commission_offers', { id: 'o2' })!.status).toBe('pending');
   });
 });
 

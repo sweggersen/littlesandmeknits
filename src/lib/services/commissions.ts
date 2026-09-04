@@ -277,8 +277,22 @@ export async function acceptOffer(
   if (!req || req.buyer_id !== ctx.user.id) return fail('forbidden', 'Not your request');
   if (req.status !== 'open' || offer.status !== 'pending') return fail('bad_input', 'Cannot accept this offer');
 
-  await ctx.supabase.from('commission_offers').update({ status: 'accepted' }).eq('id', input.offerId);
-  await ctx.supabase.from('commission_requests').update({ status: 'awaiting_payment', awarded_offer_id: input.offerId }).eq('id', offer.request_id);
+  // The request is the single serialization point. Flip it open -> awaiting_payment
+  // CONDITIONALLY so two concurrent accepts (a double-click, or two different
+  // offers) can't both win: only one UPDATE matches `status = 'open'`. 0 rows
+  // back = someone else already claimed it — abort before touching any offer.
+  const { data: claimed } = await ctx.supabase
+    .from('commission_requests')
+    .update({ status: 'awaiting_payment', awarded_offer_id: input.offerId })
+    .eq('id', offer.request_id)
+    .eq('status', 'open')
+    .select('id');
+  if (!claimed?.length) return fail('conflict', 'Forespørselen er allerede tildelt et tilbud.');
+
+  await ctx.supabase.from('commission_offers')
+    .update({ status: 'accepted' })
+    .eq('id', input.offerId)
+    .eq('status', 'pending');
 
   // Auto-create the linked project (shared with the buyer once payment
   // lands). Starts in 'planning'; payCommission flips it to 'active'.

@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation-testing gate for the money-critical commerce paths. The listing escrow money code lives in its OWN file (listings-escrow.ts, extracted P2.4). The ranges below still scope to the fee/escrow/payment DECISION lines (notification-copy tails deliberately OUT), but the churn the old config suffered is gone: those ranges used to shift on every unrelated CATALOG edit because the money code shared listings.ts. Now catalog edits can't move them — only editing the escrow code itself does, and that already puts you in the mutation-gate mindset. Covers completeListingPurchase (fee math, ship-by deadline, reserved ledger), purchaseListing (fee math), shipListing capture-vs-dead-auth + captured ledger, confirmListingDelivery capture + released ledger, releaseExpiredReservation cancel/revert + cancelled ledger. Commissions money: single range (372-663), re-derived 2026-09 after the double-charge fix shifted lines (+46 before releaseCommissionFunds) — covers cancelLateCommission, payCommission (incl. the open-session reuse guard), reconcile, and the releaseCommissionFunds transfer/guard/ledger head. Run: npm run test:mutation. break=92; residual survivors are fail()/label copy + the un-simulatable single-threaded race guard.",
+  "_comment": "Mutation-testing gate for the money-critical commerce paths. The listing escrow money code lives in its OWN file (listings-escrow.ts, extracted P2.4). The ranges below still scope to the fee/escrow/payment DECISION lines (notification-copy tails deliberately OUT), but the churn the old config suffered is gone: those ranges used to shift on every unrelated CATALOG edit because the money code shared listings.ts. Now catalog edits can't move them — only editing the escrow code itself does, and that already puts you in the mutation-gate mindset. Covers completeListingPurchase (fee math, ship-by deadline, reserved ledger), purchaseListing (fee math), shipListing capture-vs-dead-auth + captured ledger, confirmListingDelivery capture + released ledger, releaseExpiredReservation cancel/revert + cancelled ledger. Commissions money: single range (386-677), re-derived 2026-09 (grep the function boundaries after any edit above these functions shifts them) — covers cancelLateCommission, payCommission (incl. the open-session reuse guard), reconcile, and the releaseCommissionFunds transfer/guard/ledger head. Run: npm run test:mutation. break=92; residual survivors are fail()/label copy + the un-simulatable single-threaded race guard.",
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.config.ts" },
   "coverageAnalysis": "perTest",
@@ -10,7 +10,7 @@
     "src/lib/services/listings-escrow.ts:301-341",
     "src/lib/services/listings-escrow.ts:389-416",
     "src/lib/services/listings-escrow.ts:456-491",
-    "src/lib/services/commissions.ts:372-663",
+    "src/lib/services/commissions.ts:386-677",
     "src/lib/money.ts"
   ],
   "reporters": ["clear-text", "progress", "html"],
