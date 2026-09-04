@@ -77,7 +77,7 @@ The simplest money path (no escrow, no shipping). Open right after M0.
 Both open together (same buy→escrow→ship→deliver flow, filtered by `kind`).
 - [x] **Fix**: refund-accept now honours the payouts kill-switch — `respondToRefund`'s accept path calls `killGuard(['payouts'])` before any Stripe/DB change (the decline path only escalates to a dispute, so it stays unguarded). Unit-tested (accept blocked, decline not).
 - [ ] **Real-Stripe escrow smoke** (test mode) — runbook below. Never exercised against real Stripe rails today (all e2e bypass via `sk_simulate`/test-exec). *(owner, needs test keys + Stripe CLI)*
-- [ ] **Bring decision** — either wire `bookShipment`/`getTracking` into `listings-escrow.ts` (currently stubbed; sellers type a free-text tracking code) **or** explicitly accept the manual-tracking fraud risk and soften the "defeats false not-received claim" copy/policy. *(product decision — pending)*
+- [x] **Carrier labels (Posten/Bring) wired** — sellers can generate a real Posten label (auto-filled with the buyer's address) via `bookListingShipping`, which books the shipment, stores the label + shipment number on the order, and delegates to capture-at-ship with the real tracking number. Gated behind a configured carrier (`bringAuthFromEnv`); without keys the seller keeps the manual-tracking fallback. Helthjem slots in as a second carrier once its API is confirmed (its module is still stubbed). Unit-tested (8 cases: guards + happy path). *Needs Bring credentials in prod to verify end-to-end (owner).*
 - [ ] *(watch)* hardcoded shipping-rate table (`shipping.ts`) can drift from real Posten pricing — bounded (locked per listing) but a margin/support risk.
 
 ### Escrow smoke runbook (run once with Stripe **test** keys)

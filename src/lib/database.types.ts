@@ -1507,6 +1507,8 @@ export type Database = {
           stripe_payment_intent_id: string | null
           tb_fee_nok: number
           tracking_code: string | null
+          bring_shipment_number: string | null
+          label_free_code: string | null
         }
         Insert: {
           auto_release_at?: string | null
@@ -1544,6 +1546,8 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           tb_fee_nok?: number
           tracking_code?: string | null
+          bring_shipment_number?: string | null
+          label_free_code?: string | null
         }
         Update: {
           auto_release_at?: string | null
@@ -1581,6 +1585,8 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           tb_fee_nok?: number
           tracking_code?: string | null
+          bring_shipment_number?: string | null
+          label_free_code?: string | null
         }
         Relationships: [
           {

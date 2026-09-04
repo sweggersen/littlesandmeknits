@@ -28,10 +28,19 @@ interface Order {
 interface Props {
   listing: Listing;
   order: Order | null;
+  /** True when a real carrier (Posten/Bring) is configured — enables the
+   *  "generate label" flow; otherwise the seller uses manual tracking. */
+  carrierAvailable?: boolean;
+  /** Bring label link, once a label has been generated (shipped view). */
+  labelUrl?: string | null;
 }
-const { listing, order } = Astro.props;
+const { listing, order, carrierAvailable = false, labelUrl = null } = Astro.props;
 // Tracked parcels require a tracking number at ship time (fraud control).
 const trackingRequired = isTrackedTier(listing.shipping_option as never);
+// Offer the one-click label only when a carrier is live AND we have the buyer's
+// address to print on it.
+const canGenerateLabel = carrierAvailable
+  && !!(order?.shipping_name && order?.shipping_address && order?.shipping_postal_code && order?.shipping_city);
 ---
 
 {listing.status === 'reserved' && (
@@ -50,11 +59,22 @@ const trackingRequired = isTrackedTier(listing.shipping_option as never);
         )}
       </div>
     )}
-    <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskoden.</p>
-    {/* TODO(bring): replace the free-text input below with a
-        "Generer fraktetikett" button that calls Bring/Posten's
-        API, mints a label with the seeded buyer address, and
-        auto-fills tracking_code from the response. */}
+    {canGenerateLabel && (
+      <div class="space-y-3">
+        <p class="text-sm text-charcoal/65">Lag en fraktetikett med Posten, så fyller vi inn kjøpers adresse og sporingsnummeret automatisk.</p>
+        <form method="post" action={`/api/marketplace/listings/${listing.id}/book-shipping`}>
+          <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
+            Generer fraktetikett med Posten
+          </button>
+        </form>
+        <div class="flex items-center gap-3 text-[11px] text-charcoal/40">
+          <span class="flex-1 h-px bg-sage-500/15"></span>eller legg inn sporing manuelt<span class="flex-1 h-px bg-sage-500/15"></span>
+        </div>
+      </div>
+    )}
+    {!canGenerateLabel && (
+      <p class="text-sm text-charcoal/65">Pakk og send varen, og legg inn sporingskoden.</p>
+    )}
     <form method="post" action={`/api/marketplace/listings/${listing.id}/ship`} class="space-y-3">
       <input name="tracking_code" type="text" maxlength="50" required={trackingRequired}
         placeholder={trackingRequired ? 'Sporingsnummer fra Posten/Bring' : 'Sporingskode (valgfritt)'}
@@ -66,10 +86,6 @@ const trackingRequired = isTrackedTier(listing.shipping_option as never);
         Merk som sendt
       </button>
     </form>
-    <p class="text-[11px] text-charcoal/45">
-      Kommer snart: vi henter sporingskoden automatisk når du
-      bestiller fraktetikett via Strikketorget.
-    </p>
   </section>
 )}
 
@@ -78,6 +94,11 @@ const trackingRequired = isTrackedTier(listing.shipping_option as never);
     Varen er sendt. Venter på at kjøper bekrefter mottak.
     {order?.tracking_code && (
       <p class="mt-1">Sporingskode: <span class="font-mono">{order?.tracking_code}</span></p>
+    )}
+    {labelUrl && (
+      <a href={labelUrl} target="_blank" rel="noopener" class="inline-block mt-2 text-sage-900 underline hover:text-terracotta-500 transition-colors">
+        Last ned fraktetikett →
+      </a>
     )}
   </div>
 )}

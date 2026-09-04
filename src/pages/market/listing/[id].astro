@@ -12,6 +12,8 @@ import BuyActions from '../../../components/listing/BuyActions.astro';
 import ListingPhotos from '../../../components/listing/ListingPhotos.astro';
 import BuyerPostPurchase from '../../../components/listing/BuyerPostPurchase.astro';
 import SellerPostPurchase from '../../../components/listing/SellerPostPurchase.astro';
+import { env } from '../../../lib/env';
+import { bringAuthFromEnv } from '../../../lib/bring';
 import PromotePanel from '../../../components/listing/PromotePanel.astro';
 import MarkSoldPanel from '../../../components/listing/MarkSoldPanel.astro';
 import { createServerSupabase } from '../../../lib/supabase';
@@ -353,7 +355,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
 
               {isOwner && <MarkSoldPanel listing={listing} />}
 
-              <SellerPostPurchase listing={listing} order={order} />
+              <SellerPostPurchase listing={listing} order={order} carrierAvailable={!!bringAuthFromEnv(env as any)} labelUrl={order?.label_free_code ?? null} />
             </div>
           ) : (
             <div class="space-y-4">

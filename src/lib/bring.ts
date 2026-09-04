@@ -1,7 +1,18 @@
-interface BringAuth {
+export interface BringAuth {
   uid: string;
   apiKey: string;
   customerNumber: string;
+}
+
+/** Build Bring credentials from the env. Returns null when any is missing, so
+ *  callers can gate the "generate label" flow behind a real, configured carrier
+ *  (dev without keys → the seller keeps the manual-tracking fallback). */
+export function bringAuthFromEnv(env: Record<string, string | undefined>): BringAuth | null {
+  const uid = env.BRING_API_UID;
+  const apiKey = env.BRING_API_KEY;
+  const customerNumber = env.BRING_CUSTOMER_NUMBER;
+  if (!uid || !apiKey || !customerNumber) return null;
+  return { uid, apiKey, customerNumber };
 }
 
 function headers(auth: BringAuth): Record<string, string> {
