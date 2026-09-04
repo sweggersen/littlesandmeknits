@@ -145,7 +145,7 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 **Ops / deploy / recovery**
 - [x] **CI migrate-after-build.** `supabase db push` moved to run only after the build + bake-assert pass (was before → a failed build left prod schema ahead of code with no rollback).
 - [x] **Outbound calls bounded.** Shared `fetchWithTimeout` (`src/lib/http.ts`) on Bring/Resend/Helthjem/Vipps/web-push; Stripe SDK capped at 20s/1 retry. Only Brønnøysund was bounded before.
-- [ ] **Backup/PITR posture (owner).** No down-migrations exist, destructive drops already shipped, and PITR/backups are undocumented. Write the recovery runbook + adopt expand/contract for destructive migrations.
+- [~] **Backup/PITR posture — runbook written, enablement is owner.** Added `INCIDENT_RUNBOOK.md §3b` (database backups & data recovery): how to verify the backup tier, enable PITR before launch, restore during an incident, and the expand/contract migration discipline to avoid needing it. *Owner action:* confirm PITR is enabled + fill in the retention window in the runbook.
 - [ ] **Cron is external + no active alert.** cron-job.org triggers `/api/cron/run` (already auto-disabled once); `CRON_HEARTBEAT_URL` dead-man's-switch is opt-in and likely unset. Set it, or move to a Cloudflare cron trigger in `wrangler.jsonc`.
 
 **Observability**

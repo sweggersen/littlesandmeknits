@@ -84,6 +84,48 @@ Migrations are applied via the Supabase SQL editor / CLI. They are **not auto-tr
 
 ---
 
+## 3b. Database backups & data recovery (PITR)
+
+§3 covers reversing a *schema* change. This covers the worse case: a migration
+(or a bad query) **dropped or corrupted data**. There is no down-migration for
+data loss — restoring from a backup is the only path, so the backup posture
+must be verified **before** launch, not during an incident.
+
+**Verify NOW (owner, one-time):**
+1. Supabase Dashboard → Project → **Database → Backups**. Confirm what tier is
+   active:
+   - **Daily backups** (all paid plans): you can restore to a full-day snapshot
+     — up to ~24h of data loss.
+   - **Point-in-Time Recovery (PITR)** (add-on): restore to any second in the
+     retention window (default 7 days) — near-zero data loss. **Enable PITR
+     before launch** — once real orders/payouts exist, a 24h snapshot gap is a
+     lot of money to reconstruct by hand.
+2. Note the retention window and write it here once confirmed: `PITR: <on/off>,
+   retention <N> days` (currently **unconfirmed — owner to fill in**).
+
+**Recover (during an incident):**
+1. **Contain first.** Engage `KILL_*` (§1) so no new writes compound the damage,
+   and roll the deploy back (§2) if a bad migration is still live.
+2. **Capture the timestamp** just *before* the destructive change (from the CI
+   deploy log / `db diff` output / Stripe event times).
+3. Dashboard → Database → Backups → **Restore** (PITR: pick the timestamp;
+   daily: pick the snapshot). Supabase restores into the same project. Prefer a
+   restore to a **new project/branch** first to diff against prod if the loss is
+   partial, rather than an in-place overwrite that discards good post-incident
+   writes.
+4. Reconcile money state after restore: replay any `dead_letter_events` and
+   re-check Stripe against the DB (a restored DB may lag Stripe by the gap).
+
+**Avoid needing it — migration discipline (expand/contract):**
+- Never drop a column/table in the same deploy that stops using it. **Expand**
+  (add new, backfill, ship code that writes both) → **migrate** (switch reads) →
+  **contract** (drop the old column in a *later* deploy, once the code that used
+  it is fully rolled out). A drop is unrecoverable by roll-forward.
+- Pair every destructive migration with a hand-written inverse in the PR
+  description (even if not run automatically), so recovery has a starting point.
+
+---
+
 ## 4. Incident checklist
 
 1. **Contain.** Money misbehaving? Engage the narrowest kill-switch (§1) before debugging. Stopping new charges is cheap and fully reversible.
