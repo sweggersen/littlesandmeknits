@@ -42,7 +42,10 @@
      every widget whether its content is a <section> (bordered panels) or bare
      header+cards (stats, admin) — everything except the tools bar. */
   body.dash-editing .dash-widget > *:not(.dash-tools) { pointer-events: none; user-select: none; }
-  .dash-tools .dash-grip { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #3B3733; color: #F7F2EA; cursor: grab; }
+  /* touch-action:none lets a touch drag on the grip move the panel instead of
+     scrolling the page; the grip is the drag handle for mouse + touch + pen. */
+  .dash-tools .dash-grip { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #3B3733; color: #F7F2EA; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .dash-tools .dash-grip:active { cursor: grabbing; }
   /* Segmented size control: S / M / L, active highlighted. */
   .dash-sizes { display: inline-flex; border-radius: 8px; overflow: hidden; background: #3B3733; }
   .dash-sizes .dash-size { min-width: 24px; height: 26px; padding: 0 8px; border: 0; background: transparent; color: rgba(247,242,234,.55); font-size: 11px; font-weight: 700; cursor: pointer; transition: background .12s, color .12s; }

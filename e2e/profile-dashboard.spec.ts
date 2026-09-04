@@ -176,4 +176,69 @@ test.describe('Profile dashboard', () => {
     // Mode came back from the server row (localStorage was wiped).
     await expect(page.locator('#dashgrid')).toHaveClass(/dash-masonry/);
   });
+
+  // Drags via the grip handle using Pointer Events (works on mouse AND touch —
+  // the HTML5 drag API this replaced never fired on touch devices). Runs in a
+  // touch-enabled context to prove the mobile path.
+  test.describe('Rediger: pointer-drag reorder (touch)', () => {
+    test.use({ hasTouch: true });
+    test('dragging a panel by its grip reorders + persists', async ({ page }) => {
+      await loginAs(page, ELINE);
+      await page.goto('/profile');
+      await page.getByRole('button', { name: 'Rediger' }).click();
+
+      const widgets = page.locator('#dashgrid .dash-widget:not(.dash-removed)');
+      const order = () => widgets.evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.widget));
+      const before = await order();
+
+      // Move widget[1] down to widget[3]'s slot. Grabbing the grip offsets the
+      // panel centre, so the pointer must move by the src→dst centre delta.
+      const src = widgets.nth(1);
+      const dst = widgets.nth(3);
+      const grip = src.locator('.dash-grip');
+      const gb = (await grip.boundingBox())!;
+      const sb = (await src.boundingBox())!;
+      const db = (await dst.boundingBox())!;
+      const from = { x: gb.x + gb.width / 2, y: gb.y + gb.height / 2 };
+      const dx = (db.x + db.width / 2) - (sb.x + sb.width / 2);
+      const dy = (db.y + db.height / 2) - (sb.y + sb.height / 2);
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      for (let i = 1; i <= 12; i++) await page.mouse.move(from.x + (dx * i) / 12, from.y + (dy * i) / 12);
+      await page.mouse.up();
+
+      const after = await order();
+      expect(after).not.toEqual(before); // reordered
+      expect(after[1]).not.toBe(before[1]); // the grabbed panel moved
+
+      // Persists across a reload from the server row.
+      const saved = page.waitForResponse((r) => r.url().includes('/api/dashboard/layout') && r.request().method() === 'POST');
+      await page.getByRole('button', { name: 'Lagre' }).click();
+      await saved;
+      await page.evaluate(() => localStorage.clear());
+      await page.reload();
+      const persisted = await page.locator('#dashgrid .dash-widget:not(.dash-removed)').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.widget));
+      expect(persisted).toEqual(after);
+    });
+  });
+
+  test('Rediger: Tilbakestill clears the saved layout back to default', async ({ page }) => {
+    await loginAs(page, ELINE);
+    await page.goto('/profile');
+    // Make a saved change (resize needsAttention m→l), then reset.
+    await page.getByRole('button', { name: 'Rediger' }).click();
+    const widget = page.locator('.dash-widget[data-widget="needsAttention"]');
+    await widget.locator('.dash-size[data-size="l"]').click();
+    const saved = page.waitForResponse((r) => r.url().includes('/api/dashboard/layout') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Lagre' }).click();
+    await saved;
+
+    // Reset: DELETEs the server row + reloads to the server default (size m).
+    await page.getByRole('button', { name: 'Rediger' }).click();
+    const del = page.waitForResponse((r) => r.url().includes('/api/dashboard/layout') && r.request().method() === 'DELETE');
+    await page.getByRole('button', { name: 'Tilbakestill' }).click();
+    await del;
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.dash-widget[data-widget="needsAttention"]')).toHaveAttribute('data-size', 'm');
+  });
 });

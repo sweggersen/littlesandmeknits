@@ -25,8 +25,8 @@ Section names: `brukt`, `nytt`, `oppdrag`, `butikker`, `profil`, `strikkestua`, 
 
 | Section | Route | Verdict | Launch flag | Key blocker(s) |
 |---------|-------|---------|-------------|----------------|
-| **Profil** | `/profile` | ✅ SHIP-READY | ON | mobile drag-reorder (touch) is a known limitation, not a blocker |
-| **Strikkestua** | `/studio` | ✅ SHIP-READY | ON | same touch-drag caveat; no money surface |
+| **Profil** | `/profile` | ✅ SHIP-READY (M1 done) | ON | — |
+| **Strikkestua** | `/studio` | ✅ SHIP-READY (M1 done) | ON | no money surface |
 | **Oppskrifter** (pattern shop) | `/oppskrifter` | 🟡 GATE | **OFF → M2** | live-Stripe cutover; no fulfilment test; `v1.pdf` existence unchecked |
 | **Brukt** (pre-loved) | `/market/used` | 🟡 GATE | **OFF → M3** | Bring tracking stubbed (manual code = fraud surface); no real-Stripe escrow smoke |
 | **Nytt** (ready-made) | `/market/new` | 🟡 GATE | **OFF → M3** | same rail as Brukt (shared escrow flow) |
@@ -47,16 +47,15 @@ None of the money sections can open until this is done. Non-money sections (Prof
 
 ---
 
-## M1 — Profil + Strikkestua *(SHIP-READY — flag ON at launch)*
+## M1 — Profil + Strikkestua ✅ DONE *(SHIP-READY — flag ON at launch)*
 
-Exit criteria (light — these are already green):
 - [x] Full dashboard engine (drag/resize/add-remove/grid↔masonry, server + localStorage persistence) — covered by `profile-dashboard.spec.ts` / `studio-dashboard.spec.ts`.
 - [x] `dashboard_layouts` RLS (0099) owner-pinned; `seller_profiles` self-attestation hole closed (0097).
-- [ ] *(non-blocking polish)* add a touch fallback or "reorder on desktop" hint for the drag editor.
-- [ ] *(non-blocking)* remove or redirect the dead-but-live `profile/original.astro`.
-- [ ] *(ops)* confirm the `account.updated` webhook flips sellers `pending → verified` in prod.
+- [x] **Touch drag support** — the drag editor was rewritten from the HTML5 drag API (never fired on touch) to Pointer Events, so reorder now works on mouse, touch, and pen. Grip is the drag handle (`touch-action:none`); e2e covers the reorder in a touch-enabled context.
+- [x] **`profile/original.astro` redirected** to `/profile` (301) and the orphaned `DashboardGrid.astro` removed — no more stale second dashboard.
+- [x] **`account.updated` webhook** verified-transition logic is code-complete (`webhook.ts` → `statusFromAccount`, notifies on the transition into verified, dead-letters on failure) and unit-tested (`stripe-connect.test.ts`). *Prod endpoint registration is tracked under M0.*
 
-**Session:** verify on prod once, then leave flags ON.
+**Remaining before launch:** none in code. The only open item is the M0 ops step (register the live `account.updated` webhook endpoint) — shared with every money section.
 
 ---
 

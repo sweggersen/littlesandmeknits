@@ -162,7 +162,6 @@ export function init(): void {
     bar.querySelector('.dash-remove')?.addEventListener('click', (e) => {
       e.stopPropagation();
       setRemoved(w, true);
-      makeDraggable(w, false);
       rebuildPalette();
       relayout();
     });
@@ -193,48 +192,24 @@ export function init(): void {
     setRemoved(w, false);
     grid.appendChild(w); // re-added panels go to the end
     addToolsTo(w);
-    makeDraggable(w, true);
     rebuildPalette();
     relayout();
   }
 
-  // --- drag + drop --------------------------------------------------------
-  const makeDraggable = (w: HTMLElement, on: boolean) => {
-    if (on) w.setAttribute('draggable', 'true');
-    else w.removeAttribute('draggable');
-  };
-  // Live swap while dragging. The dragged panel is the source of truth: on each
-  // frame we swap it with whichever panel its *projected centre* sits inside.
-  // That "centre inside" rule gives natural hysteresis — right after a swap the
-  // centre is over the dragged panel's own new slot, so nothing flips until the
-  // pointer crosses into a different panel. No indicator, no oscillation.
-  grid.addEventListener('dragstart', (e) => {
-    const w = (e.target as HTMLElement)?.closest?.('.dash-widget') as HTMLElement | null;
-    if (w && document.body.classList.contains('dash-editing')) {
-      w.classList.add('dash-dragging');
-      // Grab offset: the cursor sits on the grip (top-left), but the user aims
-      // with the panel's *body*. Record cursor→panel-centre so the swap tracks
-      // where the panel is, not where the pointer is.
-      const r = w.getBoundingClientRect();
-      grabCX = (r.left + r.width / 2) - (e as DragEvent).clientX;
-      grabCY = (r.top + r.height / 2) - (e as DragEvent).clientY;
-    }
-  });
-  grid.addEventListener('dragend', () => {
-    if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
-    grid.querySelector<HTMLElement>('.dash-dragging')?.classList.remove('dash-dragging');
-    relayout();
-  });
-  // dragover fires many times per frame; coalesce to one pass per frame.
+  // --- drag + drop (Pointer Events: mouse + touch + pen) ------------------
+  // Drag starts on the grip handle (not the whole panel) so touch users can
+  // still scroll the page; `touch-action:none` on the grip (CSS) stops the
+  // browser from scroll-hijacking the drag. Live swap while dragging: the
+  // dragged panel is the source of truth — each frame we swap it with whichever
+  // panel its *projected centre* sits inside. That "centre inside" rule gives
+  // natural hysteresis (right after a swap the centre is over the panel's own
+  // new slot), so nothing flips until the pointer crosses into another panel.
   let dragRaf = 0;
   let dragX = 0, dragY = 0;
-  let grabCX = 0, grabCY = 0; // cursor→panel-centre offset, set on dragstart
-  function onDragOver(e: DragEvent) {
-    e.preventDefault(); // must stay synchronous so the drop is allowed
-    dragX = e.clientX; dragY = e.clientY;
-    if (dragRaf) return;
-    dragRaf = requestAnimationFrame(processDrag);
-  }
+  let grabCX = 0, grabCY = 0;      // pointer→panel-centre offset, set on pointerdown
+  let dragging: HTMLElement | null = null;
+  let dragPointerId = -1;
+
   // Swap two grid children in place (marker keeps it correct when adjacent).
   function swapNodes(a: Element, b: Element) {
     const marker = document.createComment('');
@@ -245,7 +220,6 @@ export function init(): void {
   }
   function processDrag() {
     dragRaf = 0;
-    const dragging = grid.querySelector<HTMLElement>('.dash-dragging');
     if (!dragging) return;
     const cx = dragX + grabCX, cy = dragY + grabCY; // projected panel centre
     for (const el of grid.querySelectorAll<HTMLElement>('.dash-widget:not(.dash-dragging):not(.dash-removed)')) {
@@ -257,8 +231,48 @@ export function init(): void {
       }
     }
   }
-  const bindDnD = () => { liveWidgets().forEach((w) => makeDraggable(w, true)); grid.addEventListener('dragover', onDragOver); };
-  const unbindDnD = () => { allWidgets().forEach((w) => makeDraggable(w, false)); grid.removeEventListener('dragover', onDragOver); };
+  function onPointerDown(e: PointerEvent) {
+    if (!document.body.classList.contains('dash-editing')) return;
+    const grip = (e.target as HTMLElement)?.closest?.('.dash-grip') as HTMLElement | null;
+    if (!grip) return; // only the grip handle starts a drag
+    const w = grip.closest('.dash-widget') as HTMLElement | null;
+    if (!w) return;
+    e.preventDefault();
+    dragging = w;
+    dragPointerId = e.pointerId;
+    w.classList.add('dash-dragging');
+    const r = w.getBoundingClientRect();
+    grabCX = (r.left + r.width / 2) - e.clientX;
+    grabCY = (r.top + r.height / 2) - e.clientY;
+    dragX = e.clientX; dragY = e.clientY;
+    try { grip.setPointerCapture(e.pointerId); } catch { /* older browsers */ }
+  }
+  function onPointerMove(e: PointerEvent) {
+    if (!dragging || e.pointerId !== dragPointerId) return;
+    e.preventDefault();
+    dragX = e.clientX; dragY = e.clientY;
+    if (!dragRaf) dragRaf = requestAnimationFrame(processDrag);
+  }
+  function endDrag() {
+    if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
+    dragging?.classList.remove('dash-dragging');
+    dragging = null;
+    dragPointerId = -1;
+    relayout();
+  }
+  const bindDnD = () => {
+    grid.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+  };
+  const unbindDnD = () => {
+    if (dragging) endDrag();
+    grid.removeEventListener('pointerdown', onPointerDown);
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', endDrag);
+    window.removeEventListener('pointercancel', endDrag);
+  };
 
   // --- enter / exit -------------------------------------------------------
   function enterEdit() {
