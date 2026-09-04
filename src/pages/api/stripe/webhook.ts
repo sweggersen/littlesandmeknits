@@ -365,6 +365,15 @@ async function handleEvent(
       });
       return new Response('DB error', { status: 500 });
     }
+    // Confirm delivery in-app (event idempotency above stops a retry re-firing).
+    await createNotification(supabase, {
+      userId,
+      type: 'pattern_purchased',
+      title: 'Oppskriften din er klar!',
+      body: 'Takk for kjøpet! Du kan laste ned oppskriften under «Mine kjøp».',
+      url: '/profile/purchases',
+      referenceId: slug,
+    }, notifyEnv);
     return new Response('ok', { status: 200 });
   }
 

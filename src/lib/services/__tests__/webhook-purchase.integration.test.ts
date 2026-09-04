@@ -101,6 +101,23 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
     };
   }
 
+  // A pattern-PDF checkout event: no `metadata.type`, so it falls through the
+  // listing/commission branches to the pattern-fulfilment handler.
+  function patternEvent(slug: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'evt_pattern_1', object: 'event', type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_pattern_1', object: 'checkout.session',
+          amount_total: 8900, currency: 'nok',
+          client_reference_id: buyerId,
+          metadata: { pattern_slug: slug, user_id: buyerId, lang: 'nb' },
+          ...overrides,
+        },
+      },
+    };
+  }
+
   beforeAll(async () => {
     admin = createClient(SUPABASE_URL!, SERVICE_KEY!);
     stripe = new Stripe('sk_test_dummy');
@@ -126,7 +143,9 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
     // idempotency (june26 §1.2). That ledger persists in real Postgres, so a
     // fixed test event id would be skipped as "already processed" on the next
     // test/run. Clear the test events so each case starts fresh.
-    await admin.from('stripe_webhook_events').delete().eq('event_id', 'evt_test_1');
+    await admin.from('stripe_webhook_events').delete().in('event_id', ['evt_test_1', 'evt_pattern_1']);
+    // Pattern purchases the pattern-fulfilment tests create.
+    await admin.from('purchases').delete().eq('stripe_session_id', 'cs_pattern_1');
   });
 
   it('rejects a bad signature with 400', async () => {
@@ -178,5 +197,49 @@ describe.skipIf(!HAS_LOCAL)('Stripe-signed webhook -> real Postgres', () => {
     const second = await POST({ request: signedRequest(purchaseEvent(listingId)) });
     expect(second.status).toBe(200); // still ack the retry
     expect(createNotification).not.toHaveBeenCalled(); // but no duplicate "sold" notification
+  });
+
+  // ── Pattern-PDF fulfilment (M2). This is the seam that actually delivers the
+  // paid product — a lost/regressed handler means customers pay and get nothing.
+  it('a signed pattern-purchase event grants the pattern (purchases row upserted)', async () => {
+    const res = await POST({ request: signedRequest(patternEvent('solskinn-genseren')) });
+    expect(res.status).toBe(200);
+
+    const { data: purchase } = await admin
+      .from('purchases')
+      .select('user_id, pattern_slug, status, pdf_path, amount_nok, currency, fulfilled_at, stripe_session_id')
+      .eq('stripe_session_id', 'cs_pattern_1').single();
+    expect(purchase).toMatchObject({
+      user_id: buyerId,
+      pattern_slug: 'solskinn-genseren',
+      status: 'completed',
+      pdf_path: 'solskinn-genseren/v1.pdf',
+      amount_nok: 89,           // 8900 øre → 89 kr
+      currency: 'NOK',
+    });
+    expect(purchase?.fulfilled_at).toBeTruthy();
+
+    // Buyer gets an in-app "your pattern is ready" confirmation.
+    expect(createNotification).toHaveBeenCalledTimes(1);
+    const [, payload] = vi.mocked(createNotification).mock.calls[0];
+    expect(payload).toMatchObject({
+      userId: buyerId, type: 'pattern_purchased', url: '/profile/purchases', referenceId: 'solskinn-genseren',
+    });
+  });
+
+  it('rejects a pattern event missing user/slug metadata with 400 (no purchase)', async () => {
+    const res = await POST({ request: signedRequest(patternEvent('x', { client_reference_id: null, metadata: {} })) });
+    expect(res.status).toBe(400);
+    const { data } = await admin.from('purchases').select('id').eq('stripe_session_id', 'cs_pattern_1');
+    expect(data ?? []).toHaveLength(0);
+  });
+
+  it('a duplicate pattern delivery is idempotent (one purchase row, still 200)', async () => {
+    const first = await POST({ request: signedRequest(patternEvent('skog')) });
+    expect(first.status).toBe(200);
+    const second = await POST({ request: signedRequest(patternEvent('skog')) });
+    expect(second.status).toBe(200);
+    const { data } = await admin.from('purchases').select('id').eq('stripe_session_id', 'cs_pattern_1');
+    expect(data ?? []).toHaveLength(1);
   });
 });

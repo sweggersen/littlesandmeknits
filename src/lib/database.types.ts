@@ -2849,6 +2849,7 @@ export type Database = {
         | "seller_activated"
         | "listing_reservation_released"
         | "store_invite"
+        | "pattern_purchased"
         | "system_alert"
       order_status:
         | "reserved"
@@ -3084,6 +3085,7 @@ export const Constants = {
         "seller_activated",
         "listing_reservation_released",
         "store_invite",
+        "pattern_purchased",
         "system_alert",
       ],
       order_status: [

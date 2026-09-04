@@ -59,16 +59,16 @@ None of the money sections can open until this is done. Non-money sections (Prof
 
 ---
 
-## M2 — Oppskrifter (pattern shop) *(first money feature to open)*
+## M2 — Oppskrifter (pattern shop) *(code done — awaiting M0 + prod smoke)*
 
 The simplest money path (no escrow, no shipping). Open right after M0.
-- [ ] M0 complete (live keys + webhook).
-- [ ] **Behavioral fulfilment test** — integration/e2e that dispatches a signed `checkout.session.completed` and asserts the `purchases` upsert + download URL. *(Highest-value gap: today a fulfilment regression means paid customers get no PDF.)*
-- [ ] **`v1.pdf` existence check** — verify the object exists in the `patterns` bucket at purchase time (or at publish), so a mispriced/misnamed upload can't yield a completed purchase whose download 500s.
-- [ ] *(nice-to-have)* fire a pattern-purchase confirmation notification from the webhook (listings already do; patterns rely on the Stripe receipt + `/profile/purchases`).
-- [ ] Prod smoke: one real purchase → download.
+- [ ] M0 complete (live keys + webhook). *(owner)*
+- [x] **Behavioral fulfilment test** — a real Stripe-signed `checkout.session.completed` POSTed to the webhook → real Postgres, asserting the `purchases` upsert (`webhook-purchase.integration.test.ts`: grant, missing-metadata 400, duplicate-idempotent). Closes the "paid customers get no PDF" gap.
+- [x] **`v1.pdf` existence guard** — `createPatternCheckout` now refuses to charge when the pattern's `<slug>/v1.pdf` is confirmed missing in the `patterns` bucket (fails open on a storage error so a blip can't block a sale). `patternPdfExists` + wiring unit-tested.
+- [x] **Purchase-confirmation notification** — the webhook fires a `pattern_purchased` in-app notification ("Oppskriften din er klar!" → /profile/purchases). New enum value (migration 0101).
+- [ ] Prod smoke: one real purchase → download. *(owner, after M0)*
 
-**Flip:** `FLAG_SECTION_OPPSKRIFTER=on`.
+**Flip:** `FLAG_SECTION_OPPSKRIFTER=on` (after M0 + the prod smoke).
 
 ---
 

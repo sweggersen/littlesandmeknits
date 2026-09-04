@@ -5,6 +5,25 @@ import { SIMULATE_STRIPE_KEY } from '../stripe-sim';
 import { killGuard } from '../flags';
 import { assertWithinQuota } from './quota';
 
+/** Does the sellable PDF for this pattern exist in the `patterns` bucket?
+ *  Fulfilment hard-codes `<slug>/v1.pdf`, so a pattern whose file was never
+ *  uploaded would let a buyer pay for a download that then 500s. Returns:
+ *    true  — the object is present
+ *    false — the bucket listed cleanly but v1.pdf is absent (confirmed missing)
+ *    null  — the check itself errored (missing bucket / transient); the caller
+ *            fails OPEN so a storage blip never blocks a real sale. */
+export async function patternPdfExists(
+  admin: ServiceContext['admin'],
+  slug: string,
+): Promise<boolean | null> {
+  const { data, error } = await admin.storage.from('patterns').list(slug, { limit: 100 });
+  if (error) {
+    console.error('Pattern PDF existence check failed', error);
+    return null;
+  }
+  return (data ?? []).some((o: { name: string }) => o.name === 'v1.pdf');
+}
+
 export async function createPatternCheckout(
   ctx: ServiceContext,
   input: {
@@ -44,6 +63,15 @@ export async function createPatternCheckout(
       fulfilled_at: new Date().toISOString(),
     }, { onConflict: 'stripe_session_id' });
     return ok({ checkoutUrl: `${siteUrl}/profile/purchases?simulated=1` });
+  }
+
+  // Never charge for a pattern whose PDF was never uploaded — fulfilment hard-
+  // codes `<slug>/v1.pdf`, so a missing file would leave the buyer paid with a
+  // download that 500s. Only block on a *confirmed* absence; a storage error
+  // (null) fails open so a transient blip never stops a legitimate sale.
+  const pdfOk = await patternPdfExists(ctx.admin, input.slug);
+  if (pdfOk === false) {
+    return fail('server_error', 'Oppskriften er ikke klar for nedlasting ennå. Prøv igjen senere.');
   }
 
   const stripe = createStripe(input.stripeSecretKey);
