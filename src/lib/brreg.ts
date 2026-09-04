@@ -3,6 +3,8 @@
 // Docs: https://data.brreg.no/enhetsregisteret/api/docs/index.html
 
 const BRREG_URL = 'https://data.brreg.no/enhetsregisteret/api/enheter';
+// Cap the lookup so a slow/hung Brønnøysund can't stall store creation.
+const BRREG_TIMEOUT_MS = 8000;
 
 export type OrgnrLookupError =
   | 'invalid_format'
@@ -113,6 +115,7 @@ export async function lookupOrgnrRoles(input: string): Promise<{ ok: boolean; ro
   try {
     res = await fetch(`${BRREG_URL}/${orgnr}/roller`, {
       headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(BRREG_TIMEOUT_MS),
     });
   } catch {
     return { ok: false, error: 'network_error' };
@@ -154,6 +157,8 @@ export async function lookupOrgnr(input: string): Promise<OrgnrLookupResult> {
   try {
     res = await fetch(`${BRREG_URL}/${orgnr}`, {
       headers: { Accept: 'application/json' },
+      // Bound the call so a slow/hung Brønnøysund can't stall store creation.
+      signal: AbortSignal.timeout(BRREG_TIMEOUT_MS),
     });
   } catch {
     return { ok: false, error: 'network_error' };
