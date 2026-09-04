@@ -5,6 +5,7 @@ import { createNotification } from '../notify';
 import { killGuard } from '../flags';
 import { updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
+import { recordDeadLetter } from './dead-letter';
 import { REFUND_REASON } from '../labels';
 
 const VALID_REASONS = new Set(['not_received', 'damaged', 'not_as_described', 'wrong_size', 'changed_mind', 'other']);
@@ -104,7 +105,17 @@ export async function respondToRefund(
             idempotencyKey: `listing-refund-${order.stripe_payment_intent_id}`,
           });
         } catch (e) {
-          console.error('Refund failed both paths', e);
+          // Both cancel AND refund failed — the buyer's money is stuck. This is
+          // a money-path failure, so it MUST land in dead_letter_events (not just
+          // the worker console) so support can finish the refund manually.
+          await recordDeadLetter(
+            { admin: ctx.admin, user: ctx.user, env: ctx.env },
+            {
+              service: 'refunds.respondToRefund:accept',
+              context: { order_id: order.id, listing_id: listing.id, payment_intent_id: order.stripe_payment_intent_id },
+              error: e,
+            },
+          );
           return fail('server_error', 'Kunne ikke refundere — prøv via admin/tvist');
         }
       }

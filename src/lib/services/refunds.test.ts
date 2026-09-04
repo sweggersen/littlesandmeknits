@@ -11,6 +11,8 @@ vi.mock('../stripe', () => ({
     refunds: { create: refundCreate },
   })),
 }));
+const recordDeadLetter = vi.fn();
+vi.mock('./dead-letter', () => ({ recordDeadLetter: (...a: unknown[]) => recordDeadLetter(...a) }));
 
 interface ListingRow {
   id: string;
@@ -234,6 +236,22 @@ describe('respondToRefund', () => {
       reverse_transfer: true,
       refund_application_fee: true,
     }, { idempotencyKey: 'listing-refund-pi_test' });
+  });
+
+  it('when BOTH cancel and refund fail: dead-letters the stuck refund (not just console)', async () => {
+    piCancel.mockClear();
+    refundCreate.mockClear();
+    recordDeadLetter.mockClear();
+    piCancel.mockRejectedValueOnce(new Error('already_captured'));
+    refundCreate.mockRejectedValueOnce(new Error('stripe_down'));
+    const { ctx } = mockCtx({ actorId: 'seller', listing: pendingRefund });
+    const r = await respondToRefund(ctx, { listingId: 'l1', action: 'accept' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('server_error');
+    expect(recordDeadLetter).toHaveBeenCalledTimes(1);
+    const [, dl] = recordDeadLetter.mock.calls[0] as any[];
+    expect(dl.service).toBe('refunds.respondToRefund:accept');
+    expect(dl.context.payment_intent_id).toBe('pi_test');
   });
 
   it('accept is blocked while payouts are killed — no Stripe money movement', async () => {
