@@ -2,6 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
+import { killGuard } from '../flags';
 import { updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
 import { REFUND_REASON } from '../labels';
@@ -73,6 +74,14 @@ export async function respondToRefund(
   const now = new Date().toISOString();
 
   if (input.action === 'accept') {
+    // Accepting issues a Stripe cancel/refund (with reverse_transfer) — real
+    // money movement, so it honours the payouts kill-switch like every other
+    // money-moving path. Guard BEFORE any DB/Stripe change so a paused refund
+    // leaves the request open (a moderator can resolve it once Stripe is back).
+    // The decline path below only escalates to a dispute, so it is not guarded.
+    const blocked = await killGuard(['payouts'], ctx.env);
+    if (blocked) return blocked;
+
     if (order.stripe_payment_intent_id) {
       const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
       try {

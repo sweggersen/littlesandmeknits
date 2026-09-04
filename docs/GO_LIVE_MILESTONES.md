@@ -75,13 +75,28 @@ The simplest money path (no escrow, no shipping). Open right after M0.
 ## M3 — Brukt + Nytt (listings marketplace) *(shared escrow rail)*
 
 Both open together (same buy→escrow→ship→deliver flow, filtered by `kind`).
-- [ ] M0 complete.
-- [ ] **Real-Stripe escrow smoke** (test mode): buy → ship-capture → confirm-release, and buy → refund (reverse_transfer + refund_application_fee). Never exercised against real Stripe rails today — all e2e bypass via `sk_simulate`/test-exec.
-- [ ] **Bring decision** — either wire `bookShipment`/`getTracking` into `listings-escrow.ts` (currently stubbed; sellers type a free-text tracking code) **or** explicitly accept the manual-tracking fraud risk and soften the "defeats false not-received claim" assumption in copy/policy.
-- [ ] **Fix**: add `killGuard(['payouts'])` to the refund-accept path in `refunds.ts` (`respondToRefund` issues `reverse_transfer` without checking the payouts kill-switch).
+- [x] **Fix**: refund-accept now honours the payouts kill-switch — `respondToRefund`'s accept path calls `killGuard(['payouts'])` before any Stripe/DB change (the decline path only escalates to a dispute, so it stays unguarded). Unit-tested (accept blocked, decline not).
+- [ ] **Real-Stripe escrow smoke** (test mode) — runbook below. Never exercised against real Stripe rails today (all e2e bypass via `sk_simulate`/test-exec). *(owner, needs test keys + Stripe CLI)*
+- [ ] **Bring decision** — either wire `bookShipment`/`getTracking` into `listings-escrow.ts` (currently stubbed; sellers type a free-text tracking code) **or** explicitly accept the manual-tracking fraud risk and soften the "defeats false not-received claim" copy/policy. *(product decision — pending)*
 - [ ] *(watch)* hardcoded shipping-rate table (`shipping.ts`) can drift from real Posten pricing — bounded (locked per listing) but a margin/support risk.
 
-**Flip:** `FLAG_SECTION_BRUKT=on`, `FLAG_SECTION_NYTT=on`.
+### Escrow smoke runbook (run once with Stripe **test** keys)
+Set `sk_test_…` + a test `STRIPE_WEBHOOK_SECRET` in `.dev.vars`, restart dev, and
+forward events: `stripe listen --forward-to localhost:4321/api/stripe/webhook`.
+Then with a real Stripe **test card** (`4242 4242 4242 4242`):
+1. **Buy → auth held**: purchase a listing → Checkout completes → webhook reserves
+   the listing + creates the `orders` row with the PI (manual capture, uncaptured).
+2. **Ship → capture-at-ship**: seller marks shipped → `paymentIntents.capture`
+   succeeds; funds move to the platform, destination transfer pending.
+3. **Confirm → release**: buyer confirms delivery → escrow releases to the seller's
+   connected account; `payment_events` shows `captured` then `released`.
+4. **Refund path**: on a second purchase, buyer requests refund → seller accepts →
+   assert `refunds.create({reverse_transfer:true, refund_application_fee:true})`
+   unwinds buyer + seller + platform to zero.
+Confirm in the Stripe test dashboard that each PI/transfer/refund matches the
+`payment_events` ledger. Any mismatch is a blocker.
+
+**Flip:** `FLAG_SECTION_BRUKT=on`, `FLAG_SECTION_NYTT=on` (after M0 + this smoke + the Bring decision).
 
 ---
 

@@ -236,6 +236,26 @@ describe('respondToRefund', () => {
     }, { idempotencyKey: 'listing-refund-pi_test' });
   });
 
+  it('accept is blocked while payouts are killed — no Stripe money movement', async () => {
+    piCancel.mockClear();
+    refundCreate.mockClear();
+    const { ctx } = mockCtx({ actorId: 'seller', listing: pendingRefund });
+    (ctx.env as any).KILL_PAYOUTS = 'on';
+    const r = await respondToRefund(ctx, { listingId: 'l1', action: 'accept' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('service_unavailable');
+    // Guarded before any Stripe call — the request stays open for a moderator.
+    expect(piCancel).not.toHaveBeenCalled();
+    expect(refundCreate).not.toHaveBeenCalled();
+  });
+
+  it('decline is NOT blocked by the payouts kill-switch (it only escalates)', async () => {
+    const { ctx } = mockCtx({ actorId: 'seller', listing: pendingRefund });
+    (ctx.env as any).KILL_PAYOUTS = 'on';
+    const r = await respondToRefund(ctx, { listingId: 'l1', action: 'decline' });
+    expect(r.ok).toBe(true);
+  });
+
   it('on decline: flips status to disputed + records outcome', async () => {
     const { ctx, updates, inserts } = mockCtx({ actorId: 'seller', listing: pendingRefund });
     const r = await respondToRefund(ctx, { listingId: 'l1', action: 'decline', notes: 'no damage seen' });
