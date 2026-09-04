@@ -8,6 +8,7 @@ import { getMyRole } from './store-members';
 import { createNotification } from '../notify';
 import { sendEmail } from '../email';
 import { renderStoreInviteEmail } from '../email-templates';
+import { findAuthUserByEmail } from '../user-lookup';
 import type { StoreRole } from '../types/stores';
 
 const INVITE_TTL_DAYS = 14;
@@ -31,11 +32,9 @@ export async function inviteMember(
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('bad_input', 'Ugyldig e-post');
 
   // Find the invited user by email (used for the already-member check + the
-  // in-app notification). listUsers has no direct by-email filter, so page
-  // through a large batch — perPage:1 (the old value) returned a single user and
-  // silently missed almost everyone. TODO: admin.auth.getUserByEmail when avail.
-  const { data: existingUser } = await ctx.admin.auth.admin.listUsers({ perPage: 1000 });
-  const userByEmail = (existingUser?.users ?? []).find((u) => u.email?.toLowerCase() === email);
+  // in-app notification). Paginates all pages — a single perPage:1000 call
+  // silently missed anyone past position 1000.
+  const userByEmail = await findAuthUserByEmail(ctx.admin, email);
   if (userByEmail) {
     const { data: alreadyMember } = await ctx.admin
       .from('store_members')

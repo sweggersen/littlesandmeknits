@@ -117,9 +117,9 @@ The membership/roles/invitations/storefront/conversion machinery is complete and
 - [ ] **Scope decision (owner):** are stores *store-level payouts* (registered company receives revenue) or *branding-only over personal payouts* at launch?
   - Today: a sold store listing pays the **personal** member's Connect account (`createListing` keeps `seller_id = ctx.user.id`); store Connect columns are never read/written. `can.withdrawFunds` / `editStripeSettings` predicates exist but have no callers.
   - Branding-only → can open sooner with clear copy; store-level payouts → a real build (store Connect onboarding + payout routing + optional subscription/billing).
-- [ ] **Fix `listUsers({ perPage: 1000 })` cap** in `store-invitations.ts` — silently misses users past 1000 accounts (breaks already-member check + in-app invite). Move to `admin.auth.getUserByEmail` when available, or paginate fully.
-- [ ] **Brønnøysund resilience** — the orgnr lookup is a synchronous hard dependency on `data.brreg.no` with no caching/retry; an outage blocks store creation. Its e2e (`stores.spec.ts`) is CI-excluded (external dep), so the create/lookup path has no CI gate — add a mocked-lookup CI variant.
-- [ ] Confirm `store_invitations` RLS posture (0097 hardened `store_members` but not invitations).
+- [x] **Fixed the `listUsers` cap** — extracted a paginated `findAuthUserByEmail` (scans all pages, not just the first 1000) and used it in `inviteMember`. The old single `perPage:1000` call silently missed anyone past position 1000 (broke the already-member check + in-app invite). Unit-tested incl. a match at position 1235. `vips-session.ts` has the same inline pattern it can adopt later.
+- [x] **Confirmed `store_invitations` RLS is secure** — SELECT/INSERT are admin-gated (INSERT carries a `WITH CHECK` pinning the store role); there is **no UPDATE/DELETE policy**, so accept/decline/revoke are service-role-only. A direct PostgREST caller can't forge, accept, or revoke an invite. No fix needed.
+- [ ] **Brønnøysund resilience / CI** — the orgnr lookup is a synchronous hard dependency on `data.brreg.no` with no caching/retry; an outage blocks store creation, and its e2e (`stores.spec.ts`) is CI-excluded (external dep) so the create/lookup path has no CI gate. Add a mocked-lookup CI variant (+ optional retry/cache). *(remaining code item)*
 
 **Flip:** `FLAG_SECTION_BUTIKKER=on`.
 
