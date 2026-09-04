@@ -46,7 +46,7 @@ const {
   ]} data-card-link>
     <div data-card-img-wrap>
       {imgUrl ? (
-        <img src={imgUrl} alt={title} class:list={['w-full aspect-square object-cover rounded-t-2xl', inactive && 'grayscale']} transition:name={`listing-img-${id}`} />
+        <img src={imgUrl} alt={title} width="400" height="400" loading="lazy" decoding="async" class:list={['w-full aspect-square object-cover rounded-t-2xl', inactive && 'grayscale']} transition:name={`listing-img-${id}`} />
       ) : (
         <div class="w-full aspect-square bg-oatmeal/40 rounded-t-2xl" transition:name={`listing-img-${id}`}></div>
       )}

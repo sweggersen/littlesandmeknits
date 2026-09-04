@@ -176,6 +176,12 @@ const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as 
 function initListingGallery() {
   const mainPhoto = document.getElementById('main-photo');
   if (!mainPhoto) return; // page swapped to a non-listing route
+  // Bind once per DOM instance. This is:inline script re-runs on every client
+  // navigation (define:vars requires is:inline), so without this guard a repeat
+  // run on the same view-transitioned DOM would stack a second set of
+  // click/submit handlers (double gallery-advance, duplicate photo-delete).
+  if (mainPhoto.dataset.galleryWired) return;
+  mainPhoto.dataset.galleryWired = '1';
   const thumbs = document.querySelectorAll('[data-thumb-idx]');
   const counter = document.querySelector('[data-gallery-counter]');
   const captionEl = document.querySelector('[data-photo-caption]');
@@ -402,5 +408,9 @@ function initListingGallery() {
     });
   });
 }
-document.addEventListener('astro:page-load', initListingGallery);
+// Call directly, NOT via astro:page-load. This is:inline script already re-runs
+// on every navigation with fresh define:vars, so a direct call re-inits with the
+// correct listing each time; registering an astro:page-load listener here would
+// instead accumulate one stale-closure listener per navigation.
+initListingGallery();
 </script>

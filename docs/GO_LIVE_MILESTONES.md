@@ -157,10 +157,10 @@ Not gated by any flag — these harden the whole platform for launch. Surfaced b
 - [ ] **`admin/dead-letters.astro` page guard** — verify it carries `requireAdmin` like its siblings (may rely on RLS only).
 
 **Frontend / perf / UX**
-- [ ] **ListingCard images** — `storage.ts` serves raw full-size objects; `ListingCard` has no `loading="lazy"`/resize/`srcset`. Biggest real-world perf hit (24 full-res photos per grid).
+- [~] **ListingCard images** — added `loading="lazy"` + `decoding="async"` + intrinsic `width`/`height` (defers offscreen images across a 24-card grid; reserves space so no layout shift). *Still TODO:* server-side resize (`?width=`/`srcset`) — needs Supabase image transformations, which are plan-gated; enabling them blind would 404 every thumbnail, so it's an infra step, not a code one.
 - [ ] **Query errors render as empty state** — market list pages destructure only `data`, so a DB/RLS failure shows "Ingen treff". Inspect `error` and show a real error state.
 - [x] **Branded 404/500 pages** — `src/pages/404.astro` + `500.astro` replace the bare "Not found"/framework error responses; e2e asserts the 404 renders with a 404 status.
-- [ ] **`ListingPhotos` gallery double-binds** after view transitions (accumulating handlers). Add a `bindOnce`/`dataset` guard.
+- [x] **`ListingPhotos` gallery double-bind fixed** — the is:inline gallery now binds once per DOM instance (`mainPhoto.dataset.galleryWired` guard) and re-inits via a direct call on each is:inline re-run instead of accumulating an `astro:page-load` listener per navigation. Kills the duplicate gallery-advance / duplicate photo-delete-submit bug.
 
 ## Session plan (order of execution)
 
