@@ -34,5 +34,9 @@ export function createStripe(secretKey: string): Stripe {
     apiVersion: '2026-04-22.dahlia',
     httpClient: Stripe.createFetchHttpClient(),
     typescript: true,
+    // The SDK default (~80s) is far too long for a Worker invocation; bound each
+    // Stripe call so a slow Stripe can't hang the request. Retries handle blips.
+    timeout: 20_000,
+    maxNetworkRetries: 1,
   });
 }

@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './http';
+
 interface PushSubscription {
   endpoint: string;
   p256dh: string;
@@ -127,7 +129,7 @@ export async function sendPushNotification(
   const jwt = await createJwt(vapid, audience);
   const encrypted = await encryptPayload(sub, payload);
 
-  const res = await fetch(sub.endpoint, {
+  const res = await fetchWithTimeout(sub.endpoint, {
     method: 'POST',
     headers: {
       'Authorization': `WebPush ${jwt}`,

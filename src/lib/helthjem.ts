@@ -7,6 +7,8 @@
 // every `// TODO confirm` against the API reference once we have portal access
 // + sandbox credentials. Endpoints are from Helthjem's "new APIs" docs.
 
+import { fetchWithTimeout } from './http';
+
 const BASE = 'https://api.helthjem.no';
 const TOKEN_URL = `${BASE}/auth/oauth2/v1/token`;
 const BOOKINGS_URL = `${BASE}/parcels/v1/bookings`;
@@ -34,7 +36,7 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 async function getToken(auth: HelthjemAuth): Promise<string | null> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) return cachedToken.token;
   try {
-    const res = await fetch(TOKEN_URL, {
+    const res = await fetchWithTimeout(TOKEN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -118,7 +120,7 @@ export async function bookParcel(
   };
 
   try {
-    const res = await fetch(BOOKINGS_URL, { method: 'POST', headers: h, body: JSON.stringify(body) });
+    const res = await fetchWithTimeout(BOOKINGS_URL, { method: 'POST', headers: h, body: JSON.stringify(body) });
     if (!res.ok) return null;
     const data = await res.json() as Record<string, any>;
     // TODO confirm response field names.
@@ -164,7 +166,7 @@ export async function getTracking(
   const h = await authHeaders(auth);
   if (!h) return [];
   try {
-    const res = await fetch(`${TRACKING_URL}/${encodeURIComponent(trackingNumber)}`, { headers: h });
+    const res = await fetchWithTimeout(`${TRACKING_URL}/${encodeURIComponent(trackingNumber)}`, { headers: h });
     if (!res.ok) return [];
     const data = await res.json() as Record<string, any>;
     const events = data.events ?? data.trackingEvents ?? [];
@@ -195,7 +197,7 @@ export async function findServicePoints(
   const h = await authHeaders(auth);
   if (!h) return [];
   try {
-    const res = await fetch(`${SERVICE_POINTS_URL}?postalCode=${encodeURIComponent(postalCode)}`, { headers: h });
+    const res = await fetchWithTimeout(`${SERVICE_POINTS_URL}?postalCode=${encodeURIComponent(postalCode)}`, { headers: h });
     if (!res.ok) return [];
     const data = await res.json() as Record<string, any>;
     const points = data.servicePoints ?? data.points ?? (Array.isArray(data) ? data : []);

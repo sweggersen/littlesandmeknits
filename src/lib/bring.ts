@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './http';
+
 export interface BringAuth {
   uid: string;
   apiKey: string;
@@ -48,7 +50,7 @@ export async function getShippingEstimate(
     customerNumber: auth.customerNumber,
   });
 
-  const res = await fetch(`https://api.bring.com/shippingguide/v2/products?${params}`, {
+  const res = await fetchWithTimeout(`https://api.bring.com/shippingguide/v2/products?${params}`, {
     headers: headers(auth),
   });
 
@@ -116,7 +118,7 @@ export async function bookShipment(
     }],
   };
 
-  const res = await fetch('https://api.bring.com/booking/api/booking', {
+  const res = await fetchWithTimeout('https://api.bring.com/booking/api/booking', {
     method: 'POST',
     headers: headers(auth),
     body: JSON.stringify(body),
@@ -145,7 +147,7 @@ export async function getTracking(
   auth: BringAuth,
   shipmentNumber: string,
 ): Promise<TrackingEvent[]> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `https://tracking.bring.com/api/v2/tracking.json?q=${shipmentNumber}`,
     { headers: headers(auth) },
   );

@@ -7,6 +7,8 @@
 // Test base:  https://apitest.vipps.no
 // Prod base:  https://api.vipps.no
 
+import { fetchWithTimeout } from './http';
+
 export interface VippsConfig {
   baseUrl: string;
   clientId: string;
@@ -87,7 +89,7 @@ export async function exchangeCode(cfg: VippsConfig, params: {
     redirect_uri: params.redirectUri,
     code_verifier: params.codeVerifier,
   });
-  const res = await fetch(`${cfg.baseUrl}/access-management-1.0/access/oauth2/token`, {
+  const res = await fetchWithTimeout(`${cfg.baseUrl}/access-management-1.0/access/oauth2/token`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${basic}`,
@@ -123,7 +125,7 @@ export interface VippsUserinfo {
 }
 
 export async function fetchUserinfo(cfg: VippsConfig, accessToken: string): Promise<VippsUserinfo> {
-  const res = await fetch(`${cfg.baseUrl}/vipps-userinfo-api/userinfo`, {
+  const res = await fetchWithTimeout(`${cfg.baseUrl}/vipps-userinfo-api/userinfo`, {
     headers: {
       'Authorization': `Bearer ${accessToken}`,
       'Ocp-Apim-Subscription-Key': cfg.subscriptionKey,

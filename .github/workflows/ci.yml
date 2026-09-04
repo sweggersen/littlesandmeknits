@@ -159,14 +159,6 @@ jobs:
           version: 2.101.0
       - run: npm ci
 
-      - name: Push migrations to prod (transactional)
-        if: env.SUPABASE_ACCESS_TOKEN != ''
-        run: |
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          # Show what prod is missing vs the repo before applying.
-          supabase db diff --linked --schema public || true
-          supabase db push
-
       # PUBLIC_* env is BAKED INTO THE BUNDLE at build time (import.meta.env).
       # These are deliberately inline, not secrets: the Supabase anon key and
       # VAPID public key ship in every browser bundle by design. Without them
@@ -193,6 +185,20 @@ jobs:
             echo "::error::A localhost Supabase URL leaked into the server bundle — refusing to deploy."
             exit 1
           fi
+
+      # ORDER MATTERS: migrations apply ONLY after the build + bake-assert pass.
+      # If the build or bake fails, we must NOT have already moved prod's schema
+      # ahead of the code that ships against it (migrations have no down-path and
+      # there's no auto-rollback — a failed build after an applied migration
+      # leaves prod running OLD code on the NEW schema). Do not move this step
+      # back above the Build/Assert steps.
+      - name: Push migrations to prod
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          # Show what prod is missing vs the repo before applying.
+          supabase db diff --linked --schema public || true
+          supabase db push
 
       - name: Deploy to Cloudflare Workers
         if: env.CLOUDFLARE_API_TOKEN != ''

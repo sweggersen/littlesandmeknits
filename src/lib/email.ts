@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './http';
+
 // Sender identity. Resend rejects (403) any `from` whose domain isn't verified
 // in the Resend account, so this MUST be a domain you own and have verified.
 // Override with the EMAIL_FROM env var; the default uses the marketplace domain.
@@ -8,7 +10,7 @@ export async function sendEmail(
   opts: { to: string; subject: string; html: string },
   from: string = DEFAULT_EMAIL_FROM,
 ): Promise<boolean> {
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetchWithTimeout('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
