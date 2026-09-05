@@ -1,5 +1,5 @@
 ---
-import { projectPhotoUrl } from '../lib/storage';
+import { projectPhotoUrl, resizedImageUrl } from '../lib/storage';
 import { PROJECT_STATUS } from '../lib/labels';
 
 interface Props {
@@ -50,7 +50,7 @@ const statusClass: Record<string, string> = {
     ]}>
       <div class="flex gap-3">
         {heroUrl ? (
-          <img src={heroUrl} alt={title} class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
+          <img src={resizedImageUrl(heroUrl, 160)} alt={title} width="64" height="64" loading="lazy" decoding="async" class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
         ) : (
           <div class="w-16 h-16 bg-oatmeal/40 shrink-0 rounded-l-xl"></div>
         )}
@@ -75,7 +75,12 @@ const statusClass: Record<string, string> = {
     >
       {heroUrl ? (
         <div class="aspect-[4/3] bg-oatmeal overflow-hidden">
-          <img src={heroUrl} alt={title} class="w-full h-full object-cover" loading="lazy" />
+          <img
+            src={resizedImageUrl(heroUrl, 600)}
+            srcset={`${resizedImageUrl(heroUrl, 400)} 400w, ${resizedImageUrl(heroUrl, 800)} 800w`}
+            sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
+            alt={title} width="400" height="300" loading="lazy" decoding="async"
+            class="w-full h-full object-cover" />
         </div>
       ) : (
         <div class="aspect-[4/3] bg-gradient-to-br from-sage-100 to-oatmeal" />

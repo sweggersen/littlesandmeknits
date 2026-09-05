@@ -3,6 +3,7 @@ import StudioLayout from '../../../layouts/StudioLayout.astro';
 import StudioSubNav from '../../../components/StudioSubNav.astro';
 import Alert from '../../../components/Alert.astro';
 import { createServerSupabase } from '../../../lib/supabase';
+import { NEEDLE_TYPE } from '../../../lib/labels';
 
 type NeedleRow = {
   id: string;
@@ -11,12 +12,6 @@ type NeedleRow = {
   length_cm: number | null;
   material: string | null;
   brand: string | null;
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  circular: 'Rundpinne',
-  dpn: 'Strømpepinner',
-  straight: 'Rette pinner',
 };
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
@@ -92,7 +87,7 @@ const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - pa
                   <div class="flex items-baseline justify-between gap-4 flex-wrap">
                     <div class="flex items-baseline gap-3 flex-wrap">
                       <span class="text-[10px] font-bold uppercase tracking-widest text-sage-900">
-                        {TYPE_LABEL[n.needle_type] ?? n.needle_type}
+                        {NEEDLE_TYPE[n.needle_type] ?? n.needle_type}
                       </span>
                       {n.length_cm && (
                         <span class="text-sm text-charcoal/65">{n.length_cm} cm</span>

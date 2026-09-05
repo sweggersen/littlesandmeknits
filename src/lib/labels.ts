@@ -30,6 +30,10 @@ export const PROJECT_STATUS: Record<string, string> = {
   planning: 'Planlegger', active: 'Pågår', finished: 'Ferdig', frogged: 'Røket opp',
 };
 
+export const NEEDLE_TYPE: Record<string, string> = {
+  circular: 'Rundpinne', dpn: 'Strømpepinner', straight: 'Rette pinner',
+};
+
 export const MODERATION_QUEUE_STATUS: Record<string, string> = {
   pending: 'Venter', assigned: 'Tilordnet', approved: 'Godkjent',
   rejected: 'Avvist', escalated: 'Eskalert',
