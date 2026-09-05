@@ -71,7 +71,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
 
         <!-- Avatar -->
         <div>
-          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Profilbilde</label>
+          <label for="avatar-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Profilbilde</label>
           <div class="flex items-center gap-4">
             {avatarUrl ? (
               <img src={avatarUrl} alt="" data-avatar-preview class="w-16 h-16 rounded-full object-cover shrink-0" />
@@ -83,7 +83,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
                 </span>
               </div>
             )}
-            <input name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-avatar-input
+            <input id="avatar-input" name="avatar" type="file" accept="image/jpeg,image/png,image/webp" data-avatar-input
               class="text-sm file:mr-2 file:rounded-full file:border-0 file:bg-charcoal file:text-linen file:px-4 file:py-2 file:text-xs file:font-medium hover:file:bg-terracotta-500 file:transition-colors file:cursor-pointer" />
           </div>
         </div>

@@ -17,7 +17,7 @@ const user = Astro.locals.user!;  // middleware-gated route
 
       <form id="store-form" method="post" action="/api/stores" class="space-y-6">
         <div>
-          <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+          <label for="orgnr-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
             Organisasjonsnummer
           </label>
           <div class="flex gap-2">
@@ -59,7 +59,7 @@ const user = Astro.locals.user!;  // middleware-gated route
 
         <div id="details-section" class="hidden space-y-5">
           <div>
-            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            <label for="name-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               Visningsnavn
             </label>
             <input
@@ -74,7 +74,7 @@ const user = Astro.locals.user!;  // middleware-gated route
           </div>
 
           <div>
-            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            <label for="slug-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               URL-navn
             </label>
             <div class="flex items-center gap-1">
@@ -92,10 +92,11 @@ const user = Astro.locals.user!;  // middleware-gated route
           </div>
 
           <div>
-            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            <label for="tagline-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               Slagord (valgfritt)
             </label>
             <input
+              id="tagline-input"
               type="text"
               name="tagline"
               maxlength="100"
@@ -105,10 +106,11 @@ const user = Astro.locals.user!;  // middleware-gated route
           </div>
 
           <div>
-            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            <label for="description-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               Beskrivelse (valgfritt)
             </label>
             <textarea
+              id="description-input"
               name="description"
               rows="4"
               maxlength="2000"
@@ -121,10 +123,11 @@ const user = Astro.locals.user!;  // middleware-gated route
           </div>
 
           <div>
-            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            <label for="website-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               Nettside (valgfritt)
             </label>
             <input
+              id="website-input"
               type="url"
               name="website_url"
               placeholder="https://"
@@ -133,10 +136,11 @@ const user = Astro.locals.user!;  // middleware-gated route
           </div>
 
           <div>
-            <label class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            <label for="contact-email-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               Kontakt-e-post
             </label>
             <input
+              id="contact-email-input"
               type="email"
               name="contact_email"
               required
