@@ -27,6 +27,7 @@ const { projectId, today, logs } = Astro.props;
   <form method="post" action={`/api/projects/${projectId}/log`} enctype="multipart/form-data" class="space-y-3">
     <textarea
       name="body"
+      aria-label="Loggtekst"
       required
       rows="4"
       maxlength="4000"
@@ -34,10 +35,10 @@ const { projectId, today, logs } = Astro.props;
       class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
     ></textarea>
     <div>
-      <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bilder (valgfritt, opptil 6)</label>
+      <label for="photos-p" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bilder (valgfritt, opptil 6)</label>
       <input
         type="file"
-        name="photos"
+        id="photos-p" name="photos"
         accept="image/*"
         multiple
         class="block w-full text-sm text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"

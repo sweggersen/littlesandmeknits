@@ -39,10 +39,10 @@ const { projectId, currentRows, targetRows, progressPct } = Astro.props;
 
     <form method="post" action={`/api/projects/${projectId}/progress`} class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Rader strikket</label>
+        <label for="current_rows-p" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Rader strikket</label>
         <input
           type="number"
-          name="current_rows"
+          id="current_rows-p" name="current_rows"
           min="0"
           step="1"
           value={currentRows ?? ''}
@@ -51,10 +51,10 @@ const { projectId, currentRows, targetRows, progressPct } = Astro.props;
         />
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Mål (totalt)</label>
+        <label for="target_rows-p" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Mål (totalt)</label>
         <input
           type="number"
-          name="target_rows"
+          id="target_rows-p" name="target_rows"
           min="0"
           step="1"
           value={targetRows ?? ''}

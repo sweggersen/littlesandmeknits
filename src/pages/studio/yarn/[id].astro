@@ -69,49 +69,49 @@ const weights = [
       <form method="post" action={`/api/yarns/${y.id}/update`} enctype="multipart/form-data" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Merke</label>
-            <input name="brand" type="text" required maxlength="80" value={y.brand} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <label for="brand-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Merke</label>
+            <input id="brand-y" name="brand" type="text" required maxlength="80" value={y.brand} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </div>
           <div>
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garnnavn</label>
-            <input name="name" type="text" required maxlength="80" value={y.name} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <label for="name-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garnnavn</label>
+            <input id="name-y" name="name" type="text" required maxlength="80" value={y.name} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </div>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Farge</label>
-            <input name="color" type="text" maxlength="80" value={y.color ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <label for="color-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Farge</label>
+            <input id="color-y" name="color" type="text" maxlength="80" value={y.color ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </div>
           <div>
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Vekt</label>
-            <select name="weight" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+            <label for="weight-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Vekt</label>
+            <select id="weight-y" name="weight" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
               <option value="">Velg …</option>
               {weights.map((w) => <option value={w} selected={w === y.weight}>{w}</option>)}
             </select>
           </div>
         </div>
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fiber</label>
-          <input name="fiber" type="text" maxlength="120" value={y.fiber ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          <label for="fiber-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fiber</label>
+          <input id="fiber-y" name="fiber" type="text" maxlength="120" value={y.fiber ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Mengde (g)</label>
-            <input name="total_grams" type="number" min="0" step="1" value={y.total_grams ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <label for="total_grams-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Mengde (g)</label>
+            <input id="total_grams-y" name="total_grams" type="number" min="0" step="1" value={y.total_grams ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </div>
           <div>
-            <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lengde (m)</label>
-            <input name="total_meters" type="number" min="0" step="1" value={y.total_meters ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <label for="total_meters-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lengde (m)</label>
+            <input id="total_meters-y" name="total_meters" type="number" min="0" step="1" value={y.total_meters ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </div>
         </div>
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt bilde</label>
-          <input name="photo" type="file" accept="image/*" data-max-mb="10" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
+          <label for="photo-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt bilde</label>
+          <input id="photo-y" name="photo" type="file" accept="image/*" data-max-mb="10" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
           <p class="text-[10px] text-charcoal/45 mt-1">La feltet være tomt for å beholde det nåværende bildet.</p>
         </div>
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
-          <textarea name="notes" rows="3" maxlength="500" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{y.notes ?? ''}</textarea>
+          <label for="notes-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
+          <textarea id="notes-y" name="notes" rows="3" maxlength="500" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{y.notes ?? ''}</textarea>
         </div>
         <div class="flex justify-end pt-2">
           <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">

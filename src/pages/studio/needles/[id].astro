@@ -41,35 +41,35 @@ const sizeNum = parseFloat(n.size_mm as string);
     <form method="post" action={`/api/needles/${n.id}/update`} class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type</label>
-          <select name="needle_type" required class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
+          <label for="needle_type-n" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Type</label>
+          <select id="needle_type-n" name="needle_type" required class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">
             <option value="circular" selected={n.needle_type === 'circular'}>Rundpinne</option>
             <option value="dpn" selected={n.needle_type === 'dpn'}>Strømpepinner</option>
             <option value="straight" selected={n.needle_type === 'straight'}>Rette pinner</option>
           </select>
         </div>
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Størrelse (mm)</label>
-          <input name="size_mm" type="number" min="1" max="25" step="0.25" required value={sizeNum} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          <label for="size_mm-n" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Størrelse (mm)</label>
+          <input id="size_mm-n" name="size_mm" type="number" min="1" max="25" step="0.25" required value={sizeNum} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
         </div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lengde (cm)</label>
-          <input name="length_cm" type="number" min="0" step="1" value={n.length_cm ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          <label for="length_cm-n" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Lengde (cm)</label>
+          <input id="length_cm-n" name="length_cm" type="number" min="0" step="1" value={n.length_cm ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
         </div>
         <div>
-          <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Materiale</label>
-          <input name="material" type="text" maxlength="40" value={n.material ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+          <label for="material-n" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Materiale</label>
+          <input id="material-n" name="material" type="text" maxlength="40" value={n.material ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
         </div>
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Merke</label>
-        <input name="brand" type="text" maxlength="80" value={n.brand ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+        <label for="brand-n" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Merke</label>
+        <input id="brand-n" name="brand" type="text" maxlength="80" value={n.brand ?? ''} class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
       </div>
       <div>
-        <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
-        <textarea name="notes" rows="3" maxlength="500" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{n.notes ?? ''}</textarea>
+        <label for="notes-n" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
+        <textarea id="notes-n" name="notes" rows="3" maxlength="500" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none">{n.notes ?? ''}</textarea>
       </div>
       <div class="flex justify-end pt-2">
         <button type="submit" class="bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
