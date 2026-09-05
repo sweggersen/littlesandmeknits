@@ -30,15 +30,33 @@ Phase C flips the sections on one at a time after each proves out.
 
 ## Phase B — M0 go-live foundation (gates ALL money sections)
 
-### B1. Stripe account + Connect
-- [ ] The platform Stripe account must be the **registered business entity**
-  (Weggersen Design / the AS), **not a personal account** — payouts and the
-  platform fee flow through it.
-- [ ] Enable **Stripe Connect** on that account (Dashboard → Connect → Get
-  started). Sellers onboard as Custom accounts, stores as Express — both need
-  Connect on.
-- [ ] Complete the platform's own business verification (bank account, KYC) so
-  it can receive the application fee.
+### B1. Business entity + Stripe account + Connect
+**DECISION (2026-09): set up an AS first, then create the Stripe platform under
+the AS.** Weggersen Design is currently a registered *enkeltpersonforetak* (ENK)
+with an orgnr, but the plan is an AS. This matters BEFORE creating the Stripe
+account because:
+- The Stripe account is a Connect **platform**. Once sellers/stores onboard
+  connected accounts under it, you can't move the platform to a different legal
+  entity without every connected account re-onboarding. Pre-launch (zero
+  connected accounts) is the cheapest moment to get the entity right.
+- Sellers onboard as **Custom** accounts (`stripe-connect.ts`) → the platform is
+  liable for those accounts (KYC/disputes/losses). Stores onboard as **Express**
+  (`store-connect.ts`, orgnr as tax_id). The platform collects an application fee.
+
+Prereqs (with your accountant — not covered here, it's tax/legal):
+- [ ] Register the **AS** (min 30 000 NOK aksjekapital). Moving the ENK into the
+  AS is usually done via **skattefri omdanning** — confirm the route + timing
+  with a regnskapsfører.
+- [ ] AS has an **orgnr** + a **NOK business bank account**.
+
+Then in Stripe (once the AS exists):
+- [ ] Create/set the Stripe account's identity to the **AS**: Settings →
+  Business → legal name, orgnr, address, NOK bank account. Complete the
+  platform's own verification (representative ID + business docs).
+- [ ] Enable **Stripe Connect** (Dashboard → Connect → Get started). Fill the
+  platform profile + loss-liability model (Custom = you're on the hook).
+- [ ] Confirm **Custom** (sellers) and **Express** (stores) account types are
+  both available; set Connect branding + statement descriptor.
 
 ### B2. Stripe live keys + webhook
 - [ ] Copy the **live secret key** (`sk_live_…`) → set `STRIPE_SECRET_KEY` on the
