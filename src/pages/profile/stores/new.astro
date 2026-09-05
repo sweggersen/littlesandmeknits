@@ -77,8 +77,8 @@ const user = Astro.locals.user!;  // middleware-gated route
             <label for="slug-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
               URL-navn
             </label>
-            <div class="flex items-center gap-1">
-              <span class="text-sm text-charcoal/55 font-mono">strikketorget.no/market/store/</span>
+            <div class="flex flex-col sm:flex-row sm:items-center gap-1">
+              <span class="text-xs sm:text-sm text-charcoal/55 font-mono break-all sm:break-normal shrink-0">strikketorget.no/market/store/</span>
               <input
                 type="text"
                 name="slug"

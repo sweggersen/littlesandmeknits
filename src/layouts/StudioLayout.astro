@@ -35,8 +35,7 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/studio';
   // Client-side file-size validation for any studio upload form (opt-in via
   // data-max-mb on the input). Prevents the bare "Photo too large" error page.
   import { init } from '../lib/client/controllers/file-size-guard';
-  import { init as initSavedToast } from '../lib/client/controllers/saved-toast';
   import { registerController } from '../lib/client/dom';
   registerController(init);
-  registerController(initSavedToast);
+  // saved-toast is registered globally in Layout (covers studio + everywhere).
 </script>

@@ -250,6 +250,12 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
       import { init as initWebVitals } from '../lib/client/controllers/web-vitals';
       initWebVitals();
 
+      // "Lagret"/error toast after a form save (?saved=1 / ?error=). Global so
+      // any page can use it — form routes append the param via toResponse.
+      import { init as initSavedToast } from '../lib/client/controllers/saved-toast';
+      import { registerController } from '../lib/client/dom';
+      registerController(initSavedToast);
+
       // Register the PWA service worker on supported browsers.
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

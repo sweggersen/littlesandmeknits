@@ -18,5 +18,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     file: file instanceof File ? file : null,
     cover: cover instanceof File ? cover : null,
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: '/profile/library/new' });
 };

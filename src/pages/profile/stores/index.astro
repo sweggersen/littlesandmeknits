@@ -15,6 +15,10 @@ if (!ctx) return Astro.redirect('/login?next=/profile/stores');
 const res = await listMyStores(ctx);
 const stores = res.ok ? res.data : [];
 
+// Soft-deleted stores are purgeable after this window (shown as "X dager igjen").
+const STORE_RETENTION_DAYS = 90;
+const DAY_MS = 86_400_000;
+
 // Pending invitations addressed to this user (accept/decline in-app).
 const invRes = await listMyInvitations(ctx);
 const myInvites = invRes.ok ? invRes.data : [];
@@ -100,10 +104,10 @@ const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
 
       {stores.length > 0 && (
         <ul class="space-y-3">
-          {stores.map((s: any) => {
+          {stores.map((s) => {
             const isDeleted = s.deleted_at !== null;
-            const daysLeft = isDeleted
-              ? Math.max(0, Math.ceil((new Date(s.deleted_at).getTime() + 90 * 86400000 - Date.now()) / 86400000))
+            const daysLeft = isDeleted && s.deleted_at
+              ? Math.max(0, Math.ceil((new Date(s.deleted_at).getTime() + STORE_RETENTION_DAYS * DAY_MS - Date.now()) / DAY_MS))
               : null;
             const cardClass = isDeleted
               ? 'block bg-white rounded-2xl border border-sage-500/10 p-5 opacity-70'

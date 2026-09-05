@@ -19,5 +19,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     file: file instanceof File ? file : null,
     cover: cover instanceof File ? cover : null,
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { saved: true, errorRedirect: `/profile/library/${params.id}` });
 };
