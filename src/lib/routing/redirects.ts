@@ -40,7 +40,7 @@ export const ROUTE_REDIRECTS: ReadonlyArray<RouteRedirect> = [
   { from: '/strikkestua/pinner',        to: '/studio/needles',      status: 301 },
   { from: '/strikkestua/verktoy',       to: '/studio/tools',        status: 301 },
   { from: '/strikkestua/bibliotek',     to: '/studio/library',      status: 301 },
-  { from: '/strikkestua/mine-oppskrifter', to: '/studio/my-patterns', status: 301 },
+  { from: '/strikkestua/mine-oppskrifter', to: '/profile/library', status: 301 },
   { from: '/strikkestua/laer',          to: '/studio/learn',        status: 301 },
   { from: '/strikkestua',               to: '/studio',              status: 301 },
 

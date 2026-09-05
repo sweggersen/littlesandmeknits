@@ -45,7 +45,7 @@ describe('resolveRedirect', () => {
       location: '/studio/yarn', status: 301,
     });
     expect(resolveRedirect('/strikkestua/mine-oppskrifter/123')).toEqual({
-      location: '/studio/my-patterns/123', status: 301,
+      location: '/profile/library/123', status: 301,
     });
   });
 
