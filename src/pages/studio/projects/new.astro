@@ -58,7 +58,7 @@ const prefilledTitle = fromTitle ? `${fromTitle}` : '';
           name="summary"
           rows="3"
           maxlength="500"
-          placeholder="Et lite notat om hva dette prosjektet er — hvem det er til, hva som er spesielt med det…"
+          placeholder="Et lite notat om hva dette prosjektet er, hvem det er til, hva som er spesielt med det…"
           class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
         ></textarea>
       </div>
@@ -89,7 +89,7 @@ const prefilledTitle = fromTitle ? `${fromTitle}` : '';
             name="pattern_slug"
             class="w-full bg-linen rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors"
           >
-            <option value="">— Ingen —</option>
+            <option value="">Ingen</option>
             {patterns.map((p) => <option value={p.slug} selected={p.slug === fromSlug}>{p.title}</option>)}
           </select>
         </div>
