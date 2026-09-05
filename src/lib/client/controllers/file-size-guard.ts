@@ -15,6 +15,10 @@ export function init(): void {
 
     const maxMb = parseFloat(input.dataset.maxMb || '0');
     const maxBytes = maxMb * 1024 * 1024;
+    // Opt-in: block the (first) submit until a file is chosen. Used where an
+    // empty submit is destructive (e.g. the project hero-photo form treats an
+    // empty upload as "delete", so an accidental empty submit wipes the photo).
+    const requireFile = 'requireFile' in input.dataset;
     const form = input.closest('form');
     const submit = form?.querySelector<HTMLButtonElement>('button[type="submit"], input[type="submit"]') ?? null;
 
@@ -40,9 +44,10 @@ export function init(): void {
       } else {
         msg!.hidden = true;
       }
-      if (submit) submit.disabled = tooBig;
+      if (submit) submit.disabled = tooBig || (requireFile && !file);
     };
 
     input.addEventListener('change', check);
+    check(); // set the initial disabled state (e.g. require-file forms start disabled)
   });
 }

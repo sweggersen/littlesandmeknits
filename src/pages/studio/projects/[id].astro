@@ -56,7 +56,17 @@ if (p.commission_offer_id) {
     .eq('id', p.commission_offer_id)
     .maybeSingle();
   if (offerData) {
-    const req = (offerData as any).commission_requests;
+    // Nested to-one joins (offer -> request -> buyer profile). Type the shape
+    // rather than `as any` so a schema change surfaces as a type error.
+    type OfferJoin = {
+      price_nok: number | null;
+      commission_requests: {
+        id: string;
+        title: string;
+        profiles: { display_name: string | null } | null;
+      } | null;
+    };
+    const req = (offerData as unknown as OfferJoin).commission_requests;
     commissionInfo = {
       requestId: req?.id,
       requestTitle: req?.title ?? '',
@@ -325,6 +335,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
             name="hero_photo"
             accept="image/*"
             data-max-mb="10"
+            data-require-file
             class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
           />
           <div class="flex gap-2">
