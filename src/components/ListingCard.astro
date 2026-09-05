@@ -1,5 +1,6 @@
 ---
 import { listingPath } from '../lib/listing-url';
+import { resizedImageUrl } from '../lib/storage';
 
 interface Props {
   id: string;
@@ -46,7 +47,13 @@ const {
   ]} data-card-link>
     <div data-card-img-wrap>
       {imgUrl ? (
-        <img src={imgUrl} alt={title} width="400" height="400" loading="lazy" decoding="async" class:list={['w-full aspect-square object-cover rounded-t-2xl', inactive && 'grayscale']} transition:name={`listing-img-${id}`} />
+        <img
+          src={resizedImageUrl(imgUrl, 500)}
+          srcset={`${resizedImageUrl(imgUrl, 400)} 400w, ${resizedImageUrl(imgUrl, 800)} 800w`}
+          sizes="(min-width:1024px) 25vw, (min-width:640px) 33vw, 50vw"
+          alt={title} width="400" height="400" loading="lazy" decoding="async"
+          class:list={['w-full aspect-square object-cover rounded-t-2xl', inactive && 'grayscale']}
+          transition:name={`listing-img-${id}`} />
       ) : (
         <div class="w-full aspect-square bg-oatmeal/40 rounded-t-2xl" transition:name={`listing-img-${id}`}></div>
       )}
