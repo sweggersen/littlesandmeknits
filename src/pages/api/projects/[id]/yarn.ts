@@ -13,5 +13,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     yarnId: form.get('yarn_id')?.toString() ?? '',
     gramsUsed: form.get('grams_used')?.toString() ?? '',
   });
-  return toResponse(result, redirect, { saved: true });
+  return toResponse(result, redirect, { saved: true, errorRedirect: `/studio/projects/${params.id}` });
 };

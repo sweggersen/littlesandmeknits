@@ -12,5 +12,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     projectId: params.id ?? '',
     status: form.get('status')?.toString() ?? '',
   });
-  return toResponse(result, redirect, { saved: true });
+  return toResponse(result, redirect, { saved: true, errorRedirect: `/studio/projects/${params.id}` });
 };

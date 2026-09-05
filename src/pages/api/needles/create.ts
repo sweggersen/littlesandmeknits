@@ -16,5 +16,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     brand: form.get('brand')?.toString(),
     notes: form.get('notes')?.toString(),
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: '/studio/needles/new' });
 };

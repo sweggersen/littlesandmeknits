@@ -20,5 +20,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     totalMeters: form.get('total_meters')?.toString(),
     photo: photoFile instanceof File ? photoFile : null,
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: '/studio/yarn/new' });
 };

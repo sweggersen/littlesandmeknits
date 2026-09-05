@@ -6,10 +6,13 @@
 
 export function init(): void {
   const url = new URL(window.location.href);
-  if (url.searchParams.get('saved') !== '1') return;
+  const saved = url.searchParams.get('saved') === '1';
+  const error = url.searchParams.get('error');
+  if (!saved && !error) return;
 
-  // Strip the param immediately (so refresh/back doesn't re-toast).
+  // Strip the params immediately (so refresh/back doesn't re-toast).
   url.searchParams.delete('saved');
+  url.searchParams.delete('error');
   window.history.replaceState({}, '', url.pathname + url.search + url.hash);
 
   // Avoid stacking toasts if the controller somehow runs twice.
@@ -18,14 +21,22 @@ export function init(): void {
   const toast = document.createElement('div');
   toast.setAttribute('data-saved-toast', '');
   toast.setAttribute('role', 'status');
-  toast.textContent = 'Lagret';
-  toast.className =
-    'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-sage-500 text-linen ' +
-    'px-5 py-2.5 rounded-full text-sm font-medium shadow-lg transition-opacity duration-300';
+  const base =
+    'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full ' +
+    'text-sm font-medium shadow-lg transition-opacity duration-300 max-w-[90vw] text-center';
+  if (error) {
+    toast.textContent = error;
+    toast.className = `${base} bg-red-600 text-white`;
+  } else {
+    toast.textContent = 'Lagret';
+    toast.className = `${base} bg-sage-500 text-linen`;
+  }
   document.body.appendChild(toast);
 
+  // Errors linger longer so they can be read.
+  const ttl = error ? 5000 : 2200;
   window.setTimeout(() => {
     toast.style.opacity = '0';
     window.setTimeout(() => toast.remove(), 300);
-  }, 2200);
+  }, ttl);
 }

@@ -20,9 +20,17 @@ type AstroRedirectFn = (url: string, status?: 300 | 301 | 302 | 303 | 304 | 307 
 export function toResponse(
   result: ServiceResult<any>,
   redirect?: RedirectFn | AstroRedirectFn,
-  opts?: { saved?: boolean },
+  opts?: { saved?: boolean; errorRedirect?: string },
 ): Response {
   if (!result.ok) {
+    // Form routes pass errorRedirect so a failure returns to the form with the
+    // message in ?error= (rendered by the toast controller) instead of a bare
+    // English error page. JSON/API callers omit it and still get the plain
+    // status + message.
+    if (opts?.errorRedirect && redirect) {
+      const sep = opts.errorRedirect.includes('?') ? '&' : '?';
+      return redirect(`${opts.errorRedirect}${sep}error=${encodeURIComponent(result.message)}`, 303);
+    }
     return new Response(result.message, { status: STATUS[result.code] });
   }
   if (result.data?.redirect && redirect) {

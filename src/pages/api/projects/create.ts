@@ -21,5 +21,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     patternExternal: form.get('pattern_external')?.toString(),
     heroPhoto: heroFile instanceof File ? heroFile : null,
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: '/studio/projects/new' });
 };
