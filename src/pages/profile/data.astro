@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Alert from '../../components/Alert.astro';
 const user = Astro.locals.user!;  // middleware-gated route
 
 const flash = Astro.url.searchParams.get('flash');
@@ -15,12 +16,8 @@ const err = Astro.url.searchParams.get('err');
       <a href="/privacy" class="text-terracotta-500 hover:underline">personvernerklæring</a> for hvordan vi behandler data.
     </p>
 
-    {flash && (
-      <div class="mb-6 bg-sage-100 border border-sage-500/30 text-sage-900 rounded-2xl p-3 text-sm">{flash}</div>
-    )}
-    {err && (
-      <div class="mb-6 bg-red-50 border border-red-300 text-red-900 rounded-2xl p-3 text-sm">{err}</div>
-    )}
+    {flash && <Alert type="success" class="mb-6">{flash}</Alert>}
+    {err && <Alert type="error" class="mb-6">{err}</Alert>}
 
     <!-- Export -->
     <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-5">

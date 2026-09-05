@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import { formatDate } from '../../../lib/time';
 import { buildServiceContext } from '../../../lib/services/context';
 import { listMyStores } from '../../../lib/services/stores';
 import { listMyInvitations } from '../../../lib/services/store-invitations';
@@ -65,7 +66,7 @@ const STATUS_TONE: Record<string, string> = {
                 <div class="flex-1 min-w-0">
                   <p class="font-serif text-lg truncate">{inv.store_name}</p>
                   <p class="text-xs text-charcoal/55">
-                    Invitert som {ROLE_LABEL_NB[inv.role as StoreRole]} · utløper {new Date(inv.expires_at).toLocaleDateString('nb-NO')}
+                    Invitert som {ROLE_LABEL_NB[inv.role as StoreRole]} · utløper {formatDate(inv.expires_at)}
                   </p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">

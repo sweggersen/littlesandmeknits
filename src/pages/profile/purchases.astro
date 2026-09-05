@@ -5,6 +5,7 @@ import { useTranslations } from '../../lib/i18n';
 import { createServerSupabase } from '../../lib/supabase';
 import { getEntry } from 'astro:content';
 import { formatNok } from '../../lib/format';
+import { formatDate } from '../../lib/time';
 
 const user = Astro.locals.user!;  // middleware-gated route
 
@@ -72,7 +73,7 @@ const enriched = await Promise.all(
               <div>
                 <h3 class="font-serif text-lg leading-tight">{p.title}</h3>
                 <p class="text-xs text-charcoal/50 mt-1">
-                  {formatNok(p.amount_nok, 'nb')} · {new Date(p.created_at).toLocaleDateString('nb-NO')}
+                  {formatNok(p.amount_nok, 'nb')} · {formatDate(p.created_at)}
                 </p>
               </div>
               <div class="flex items-center gap-2 flex-shrink-0">

@@ -1,6 +1,7 @@
 ---
 import { projectPhotoUrl, resizedImageUrl } from '../lib/storage';
 import { PROJECT_STATUS } from '../lib/labels';
+import StatusBadge from './StatusBadge.astro';
 
 interface Props {
   id: string;
@@ -34,11 +35,8 @@ const {
 const heroUrl = projectPhotoUrl(heroPhotoPath ?? null);
 const statusLabel = PROJECT_STATUS[status] ?? status;
 
-const statusClass: Record<string, string> = {
-  planning: 'text-charcoal/55 bg-oatmeal/60',
-  active: 'text-sage-900 bg-sage-100',
-  finished: 'text-terracotta-500 bg-terracotta-500/10',
-  frogged: 'text-charcoal/40 bg-oatmeal/40',
+const statusVariant: Record<string, 'default' | 'sage' | 'terracotta' | 'muted'> = {
+  planning: 'default', active: 'sage', finished: 'terracotta', frogged: 'muted',
 };
 ---
 
@@ -87,9 +85,7 @@ const statusClass: Record<string, string> = {
       )}
       <div class="p-5">
         <div class="flex items-center justify-between mb-3">
-          <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[status] ?? statusClass.planning}`}>
-            {statusLabel}
-          </span>
+          <StatusBadge label={statusLabel} variant={statusVariant[status] ?? 'default'} />
           <div class="flex items-center gap-2">
             {publicSlug && (
               <span class="text-[10px] font-bold uppercase tracking-wider text-sage-900" title="Offentlig delt">Delt</span>
