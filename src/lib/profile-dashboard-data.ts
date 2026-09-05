@@ -16,14 +16,20 @@ interface DashUser {
 
 export async function loadProfileDashboard(supabase: SupabaseClient, user: DashUser) {
   const [
-    { data: profile },
-    { data: listings },
-    { data: projects },
+    { data: profile, error: profileErr },
+    { data: listings, error: listingsErr },
+    { data: projects, error: projectsErr },
     { data: myRequests },
     { data: myOffers },
     { data: unreadMessages },
-    { data: purchases },
+    { data: purchases, error: purchasesErr },
     { data: externalPatterns },
+    // Exact counts for the "Nøkkeltall" stats — the preview lists above are
+    // capped with .limit(), so their .length is NOT the real total (a seller
+    // with 20 listings would otherwise see "6"). Head-only count queries.
+    { count: listingsCount },
+    { count: activeProjectsCount },
+    { count: purchasesCount },
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -70,7 +76,15 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
       .select('id, title, designer, cover_path, file_path, created_at')
       .order('created_at', { ascending: false })
       .limit(5),
+    supabase.from('listings').select('id', { count: 'exact', head: true }).eq('seller_id', user.id),
+    supabase.from('projects').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active'),
+    supabase.from('purchases').select('id', { count: 'exact', head: true }),
   ]);
+
+  // A DB/RLS failure on a primary query must NOT render as an empty account
+  // (indistinguishable from a brand-new user). The page reads this to show an
+  // error state instead of "Ingen annonser ennå".
+  const loadError = !!(profileErr || listingsErr || projectsErr || purchasesErr);
 
   const allPurchases = await Promise.all(
     (purchases ?? []).map(async (p: any) => {
@@ -155,7 +169,7 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
   const allOffers = myOffers ?? [];
   const unreadCount = (unreadMessages ?? []).length;
 
-  const activeProjects = allProjects.filter((p) => p.status === 'active').length;
+  const activeProjects = activeProjectsCount ?? 0; // exact, not capped by the preview limit
   const pendingOffers = allOffers.filter((o) => o.status === 'pending').length;
   const acceptedOffers = allOffers.filter((o) => o.status === 'accepted').length;
   const awaitingPayment = allRequests.filter((r) => r.status === 'awaiting_payment').length;
@@ -189,6 +203,9 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     isAdmin, isModerator, isStaff, pendingQueueCount,
     allListings, allProjects, allRequests, allOffers,
     allPurchases, allBibliotek, myStores,
+    listingsCount: listingsCount ?? 0,
+    purchasesCount: purchasesCount ?? 0,
+    loadError,
     unreadCount, activeProjects, pendingOffers, acceptedOffers, awaitingPayment,
     newOffersReceived, newOffersHref,
     subtitleParts,

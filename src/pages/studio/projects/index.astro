@@ -3,6 +3,7 @@ import StudioLayout from '../../../layouts/StudioLayout.astro';
 import StudioSubNav from '../../../components/StudioSubNav.astro';
 import ProjectCard from '../../../components/ProjectCard.astro';
 import EmptyState from '../../../components/EmptyState.astro';
+import Alert from '../../../components/Alert.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 
 type ProjectRow = {
@@ -23,11 +24,12 @@ type ProjectRow = {
 const user = Astro.locals.user!;  // middleware-gated route
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data } = await supabase
+const { data, error: loadErr } = await supabase
   .from('projects')
   .select('id, title, summary, status, recipient, pattern_slug, pattern_external, hero_photo_path, started_at, finished_at, created_at, public_slug')
   .eq('user_id', user.id)
   .order('created_at', { ascending: false });
+if (loadErr) console.error('studio/projects query failed', loadErr);
 
 const allProjects = (data ?? []) as ProjectRow[];
 
@@ -81,7 +83,9 @@ const filterTabs: Array<{ key: Filter; label: string; count: number }> = [
     </a>
   </div>
 
-  {allProjects.length === 0 ? (
+  {loadErr ? (
+    <Alert type="error">Vi klarte ikke å laste prosjektene akkurat nå. Prøv igjen om litt.</Alert>
+  ) : allProjects.length === 0 ? (
     <EmptyState message="Ingen prosjekter ennå. Start ditt første for å samle bilder, fremgang og notater på ett sted." ctaText="Start et prosjekt" ctaHref="/studio/projects/new" />
   ) : projects.length === 0 ? (
     <EmptyState message="Ingen prosjekter med denne statusen." compact />

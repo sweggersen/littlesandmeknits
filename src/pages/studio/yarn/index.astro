@@ -1,6 +1,7 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
 import StudioSubNav from '../../../components/StudioSubNav.astro';
+import Alert from '../../../components/Alert.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 
@@ -27,6 +28,8 @@ const [yarnsRes, needlesRes] = await Promise.all([
 ]);
 
 const yarns = (yarnsRes.data ?? []) as YarnRow[];
+const loadErr = yarnsRes.error;
+if (loadErr) console.error('studio/yarn query failed', loadErr);
 const needleCount = needlesRes.count ?? 0;
 const totalGrams = yarns.reduce((s, y) => s + (y.total_grams ?? 0), 0);
 const totalKg = (totalGrams / 1000).toFixed(1);
@@ -57,7 +60,9 @@ const lagerTabs = [
     </a>
   </div>
 
-  {yarns.length === 0 ? (
+  {loadErr ? (
+    <Alert type="error">Vi klarte ikke å laste garnlageret akkurat nå. Prøv igjen om litt.</Alert>
+  ) : yarns.length === 0 ? (
     <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">Ingen garn ennå. Legg til det første for å holde styr på fargene, vektene og hvor mye du har igjen.</p>
       <a

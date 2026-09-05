@@ -1,6 +1,7 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
 import StudioSubNav from '../../../components/StudioSubNav.astro';
+import Alert from '../../../components/Alert.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 
 type NeedleRow = {
@@ -28,6 +29,8 @@ const [needlesRes, yarnsRes] = await Promise.all([
 ]);
 
 const needles = (needlesRes.data ?? []) as NeedleRow[];
+const loadErr = needlesRes.error;
+if (loadErr) console.error('studio/needles query failed', loadErr);
 const yarnCount = yarnsRes.count ?? 0;
 
 const lagerTabs = [
@@ -63,7 +66,9 @@ const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - pa
     </a>
   </div>
 
-  {needles.length === 0 ? (
+  {loadErr ? (
+    <Alert type="error">Vi klarte ikke å laste pinnelageret akkurat nå. Prøv igjen om litt.</Alert>
+  ) : needles.length === 0 ? (
     <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">Ingen pinner ennå. Registrer rundpinner, strømpepinner og rette pinner for å slippe å lete neste gang.</p>
       <a

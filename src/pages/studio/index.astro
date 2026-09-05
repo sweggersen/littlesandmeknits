@@ -1,5 +1,6 @@
 ---
 import StudioLayout from '../../layouts/StudioLayout.astro';
+import Alert from '../../components/Alert.astro';
 import InstallAppButton from '../../components/InstallAppButton.astro';
 import DashboardEngine from '../../components/dashboard/DashboardEngine.astro';
 import DashboardEditChrome from '../../components/dashboard/DashboardEditChrome.astro';
@@ -50,6 +51,10 @@ type ProjectStatRow = {
   created_at: string;
 };
 
+// A DB failure must not render as an empty studio (zeroed stats look like a
+// brand-new account). Surface it instead.
+const loadErr = projectsRes.error || yarnsRes.error || needlesRes.error;
+if (loadErr) console.error('studio dashboard query failed', loadErr);
 const projects = (projectsRes.data ?? []) as ProjectStatRow[];
 const yarns = (yarnsRes.data ?? []) as Array<{ id: string; weight: string | null; total_grams: number | null }>;
 const needles = (needlesRes.data ?? []) as Array<{ id: string }>;
@@ -177,7 +182,10 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 ];
 ---
 
-<StudioLayout title="Strikkestua — Littles and Me Knits" lang="nb">
+<StudioLayout title="Strikkestua · Littles and Me Knits" lang="nb">
+  {loadErr && (
+    <Alert type="error" class="mb-6">Vi klarte ikke å laste hele Strikkestua akkurat nå. Noen tall kan mangle. Last inn siden på nytt om litt.</Alert>
+  )}
   <!-- Header: greeting + Rediger (same editable-dashboard chrome as /profile) -->
   <div class="flex items-start gap-4 mb-6">
     <div class="min-w-0 flex-1">

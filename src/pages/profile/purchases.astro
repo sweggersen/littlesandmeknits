@@ -1,5 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import Alert from '../../components/Alert.astro';
 import { useTranslations } from '../../lib/i18n';
 import { createServerSupabase } from '../../lib/supabase';
 import { getEntry } from 'astro:content';
@@ -18,7 +19,7 @@ type PurchaseRow = {
   created_at: string;
 };
 
-const { data } = await supabase
+const { data, error: loadErr } = await supabase
   .from('purchases')
   .select('id, pattern_slug, amount_nok, status, created_at')
   .order('created_at', { ascending: false });
@@ -52,7 +53,9 @@ const enriched = await Promise.all(
         </a>
       </div>
 
-      {enriched.length === 0 ? (
+      {loadErr ? (
+        <Alert type="error">Vi klarte ikke å laste kjøpene dine akkurat nå. Prøv igjen om litt.</Alert>
+      ) : enriched.length === 0 ? (
         <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
           <p class="text-charcoal/55 mb-6">Du har ikke kjøpt noen oppskrifter ennå.</p>
           <a
@@ -75,7 +78,7 @@ const enriched = await Promise.all(
               <div class="flex items-center gap-2 flex-shrink-0">
                 <a
                   href={`/studio/projects/new?from=${encodeURIComponent(p.pattern_slug)}`}
-                  class="hidden sm:inline-block text-xs font-medium text-charcoal/70 hover:text-terracotta-500 px-3 py-2.5 rounded-full transition-colors whitespace-nowrap"
+                  class="inline-block text-xs font-medium text-charcoal/70 hover:text-terracotta-500 px-3 py-2.5 rounded-full transition-colors whitespace-nowrap"
                 >
                   Start prosjekt
                 </a>

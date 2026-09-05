@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import Alert from '../../../components/Alert.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { projectPhotoUrl } from '../../../lib/storage';
 
@@ -15,7 +16,7 @@ type ExternalPattern = {
 };
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const { data } = await supabase
+const { data, error: loadErr } = await supabase
   .from('external_patterns')
   .select('id, title, designer, cover_path, file_path, created_at')
   .order('created_at', { ascending: false });
@@ -51,7 +52,9 @@ function isPdf(path: string | null): boolean {
         </a>
       </div>
 
-      {patterns.length === 0 ? (
+      {loadErr ? (
+        <Alert type="error">Vi klarte ikke å laste biblioteket akkurat nå. Prøv igjen om litt.</Alert>
+      ) : patterns.length === 0 ? (
         <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
           <p class="text-charcoal/55 mb-6">Ingen oppskrifter i biblioteket ennå. Last opp en PDF eller scan slik at du finner den igjen.</p>
           <a

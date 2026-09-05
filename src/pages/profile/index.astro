@@ -4,6 +4,7 @@
 // (src/lib/profile-dashboard-data.ts). The previous layout is kept, unlinked,
 // at /profile/original.
 import Layout from '../../layouts/Layout.astro';
+import Alert from '../../components/Alert.astro';
 import ProfileAvatar from '../../components/ProfileAvatar.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 import StatIcon from '../../components/profile/StatIcon.astro';
@@ -48,8 +49,8 @@ const stats = [
   { label: 'Nye tilbud', value: d.newOffersReceived, icon: 'offer' as const, href: d.newOffersHref, hot: d.newOffersReceived > 0 },
   { label: 'Venter på betaling', value: d.awaitingPayment, icon: 'clock' as const, href: '/market/commissions/my-listings', hot: d.awaitingPayment > 0 },
   { label: 'Aktive prosjekter', value: d.activeProjects, icon: 'project' as const, href: '/studio', hot: false },
-  { label: 'Annonser', value: d.allListings.length, icon: 'tag' as const, href: '/market/my-listings', hot: false },
-  { label: 'Kjøpte oppskrifter', value: d.allPurchases.length, icon: 'book' as const, href: '/profile/purchases', hot: false },
+  { label: 'Annonser', value: d.listingsCount, icon: 'tag' as const, href: '/market/my-listings', hot: false },
+  { label: 'Kjøpte oppskrifter', value: d.purchasesCount, icon: 'book' as const, href: '/profile/purchases', hot: false },
 ];
 
 // Merge requests + offers + a message row into one "needs attention" feed.
@@ -76,6 +77,10 @@ for (const o of d.allOffers.slice(0, 4)) {
 <Layout title="Min profil — Littles and Me Knits" lang="nb">
   <div class="bg-linen min-h-screen">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 pb-24">
+
+      {d.loadError && (
+        <Alert type="error" class="mb-6">Vi klarte ikke å laste hele oversikten akkurat nå. Noen tall kan mangle. Last inn siden på nytt om litt.</Alert>
+      )}
 
       <!-- Header -->
       <div class="flex items-center gap-4 mb-6">
