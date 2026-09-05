@@ -44,7 +44,11 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
       .limit(6),
     supabase
       .from('projects')
-      .select('id, title, status, hero_photo_path, current_rows, target_rows, commission_offer_id, commission_offers(price_nok, commission_requests!commission_offers_request_id_fkey(title, buyer_id, profiles!commission_requests_buyer_id_fkey(display_name)))')
+      // Disambiguate the embed: projects <-> commission_offers has TWO FKs
+      // (projects.commission_offer_id AND commission_offers.project_id), so the
+      // hint pins the one we want (the project's linked offer). Without it
+      // PostgREST errors "more than one relationship was found".
+      .select('id, title, status, hero_photo_path, current_rows, target_rows, commission_offer_id, commission_offers!commission_offer_id(price_nok, commission_requests!commission_offers_request_id_fkey(title, buyer_id, profiles!commission_requests_buyer_id_fkey(display_name)))')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(6),
@@ -85,6 +89,12 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
   // (indistinguishable from a brand-new user). The page reads this to show an
   // error state instead of "Ingen annonser ennå".
   const loadError = !!(profileErr || listingsErr || projectsErr || purchasesErr);
+  if (loadError) {
+    console.error('profile dashboard load error', {
+      profileErr: profileErr?.message, listingsErr: listingsErr?.message,
+      projectsErr: projectsErr?.message, purchasesErr: purchasesErr?.message,
+    });
+  }
 
   const allPurchases = await Promise.all(
     (purchases ?? []).map(async (p: any) => {
