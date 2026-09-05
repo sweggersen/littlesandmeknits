@@ -91,12 +91,12 @@ const isPdf = !!pat.file_path && pat.file_path.toLowerCase().endsWith('.pdf');
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt fil</label>
-          <input name="file" type="file" accept="application/pdf,image/*" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
+          <input name="file" type="file" accept="application/pdf,image/*" data-max-mb="25" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
           <p class="text-[10px] text-charcoal/45 mt-1">La feltet være tomt for å beholde nåværende fil.</p>
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt forside</label>
-          <input name="cover" type="file" accept="image/*" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
+          <input name="cover" type="file" accept="image/*" data-max-mb="10" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
         </div>
         <div>
           <label class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>

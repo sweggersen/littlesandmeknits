@@ -30,3 +30,11 @@ const currentPath = Astro.url.pathname.replace(/\/$/, '') || '/studio';
   </div>
   <StudioTabBar />
 </Layout>
+
+<script>
+  // Client-side file-size validation for any studio upload form (opt-in via
+  // data-max-mb on the input). Prevents the bare "Photo too large" error page.
+  import { init } from '../lib/client/controllers/file-size-guard';
+  import { registerController } from '../lib/client/dom';
+  registerController(init);
+</script>

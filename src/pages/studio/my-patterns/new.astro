@@ -62,6 +62,7 @@ import StudioBackLink from '../../../components/StudioBackLink.astro';
           name="file"
           type="file"
           accept="application/pdf,image/*"
+          data-max-mb="25"
           class="block w-full text-sm text-charcoal/70 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
         />
         <p class="text-[11px] text-charcoal/45 mt-2">PDF, JPG eller PNG. Maks 25 MB.</p>
@@ -76,6 +77,7 @@ import StudioBackLink from '../../../components/StudioBackLink.astro';
           name="cover"
           type="file"
           accept="image/*"
+          data-max-mb="10"
           class="block w-full text-sm text-charcoal/70 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors"
         />
         <p class="text-[11px] text-charcoal/45 mt-2">Brukes som thumbnail i biblioteket. Hvis du laster opp et bilde over, brukes det som forside automatisk.</p>
