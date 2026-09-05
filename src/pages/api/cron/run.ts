@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { env as cfEnv } from '../../../lib/env';
+import { fetchWithTimeout } from '../../../lib/http';
 import { createAdminSupabase } from '../../../lib/supabase';
 import { createNotification } from '../../../lib/notify';
 import { createStripe } from '../../../lib/stripe';
@@ -632,7 +633,10 @@ export const POST: APIRoute = async ({ request }) => {
   const heartbeatUrl = (cfEnv as any).CRON_HEARTBEAT_URL ?? (env as any).CRON_HEARTBEAT_URL;
   if (heartbeatUrl) {
     try {
-      await fetch(ranOk ? heartbeatUrl : `${heartbeatUrl}/fail`, { method: 'POST' });
+      // Bounded like every other outbound call — a hung healthchecks endpoint
+      // must not stall the cron response (cron-job.org would then time out and,
+      // after enough failures, disable the job — the exact incident we guard).
+      await fetchWithTimeout(ranOk ? heartbeatUrl : `${heartbeatUrl}/fail`, { method: 'POST' }, 5000);
     } catch (e) {
       log.error('cron.heartbeat_ping_failed', { error: e });
     }
