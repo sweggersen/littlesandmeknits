@@ -13,5 +13,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     targetRows: form.get('target_rows')?.toString(),
     currentRows: form.get('current_rows')?.toString(),
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { saved: true });
 };

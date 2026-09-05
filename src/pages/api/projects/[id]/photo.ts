@@ -13,5 +13,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     projectId: params.id ?? '',
     heroPhoto: file instanceof File ? file : null,
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { saved: true });
 };

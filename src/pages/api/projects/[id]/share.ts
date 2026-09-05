@@ -12,5 +12,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     projectId: params.id ?? '',
     share: form.get('share')?.toString() === 'true',
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { saved: true });
 };

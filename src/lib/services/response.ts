@@ -20,12 +20,17 @@ type AstroRedirectFn = (url: string, status?: 300 | 301 | 302 | 303 | 304 | 307 
 export function toResponse(
   result: ServiceResult<any>,
   redirect?: RedirectFn | AstroRedirectFn,
+  opts?: { saved?: boolean },
 ): Response {
   if (!result.ok) {
     return new Response(result.message, { status: STATUS[result.code] });
   }
   if (result.data?.redirect && redirect) {
-    return redirect(result.data.redirect, 303);
+    // `saved` opts a form route into a "Lagret" confirmation: append saved=1 so
+    // the destination page's toast controller can show + then strip it.
+    let url = result.data.redirect as string;
+    if (opts?.saved) url += (url.includes('?') ? '&' : '?') + 'saved=1';
+    return redirect(url, 303);
   }
   return Response.json(result.data ?? { ok: true });
 }

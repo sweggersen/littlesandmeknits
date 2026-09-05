@@ -17,5 +17,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     brand: form.get('brand')?.toString(),
     notes: form.get('notes')?.toString(),
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { saved: true });
 };
