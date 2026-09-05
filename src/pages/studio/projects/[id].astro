@@ -8,6 +8,8 @@ import ShareSection from '../../../components/project/ShareSection.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { getEntry } from 'astro:content';
 import { projectPhotoUrl } from '../../../lib/storage';
+import { PROJECT_STATUS } from '../../../lib/labels';
+import StatusBadge from '../../../components/StatusBadge.astro';
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/studio/projects');
@@ -140,19 +142,12 @@ const availableStash = stash.filter((y) => !linkedYarnIds.has(y.id));
 const patternEntry = p.pattern_slug ? await getEntry('patterns', p.pattern_slug) : null;
 const heroUrl = projectPhotoUrl(p.hero_photo_path);
 
-const statusLabels = {
-  planning: 'Planlegges',
-  active: 'I gang',
-  finished: 'Ferdig',
-  frogged: 'Røket opp',
-} as const;
-
-const statusClass = {
-  planning: 'bg-oatmeal text-charcoal/70',
-  active: 'bg-sage-100 text-sage-900',
-  finished: 'bg-terracotta-500/10 text-terracotta-500',
-  frogged: 'bg-charcoal/10 text-charcoal/60',
-} as const;
+// The status pill uses the shared StatusBadge; the offscreen share-card
+// scaffolds (inline-styled for image rendering) keep their own inline palette
+// below and just render the PROJECT_STATUS label as text.
+const statusVariant: Record<string, 'default' | 'sage' | 'terracotta' | 'muted'> = {
+  planning: 'default', active: 'sage', finished: 'terracotta', frogged: 'muted',
+};
 
 // Inline-style palette for the offscreen share-card scaffold (Tailwind classes
 // can't be relied on for the 1080×1350 / 1080×1920 dimensions, so we hardcode
@@ -224,9 +219,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
 
       <header class="flex items-start justify-between gap-4 mb-6">
         <div class="flex-1 min-w-0">
-          <span class={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${statusClass[p.status]}`}>
-            {statusLabels[p.status]}
-          </span>
+          <StatusBadge label={PROJECT_STATUS[p.status] ?? p.status} variant={statusVariant[p.status] ?? 'default'} />
           <h1 class="font-serif text-3xl sm:text-4xl mt-3 leading-tight">{p.title}</h1>
           {p.summary && (
             <p class="text-charcoal/65 mt-3 leading-relaxed">{p.summary}</p>
@@ -395,7 +388,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
         <div style="flex:1; padding:60px 80px; display:flex; flex-direction:column; justify-content:space-between;">
           <div style="display:flex; flex-direction:column; gap:20px;">
             <span style={`align-self:flex-start; font-size:20px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; padding:10px 22px; border-radius:999px; background:${statusPillBg[p.status]}; color:${statusPillFg[p.status]};`}>
-              {statusLabels[p.status]}
+              {PROJECT_STATUS[p.status] ?? p.status}
             </span>
             <div style="font-family:'Fraunces','Fraunces Variable',serif; font-size:76px; font-weight:500; line-height:1.05; color:#2C2A26; letter-spacing:-0.01em;">{p.title}</div>
             {cardSummary && (
@@ -425,7 +418,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
           <div style="text-align:center; font-family:'Fraunces','Fraunces Variable',serif; font-style:italic; font-size:28px; letter-spacing:0.22em; text-transform:uppercase; opacity:0.92;">Littles and Me</div>
           <div style="display:flex; flex-direction:column; gap:28px; align-items:center; text-align:center;">
             <span style="background:#C76D4E; color:#FAF6F0; font-size:22px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; padding:12px 26px; border-radius:999px;">
-              {statusLabels[p.status]}
+              {PROJECT_STATUS[p.status] ?? p.status}
             </span>
             <div style="font-family:'Fraunces','Fraunces Variable',serif; font-size:108px; font-weight:500; line-height:1.04; letter-spacing:-0.01em; max-width:900px;">{p.title}</div>
             {cardSummary && (

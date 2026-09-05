@@ -1,5 +1,6 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import StatusBadge from '../../../components/StatusBadge.astro';
 import { formatDate } from '../../../lib/time';
 import { buildServiceContext } from '../../../lib/services/context';
 import { listMyStores } from '../../../lib/services/stores';
@@ -25,12 +26,8 @@ const STATUS_LABEL: Record<string, string> = {
   suspended: 'Suspendert',
   archived: 'Slettet (kan gjenopprettes)',
 };
-const STATUS_TONE: Record<string, string> = {
-  draft: 'bg-charcoal/10 text-charcoal/70',
-  pending_review: 'bg-amber-100 text-amber-800',
-  active: 'bg-sage-100 text-sage-800',
-  suspended: 'bg-red-100 text-red-800',
-  archived: 'bg-charcoal/10 text-charcoal/55',
+const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
+  draft: 'muted', pending_review: 'amber', active: 'sage', suspended: 'red', archived: 'muted',
 };
 ---
 
@@ -123,9 +120,7 @@ const STATUS_TONE: Record<string, string> = {
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2 flex-wrap">
                     <h2 class="font-serif text-lg truncate">{s.name}</h2>
-                    <span class={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${STATUS_TONE[s.status]}`}>
-                      {STATUS_LABEL[s.status]}
-                    </span>
+                    <StatusBadge label={STATUS_LABEL[s.status] ?? s.status} variant={STATUS_VARIANT[s.status] ?? 'muted'} />
                   </div>
                   <p class="text-xs text-charcoal/55 mt-0.5">
                     {ROLE_LABEL_NB[s.my_role as keyof typeof ROLE_LABEL_NB]} · /{s.slug}
