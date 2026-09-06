@@ -46,7 +46,7 @@ const CATEGORIES = [
         </div>
       )}
 
-      <form method="post" action="/api/marketplace/commissions/create" data-astro-reload class="space-y-5">
+      <form method="post" action="/api/marketplace/commissions/create" enctype="multipart/form-data" data-astro-reload class="space-y-5">
         {targetKnitterId && <input type="hidden" name="target_knitter_id" value={targetKnitterId} />}
 
         <label class="block">
@@ -80,9 +80,17 @@ const CATEGORIES = [
         </label>
 
         <label class="block">
-          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Oppskrift</span>
-          <input name="pattern_external_title" type="text" maxlength="120" placeholder="Navn på oppskrift, om du har en spesifikk"
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Oppskrift eller referanse (valgfritt)</span>
+          <input name="pattern_reference" type="text" maxlength="300" placeholder="Navn på oppskrift eller lenke til inspirasjon"
             class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+          <span class="block text-[11px] text-charcoal/45 mt-1.5">Skriv navnet på en oppskrift, eller lim inn en lenke. Ikke last opp selve oppskrifts-PDF-en.</span>
+        </label>
+
+        <label class="block">
+          <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Referansebilder (valgfritt)</span>
+          <input name="reference_images" type="file" accept="image/*" multiple
+            class="w-full text-sm text-charcoal/70 file:mr-3 file:rounded-full file:border-0 file:bg-oatmeal file:px-4 file:py-2 file:text-sm file:font-medium file:text-charcoal hover:file:bg-oatmeal/70 file:cursor-pointer" />
+          <span class="block text-[11px] text-charcoal/45 mt-1.5">Del inspirasjonsbilder så strikkeren ser hva du ser for deg. Opptil 6 bilder.</span>
         </label>
 
         <label class="block">
@@ -95,6 +103,15 @@ const CATEGORIES = [
           <input type="checkbox" name="yarn_provided_by_buyer" value="1"
             class="w-5 h-5 rounded border-sage-500/30 text-terracotta-500 focus:ring-terracotta-500/30" />
           <span class="text-sm">Jeg sender garnet selv</span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" name="requires_agreement" value="1"
+            class="mt-0.5 w-5 h-5 rounded border-sage-500/30 text-terracotta-500 focus:ring-terracotta-500/30" />
+          <span class="text-sm">
+            Krev en avtale før betaling
+            <span class="block text-[11px] text-charcoal/45">Du og strikkeren blir enige om detaljene før pengene trekkes.</span>
+          </span>
         </label>
 
         <div class="grid grid-cols-2 gap-4">

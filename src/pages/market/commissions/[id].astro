@@ -7,7 +7,7 @@ import ProfileAvatar from '../../../components/ProfileAvatar.astro';
 import OffersList from '../../../components/commission/OffersList.astro';
 import CommissionTimeline from '../../../components/commission/Timeline.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { projectPhotoUrl } from '../../../lib/storage';
+import { projectPhotoUrl, squareThumbUrl, resizedImageUrl } from '../../../lib/storage';
 import { commissionShareMeta } from '../../../lib/seo';
 import { CATEGORY_LABEL, COMMISSION_STATUS, PROJECT_STATUS } from '../../../lib/labels';
 
@@ -40,6 +40,23 @@ if (!req) return Astro.redirect('/market/commissions');
 
 const isBuyer = user?.id === req.buyer_id;
 const isOpen = req.status === 'open';
+
+// Reference/inspiration images the bestiller attached to the brief. RLS on
+// commission_request_photos mirrors the parent request's visibility (0105), so
+// this only returns rows the viewer is allowed to see.
+const { data: referencePhotos } = await supabase
+  .from('commission_request_photos')
+  .select('id, path, position')
+  .eq('request_id', id)
+  .order('position');
+const refPhotos = referencePhotos ?? [];
+
+// A pattern reference is free text: a name and/or a link. Linkify a bare URL.
+const patternReference: string | null = (req as any).pattern_reference ?? null;
+const patternReferenceUrl = patternReference && /^https?:\/\/\S+$/i.test(patternReference.trim())
+  ? patternReference.trim()
+  : null;
+const requiresAgreement = !!(req as any).requires_agreement;
 
 // P1.1: the buyer may cancel a paid, in-progress commission for a refund once
 // the knitter is > 7 days past the agreed deadline (matches LATE_CANCEL_GRACE_DAYS).
@@ -209,6 +226,9 @@ const commissionShare = commissionShareMeta({
           {isPrivate && (
             <span class="inline-block text-[10px] font-bold uppercase tracking-widest text-charcoal/35 bg-oatmeal/40 rounded-full px-3 py-1">Privat</span>
           )}
+          {requiresAgreement && (
+            <span class="inline-block text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 rounded-full px-3 py-1">Krever avtale før betaling</span>
+          )}
         </div>
 
         <div class="flex items-center gap-2 mb-2">
@@ -237,6 +257,18 @@ const commissionShare = commissionShareMeta({
               <dd>{req.yarn_preference}</dd>
             </div>
           )}
+          {patternReference && (
+            <div>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift / referanse</dt>
+              <dd>
+                {patternReferenceUrl ? (
+                  <a href={patternReferenceUrl} target="_blank" rel="noopener nofollow ugc" class="text-terracotta-500 underline break-all hover:text-terracotta-600 transition-colors">{patternReference}</a>
+                ) : (
+                  <span class="break-words">{patternReference}</span>
+                )}
+              </dd>
+            </div>
+          )}
           {req.yarn_provided_by_buyer && (
             <div>
               <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Garn</dt>
@@ -253,6 +285,19 @@ const commissionShare = commissionShareMeta({
 
         {req.description && (
           <p class="text-sm text-charcoal/75 leading-relaxed whitespace-pre-line mb-5">{req.description}</p>
+        )}
+
+        {refPhotos.length > 0 && (
+          <div class="mb-5">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Referansebilder</p>
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {refPhotos.map((photo) => (
+                <a href={resizedImageUrl(projectPhotoUrl(photo.path), 1200, { quality: 80 })!} target="_blank" rel="noopener" class="aspect-square rounded-xl overflow-hidden bg-oatmeal block">
+                  <img src={squareThumbUrl(projectPhotoUrl(photo.path), 320)!} alt="Referansebilde for oppdraget" class="w-full h-full object-cover" loading="lazy" />
+                </a>
+              ))}
+            </div>
+          </div>
         )}
 
         <div class="flex items-center justify-between pt-4 border-t border-sage-500/10">
