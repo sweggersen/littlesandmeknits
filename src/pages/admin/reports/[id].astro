@@ -83,7 +83,7 @@ const itemLabel = report.target_type === 'listing' ? 'annonsen'
   <a href="/admin/reports" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til rapporter</a>
 
   <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
-    <div class="bg-white rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
+    <div class="bg-surface rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
       <div>
         <div class="flex items-center gap-2 mb-2 flex-wrap">
           <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TARGET_LABEL[report.target_type] ?? report.target_type}</span>
@@ -153,12 +153,12 @@ const itemLabel = report.target_type === 'listing' ? 'annonsen'
             <label class="block">
               <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Melding til eieren *</span>
               <textarea name="first_message" rows="12" required maxlength="2000"
-                class="w-full mt-1 bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none">{`Hei,\n\n${draftIntro.replace('__ITEM__', itemLabel)}\n\nMens vi behandler saken er ${itemLabel} midlertidig frosset og skjult fra Strikketorget. Den blir gjenåpnet så snart vi er enige om en løsning.\n\nKan du svare oss her med din side av saken? Hvis vi ikke hører fra deg innen 48 timer, lukker vi saken med utgangspunkt i informasjonen vi har.\n\nVennlig hilsen\nModeratorteamet`}</textarea>
+                class="w-full mt-1 bg-surface rounded-lg px-3 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none">{`Hei,\n\n${draftIntro.replace('__ITEM__', itemLabel)}\n\nMens vi behandler saken er ${itemLabel} midlertidig frosset og skjult fra Strikketorget. Den blir gjenåpnet så snart vi er enige om en løsning.\n\nKan du svare oss her med din side av saken? Hvis vi ikke hører fra deg innen 48 timer, lukker vi saken med utgangspunkt i informasjonen vi har.\n\nVennlig hilsen\nModeratorteamet`}</textarea>
             </label>
             <label class="block">
               <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Interne notater (valgfritt)</span>
               <textarea name="notes" rows="2" maxlength="1000"
-                class="w-full mt-1 bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+                class="w-full mt-1 bg-surface rounded-lg px-3 py-2 text-sm border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none"></textarea>
             </label>
             <button type="submit" class="w-full bg-amber-500 text-white px-3 py-2.5 rounded-lg text-xs font-medium hover:bg-amber-600">
               {openSiblings.length > 1 ? `Frys ${itemLabel} og løs alle ${openSiblings.length}` : `Frys ${itemLabel} og åpne samtale`}
@@ -176,7 +176,7 @@ const itemLabel = report.target_type === 'listing' ? 'annonsen'
             <label class="block">
               <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Interne notater (valgfritt)</span>
               <textarea name="notes" rows="2" maxlength="1000"
-                class="w-full mt-1 bg-white rounded-lg px-3 py-2 text-xs border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none"></textarea>
+                class="w-full mt-1 bg-surface rounded-lg px-3 py-2 text-xs border border-sage-500/20 focus:outline-none focus:border-sage-500 resize-none"></textarea>
             </label>
             <button type="submit" class="w-full border border-sage-500/30 text-charcoal/65 px-3 py-2 rounded-lg text-xs font-medium hover:bg-sage-100/50">
               {openSiblings.length > 1 ? `Avvis alle ${openSiblings.length}` : 'Avvis rapporten'}
@@ -186,7 +186,7 @@ const itemLabel = report.target_type === 'listing' ? 'annonsen'
       )}
     </div>
 
-    <div class="bg-white rounded-xl border border-sage-500/10 p-2 lg:p-3">
+    <div class="bg-surface rounded-xl border border-sage-500/10 p-2 lg:p-3">
       <div class="flex items-center justify-between mb-2 px-2 pt-1">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
         {itemUrl && (

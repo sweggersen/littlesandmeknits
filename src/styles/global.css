@@ -30,10 +30,125 @@
   --color-primary-hover: #9A4F37; /* same as terracotta-700 */
   --color-primary-fg: #FAF6F0;    /* same as linen */
 
+  /* ---- Semantic surface & page roles ----------------------------------
+     `bg-surface` is the canonical card/panel/sheet colour and REPLACES raw
+     `bg-white`. Default is pure white, so the light "Linen" theme is
+     pixel-identical to before — but a theme can now re-tint every surface
+     from one line. `--color-page` mirrors the body background. */
+  --color-surface: #ffffff;       /* was: bg-white */
+  --color-page: var(--color-linen);
+
+  /* ---- Chrome (dark page furniture) -----------------------------------
+     "bg-charcoal text-linen is page chrome" (see CLAUDE.md). Footers and
+     dark strips use these so a dark theme can keep chrome dark while the
+     body text (charcoal) flips light. Defaults equal charcoal/linen, so
+     no visual change to the current look. */
+  --color-chrome: #2C2A26;        /* = charcoal */
+  --color-chrome-fg: #FAF6F0;     /* = linen  */
+
+  /* ---- Marketplace section accents ------------------------------------
+     The three categories each carry their own hue on nav pills, the home
+     cards, and section eyebrows. Promoted from inline #hex literals so a
+     theme reskins the sections in one place. `*-soft` are the card tints,
+     `*-300` the lighter hover-border shades. */
+  --color-used-500: #915f3a;        /* Brukt (brown)  */
+  --color-used-300: #b08968;
+  --color-used-soft: #f3ece1;
+  --color-new-500: #5d6f4b;         /* Nytt (green)   */
+  --color-new-soft: #e6f0e9;
+  --color-commission-500: #6f5494;  /* Oppdrag (purple) */
+  --color-commission-300: #9b7fc4;
+  --color-commission-soft: #efe9f7;
+
+  /* ---- Third-party brand ----------------------------------------------
+     Vipps orange is brand-mandated; tokenised for consistency, but a theme
+     should leave it as-is. */
+  --color-vipps: #FF5B24;
+  --color-vipps-hover: #E04E1C;
+
+  /* ---- Semantic typography aliases ------------------------------------
+     Point display/body type at the two families so a theme can swap the
+     typeface without editing every usage site. */
+  --font-display: var(--font-serif);
+  --font-body: var(--font-sans);
+
   --font-serif: "Fraunces Variable", ui-serif, Georgia, serif;
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
   --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ======================================================================
+   THEMES — a theme is exactly this: one block of custom-property
+   overrides. Utilities already resolve `var(--color-*)` at the use-site,
+   so redefining the tokens under `:root[data-theme="…"]` reskins the whole
+   site live (no component edits). The default look ("Linen") IS the @theme
+   block above; the explicit `linen` block below lets the /dev/theme
+   switcher reset to it symmetrically. See docs/THEMING.md.
+   ====================================================================== */
+
+/* Linen — the production default (values mirror @theme). */
+:root[data-theme="linen"] {
+  --color-page: #FAF6F0;
+  --color-surface: #ffffff;
+  --color-charcoal: #2C2A26;
+  --color-linen: #FAF6F0;
+  --color-oatmeal: #E8DFD0;
+  --color-chrome: #2C2A26;
+  --color-chrome-fg: #FAF6F0;
+  --color-primary: #C76D4E;
+  --color-primary-hover: #9A4F37;
+  --color-primary-fg: #FAF6F0;
+}
+
+/* Solnedgang — a warmer, higher-contrast light theme: deeper terracotta
+   primary, warm cream page, near-black ink. Clearly different, still light
+   and fully legible. */
+:root[data-theme="solnedgang"] {
+  --color-page: #FDF3E7;
+  --color-linen: #FDF3E7;
+  --color-surface: #FFFBF5;
+  --color-oatmeal: #F2E3CE;
+  --color-charcoal: #241A12;      /* warm near-black ink */
+  --color-chrome: #3A2416;        /* espresso chrome */
+  --color-chrome-fg: #FDF3E7;
+  --color-sage-100: #E7E3CF;
+  --color-sage-500: #8A9A6B;
+  --color-sage-700: #566037;
+  --color-terracotta-500: #B23A1E;
+  --color-primary: #B23A1E;       /* punchier terracotta */
+  --color-primary-hover: #872910;
+  --color-primary-fg: #FFFBF5;
+  --color-used-500: #8a4a24;
+  --color-new-500: #4f6a3c;
+  --color-commission-500: #6a4a8f;
+}
+
+/* Kveld — a dark theme. Page/surface go dark, ink (charcoal) flips light,
+   chrome stays dark, accents brighten for contrast. Kept AA-legible. */
+:root[data-theme="kveld"] {
+  --color-page: #1B1A18;
+  --color-linen: #1B1A18;         /* page + body background */
+  --color-surface: #262421;       /* raised cards */
+  --color-oatmeal: #33302B;       /* muted fills */
+  --color-charcoal: #ECE7DE;      /* ink -> light */
+  --color-chrome: #121110;        /* chrome stays dark */
+  --color-chrome-fg: #ECE7DE;
+  --color-sage-100: #33413A;       /* success/soft fills on dark */
+  --color-sage-500: #9CB48A;
+  --color-sage-700: #B9CBA8;
+  --color-sage-800: #C8D6BA;
+  --color-sage-900: #D6E1CB;
+  --color-terracotta-500: #E08A6B;
+  --color-primary: #E08A6B;        /* brighter terracotta for dark */
+  --color-primary-hover: #C76D4E;
+  --color-primary-fg: #1B1A18;
+  --color-used-500: #d0a07a;
+  --color-used-soft: #33302B;
+  --color-new-500: #a8c493;
+  --color-new-soft: #2b332b;
+  --color-commission-500: #c3a8e0;
+  --color-commission-soft: #302b38;
 }
 
 @layer components {

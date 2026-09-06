@@ -297,7 +297,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
           {isOwner ? (
             <div class="space-y-4">
               {listing.status === 'draft' && (
-                <section class="bg-white rounded-3xl p-6 border border-sage-500/10">
+                <section class="bg-surface rounded-3xl p-6 border border-sage-500/10">
                   <h2 class="font-serif text-xl mb-2">Publiser</h2>
                   {photos.length === 0 ? (
                     <div class="bg-amber-50 text-amber-800 rounded-2xl p-4 text-sm mb-4">
@@ -399,7 +399,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
 
               {/* Kan møtes → local handover, paid off-platform via the melding below. */}
               {!isOwner && !isBuyer && listing.status === 'active' && listing.can_meet && (
-                <section class="bg-white rounded-3xl p-5 border border-sage-500/10 text-sm">
+                <section class="bg-surface rounded-3xl p-5 border border-sage-500/10 text-sm">
                   <p class="font-medium mb-1">Kan møtes</p>
                   <p class="text-charcoal/65">
                     Avtal henting og betaling lokalt (Vipps eller kontant) via meldingen under.
@@ -421,7 +421,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                    buy (meet-only / seller still onboarding), so the buyer can
                    act right away; collapsed when "Kjøp nå" is the primary CTA. */}
               {!isOwner && !isBuyer && listing.status === 'active' && (
-                <details open={!(listing.escrow_enabled && sellerOnboarded)} class="bg-white rounded-3xl border border-sage-500/10 mt-3 group">
+                <details open={!(listing.escrow_enabled && sellerOnboarded)} class="bg-surface rounded-3xl border border-sage-500/10 mt-3 group">
                   <summary class="cursor-pointer p-4 text-sm font-medium text-charcoal/70 hover:text-charcoal flex items-center justify-between">
                     <span>Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/30 group-open:rotate-180 transition-transform shrink-0">
@@ -431,9 +431,9 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                   <form method="post" action="/api/marketplace/conversations/create" class="px-4 pb-4 space-y-3">
                     <input type="hidden" name="listing_id" value={listing.id} />
                     <div class="flex flex-wrap gap-1.5" data-contact-suggestions>
-                      <button type="button" data-msg="Er denne fortsatt tilgjengelig?" class="rounded-full border border-sage-500/30 bg-white px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Fortsatt ledig?</button>
-                      <button type="button" data-msg="Kunne du tenke deg å selge til en lavere pris?" class="rounded-full border border-sage-500/30 bg-white px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Lavere pris?</button>
-                      <button type="button" data-msg="Når passer det å møtes?" class="rounded-full border border-sage-500/30 bg-white px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Når kan vi møtes?</button>
+                      <button type="button" data-msg="Er denne fortsatt tilgjengelig?" class="rounded-full border border-sage-500/30 bg-surface px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Fortsatt ledig?</button>
+                      <button type="button" data-msg="Kunne du tenke deg å selge til en lavere pris?" class="rounded-full border border-sage-500/30 bg-surface px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Lavere pris?</button>
+                      <button type="button" data-msg="Når passer det å møtes?" class="rounded-full border border-sage-500/30 bg-surface px-3 py-1 text-xs font-medium hover:border-terracotta-500 hover:text-terracotta-500 transition-colors">Når kan vi møtes?</button>
                     </div>
                     <textarea data-contact-message name="message" required rows="3" maxlength="1000"
                       placeholder="Skriv en melding…"

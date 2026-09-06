@@ -32,7 +32,7 @@ const { shippingTiers } = Astro.props;
     <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Levering *</legend>
 
     <!-- Kan sendes — the only in-app buy path; always trygg betaling. -->
-    <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
+    <label class="flex items-start gap-3 bg-surface rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
       <input type="checkbox" name="can_ship" value="true" checked data-can-ship class="mt-1 shrink-0" />
       <span class="flex-1">
         <span class="block text-sm font-medium">Kan sendes</span>
@@ -61,7 +61,7 @@ const { shippingTiers } = Astro.props;
     </div>
 
     <!-- Kan møtes — local handover, paid off-platform, no protection. -->
-    <label class="flex items-start gap-3 bg-white rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
+    <label class="flex items-start gap-3 bg-surface rounded-xl p-4 border border-sage-500/15 has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/30 cursor-pointer">
       <input type="checkbox" name="can_meet" value="true" data-can-meet class="mt-1 shrink-0" />
       <span class="flex-1">
         <span class="block text-sm font-medium">Kan møtes</span>

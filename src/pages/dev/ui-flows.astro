@@ -27,7 +27,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 <Layout title="UI Flows" lang="nb">
   <div class="min-h-[calc(100vh-64px)] bg-charcoal/[0.03]" data-admin-token={adminToken}>
     <div class="hidden lg:block">
-      <div class="bg-white border-b border-sage-500/10 sticky top-[64px] z-20">
+      <div class="bg-surface border-b border-sage-500/10 sticky top-[64px] z-20">
         <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <div>
             <p class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500 mb-0.5">Dev Tool</p>
@@ -35,12 +35,12 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             <p class="text-[11px] text-charcoal/55 mt-0.5">Synthetic-click playback. Real page in iframe, programmatic events. <a href="/dev/test-tower" class="text-terracotta-500 hover:underline">API-only tower →</a></p>
           </div>
           <div class="flex items-center gap-2">
-            <select id="flow-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
-            <select id="viewport-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Visningsstørrelse">
+            <select id="flow-select" class="text-sm font-medium bg-surface border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] focus:outline-none focus:border-sage-500"></select>
+            <select id="viewport-select" class="text-sm bg-surface border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Visningsstørrelse">
               <option value="desktop" selected>💻 Desktop</option>
               <option value="mobile">📱 Mobil (390×844)</option>
             </select>
-            <select id="speed-select" class="text-sm bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Avspillingshastighet">
+            <select id="speed-select" class="text-sm bg-surface border border-sage-500/20 rounded-lg px-3 py-1.5 focus:outline-none focus:border-sage-500" title="Avspillingshastighet">
               <option value="2800">0.5×</option>
               <option value="1400" selected>1×</option>
               <option value="700">2×</option>
@@ -79,7 +79,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
                  steps (Stripe, file upload, etc.) to explain what's
                  happening in real life. -->
             <div id="action-overlay" class="hidden absolute inset-0 z-20 bg-charcoal/55 backdrop-blur-sm flex items-center justify-center p-8 transition-opacity">
-              <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
+              <div class="bg-surface rounded-3xl shadow-2xl max-w-md w-full p-8 text-center">
                 <div data-overlay-icon class="text-5xl mb-3">⚡</div>
                 <h3 data-overlay-title class="font-serif text-2xl mb-2">Snarvei</h3>
                 <p data-overlay-body class="text-sm text-charcoal/70 leading-relaxed whitespace-pre-line">…</p>

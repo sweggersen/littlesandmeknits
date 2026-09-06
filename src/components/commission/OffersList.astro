@@ -58,7 +58,7 @@ const {
           {allOffers.map((o) => {
             const kp = o.profiles;
             return (
-              <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
+              <div class="bg-surface rounded-2xl p-5 border border-sage-500/10">
                 <div class="flex items-start gap-4">
                   <a href={`/market/seller/${o.knitter_id}`} class="shrink-0">
                     <ProfileAvatar url={kp?.avatar_path ? projectPhotoUrl(kp.avatar_path) : null} name={kp?.display_name ?? '?'} size="md" />
@@ -83,7 +83,7 @@ const {
       </div>
     )
   ) : !isBuyer && !myOffer && hasUser ? (
-    <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10">
+    <div class="max-w-md mx-auto bg-surface rounded-2xl p-5 border border-sage-500/10">
       <p class="font-medium text-sm mb-3">Send tilbud</p>
       <form method="post" action="/api/marketplace/commissions/offer" data-astro-reload class="space-y-2">
         <input type="hidden" name="request_id" value={requestId} />
@@ -102,7 +102,7 @@ const {
       </form>
     </div>
   ) : myOffer ? (
-    <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10">
+    <div class="max-w-md mx-auto bg-surface rounded-2xl p-5 border border-sage-500/10">
       <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ditt tilbud</p>
       <p class="font-mono tabular-nums">{myOffer.price_nok} NOK · {myOffer.turnaround_weeks} uker</p>
       <p class="text-[10px] text-charcoal/45 mt-1">Venter på svar fra bestiller</p>
@@ -112,7 +112,7 @@ const {
       </form>
     </div>
   ) : !hasUser ? (
-    <div class="max-w-md mx-auto bg-white rounded-2xl p-5 border border-sage-500/10 text-center">
+    <div class="max-w-md mx-auto bg-surface rounded-2xl p-5 border border-sage-500/10 text-center">
       <p class="text-sm text-charcoal/55 mb-2">Logg inn for å gi tilbud</p>
       <a href={`/login?next=/market/commissions/${paramId}`} class="inline-block bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Logg inn</a>
     </div>

@@ -20,7 +20,7 @@ const err = Astro.url.searchParams.get('err');
     {err && <Alert type="error" class="mb-6">{err}</Alert>}
 
     <!-- Export -->
-    <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-5">
+    <section class="bg-surface rounded-3xl p-6 border border-sage-500/10 mb-5">
       <h2 class="font-serif text-xl mb-2">Last ned dataene mine</h2>
       <p class="text-sm text-charcoal/65 mb-4">
         Du får en JSON-fil med konto, profil, annonser, kjøp, samtaler, vurderinger,
@@ -36,7 +36,7 @@ const err = Astro.url.searchParams.get('err');
     </section>
 
     <!-- Bookkeeping -->
-    <section class="bg-white rounded-3xl p-6 border border-sage-500/10 mb-5">
+    <section class="bg-surface rounded-3xl p-6 border border-sage-500/10 mb-5">
       <h2 class="font-serif text-xl mb-2">Bokføringseksport</h2>
       <p class="text-sm text-charcoal/65 mb-4">
         Last ned en CSV-fil med alle fullførte salg og leverte oppdrag i en valgt periode
@@ -59,7 +59,7 @@ const err = Astro.url.searchParams.get('err');
     </section>
 
     <!-- Delete -->
-    <section class="bg-white rounded-3xl p-6 border border-red-300/30">
+    <section class="bg-surface rounded-3xl p-6 border border-red-300/30">
       <h2 class="font-serif text-xl mb-2 text-red-700">Slett kontoen</h2>
       <p class="text-sm text-charcoal/65 mb-2">
         Sletter profil, favoritter, varsler og innstillinger. Anonymiserer historiske

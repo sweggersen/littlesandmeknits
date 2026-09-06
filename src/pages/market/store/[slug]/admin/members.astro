@@ -34,7 +34,7 @@ const roleOptions: StoreRole[] = role === 'owner'
 
     {/* My presentation */}
     {me && (
-      <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+      <section class="bg-surface rounded-3xl border border-sage-500/10 p-5">
         <h2 class="font-serif text-lg mb-3">Min profil i butikken</h2>
         <form method="post" action={`/api/stores/${store.slug}/members`} class="space-y-3">
           <input type="hidden" name="action" value="update-presentation" />
@@ -58,7 +58,7 @@ const roleOptions: StoreRole[] = role === 'owner'
 
     {/* Invite */}
     {can.inviteMembers(role) && (
-      <section class="bg-white rounded-3xl border border-sage-500/10 p-5">
+      <section class="bg-surface rounded-3xl border border-sage-500/10 p-5">
         <h2 class="font-serif text-lg mb-3">Inviter medlem</h2>
         <form method="post" action={`/api/stores/${store.slug}/members`} class="flex flex-col sm:flex-row gap-2">
           <input type="hidden" name="action" value="invite" />
@@ -104,7 +104,7 @@ const roleOptions: StoreRole[] = role === 'owner'
       <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-3">Nåværende medlemmer</h3>
       <ul class="space-y-2">
         {members.map((m) => (
-          <li class="bg-white rounded-2xl border border-sage-500/10 px-4 py-3 flex items-center gap-3">
+          <li class="bg-surface rounded-2xl border border-sage-500/10 px-4 py-3 flex items-center gap-3">
             <ProfileAvatar name={m.display_name ?? ''} url={m.avatar_path ? projectPhotoUrl(m.avatar_path) : null} size="sm" />
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium truncate">{m.display_name ?? 'Medlem'}</p>

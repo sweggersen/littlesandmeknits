@@ -115,7 +115,7 @@ for (const o of d.allOffers.slice(0, 4)) {
             <div class="p-4">
               <div class="dash-tiles">
                 {stats.map((s) => (
-                  <a href={s.href} data-tile class="bg-white rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
+                  <a href={s.href} data-tile class="bg-surface rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
                     <div class="flex items-center justify-between mb-3">
                       <StatIcon name={s.icon} class="text-charcoal/35" />
                       {s.hot && <span class="w-2 h-2 rounded-full bg-terracotta-500"></span>}
@@ -131,7 +131,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Trenger oppmerksomhet -->
         <div class="dash-widget md:col-span-4" data-widget="needsAttention" data-size="m" data-default="1" data-label="Trenger oppmerksomhet">
-          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Trenger oppmerksomhet</h2>
               <a href="/market/commissions/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
@@ -172,7 +172,7 @@ for (const o of d.allOffers.slice(0, 4)) {
         <!-- Nye merker -->
         {d.recentAchievements.length > 0 && (
           <div class="dash-widget md:col-span-2" data-widget="badges" data-size="s" data-default="1" data-label="Nye merker">
-            <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+            <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
               <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
                 <h2 class="font-serif text-lg">Nye merker</h2>
                 <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
@@ -194,7 +194,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Prosjekter -->
         <div class="dash-widget md:col-span-4" data-widget="projects" data-size="m" data-default="1" data-label="Prosjekter">
-          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Prosjekter</h2>
               <a href="/studio" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
@@ -221,7 +221,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Mine butikker -->
         <div class="dash-widget md:col-span-2" data-widget="stores" data-size="s" data-default="1" data-label="Mine butikker">
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <a href="/profile/stores" class="font-serif text-lg hover:text-terracotta-500 transition-colors">Mine butikker</a>
               <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
@@ -256,7 +256,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Annonser -->
         <div class="dash-widget md:col-span-4" data-widget="listings" data-size="m" data-default="1" data-label="Annonser">
-          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Annonser</h2>
               <a href="/market/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
@@ -289,7 +289,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Bibliotek -->
         <div class="dash-widget md:col-span-2" data-widget="library" data-size="s" data-default="1" data-label="Bibliotek">
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Bibliotek</h2>
               <a href="/profile/library/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
@@ -318,7 +318,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Snarveier -->
         <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s" data-default="1" data-label="Snarveier">
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <h2 class="font-serif text-lg px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">Snarveier</h2>
             <div class="flex flex-col gap-2 text-sm">
               <a href="/market/my-purchases" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Kjøp og kvitteringer →</a>
@@ -334,7 +334,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Kjøpte oppskrifter (valgfritt panel) -->
         <div class="dash-widget md:col-span-2" data-widget="purchases" data-size="s" data-default="0" data-label="Kjøpte oppskrifter">
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
               <a href="/market/my-purchases" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
@@ -358,7 +358,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Mine tilbud (valgfritt panel) -->
         <div class="dash-widget md:col-span-4" data-widget="offers" data-size="m" data-default="0" data-label="Mine tilbud">
-          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Mine tilbud</h2>
               <a href="/market/commissions" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Oppdrag →</a>
@@ -385,7 +385,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Mine forespørsler (valgfritt panel) -->
         <div class="dash-widget md:col-span-4" data-widget="requests" data-size="m" data-default="0" data-label="Mine forespørsler">
-          <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Mine forespørsler</h2>
               <a href="/market/commissions/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
@@ -412,7 +412,7 @@ for (const o of d.allOffers.slice(0, 4)) {
 
         <!-- Om meg (valgfritt panel) -->
         <div class="dash-widget md:col-span-2" data-widget="about" data-size="s" data-default="0" data-label="Om meg">
-          <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+          <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Om meg</h2>
               <a href="/innstillinger" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger →</a>

@@ -1,0 +1,40 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { devToolsBlocked } from '../../lib/dev-guard';
+import ThemeSwitcher from '../../components/dev/ThemeSwitcher.astro';
+import ThemeShowcase from '../../components/dev/ThemeShowcase.astro';
+
+// Same gate as the other /dev/* screens: blocked on prod builds, always open
+// on localhost, other hosts only with DEV_TOOLS='enabled'.
+if (devToolsBlocked(Astro.request)) return Astro.redirect('/login');
+---
+
+<Layout title="Tema-lekeplass · Dev" noindex={true}>
+  <main class="max-w-5xl mx-auto px-6 py-10">
+    <header class="mb-8">
+      <p class="label-eyebrow mb-2">Dev · Themeability</p>
+      <h1 class="font-serif text-4xl mb-3">Tema-lekeplass</h1>
+      <p class="text-charcoal/70 max-w-2xl">
+        Hver komponent nedenfor er den ekte delte komponenten, matet med
+        mock-data (ingen database). Bytt tema med bryteren, så reskinnes hele
+        siden (inkludert nav og footer) i sanntid. Et tema er kun én blokk med
+        token-overstyringer i <code class="font-mono text-sm">global.css</code>.
+        Se <code class="font-mono text-sm">docs/THEMING.md</code> for hvordan du
+        legger til et nytt.
+      </p>
+    </header>
+
+    <div class="mb-10">
+      <ThemeSwitcher />
+    </div>
+
+    <ThemeShowcase />
+
+    <footer class="mt-16 pt-8 border-t border-sage-500/10 text-sm text-charcoal/45">
+      <p>
+        Standardtemaet «Linen» er pikselidentisk med produksjon. «Solnedgang»
+        og «Kveld» er utforskende eksempler, ikke ny standard.
+      </p>
+    </footer>
+  </main>
+</Layout>

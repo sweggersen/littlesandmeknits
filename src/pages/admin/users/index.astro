@@ -37,8 +37,8 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderat
   <h1 class="font-serif text-2xl mb-4">Brukere</h1>
 
   <form method="get" class="flex gap-2 mb-6">
-    <input name="q" type="text" value={search} placeholder="Søk etter bruker-ID…" class="bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 flex-1" />
-    <select name="role" class="bg-white rounded-lg px-3 py-2 text-sm border border-sage-500/15">
+    <input name="q" type="text" value={search} placeholder="Søk etter bruker-ID…" class="bg-surface rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 flex-1" />
+    <select name="role" class="bg-surface rounded-lg px-3 py-2 text-sm border border-sage-500/15">
       <option value="">Alle roller</option>
       <option value="admin" selected={roleFilter === 'admin'}>Admin</option>
       <option value="moderator" selected={roleFilter === 'moderator'}>Moderator</option>
@@ -48,11 +48,11 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderat
   </form>
 
   {allUsers.length === 0 ? (
-    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+    <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
       <p class="text-sm text-charcoal/45">Ingen brukere funnet.</p>
     </div>
   ) : (
-    <div class="bg-white rounded-xl border border-sage-500/10 overflow-hidden">
+    <div class="bg-surface rounded-xl border border-sage-500/10 overflow-hidden">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-sage-500/10">

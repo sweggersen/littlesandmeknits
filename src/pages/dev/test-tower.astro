@@ -29,7 +29,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
     <!-- Desktop only -->
     <div class="hidden lg:block">
       <!-- Sticky control bar -->
-      <div class="bg-white border-b border-sage-500/10 sticky top-[64px] z-20">
+      <div class="bg-surface border-b border-sage-500/10 sticky top-[64px] z-20">
         <div class="max-w-[1400px] mx-auto px-6 py-3 flex items-center justify-between gap-4">
           <div class="flex items-center gap-4 min-w-0">
             <div class="shrink-0">
@@ -38,7 +38,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
             </div>
             <div class="flex items-center gap-2 min-w-0 flex-1">
               <label for="scenario-select" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 shrink-0">Scenario</label>
-              <select id="scenario-select" class="text-sm font-medium bg-white border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] max-w-full focus:outline-none focus:border-sage-500"></select>
+              <select id="scenario-select" class="text-sm font-medium bg-surface border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] max-w-full focus:outline-none focus:border-sage-500"></select>
             </div>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -1343,7 +1343,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
           <div class="bp-dot ${hasBP ? 'active' : ''}" data-bp="${step.id}" title="Breakpoint"></div>
           <div class="step-dot ${dotClass}"></div>
 
-          <div class="bg-white rounded-xl border ${ready ? 'border-charcoal/15 shadow-sm' : done ? 'border-sage-500/10' : 'border-sage-500/10 opacity-60'} p-4 mb-4">
+          <div class="bg-surface rounded-xl border ${ready ? 'border-charcoal/15 shadow-sm' : done ? 'border-sage-500/10' : 'border-sage-500/10 opacity-60'} p-4 mb-4">
             <div class="flex items-center gap-2.5">
               <span class="font-mono text-[11px] text-charcoal/30 w-5 text-right shrink-0">${idx + 1}</span>
               <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full role-${persona.role}">${persona.name} &middot; ${persona.roleLabel}</span>
@@ -1364,7 +1364,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       const s = getScenario();
 
       if (!stateData) {
-        el.innerHTML = `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        el.innerHTML = `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">State Inspector</p>
           <p class="text-xs text-charcoal/40">Kjør et steg for å se tilstand.</p>
         </div>`;
@@ -1376,7 +1376,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Request state
       if (stateData.request) {
         const req = stateData.request;
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Forespørsel</p>
           <p class="font-medium text-sm mb-1">${escHtml(req.title)}</p>
           <p class="mb-2"><span class="state-badge ${req.status}">${req.status}</span></p>
@@ -1395,7 +1395,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Offers
       if (stateData.offers?.length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Tilbud (${stateData.offers.length})</p>
           <div class="space-y-2">
             ${stateData.offers.map(o => `
@@ -1414,7 +1414,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Project
       if (stateData.project) {
         const proj = stateData.project;
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Prosjekt</p>
           <p class="text-sm font-medium mb-1">${escHtml(proj.title)}</p>
           <p><span class="state-badge ${proj.status}">${proj.status}</span></p>
@@ -1425,7 +1425,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Listing
       if (stateData.listing) {
         const l = stateData.listing;
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Annonse</p>
           <p class="text-sm font-medium mb-1">${escHtml(l.title)}</p>
           <p class="mb-1"><span class="state-badge ${l.status}">${l.status}</span></p>
@@ -1435,7 +1435,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Conversations
       if (stateData.conversations?.length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Meldinger</p>
           ${stateData.conversations.map(c => `
             <div class="space-y-1.5">
@@ -1453,7 +1453,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Queue item
       if (stateData.queue_item) {
         const qi = stateData.queue_item;
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Modereringskø</p>
           <p class="mb-2"><span class="state-badge ${qi.status}">${qi.status}</span></p>
           <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
@@ -1470,7 +1470,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Moderator stats
       if (stateData.mod_stats && Object.keys(stateData.mod_stats).length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Moderator-statistikk</p>
           ${Object.entries(stateData.mod_stats).map(([email, ms]) => {
             const name = Object.values(P).find(p => p.email === email)?.name || email;
@@ -1491,7 +1491,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Profiles & trust
       if (stateData.profiles && Object.keys(stateData.profiles).length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Profiler &amp; tillit</p>
           ${Object.entries(stateData.profiles).map(([email, pr]) => {
             const name = Object.values(P).find(p => p.email === email)?.name || email;
@@ -1510,7 +1510,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Reports
       if (stateData.reports?.length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Rapporter (${stateData.reports.length})</p>
           <div class="space-y-1.5">
             ${stateData.reports.map(r => '<div class="text-[11px] flex items-center justify-between">' +
@@ -1524,7 +1524,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Transaction reviews
       if (stateData.tx_reviews?.length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Vurderinger (${stateData.tx_reviews.length})</p>
           <div class="space-y-1.5">
             ${stateData.tx_reviews.map(r => '<div class="text-[11px]">' +
@@ -1540,7 +1540,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Payouts
       if (stateData.payouts?.length) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Utbetalinger (${stateData.payouts.length})</p>
           <div class="space-y-1.5">
             ${stateData.payouts.map(p => '<div class="text-[11px] flex items-center justify-between">' +
@@ -1554,7 +1554,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       // Notifications
       if (stateData.notifications) {
-        html += `<div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Varsler</p>
           ${Object.entries(stateData.notifications).map(([email, notifs]) => {
             const name = Object.values(P).find(p => p.email === email)?.name || email;

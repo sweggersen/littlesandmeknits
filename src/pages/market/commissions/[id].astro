@@ -277,7 +277,7 @@ const commissionShare = commissionShareMeta({
                   placeholder="Skriv en melding…"
                   autocomplete="off"
                   data-autogrow
-                  class="flex-1 min-w-0 bg-white rounded-2xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-[height,padding] duration-150 resize-none leading-snug"
+                  class="flex-1 min-w-0 bg-surface rounded-2xl px-4 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-[height,padding] duration-150 resize-none leading-snug"
                 ></textarea>
                 <button type="submit" class="bg-primary text-primary-fg px-3 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors shrink-0">Send</button>
               </form>
@@ -340,7 +340,7 @@ const commissionShare = commissionShareMeta({
           <h2 class="font-serif text-xl mb-4">Prosjektoppdateringer</h2>
           <ol class="space-y-3">
             {projectLogs.map((log) => (
-              <li class="bg-white rounded-2xl p-4 border border-sage-500/10">
+              <li class="bg-surface rounded-2xl p-4 border border-sage-500/10">
                 <div class="flex items-baseline gap-3 flex-wrap mb-1">
                   <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
                     {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long' })}

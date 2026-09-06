@@ -42,7 +42,7 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
       <section class="mb-12">
         <h2 class="font-serif text-2xl mb-4">Mine forespørsler</h2>
         {(myRequests ?? []).length === 0 ? (
-          <div class="bg-white rounded-3xl p-8 text-center border border-sage-500/10">
+          <div class="bg-surface rounded-3xl p-8 text-center border border-sage-500/10">
             <p class="text-charcoal/55">Du har ikke opprettet noen forespørsler ennå.</p>
           </div>
         ) : (
@@ -52,7 +52,7 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
               const knitterName = accepted?.profiles?.display_name;
               const isAwarded = ['awaiting_payment', 'awaiting_yarn', 'awarded', 'completed', 'delivered'].includes(r.status);
               return (
-                <a href={`/market/commissions/${r.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                <a href={`/market/commissions/${r.id}`} class="flex items-center gap-4 bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                       <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
@@ -91,7 +91,7 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
       <section>
         <h2 class="font-serif text-2xl mb-4">Mine tilbud</h2>
         {(myOffers ?? []).length === 0 ? (
-          <div class="bg-white rounded-3xl p-8 text-center border border-sage-500/10">
+          <div class="bg-surface rounded-3xl p-8 text-center border border-sage-500/10">
             <p class="text-charcoal/55">Du har ikke sendt noen tilbud ennå.</p>
             <a href="/market/commissions" class="inline-block mt-3 text-sm text-terracotta-500 hover:underline">
               Se åpne forespørsler →
@@ -103,7 +103,7 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
               const reqData = (o as any).commission_requests;
               if (!reqData) return null;
               return (
-                <a href={`/market/commissions/${reqData.id}`} class="flex items-center gap-4 bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                <a href={`/market/commissions/${reqData.id}`} class="flex items-center gap-4 bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
                       <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">

@@ -57,7 +57,7 @@ const faqs = [
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-14">
       {topics.map((t) => (
-        <a href={t.href} class="block bg-white rounded-3xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+        <a href={t.href} class="block bg-surface rounded-3xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
           <p class="text-2xl mb-3">{t.icon}</p>
           <h2 class="font-serif text-lg mb-2">{t.title}</h2>
           <p class="text-sm text-charcoal/65 leading-relaxed">{t.body}</p>
@@ -68,7 +68,7 @@ const faqs = [
     <h2 class="font-serif text-2xl mb-5">Vanlige spørsmål</h2>
     <div class="space-y-3">
       {faqs.map((f) => (
-        <details class="bg-white rounded-2xl border border-sage-500/10 p-4">
+        <details class="bg-surface rounded-2xl border border-sage-500/10 p-4">
           <summary class="cursor-pointer text-sm font-medium">{f.q}</summary>
           <p class="text-sm text-charcoal/70 mt-3 leading-relaxed">{f.a}</p>
         </details>
@@ -86,7 +86,7 @@ const faqs = [
         Takk! Meldingen er sendt. Vi tar kontakt så snart vi kan.
       </div>
 
-      <form method="post" action="/api/support/submit" class="bg-white rounded-3xl p-6 border border-sage-500/10 space-y-4">
+      <form method="post" action="/api/support/submit" class="bg-surface rounded-3xl p-6 border border-sage-500/10 space-y-4">
         <div>
           <label for="support-category" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tema</label>
           <select id="support-category" name="category" class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500">

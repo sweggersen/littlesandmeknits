@@ -10,7 +10,7 @@ interface Props {
 }
 const { isAdmin, pendingQueueCount } = Astro.props;
 
-const tileBase = 'bg-white rounded-2xl border border-sage-500/20 p-4 text-center hover:border-sage-500/30 transition-colors';
+const tileBase = 'bg-surface rounded-2xl border border-sage-500/20 p-4 text-center hover:border-sage-500/30 transition-colors';
 ---
 
 <section class="dash-group rounded-2xl border border-sage-500/20 overflow-hidden">
@@ -27,7 +27,7 @@ const tileBase = 'bg-white rounded-2xl border border-sage-500/20 p-4 text-center
     </a>
     <a href="/admin/moderation" data-tile class:list={[
       'rounded-2xl border p-4 text-center transition-colors relative',
-      pendingQueueCount > 0 ? 'bg-amber-500/5 border-amber-500/50 ring-1 ring-amber-500/30' : 'bg-white border-sage-500/20 hover:border-sage-500/30',
+      pendingQueueCount > 0 ? 'bg-amber-500/5 border-amber-500/50 ring-1 ring-amber-500/30' : 'bg-surface border-sage-500/20 hover:border-sage-500/30',
     ]}>
       <p class="text-sm font-medium">Modereringskø</p>
       {pendingQueueCount > 0 ? (

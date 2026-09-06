@@ -1,0 +1,62 @@
+---
+// Live theme switcher for /dev/theme. Sets `data-theme` on <html>, which the
+// :root[data-theme="…"] blocks in global.css pick up — reskinning the whole
+// page (nav, footer, showcase) at runtime with zero component edits. DB-free.
+const themes = [
+  { id: 'linen', label: 'Linen', hint: 'Standard (produksjon)' },
+  { id: 'solnedgang', label: 'Solnedgang', hint: 'Varmt, høy kontrast' },
+  { id: 'kveld', label: 'Kveld', hint: 'Mørkt tema' },
+];
+---
+
+<div
+  class="sticky top-4 z-30 bg-surface/90 backdrop-blur-md rounded-full border border-sage-500/15 shadow-sm px-2 py-2 inline-flex items-center gap-1"
+  data-theme-switcher
+>
+  <span class="label-eyebrow px-3 hidden sm:inline">Tema</span>
+  {themes.map((t) => (
+    <button
+      type="button"
+      data-theme-btn={t.id}
+      title={t.hint}
+      class="px-4 py-2 rounded-full text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors data-[active]:bg-primary data-[active]:text-primary-fg"
+    >
+      {t.label}
+    </button>
+  ))}
+</div>
+
+<script>
+  // Follows the CLAUDE.md view-transitions rule: re-attach on every
+  // astro:page-load, never a direct call (page-load also fires on first load).
+  function initThemePlayground() {
+    const wrap = document.querySelector('[data-theme-switcher]');
+    if (!wrap) return;
+    const buttons = Array.from(wrap.querySelectorAll('[data-theme-btn]')) as HTMLElement[];
+    const STORAGE_KEY = 'lm-playground-theme';
+
+    function apply(theme: string) {
+      document.documentElement.setAttribute('data-theme', theme);
+      buttons.forEach((b) => {
+        if (b.getAttribute('data-theme-btn') === theme) b.setAttribute('data-active', '');
+        else b.removeAttribute('data-active');
+      });
+      try { sessionStorage.setItem(STORAGE_KEY, theme); } catch {}
+    }
+
+    buttons.forEach((b) => {
+      b.addEventListener('click', () => apply(b.getAttribute('data-theme-btn') || 'linen'));
+    });
+
+    let initial = 'linen';
+    try { initial = sessionStorage.getItem(STORAGE_KEY) || 'linen'; } catch {}
+    apply(initial);
+  }
+  document.addEventListener('astro:page-load', initThemePlayground);
+
+  // Reset <html> theme when navigating away so the playground never leaks its
+  // theme onto the rest of the site.
+  document.addEventListener('astro:before-swap', () => {
+    document.documentElement.removeAttribute('data-theme');
+  });
+</script>

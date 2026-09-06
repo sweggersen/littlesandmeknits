@@ -72,7 +72,7 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
       )}
 
       {(disputedListings ?? []).map((l) => (
-        <a href={`/admin/disputes/listing/${l.id}`} class="block bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+        <a href={`/admin/disputes/listing/${l.id}`} class="block bg-surface rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
           <div class="flex items-center gap-2 mb-2 flex-wrap">
             <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Annonse</span>
             <span class="font-medium">{l.title}</span>
@@ -87,7 +87,7 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
       ))}
 
       {(disputedCommissions ?? []).map((r) => (
-        <a href={`/admin/disputes/commission/${r.id}`} class="block bg-white rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+        <a href={`/admin/disputes/commission/${r.id}`} class="block bg-surface rounded-2xl p-5 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
           <div class="flex items-center gap-2 mb-2 flex-wrap">
             <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">Oppdrag</span>
             <span class="font-medium">{r.title}</span>
@@ -111,7 +111,7 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
         ...(resolvedListings ?? []).map(l => ({ ...l, type: 'Annonse' as const, url: `/market/listing/${l.id}` })),
         ...(resolvedCommissions ?? []).map(r => ({ ...r, type: 'Oppdrag' as const, url: `/market/commissions/${r.id}` })),
       ].sort((a, b) => new Date(b.dispute_resolved_at ?? 0).getTime() - new Date(a.dispute_resolved_at ?? 0).getTime()).map((item) => (
-        <div class="bg-white/60 rounded-xl p-4 border border-sage-500/5 flex items-center gap-3">
+        <div class="bg-surface/60 rounded-xl p-4 border border-sage-500/5 flex items-center gap-3">
           <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{item.type}</span>
           <a href={item.url} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{item.title}</a>
           <span class="text-xs text-charcoal/45 ml-auto">{item.dispute_resolution}</span>

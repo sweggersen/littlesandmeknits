@@ -64,21 +64,21 @@ const payoutState: 'none' | 'pending' | 'verified' | 'action' =
     )}
 
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 sm:p-5">
+      <div class="bg-surface rounded-2xl border border-sage-500/10 p-4 sm:p-5">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Aktive annonser</p>
         <p class="font-serif text-3xl mt-1">{activeListings ?? 0}</p>
       </div>
-      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 sm:p-5">
+      <div class="bg-surface rounded-2xl border border-sage-500/10 p-4 sm:p-5">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Pågående salg</p>
         <p class="font-serif text-3xl mt-1">{pendingListings ?? 0}</p>
       </div>
-      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 sm:p-5">
+      <div class="bg-surface rounded-2xl border border-sage-500/10 p-4 sm:p-5">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Medlemmer</p>
         <p class="font-serif text-3xl mt-1">{memberCount ?? 0}</p>
       </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-sage-500/10 p-5">
+    <div class="bg-surface rounded-2xl border border-sage-500/10 p-5">
       <h2 class="font-serif text-lg mb-3">Kom i gang</h2>
       <ul class="space-y-2 text-sm">
         <li class="flex items-start gap-2">
@@ -110,7 +110,7 @@ const payoutState: 'none' | 'pending' | 'verified' | 'action' =
       </ul>
     </div>
 
-    <div id="utbetalinger" class="bg-white rounded-2xl border border-sage-500/10 p-5 scroll-mt-24">
+    <div id="utbetalinger" class="bg-surface rounded-2xl border border-sage-500/10 p-5 scroll-mt-24">
       <h2 class="font-serif text-lg mb-1">Utbetalinger</h2>
       <p class="text-charcoal/55 text-sm mb-4">
         Butikken er selger og mottar betalingene på egen konto. Vi bruker Stripe

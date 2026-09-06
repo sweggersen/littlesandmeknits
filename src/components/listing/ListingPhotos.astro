@@ -48,10 +48,10 @@ const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as 
         />
         {photoUrls.length > 1 && (
           <>
-            <button type="button" data-gallery-prev class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-charcoal/70 hover:bg-white transition-colors" aria-label="Forrige">
+            <button type="button" data-gallery-prev class="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-surface/80 backdrop-blur-sm flex items-center justify-center text-charcoal/70 hover:bg-surface transition-colors" aria-label="Forrige">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
             </button>
-            <button type="button" data-gallery-next class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center text-charcoal/70 hover:bg-white transition-colors" aria-label="Neste">
+            <button type="button" data-gallery-next class="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-surface/80 backdrop-blur-sm flex items-center justify-center text-charcoal/70 hover:bg-surface transition-colors" aria-label="Neste">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
             </button>
           </>
@@ -108,7 +108,7 @@ const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as 
         <div class="space-y-2" id="photo-manager">
           <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55">Administrer bilder</p>
           {photos.map((p, i) => (
-            <div class="flex items-start gap-3 bg-white rounded-xl p-3 border border-sage-500/10" data-photo-row={p.id}>
+            <div class="flex items-start gap-3 bg-surface rounded-xl p-3 border border-sage-500/10" data-photo-row={p.id}>
               <img src={projectPhotoUrl(p.path)!} alt="" class="w-14 h-14 rounded-lg object-cover shrink-0" />
               <div class="flex-1 min-w-0 space-y-2">
                 <form method="post" action={`/api/marketplace/listings/${listingId}/photo`} class="flex gap-2">
@@ -153,13 +153,13 @@ const photoUrls = photos.map((p) => projectPhotoUrl(p.path)).filter(Boolean) as 
 </div>
 
 <div id="lightbox" class="fixed inset-0 z-[100] bg-black/95 hidden items-center justify-center" role="dialog" aria-modal="true">
-  <button type="button" data-lb-close class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Lukk">
+  <button type="button" data-lb-close class="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface/10 hover:bg-surface/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Lukk">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
   </button>
-  <button type="button" data-lb-prev class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Forrige">
+  <button type="button" data-lb-prev class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface/10 hover:bg-surface/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Forrige">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
   </button>
-  <button type="button" data-lb-next class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Neste">
+  <button type="button" data-lb-next class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface/10 hover:bg-surface/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Neste">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
   </button>
   <div class="w-full h-full flex flex-col items-center px-4 pt-14 pb-4">

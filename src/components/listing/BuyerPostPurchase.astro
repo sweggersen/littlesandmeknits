@@ -61,7 +61,7 @@ const {
 
 {/* Refund request — buyer side */}
 {isBuyer && !refundOpen && ['reserved', 'shipped', 'sold'].includes(listing.status) && order?.refund_outcome !== 'declined' && (
-  <details class="bg-white rounded-3xl p-5 border border-sage-500/10">
+  <details class="bg-surface rounded-3xl p-5 border border-sage-500/10">
     <summary class="cursor-pointer text-sm font-medium text-charcoal/70 hover:text-charcoal">Be om refusjon</summary>
     <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-request`} class="mt-3 space-y-3">
       <label class="block text-xs">
@@ -104,7 +104,7 @@ const {
         </form>
         <details class="inline-block">
           <summary class="cursor-pointer text-xs text-amber-900/80 px-3 py-2 rounded-full border border-amber-300/40 hover:bg-amber-100">Avvis</summary>
-          <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-respond`} class="mt-2 space-y-2 bg-white rounded-lg p-3 border border-amber-200">
+          <form method="post" action={`/api/marketplace/listings/${listing.id}/refund-respond`} class="mt-2 space-y-2 bg-surface rounded-lg p-3 border border-amber-200">
             <input type="hidden" name="action" value="decline" />
             <label class="block text-xs">
               <span class="text-charcoal/55">Begrunnelse (sees av moderator)</span>
@@ -121,7 +121,7 @@ const {
 )}
 
 {isBuyer && (listing.status === 'reserved' || listing.status === 'shipped') && (
-  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-4">
+  <section class="bg-surface rounded-3xl p-5 border border-sage-500/10 space-y-4">
     <div class="flex items-center gap-2">
       <span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-400"></span>
       <h2 class="font-serif text-lg">
@@ -179,7 +179,7 @@ const {
 )}
 
 {isBuyer && listing.status === 'sold' && !hasReviewed && (
-  <section class="bg-white rounded-3xl p-5 border border-sage-500/10 space-y-3">
+  <section class="bg-surface rounded-3xl p-5 border border-sage-500/10 space-y-3">
     <h2 class="font-serif text-lg">Gi selger en vurdering</h2>
     <form method="post" action={`/api/marketplace/listings/${listing.id}/review`} class="space-y-3">
       <fieldset class="flex gap-1" data-star-rating>

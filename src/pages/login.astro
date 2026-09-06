@@ -68,7 +68,7 @@ const DEV_PERSONAS = [
       <div class="space-y-2 mb-5" data-next={next}>
         {DEV_PERSONAS.map((p) => (
           <button data-dev-login={p.email}
-            class="w-full flex items-center justify-between gap-3 bg-white rounded-2xl border border-sage-500/15 hover:border-sage-500/40 transition-colors px-4 py-3 text-left disabled:opacity-50">
+            class="w-full flex items-center justify-between gap-3 bg-surface rounded-2xl border border-sage-500/15 hover:border-sage-500/40 transition-colors px-4 py-3 text-left disabled:opacity-50">
             <span><span class="font-medium">{p.label}</span> <span class="text-charcoal/45 text-sm">· {p.email}</span></span>
             <span class="text-xs text-charcoal/45">{p.role}</span>
           </button>

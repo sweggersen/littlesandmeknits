@@ -158,7 +158,7 @@ const storeShare = storeShareMeta({
         <!-- Listings + about -->
         <div class="lg:col-span-2 space-y-8">
           {store.description && (
-            <section class="bg-white rounded-3xl border border-sage-500/10 p-6">
+            <section class="bg-surface rounded-3xl border border-sage-500/10 p-6">
               <h2 class="font-serif text-xl mb-3">Om butikken</h2>
               <p class="text-charcoal/75 whitespace-pre-wrap">{store.description}</p>
             </section>
@@ -191,7 +191,7 @@ const storeShare = storeShareMeta({
           </section>
 
           {publicMembers.length > 0 && (
-            <section class="bg-white rounded-3xl border border-sage-500/10 p-6">
+            <section class="bg-surface rounded-3xl border border-sage-500/10 p-6">
               <h2 class="font-serif text-xl mb-4">{publicMembers.length === 1 ? 'Eier' : 'Teamet'}</h2>
               <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {publicMembers.map((m) => (

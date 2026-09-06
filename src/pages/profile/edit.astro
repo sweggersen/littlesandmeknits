@@ -96,12 +96,12 @@ const saved = Astro.url.searchParams.get('saved') === '1';
           <label class="block">
             <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Fornavn</span>
             <input name="first_name" type="text" maxlength="40" value={profile?.first_name ?? ''} autocomplete="given-name"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
           </label>
           <label class="block">
             <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Etternavn</span>
             <input name="last_name" type="text" maxlength="40" value={profile?.last_name ?? ''} autocomplete="family-name"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
           </label>
         </div>
 
@@ -110,7 +110,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Visningsnavn (offentlig)</span>
           <input name="display_name" type="text" maxlength="60" value={displayName}
             placeholder="La stå tomt for å bruke fornavn + etternavn"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
           <span class="block text-xs text-charcoal/45 mt-1.5">Dette vises på annonsene dine og selgerprofilen.</span>
         </label>
 
@@ -118,7 +118,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Om deg</span>
           <textarea name="bio" rows="3" maxlength="500" placeholder="Fortell litt om deg selv og hva du strikker…"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"
           >{profile?.bio ?? ''}</textarea>
         </label>
 
@@ -126,13 +126,13 @@ const saved = Astro.url.searchParams.get('saved') === '1';
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Sted</span>
           <input name="location" type="text" maxlength="100" placeholder="F.eks. Oslo, Bergen, Tromsø…" value={profile?.location ?? ''}
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
         </label>
 
         <!-- Instagram -->
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Instagram</span>
-          <div class="flex items-center bg-white rounded-xl border border-sage-500/15 focus-within:border-sage-500 transition-colors">
+          <div class="flex items-center bg-surface rounded-xl border border-sage-500/15 focus-within:border-sage-500 transition-colors">
             <span class="pl-4 text-charcoal/40">@</span>
             <input name="instagram_handle" type="text" maxlength="30" value={profile?.instagram_handle ?? user.user_metadata?.instagram_handle ?? ''}
               class="flex-1 bg-transparent px-2 py-3 text-base focus:outline-none" />
@@ -143,7 +143,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Språk</span>
           <select name="language"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
             <option value="nb" selected={language === 'nb'}>Norsk (bokmål)</option>
             <option value="en" selected={language === 'en'}>English</option>
           </select>
@@ -178,7 +178,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
 
       <!-- Seller payouts (Stripe Connect Custom under the hood) -->
       {currentTags.length > 0 && (
-        <div class="mt-8 bg-white rounded-3xl p-6 border border-sage-500/10">
+        <div class="mt-8 bg-surface rounded-3xl p-6 border border-sage-500/10">
           <h2 class="text-sm font-bold uppercase tracking-widest text-charcoal/55 mb-3">Utbetalinger</h2>
           {sellerConnect?.stripe_connect_status === 'verified' ? (
             <div>
@@ -204,7 +204,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
       <!-- Account details -->
       <details class="mt-8">
         <summary class="text-xs text-charcoal/55 cursor-pointer hover:text-charcoal">Konto-detaljer</summary>
-        <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm mt-4 bg-white rounded-2xl p-5 border border-sage-500/10">
+        <dl class="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm mt-4 bg-surface rounded-2xl p-5 border border-sage-500/10">
           <dt class="text-charcoal/50">Epost</dt>
           <dd class="text-charcoal break-all">{user.email}</dd>
           <dt class="text-charcoal/50">Bruker-ID</dt>

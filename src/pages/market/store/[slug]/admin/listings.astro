@@ -103,7 +103,7 @@ const STATUS_LABEL: Record<string, string> = {
     ) : (
       <ul class="space-y-2">
         {listings.map((l) => (
-          <li class="bg-white rounded-2xl border border-sage-500/10 p-3 flex items-center gap-3">
+          <li class="bg-surface rounded-2xl border border-sage-500/10 p-3 flex items-center gap-3">
             <div class="w-14 h-14 rounded-xl bg-oatmeal/40 overflow-hidden shrink-0">
               {l.hero_photo_path && (
                 <img src={projectPhotoUrl(l.hero_photo_path)} alt="" class="w-full h-full object-cover" />

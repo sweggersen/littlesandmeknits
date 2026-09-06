@@ -36,13 +36,13 @@ const showExpiry = daysLeft !== null && daysLeft !== undefined && daysLeft <= 7;
 
 <li>
   {inactive ? (
-    <div class="bg-white rounded-2xl border border-sage-500/10 p-5">
+    <div class="bg-surface rounded-2xl border border-sage-500/10 p-5">
       <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/35 mb-2">{catLabel}</p>
       <h3 class="font-serif text-lg mb-2 line-clamp-2 text-charcoal/55">{title}</h3>
       <p class="text-xs text-charcoal/35">{inactiveLabel ?? 'Lukket'}</p>
     </div>
   ) : (
-    <a href={`/market/commissions/${id}`} class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-5">
+    <a href={`/market/commissions/${id}`} class="block bg-surface rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-5">
       <div class="flex items-center gap-2 mb-3">
         <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{catLabel}</span>
         <span class="text-[10px] text-charcoal/40">&middot;</span>
