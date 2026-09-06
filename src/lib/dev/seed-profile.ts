@@ -78,9 +78,9 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
 
   // 2. Projects (Strikkestua).
   const projSpecs = [
-    { title: 'Marius-genser til Emma', status: 'active', current: 120, target: 300 },
-    { title: 'Sjal i alpakka', status: 'planning', current: null, target: null },
-    { title: 'Babyteppe (ferdig)', status: 'finished', current: 280, target: 280 },
+    { title: 'Marius-genser til Emma', status: 'active', current: 120, target: 300, hero: '_samples/sage-sweater.jpg' },
+    { title: 'Sjal i alpakka', status: 'planning', current: null, target: null, hero: '_samples/terracotta-knit.jpg' },
+    { title: 'Babyteppe (ferdig)', status: 'finished', current: 280, target: 280, hero: '_samples/cream-flatlay.jpg' },
   ] as const;
   for (const pr of projSpecs) {
     try {
@@ -90,6 +90,7 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
       await db.from('projects').insert({
         user_id: target, title: pr.title, status: pr.status,
         current_rows: pr.current, target_rows: pr.target,
+        hero_photo_path: pr.hero,
         started_at: pr.status !== 'planning' ? now() : null,
         finished_at: pr.status === 'finished' ? now() : null,
       });
@@ -113,6 +114,7 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
       if (existing) continue;
       await db.from('yarns').insert({
         user_id: target, brand: y.brand, name: y.name, weight: y.weight, total_grams: y.grams,
+        photo_path: '_samples/grey-yarn-balls.jpg',
       });
       bump('yarns');
     } catch { /* */ }
@@ -120,8 +122,8 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
 
   // 3. Library (external patterns).
   for (const b of [
-    { title: 'Sunday Sweater', designer: 'PetiteKnit' },
-    { title: 'Nalle-genser', designer: 'Novita' },
+    { title: 'Sunday Sweater', designer: 'PetiteKnit', cover: '_samples/sage-sweater.jpg' },
+    { title: 'Nalle-genser', designer: 'Novita', cover: '_samples/mustard-knit.jpg' },
   ]) {
     try {
       const { data: existing } = await db.from('external_patterns')
@@ -129,6 +131,7 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
       if (existing) continue;
       await db.from('external_patterns').insert({
         user_id: target, title: b.title, designer: b.designer,
+        cover_path: b.cover,
         file_path: `library/${crypto.randomUUID()}.pdf`,
       });
       bump('bibliotek');

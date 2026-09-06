@@ -118,16 +118,31 @@ async function generateListingPhotos(
   count: number,
 ): Promise<void> {
   const cat = String(category ?? 'genser');
-  const colors = TEST_COLORS[cat] ?? TEST_COLORS.annet;
+  const samples = SAMPLE_IMAGES[cat] ?? SAMPLE_IMAGES.annet;
   for (let i = 0; i < Math.min(count, 6); i++) {
-    const bytes = await makeTestPng(colors[i % colors.length]);
-    const path = `${sellerId}/listings/${listingId}/photo-${crypto.randomUUID()}.png`;
-    await db.storage.from('projects').upload(path, bytes, { contentType: 'image/png', upsert: false });
-    await db.from('listing_photos').insert({ listing_id: listingId, path, position: i });
+    // Reference a category-relevant sample (hydrated into projects/_samples/ by
+    // `npm run seed:samples`) rather than a solid-colour placeholder.
+    await db.from('listing_photos').insert({ listing_id: listingId, path: samples[i % samples.length], position: i });
   }
-  const { data: first } = await db.from('listing_photos').select('path').eq('listing_id', listingId).order('position').limit(1).maybeSingle();
-  if (first) await db.from('listings').update({ hero_photo_path: first.path }).eq('id', listingId);
+  await db.from('listings').update({ hero_photo_path: samples[0] }).eq('id', listingId);
 }
+
+// Real knit photos live in projects/_samples/ (uploaded by scripts/seed-sample-images.mjs
+// via `npm run seed:samples`, kept OUT of the deployed bundle). Mapped to categories
+// so a "genser" shows a sweater, "teppe" a blanket flatlay, etc.
+const SAMPLE_IMAGES: Record<string, string[]> = {
+  genser:   ['_samples/sage-sweater.jpg', '_samples/autumn-cable.jpg', '_samples/terracotta-knit.jpg'],
+  cardigan: ['_samples/brown-wool.jpg', '_samples/terracotta-knit.jpg'],
+  jakke:    ['_samples/brown-wool.jpg', '_samples/terracotta-knit.jpg'],
+  lue:      ['_samples/mustard-knit.jpg', '_samples/texture-close.jpg'],
+  bukser:   ['_samples/brown-wool.jpg'],
+  sokker:   ['_samples/texture-close.jpg', '_samples/mustard-knit.jpg'],
+  votter:   ['_samples/texture-close.jpg', '_samples/mustard-knit.jpg'],
+  teppe:    ['_samples/cream-flatlay.jpg', '_samples/autumn-cable.jpg'],
+  kjole:    ['_samples/colorful-tshirt.jpg', '_samples/cream-flatlay.jpg'],
+  body:     ['_samples/cream-flatlay.jpg', '_samples/colorful-tshirt.jpg'],
+  annet:    ['_samples/texture-close.jpg', '_samples/grey-yarn-balls.jpg'],
+};
 
 const TEST_COLORS: Record<string, string[]> = {
   genser:    ['c9a9a6', 'a8c8a8', 'b8a9c9'],
