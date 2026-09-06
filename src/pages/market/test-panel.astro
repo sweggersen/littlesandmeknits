@@ -85,7 +85,7 @@ for (const u of testUsers) {
         </div>
       </div>
 
-      <div class="bg-white rounded-3xl p-4 sm:p-6 border border-sage-500/10 mb-6">
+      <div class="bg-surface rounded-3xl p-4 sm:p-6 border border-sage-500/10 mb-6">
         <p class="text-xs text-charcoal/55 mb-3">
           Logget inn som: <strong>{user.email}</strong>
         </p>
@@ -95,7 +95,7 @@ for (const u of testUsers) {
       </div>
 
       {stats.length === 0 ? (
-        <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+        <div class="bg-surface rounded-3xl p-12 text-center border border-sage-500/10">
           <p class="text-charcoal/55 mb-4">Ingen testkontoer funnet.</p>
           <p class="text-sm text-charcoal/45">Kjør <code class="bg-oatmeal/60 px-2 py-0.5 rounded">npx tsx scripts/marketplace-seed.ts</code></p>
         </div>
@@ -106,7 +106,7 @@ for (const u of testUsers) {
               <input type="hidden" name="email" value={p.email} />
               <button
                 type="submit"
-                class="w-full text-left bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors cursor-pointer"
+                class="w-full text-left bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-terracotta-500/40 transition-colors cursor-pointer"
               >
                 <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sage-900 font-serif text-lg mb-3">
                   {p.displayName[0]}

@@ -180,7 +180,7 @@ const ogCardUrl = heroUrl ?? null;
       <h2 class="font-serif text-2xl mb-6">Tidslinje</h2>
       <ol class="space-y-6">
         {logs.map((log) => (
-          <li class="bg-white rounded-2xl p-6 border border-sage-500/10">
+          <li class="bg-surface rounded-2xl p-6 border border-sage-500/10">
             <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
               {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </time>

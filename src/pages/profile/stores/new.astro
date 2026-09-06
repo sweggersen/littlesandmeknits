@@ -28,7 +28,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               placeholder="9 sifre"
               required
               autocomplete="off"
-              class="flex-1 bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono tracking-widest"
+              class="flex-1 bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono tracking-widest"
             />
             <button
               type="button"
@@ -47,7 +47,7 @@ const user = Astro.locals.user!;  // middleware-gated route
         <div id="error-message" class="hidden bg-red-50 text-red-700 rounded-xl p-4 text-sm"></div>
 
         <div id="lookup-result" class="hidden">
-          <div class="bg-white rounded-2xl border border-sage-500/15 p-5 space-y-2">
+          <div class="bg-surface rounded-2xl border border-sage-500/15 p-5 space-y-2">
             <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Registrert i Brønnøysund</p>
             <h2 class="font-serif text-2xl" data-legal-name>—</h2>
             <p class="text-sm text-charcoal/70" data-legal-address></p>
@@ -69,7 +69,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               required
               maxlength="60"
               placeholder="Slik vises navnet i butikken"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
           </div>
 
@@ -85,7 +85,7 @@ const user = Astro.locals.user!;  // middleware-gated route
                 id="slug-input"
                 pattern="[a-z0-9-]{3,48}"
                 placeholder="butikk-navn"
-                class="flex-1 bg-white rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono"
+                class="flex-1 bg-surface rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono"
               />
             </div>
             <p class="text-xs text-charcoal/45 mt-2">3-48 tegn, bare a-z, 0-9 og bindestrek</p>
@@ -101,7 +101,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               name="tagline"
               maxlength="100"
               placeholder="En kort beskrivelse av butikken"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
           </div>
 
@@ -115,7 +115,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               rows="4"
               maxlength="2000"
               placeholder="Fortell hvem dere er, hva dere lager, og hva som gjør butikken spesiell."
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none resize-none"
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none resize-none"
             ></textarea>
             <p class="text-xs text-charcoal/45 mt-2">
               Hjelper moderator å forstå virksomheten raskere, og er nyttig for kundene når butikken er aktiv.
@@ -131,7 +131,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               type="url"
               name="website_url"
               placeholder="https://"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
           </div>
 
@@ -145,7 +145,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               name="contact_email"
               required
               placeholder="kunde@butikk.no"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
             <p class="text-xs text-charcoal/45 mt-2">
               Brukes for kundekontakt og av moderator for å verifisere

@@ -63,7 +63,7 @@ const lagerTabs = [
   {loadErr ? (
     <Alert type="error">Vi klarte ikke å laste garnlageret akkurat nå. Prøv igjen om litt.</Alert>
   ) : yarns.length === 0 ? (
-    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+    <div class="bg-surface rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">Ingen garn ennå. Legg til det første for å holde styr på fargene, vektene og hvor mye du har igjen.</p>
       <a
         href="/studio/yarn/new"
@@ -80,7 +80,7 @@ const lagerTabs = [
           <li>
             <a
               href={`/studio/yarn/${y.id}`}
-              class="block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
+              class="block bg-surface rounded-2xl border border-sage-500/10 hover:border-sage-500/30 hover:shadow-md transition-all overflow-hidden"
             >
               {photoUrl ? (
                 <div class="aspect-square bg-oatmeal overflow-hidden">

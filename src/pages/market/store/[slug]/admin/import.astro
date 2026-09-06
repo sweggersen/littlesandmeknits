@@ -56,7 +56,7 @@ const STATUS_VARIANT: Record<string, 'sage' | 'amber' | 'red' | 'muted' | 'blue'
         <ul class="space-y-2">
           {listings.map((l) => (
             <li>
-              <label class="bg-white rounded-2xl border border-sage-500/10 p-3 flex items-center gap-3 cursor-pointer hover:border-sage-500/30 transition-colors">
+              <label class="bg-surface rounded-2xl border border-sage-500/10 p-3 flex items-center gap-3 cursor-pointer hover:border-sage-500/30 transition-colors">
                 <input type="checkbox" name="listing_ids" value={l.id} data-move-cb class="w-4 h-4 shrink-0" />
                 <div class="w-12 h-12 rounded-xl bg-oatmeal/40 overflow-hidden shrink-0">
                   {l.hero_photo_path && (

@@ -46,7 +46,7 @@ const enriched = await Promise.all(
   {loadErr ? (
     <Alert type="error">Vi klarte ikke å laste kjøpene dine akkurat nå. Prøv igjen om litt.</Alert>
   ) : enriched.length === 0 ? (
-    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+    <div class="bg-surface rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">{t('studio.empty.purchases')}</p>
       <a
         href="/patterns"
@@ -58,7 +58,7 @@ const enriched = await Promise.all(
   ) : (
     <ul class="space-y-3">
       {enriched.map((p) => (
-        <li class="bg-white rounded-2xl p-5 border border-sage-500/10 flex items-center justify-between gap-4">
+        <li class="bg-surface rounded-2xl p-5 border border-sage-500/10 flex items-center justify-between gap-4">
           <div>
             <h3 class="font-serif text-lg leading-tight">{p.title}</h3>
             <p class="text-xs text-charcoal/50 mt-1">

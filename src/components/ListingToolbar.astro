@@ -11,14 +11,14 @@ const { search, hasFilters = false, filterCount = 0 } = Astro.props;
   <div class="relative flex-1">
     <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-charcoal/35 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
     <input data-search-input type="text" value={search ?? ''} placeholder="Søk..."
-      class="w-full bg-white rounded-full pl-9 pr-10 py-2 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none" />
+      class="w-full bg-surface rounded-full pl-9 pr-10 py-2 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none" />
     <button type="button" data-search-submit aria-label="Søk" class="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-charcoal/45 hover:text-charcoal hover:bg-sage-50 transition-colors">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
     </button>
   </div>
   <button type="button" data-toggle-filter
     class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
-      hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-white text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
+      hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-surface text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
     Filter{hasFilters ? ` (${filterCount})` : ''}
   </button>

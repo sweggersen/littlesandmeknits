@@ -20,6 +20,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
     intro: 'Synthetic-click playback i et iframe-panel — se flyten utfolde seg i sanntid.',
     screens: [
       { title: 'UI Flows-runner', desc: 'Wizard + følg + hjelp i ett vindu', href: '/dev/ui-flows', as: null },
+      { title: 'Tema-lekeplass', desc: 'Alle komponenter + live tema-bytter (DB-fri)', href: '/dev/theme', as: null },
     ],
   },
   {
@@ -91,7 +92,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
       </p>
 
       <!-- Seed control -->
-      <div class="bg-white rounded-2xl p-4 border border-sage-500/10 mb-8 flex flex-wrap items-center gap-3" data-seed-bar>
+      <div class="bg-surface rounded-2xl p-4 border border-sage-500/10 mb-8 flex flex-wrap items-center gap-3" data-seed-bar>
         <button type="button" data-action="seed" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">
           🌱 Frø skjermdata (Eline + Liv + listings + follow)
         </button>
@@ -113,7 +114,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
           {s.intro && <p class="text-xs text-charcoal/55 mb-3">{s.intro}</p>}
           <ul class="space-y-2">
             {s.screens.map(sc => (
-              <li class="bg-white rounded-2xl border border-sage-500/10 p-3 flex items-center justify-between gap-3" data-screen>
+              <li class="bg-surface rounded-2xl border border-sage-500/10 p-3 flex items-center justify-between gap-3" data-screen>
                 <div class="min-w-0">
                   <p class="text-sm font-medium">{sc.title}</p>
                   {sc.desc && <p class="text-xs text-charcoal/55 mt-0.5">{sc.desc}</p>}

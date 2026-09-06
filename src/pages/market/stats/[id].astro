@@ -45,20 +45,20 @@ const { data: listing } = await ctx.supabase
     )}
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
-      <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
+      <div class="bg-surface rounded-2xl p-5 border border-sage-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Visninger (organisk)</p>
         <p class="font-mono tabular-nums text-2xl">{organic.impressions}</p>
       </div>
-      <div class="bg-white rounded-2xl p-5 border border-sage-500/10">
+      <div class="bg-surface rounded-2xl p-5 border border-sage-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Klikk (organisk)</p>
         <p class="font-mono tabular-nums text-2xl">{organic.clicks}</p>
         <p class="text-xs text-charcoal/45 mt-1">CTR {organicCtr}%</p>
       </div>
-      <div class="bg-white rounded-2xl p-5 border border-terracotta-500/10">
+      <div class="bg-surface rounded-2xl p-5 border border-terracotta-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Visninger (promotert)</p>
         <p class="font-mono tabular-nums text-2xl">{promoted.impressions}</p>
       </div>
-      <div class="bg-white rounded-2xl p-5 border border-terracotta-500/10">
+      <div class="bg-surface rounded-2xl p-5 border border-terracotta-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Klikk (promotert)</p>
         <p class="font-mono tabular-nums text-2xl">{promoted.clicks}</p>
         <p class="text-xs text-charcoal/45 mt-1">CTR {promoCtr}%</p>
@@ -72,7 +72,7 @@ const { data: listing } = await ctx.supabase
     )}
 
     {audience.viewer_count > 0 && (audience.top_categories.length > 0 || audience.top_sizes.length > 0) && (
-      <div class="bg-white rounded-2xl p-5 border border-sage-500/10 mb-8">
+      <div class="bg-surface rounded-2xl p-5 border border-sage-500/10 mb-8">
         <h2 class="font-serif text-lg mb-1">Vist mest til</h2>
         <p class="text-xs text-charcoal/55 mb-4">Basert på {audience.viewer_count} unike seer{audience.viewer_count === 1 ? '' : 'e'} som favoritter andre annonser.</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -107,7 +107,7 @@ const { data: listing } = await ctx.supabase
     )}
 
     {promoted.impressions === 0 && organic.impressions === 0 && (
-      <div class="bg-white rounded-3xl p-10 text-center border border-sage-500/10">
+      <div class="bg-surface rounded-3xl p-10 text-center border border-sage-500/10">
         <p class="text-charcoal/55 text-sm">Ingen data ennå. Statistikk vises når annonsen har fått visninger.</p>
       </div>
     )}

@@ -93,7 +93,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
         <section class="mb-8">
           <a
             href="/market/messages"
-            class="block bg-white rounded-2xl p-4 border border-terracotta-500/30 hover:border-terracotta-500/50 transition-colors"
+            class="block bg-surface rounded-2xl p-4 border border-terracotta-500/30 hover:border-terracotta-500/50 transition-colors"
           >
             <div class="flex items-center justify-between gap-4">
               <div>
@@ -113,7 +113,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
           <h2 class="font-serif text-xl mb-3">Ventende ordrer</h2>
           <ul class="space-y-2">
             {pending.map((l) => (
-              <li class="bg-white rounded-2xl border border-terracotta-500/20 hover:border-terracotta-500/40 transition-colors">
+              <li class="bg-surface rounded-2xl border border-terracotta-500/20 hover:border-terracotta-500/40 transition-colors">
                 <a href={`/market/listing/${l.id}`} class="block p-4">
                   <div class="flex items-center justify-between gap-4">
                     <div>
@@ -141,7 +141,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
           <ul class="space-y-2">
             {drafts.map((l) => (
               <li>
-                <a href={`/market/listing/${l.id}`} class="block bg-white rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                <a href={`/market/listing/${l.id}`} class="block bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex items-center justify-between gap-4">
                     <div>
                       <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
@@ -244,7 +244,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
               const isPromoted = l.promoted_until && new Date(l.promoted_until) > new Date();
               return (
                 <li>
-                  <div class="bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                  <div class="bg-surface rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                     <a href={`/market/listing/${l.id}`} class="block p-4">
                       <div class="flex items-center justify-between gap-4">
                         <div>
@@ -301,7 +301,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
             {[...commissionsActive, ...commissionsDelivered, ...commissionsDisputed].map((c) => {
               const isDone = c.status === 'delivered';
               const isDisp = c.status === 'disputed';
-              const bg = isDone ? 'bg-oatmeal/40' : isDisp ? 'bg-amber-50 border-amber-200' : 'bg-white';
+              const bg = isDone ? 'bg-oatmeal/40' : isDisp ? 'bg-amber-50 border-amber-200' : 'bg-surface';
               const variant = isDone ? 'sage' : isDisp ? 'amber' : 'amber';
               return (
                 <li class:list={[bg, 'rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors']}>

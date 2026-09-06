@@ -103,13 +103,13 @@ for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_
   </div>
 
   {items.length === 0 ? (
-    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+    <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
       <p class="text-sm text-charcoal/45">Ingen elementer i køen.</p>
     </div>
   ) : (
     <div class="space-y-2">
       {items.map(item => (
-        <a href={`/admin/moderation/${item.id}`} class="flex items-center gap-4 bg-white rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
+        <a href={`/admin/moderation/${item.id}`} class="flex items-center gap-4 bg-surface rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
               <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TYPE_LABEL[item.item_type] ?? item.item_type}</span>

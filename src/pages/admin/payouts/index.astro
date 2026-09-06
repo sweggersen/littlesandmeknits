@@ -48,11 +48,11 @@ const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
   )}
 
   {allPayouts.length === 0 ? (
-    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+    <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
       <p class="text-sm text-charcoal/45">Ingen utbetalinger generert ennå.</p>
     </div>
   ) : (
-    <div class="bg-white rounded-xl border border-sage-500/10 overflow-hidden">
+    <div class="bg-surface rounded-xl border border-sage-500/10 overflow-hidden">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-sage-500/10">

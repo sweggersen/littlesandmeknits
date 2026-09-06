@@ -56,7 +56,7 @@ const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
           <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Invitasjoner til deg</h2>
           <ul class="space-y-3">
             {myInvites.map((inv) => (
-              <li class="bg-white rounded-2xl border border-terracotta-500/25 p-5 flex items-center gap-4">
+              <li class="bg-surface rounded-2xl border border-terracotta-500/25 p-5 flex items-center gap-4">
                 {inv.store_logo_path ? (
                   <img src={projectPhotoUrl(inv.store_logo_path)} alt="" class="w-12 h-12 rounded-xl object-cover shrink-0" />
                 ) : (
@@ -88,7 +88,7 @@ const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
       )}
 
       {stores.length === 0 && myInvites.length === 0 && (
-        <div class="bg-white rounded-3xl border border-sage-500/10 p-8 text-center">
+        <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 text-center">
           <p class="text-charcoal/70 mb-3">Du har ingen butikker ennå.</p>
           <p class="text-sm text-charcoal/55 mb-6">
             Har du et registrert foretak? Opprett en butikk og selg som virksomhet.
@@ -110,8 +110,8 @@ const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
               ? Math.max(0, Math.ceil((new Date(s.deleted_at).getTime() + STORE_RETENTION_DAYS * DAY_MS - Date.now()) / DAY_MS))
               : null;
             const cardClass = isDeleted
-              ? 'block bg-white rounded-2xl border border-sage-500/10 p-5 opacity-70'
-              : 'block bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-5';
+              ? 'block bg-surface rounded-2xl border border-sage-500/10 p-5 opacity-70'
+              : 'block bg-surface rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-5';
             const cardBody = (
               <div class="flex items-center gap-4">
                 {s.logo_path ? (

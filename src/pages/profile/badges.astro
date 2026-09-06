@@ -70,7 +70,7 @@ const TIER_BG: Record<AchievementTier, string> = {
                   {earned.map(a => {
                     const tierClass = a.tier ? TIER_BG[a.tier] : '';
                     return (
-                      <div class="flex items-center gap-3 rounded-2xl p-4 border bg-white border-sage-500/20">
+                      <div class="flex items-center gap-3 rounded-2xl p-4 border bg-surface border-sage-500/20">
                         <span class="text-2xl shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-sage-100">{a.emoji}</span>
                         <div class="min-w-0">
                           <div class="flex items-center gap-2">

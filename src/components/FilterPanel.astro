@@ -11,7 +11,7 @@ interface Props {
 const { category, hasFilters = false, showAge = false, showBudget = false, params } = Astro.props;
 ---
 
-<form method="get" data-filter-panel class:list={['bg-white rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
+<form method="get" data-filter-panel class:list={['bg-surface rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
   <input type="hidden" name="q" data-sync-q />
   <div class="flex-1 min-w-[140px]">
     <label for="kategori" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kategori</label>

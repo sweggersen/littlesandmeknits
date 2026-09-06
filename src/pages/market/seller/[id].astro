@@ -150,7 +150,7 @@ const share = sellerShareMeta({ displayName: seller.display_name, location: sell
               {seller.seller_tags.includes('open_for_requests') && (
                 <a
                   href={`/market/commissions/new?strikker=${sellerId}`}
-                  class="bg-white border border-sage-500/20 text-charcoal px-5 py-2.5 rounded-full text-sm font-medium hover:border-charcoal/40 transition-colors"
+                  class="bg-surface border border-sage-500/20 text-charcoal px-5 py-2.5 rounded-full text-sm font-medium hover:border-charcoal/40 transition-colors"
                 >
                   Send privat forespørsel →
                 </a>
@@ -165,7 +165,7 @@ const share = sellerShareMeta({ displayName: seller.display_name, location: sell
         <div class="mb-8">
           <div class="flex flex-wrap gap-1.5">
             {earnedAchievements.map(a => (
-              <span class="group relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white border border-sage-500/15" title={a.description}>
+              <span class="group relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-surface border border-sage-500/15" title={a.description}>
                 <span>{a.emoji}</span>
                 <span>{a.label}</span>
                 <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1 bg-primary text-primary-fg text-[10px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity">
@@ -211,7 +211,7 @@ const share = sellerShareMeta({ displayName: seller.display_name, location: sell
         ) : (
           <div class="space-y-3">
             {reviewList.map((r) => (
-              <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+              <div class="bg-surface rounded-2xl p-4 border border-sage-500/10">
                 <div class="flex items-center gap-2 mb-2">
                   <StarRating rating={r.rating} />
                   <span class="text-sm font-medium">{(r as any).profiles?.display_name ?? 'Anonym'}</span>
@@ -232,7 +232,7 @@ const share = sellerShareMeta({ displayName: seller.display_name, location: sell
           </h2>
           <div class="space-y-3">
             {transactionReviews.map((r) => (
-              <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+              <div class="bg-surface rounded-2xl p-4 border border-sage-500/10">
                 <div class="flex items-center gap-2 mb-2">
                   <StarRating rating={r.rating} />
                   <span class="text-sm font-medium">{(r as any).profiles?.display_name ?? 'Anonym'}</span>

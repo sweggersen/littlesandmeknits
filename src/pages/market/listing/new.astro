@@ -83,7 +83,7 @@ const STEPS = [
         ))}
       </ol>
 
-      <form method="post" action="/api/marketplace/listings/create" class="bg-white rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6" data-wizard>
+      <form method="post" action="/api/marketplace/listings/create" class="bg-surface rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6" data-wizard>
         <WizardStep1Details userEmail={user.email} myStores={myStores} preselectedStoreId={preselectedStoreId} preselectedKind={preselectedKind} />
 
         <WizardStep2Shipping shippingTiers={SHIPPING_TIERS} />

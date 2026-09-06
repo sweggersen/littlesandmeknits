@@ -68,7 +68,7 @@ function tierColor(tier: string) {
   <div class="grid lg:grid-cols-[1fr_340px] gap-6">
     <div class="space-y-4">
       <!-- Profile card -->
-      <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+      <div class="bg-surface rounded-xl border border-sage-500/10 p-5">
         <div class="flex items-center gap-4 mb-4">
           <div class="w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center">
             <span class="font-serif text-lg text-sage-700">#</span>
@@ -101,7 +101,7 @@ function tierColor(tier: string) {
       </div>
 
       <!-- Role management -->
-      <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+      <div class="bg-surface rounded-xl border border-sage-500/10 p-5">
         <h3 class="font-medium text-sm mb-3">Roller</h3>
         <form method="post" action="/api/admin/users/role" data-astro-reload class="flex gap-2">
           <input type="hidden" name="user_id" value={userId} />
@@ -117,7 +117,7 @@ function tierColor(tier: string) {
 
       <!-- Moderation history -->
       {(queueHistory?.length ?? 0) > 0 && (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-5">
           <h3 class="font-medium text-sm mb-3">Modereringshistorikk</h3>
           <div class="space-y-1">
             {queueHistory!.map(q => (
@@ -135,14 +135,14 @@ function tierColor(tier: string) {
 
     <!-- Right sidebar -->
     <div class="space-y-4">
-      <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+      <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tillitsscore</p>
         <p class="font-mono text-3xl font-bold tabular-nums">{trustScore}</p>
         <p class="text-xs text-charcoal/40">/ 100</p>
       </div>
 
       {(reports?.length ?? 0) > 0 && (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Rapporter mot bruker</p>
           <div class="space-y-1">
             {reports!.map(r => (

@@ -36,13 +36,13 @@ const ACTION_LABEL: Record<string, string> = {
   <h1 class="font-serif text-2xl mb-6">Aktivitetslogg</h1>
 
   {allLogs.length === 0 ? (
-    <div class="bg-white rounded-xl border border-sage-500/10 p-8 text-center">
+    <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
       <p class="text-sm text-charcoal/45">Ingen aktivitet logget ennå.</p>
     </div>
   ) : (
     <div class="space-y-2">
       {allLogs.map(log => (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
               <div class="flex items-center gap-2 mb-1">

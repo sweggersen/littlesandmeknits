@@ -261,7 +261,7 @@ function scoreColor(s: number) {
 
       <!-- Decision form -->
       {canDecide && (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-5">
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-5">
           <h3 class="font-medium text-sm mb-3">Vurdering</h3>
           <form method="post" action="/api/admin/moderation/review" data-astro-reload class="space-y-3">
             <input type="hidden" name="queue_id" value={queueItem.id} />
@@ -316,7 +316,7 @@ function scoreColor(s: number) {
     <!-- Right: Score + Submitter -->
     <div class="space-y-4">
       <!-- Confidence score -->
-      <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+      <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tillitsscore</p>
         <div class="flex items-center gap-3 mb-3">
           <span class:list={['font-mono text-3xl font-bold tabular-nums rounded-lg px-3 py-1', scoreColor(confidence.total)]}>
@@ -347,7 +347,7 @@ function scoreColor(s: number) {
            moderator can verify identity against Brønnøysund roles. For
            listings/commissions, identity stays anonymised. -->
       {submitter && (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Innmelder</p>
           <div class="flex items-center gap-3 mb-3">
             <div class:list={['w-8 h-8 rounded-full flex items-center justify-center shrink-0', matchedRoleNames.size > 0 ? 'bg-sage-100' : 'bg-sage-100']}>
@@ -386,7 +386,7 @@ function scoreColor(s: number) {
 
       <!-- Previous history -->
       {prevQueue && prevQueue.length > 0 && (
-        <div class="bg-white rounded-xl border border-sage-500/10 p-4">
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tidligere vurderinger</p>
           <div class="space-y-1">
             {prevQueue.map(pq => (

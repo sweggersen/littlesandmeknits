@@ -10,13 +10,13 @@ const t = useTranslations(lang);
 const year = new Date().getFullYear();
 ---
 
-<footer class="bg-charcoal text-linen mt-24" transition:animate="none">
+<footer class="bg-chrome text-chrome-fg mt-24" transition:animate="none">
   <button
     type="button"
     data-footer-toggle
     aria-expanded="false"
     aria-controls="footer-rich"
-    class="sm:hidden w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between text-sm text-linen/70 hover:text-linen transition-colors"
+    class="sm:hidden w-full max-w-7xl mx-auto px-6 py-5 flex items-center justify-between text-sm text-chrome-fg/70 hover:text-chrome-fg transition-colors"
   >
     <span class="font-serif text-lg">Littles and Me Knits</span>
     <span class="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">
@@ -46,23 +46,23 @@ const year = new Date().getFullYear();
   >
     <div class="md:col-span-2">
       <h2 class="hidden sm:block font-serif text-2xl mb-4">Littles and Me Knits</h2>
-      <p class="text-linen/60 max-w-sm text-sm leading-relaxed">
+      <p class="text-chrome-fg/60 max-w-sm text-sm leading-relaxed">
         {t('footer.tagline')}
       </p>
     </div>
 
     <div>
-      <h4 class="text-[10px] font-bold uppercase tracking-widest text-linen/40 mb-4">
+      <h4 class="text-[10px] font-bold uppercase tracking-widest text-chrome-fg/40 mb-4">
         {t('footer.studio')}
       </h4>
       <ul class="space-y-2.5 text-sm">
         <li>
-          <a href="/studio/projects" class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href="/studio/projects" class="text-chrome-fg/80 hover:text-terracotta-500 transition-colors">
             {t('footer.studio.projects')}
           </a>
         </li>
         <li>
-          <a href="/studio/yarn" class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href="/studio/yarn" class="text-chrome-fg/80 hover:text-terracotta-500 transition-colors">
             {t('footer.studio.stash')}
           </a>
         </li>
@@ -70,22 +70,22 @@ const year = new Date().getFullYear();
     </div>
 
     <div>
-      <h4 class="text-[10px] font-bold uppercase tracking-widest text-linen/40 mb-4">
+      <h4 class="text-[10px] font-bold uppercase tracking-widest text-chrome-fg/40 mb-4">
         {t('footer.connect')}
       </h4>
       <ul class="space-y-2.5 text-sm">
         <li>
-          <a href="https://instagram.com/littlesandmeknits" target="_blank" rel="noopener" class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href="https://instagram.com/littlesandmeknits" target="_blank" rel="noopener" class="text-chrome-fg/80 hover:text-terracotta-500 transition-colors">
             {t('footer.instagram')}
           </a>
         </li>
         <li>
-          <a href={`${localizedPath(lang, '/')}#newsletter`} class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href={`${localizedPath(lang, '/')}#newsletter`} class="text-chrome-fg/80 hover:text-terracotta-500 transition-colors">
             {t('footer.newsletter')}
           </a>
         </li>
         <li>
-          <a href={`mailto:hei@littlesandmeknits.com`} class="text-linen/80 hover:text-terracotta-500 transition-colors">
+          <a href={`mailto:hei@littlesandmeknits.com`} class="text-chrome-fg/80 hover:text-terracotta-500 transition-colors">
             {t('footer.support')}
           </a>
         </li>
@@ -93,12 +93,12 @@ const year = new Date().getFullYear();
     </div>
   </div>
 
-  <div class="max-w-7xl mx-auto px-6 pb-8 sm:pb-10 pt-5 sm:pt-6 border-t border-linen/10 flex flex-col sm:flex-row justify-between gap-3 text-[10px] font-medium tracking-widest uppercase text-linen/30">
-    <span>&copy; {year} <a href="https://littlesandmeknits.com" class="hover:text-linen transition-colors">Littles and Me Knits</a></span>
+  <div class="max-w-7xl mx-auto px-6 pb-8 sm:pb-10 pt-5 sm:pt-6 border-t border-chrome-fg/10 flex flex-col sm:flex-row justify-between gap-3 text-[10px] font-medium tracking-widest uppercase text-chrome-fg/30">
+    <span>&copy; {year} <a href="https://littlesandmeknits.com" class="hover:text-chrome-fg transition-colors">Littles and Me Knits</a></span>
     <div class="flex gap-5">
-      <a href={localizedPath(lang, '/hjelp')} class="hover:text-linen transition-colors">Hjelp</a>
-      <a href={localizedPath(lang, '/privacy')} class="hover:text-linen transition-colors">{t('footer.legal.privacy')}</a>
-      <a href={localizedPath(lang, '/terms')} class="hover:text-linen transition-colors">{t('footer.legal.terms')}</a>
+      <a href={localizedPath(lang, '/hjelp')} class="hover:text-chrome-fg transition-colors">Hjelp</a>
+      <a href={localizedPath(lang, '/privacy')} class="hover:text-chrome-fg transition-colors">{t('footer.legal.privacy')}</a>
+      <a href={localizedPath(lang, '/terms')} class="hover:text-chrome-fg transition-colors">{t('footer.legal.terms')}</a>
     </div>
   </div>
 </footer>

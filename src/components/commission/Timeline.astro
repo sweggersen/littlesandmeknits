@@ -82,7 +82,7 @@ const {
       {isBuyer ? (
         <div>
           <p class="text-xs text-charcoal/45 mb-2">Du valgte:</p>
-          <div class="md:ml-auto md:max-w-[260px] bg-white rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
+          <div class="md:ml-auto md:max-w-[260px] bg-surface rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
             <div class="flex items-center gap-2 mb-1">
               <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
               <a href={`/market/seller/${acceptedOffer!.knitter_id}`} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{knitterName}</a>
@@ -95,7 +95,7 @@ const {
       ) : (
         <div>
           <p class="text-xs text-charcoal/45 mb-2">Valgt tilbud:</p>
-          <div class="md:ml-auto md:max-w-[260px] bg-white rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
+          <div class="md:ml-auto md:max-w-[260px] bg-surface rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
             <div class="flex items-center gap-2 mb-1">
               <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
               <span class="text-sm font-medium">{knitterName}</span>
@@ -115,7 +115,7 @@ const {
     </div>
     <div>
       {isKnitter ? (
-        <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+        <div class="bg-surface rounded-2xl p-4 border border-sage-500/10">
           <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ditt tilbud — akseptert</p>
           <p class="font-mono tabular-nums">{myOffer!.price_nok} NOK · {myOffer!.turnaround_weeks} uker</p>
         </div>
@@ -129,7 +129,7 @@ const {
   <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
     <div class="md:text-right mb-4 md:mb-0">
       {isActive('awaiting_payment') && isBuyer ? (
-        <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/30 md:text-left">
+        <div class="md:ml-auto md:max-w-[280px] bg-surface rounded-2xl p-4 border border-terracotta-500/30 md:text-left">
           <p class="font-medium text-sm mb-1">Betal for oppdraget</p>
           <p class="text-xs text-charcoal/55 mb-3">Pengene holdes til prosjektet er levert.</p>
           {(() => {
@@ -173,7 +173,7 @@ const {
     <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
       <div class="md:text-right mb-4 md:mb-0">
         {isActive('awaiting_yarn') && !req.yarn_shipped_at && isBuyer ? (
-          <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
+          <div class="md:ml-auto md:max-w-[280px] bg-surface rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
             <p class="font-medium text-sm mb-1">Send garnet</p>
             <p class="text-xs text-charcoal/55 mb-3">Send garnet til strikkeren med sporing.</p>
             <form method="post" action="/api/marketplace/commissions/ship-yarn" data-astro-reload class="space-y-2">
@@ -203,7 +203,7 @@ const {
         {isActive('awaiting_yarn') && !req.yarn_shipped_at ? (
           <p class="text-xs text-charcoal/45">Venter på garn fra bestiller…</p>
         ) : isActive('awaiting_yarn') && req.yarn_shipped_at ? (
-          <div class="bg-white rounded-2xl p-4 border border-terracotta-500/20">
+          <div class="bg-surface rounded-2xl p-4 border border-terracotta-500/20">
             <p class="font-medium text-sm mb-1">Garnet er på vei!</p>
             {req.yarn_tracking_code && <p class="text-xs text-charcoal/55 mb-2">Sporing: <span class="font-mono">{req.yarn_tracking_code}</span></p>}
             {req.yarn_bring_shipment_number && <div data-tracking-events class="text-xs text-charcoal/55 mb-3"></div>}
@@ -230,7 +230,7 @@ const {
             <div class="md:ml-auto md:max-w-[280px] md:text-left">
               <p class="text-xs text-charcoal/45 mb-2">Strikkeren jobber…</p>
               {projectProgressPct !== null && (
-                <div class="bg-white rounded-xl p-3 border border-sage-500/10 mb-2">
+                <div class="bg-surface rounded-xl p-3 border border-sage-500/10 mb-2">
                   <div class="flex items-center justify-between text-[10px] text-charcoal/55 mb-1">
                     <span class="font-bold uppercase tracking-widest">Fremdrift</span>
                     <span>{projectProgressPct}%</span>
@@ -260,7 +260,7 @@ const {
         {isActive('awarded') && isKnitter ? (
           <div class="space-y-3">
             {linkedProject && (
-              <a href={`/studio/projects/${linkedProject.id}`} class="flex items-center gap-3 bg-white rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+              <a href={`/studio/projects/${linkedProject.id}`} class="flex items-center gap-3 bg-surface rounded-xl p-3 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                 {linkedProject.hero_photo_path ? (
                   <img src={projectPhotoUrl(linkedProject.hero_photo_path)!} alt="" class="w-10 h-10 rounded-lg object-cover shrink-0" />
                 ) : (
@@ -273,7 +273,7 @@ const {
               </a>
             )}
             {linkedProject && (
-              <details class="bg-white rounded-2xl p-4 border border-sage-500/10 group">
+              <details class="bg-surface rounded-2xl p-4 border border-sage-500/10 group">
                 <summary class="cursor-pointer list-none flex items-center justify-between">
                   <span>
                     <span class="text-sm font-medium block">Del en framdriftsoppdatering</span>
@@ -293,7 +293,7 @@ const {
                 </form>
               </details>
             )}
-            <div class="bg-white rounded-2xl p-4 border border-sage-500/10">
+            <div class="bg-surface rounded-2xl p-4 border border-sage-500/10">
               <p class="text-sm font-medium mb-1">Ferdig strikket?</p>
               <p class="text-xs text-charcoal/55 mb-3">Kjøper har 14 dager på å bekrefte mottak.</p>
               <form method="post" action="/api/marketplace/commissions/mark-completed" data-astro-reload class="space-y-2">
@@ -321,7 +321,7 @@ const {
     <div class="md:grid md:grid-cols-[1fr_32px_1fr] md:gap-x-4 mb-8">
       <div class="md:text-right mb-4 md:mb-0">
         {isActive('completed') && isBuyer ? (
-          <div class="md:ml-auto md:max-w-[280px] bg-white rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
+          <div class="md:ml-auto md:max-w-[280px] bg-surface rounded-2xl p-4 border border-terracotta-500/20 md:text-left">
             <p class="font-medium text-sm mb-1">Bekreft mottak</p>
             <p class="text-xs text-charcoal/55 mb-3">Har du mottatt arbeidet?</p>
             {req.finished_item_tracking_code && (

@@ -1,0 +1,269 @@
+---
+// DB-free showcase of every shared primitive + component, rendered from
+// hardcoded mock props. Used by /dev/theme so a reviewer can watch the whole
+// design system reskin live when the theme switcher swaps token sets. No
+// Supabase, storage, or auth touched here — safe to render from a plain build.
+import StatusBadge from '../StatusBadge.astro';
+import Alert from '../Alert.astro';
+import EmptyState from '../EmptyState.astro';
+import ProfileAvatar from '../ProfileAvatar.astro';
+import StarRating from '../StarRating.astro';
+import ListingCard from '../ListingCard.astro';
+import CommissionCard from '../CommissionCard.astro';
+import ProjectCard from '../ProjectCard.astro';
+
+// Token swatches — read live from the active theme via CSS vars.
+const surfaceTokens = [
+  ['--color-page', 'Page'],
+  ['--color-surface', 'Surface'],
+  ['--color-oatmeal', 'Oatmeal'],
+  ['--color-linen', 'Linen'],
+  ['--color-charcoal', 'Ink'],
+  ['--color-chrome', 'Chrome'],
+];
+const brandTokens = [
+  ['--color-primary', 'Primary'],
+  ['--color-primary-hover', 'Primary hover'],
+  ['--color-terracotta-500', 'Terracotta'],
+  ['--color-sage-500', 'Sage'],
+  ['--color-sage-100', 'Sage 100'],
+];
+const sectionTokens = [
+  ['--color-used-500', 'Brukt'],
+  ['--color-new-500', 'Nytt'],
+  ['--color-commission-500', 'Oppdrag'],
+  ['--color-vipps', 'Vipps'],
+];
+---
+
+<div class="space-y-14">
+  {/* ---- Typography ------------------------------------------------ */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Typografi</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 space-y-3">
+      <p style="font-family: var(--font-display)" class="text-5xl">Håndstrikket, med omtanke</p>
+      <p style="font-family: var(--font-display)" class="text-3xl">Overskrift i display-font</p>
+      <h3 class="font-serif text-2xl">Fraunces / display, 2xl</h3>
+      <p class="text-base text-charcoal/80" style="font-family: var(--font-body)">
+        Brødtekst i body-fonten. Strikketorget er markedet for håndstrikkede plagg,
+        brukt og nytt. Kjøp og selg trygt, eller bestill et plagg fra en strikker.
+      </p>
+      <p class="text-sm text-charcoal/55">Mindre brødtekst, dempet (charcoal/55).</p>
+      <p class="label-eyebrow">Eyebrow-etikett · label-eyebrow</p>
+    </div>
+  </section>
+
+  {/* ---- Buttons --------------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Knapper</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 flex flex-wrap items-center gap-3">
+      <button class="btn-primary px-5 py-2.5 rounded-full text-sm font-medium">Primærknapp</button>
+      <button class="btn-primary px-5 py-2.5 rounded-full text-sm font-medium" disabled>Deaktivert</button>
+      <button class="px-5 py-2.5 rounded-full text-sm font-medium border border-sage-500/30 text-charcoal/80 hover:border-terracotta-500/40 hover:text-terracotta-500 transition-colors">Sekundær (kontur)</button>
+      <button class="px-5 py-2.5 rounded-full text-sm font-medium bg-oatmeal/60 text-charcoal/80 hover:bg-oatmeal transition-colors">Neutral</button>
+      <button class="bg-chrome text-chrome-fg px-5 py-2.5 rounded-full text-sm font-medium">Chrome</button>
+    </div>
+  </section>
+
+  {/* ---- Badges + status ------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">StatusBadge</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 flex flex-wrap gap-2">
+      <StatusBadge label="Standard" />
+      <StatusBadge label="Terracotta" variant="terracotta" />
+      <StatusBadge label="Sage" variant="sage" />
+      <StatusBadge label="Amber" variant="amber" />
+      <StatusBadge label="Rød" variant="red" />
+      <StatusBadge label="Blå" variant="blue" />
+      <StatusBadge label="Dempet" variant="muted" />
+    </div>
+  </section>
+
+  {/* ---- Section accents ------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Seksjonsaksenter</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="rounded-2xl border border-used-300/40 bg-used-soft p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-used-500 mb-1">Brukt</p>
+        <p class="font-serif text-lg">Pre-loved</p>
+      </div>
+      <div class="rounded-2xl border border-sage-500/30 bg-new-soft p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-new-500 mb-1">Nytt</p>
+        <p class="font-serif text-lg">Ferdigstrikket</p>
+      </div>
+      <div class="rounded-2xl border border-commission-300/40 bg-commission-soft p-4">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-commission-500 mb-1">Strikk for meg</p>
+        <p class="font-serif text-lg">Oppdrag</p>
+      </div>
+    </div>
+  </section>
+
+  {/* ---- Alerts ---------------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Alert</h2>
+    <div class="space-y-3">
+      <Alert type="success">Betalingen er sikret i Trygg betaling. Selgeren kan sende plagget.</Alert>
+      <Alert type="warning">Annonsen mangler bilde. Legg til minst ett før publisering.</Alert>
+      <Alert type="error">Noe gikk galt. Prøv igjen, eller kontakt support.</Alert>
+      <Alert type="info">Du kan møtes lokalt, eller sende med sporing.</Alert>
+    </div>
+  </section>
+
+  {/* ---- Avatars + rating ------------------------------------------ */}
+  <section>
+    <h2 class="label-eyebrow mb-4">ProfileAvatar · StarRating</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 flex flex-wrap items-center gap-6">
+      <ProfileAvatar name="Kari" size="xs" />
+      <ProfileAvatar name="Liv" size="sm" />
+      <ProfileAvatar name="Eline" size="md" />
+      <ProfileAvatar name="Nora" size="lg" />
+      <div class="space-y-2">
+        <StarRating rating={5} />
+        <StarRating rating={3} />
+        <StarRating rating={1} />
+      </div>
+    </div>
+  </section>
+
+  {/* ---- Form fields ----------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Skjemafelter</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-8 grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl">
+      <div>
+        <label class="label-form" for="pg-title">Tittel</label>
+        <input id="pg-title" type="text" value="Ullgenser i merino"
+          class="w-full rounded-xl border border-sage-500/25 bg-surface px-4 py-2.5 text-sm focus:border-terracotta-500 focus:outline-none" />
+      </div>
+      <div>
+        <label class="label-form" for="pg-cat">Kategori</label>
+        <select id="pg-cat" class="w-full rounded-xl border border-sage-500/25 bg-surface px-4 py-2.5 text-sm">
+          <option>Gensere</option>
+          <option>Luer</option>
+          <option>Votter</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2">
+        <label class="label-form" for="pg-desc">Beskrivelse</label>
+        <textarea id="pg-desc" rows="3"
+          class="w-full rounded-xl border border-sage-500/25 bg-surface px-4 py-2.5 text-sm focus:border-terracotta-500 focus:outline-none">Strikket i myk merinoull, str. 3–5 år.</textarea>
+      </div>
+    </div>
+  </section>
+
+  {/* ---- Cards: listings ------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">ListingCard</h2>
+    <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <ListingCard id="a1" title="Ullgenser i merino, 3–5 år" price={450} meta="Gensere" showFav={true} escrowEnabled={true} />
+      <ListingCard id="a2" title="Håndstrikket lue med dusk" price={180} meta="Luer" showFav={true} isFav={true} canMeet={true} />
+      <ListingCard id="a3" title="Babyfotposer, nystrikket" price={220} meta="Nytt" promoted={true} storeName="Karis Strikk" storeSlug="karis-strikk" />
+      <ListingCard id="a4" title="Selfanger (solgt)" price={300} inactive={true} inactiveLabel="Solgt" />
+    </ul>
+  </section>
+
+  {/* ---- Cards: commissions ---------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">CommissionCard</h2>
+    <ul class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <CommissionCard id="c1" title="Marius-genser til 4-åring" category="gensere" sizeLabel="3–5 år" budgetMin={400} budgetMax={800} offerCount={3} buyerName="Liv" daysLeft={5} />
+      <CommissionCard id="c2" title="Dåpskjole i bomull" category="annet" sizeLabel="0–3 mnd" budgetMin={900} budgetMax={1500} offerCount={0} buyerName="Nora" daysLeft={20} />
+      <CommissionCard id="c3" title="Votter (lukket)" category="votter" sizeLabel="Voksen" budgetMin={150} budgetMax={300} inactive={true} inactiveLabel="Lukket" />
+    </ul>
+  </section>
+
+  {/* ---- Cards: projects ------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">ProjectCard</h2>
+    <ul class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <ProjectCard id="p1" title="Sommergenser i lin" status="active" recipient="Til Nora" patternLabel="Eget design" />
+      <ProjectCard id="p2" title="Julesokker" status="planning" recipient="Til meg selv" />
+      <ProjectCard id="p3" title="Kofte ferdig!" status="finished" patternLabel="Setesdal" />
+    </ul>
+  </section>
+
+  {/* ---- EmptyState ------------------------------------------------ */}
+  <section>
+    <h2 class="label-eyebrow mb-4">EmptyState</h2>
+    <EmptyState message="Du har ingen aktive annonser ennå." ctaText="Lag din første annonse" ctaHref="#" />
+  </section>
+
+  {/* ---- Nav pill strip -------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Seksjonspiller (nav)</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-4 flex flex-wrap gap-1">
+      <span class="text-sm font-medium px-3 py-1.5 rounded-full bg-used-500/12 text-used-500">Brukt</span>
+      <span class="text-sm font-medium px-3 py-1.5 rounded-full bg-new-500/12 text-new-500">Nytt</span>
+      <span class="text-sm font-medium px-3 py-1.5 rounded-full bg-commission-500/15 text-commission-500">Oppdrag</span>
+      <span class="text-sm font-medium px-3 py-1.5 rounded-full bg-terracotta-500/10 text-terracotta-500">Butikker</span>
+      <span class="text-sm font-medium px-3 py-1.5 rounded-full text-charcoal/70">Inaktiv</span>
+    </div>
+  </section>
+
+  {/* ---- Table ----------------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Tabell</h2>
+    <div class="bg-surface rounded-3xl border border-sage-500/10 overflow-hidden">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-sage-500/15 text-left text-charcoal/45">
+            <th class="font-medium px-5 py-3">Annonse</th>
+            <th class="font-medium px-5 py-3">Status</th>
+            <th class="font-medium px-5 py-3 text-right">Pris</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-b border-sage-500/10">
+            <td class="px-5 py-3">Ullgenser i merino</td>
+            <td class="px-5 py-3"><StatusBadge label="Aktiv" variant="sage" /></td>
+            <td class="px-5 py-3 text-right font-mono tabular-nums">450 NOK</td>
+          </tr>
+          <tr class="border-b border-sage-500/10">
+            <td class="px-5 py-3">Håndstrikket lue</td>
+            <td class="px-5 py-3"><StatusBadge label="Reservert" variant="amber" /></td>
+            <td class="px-5 py-3 text-right font-mono tabular-nums">180 NOK</td>
+          </tr>
+          <tr>
+            <td class="px-5 py-3">Selfanger</td>
+            <td class="px-5 py-3"><StatusBadge label="Solgt" variant="muted" /></td>
+            <td class="px-5 py-3 text-right font-mono tabular-nums">300 NOK</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {/* ---- Chrome strip (footer-like) -------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Chrome (footer / mørke striper)</h2>
+    <div class="bg-chrome text-chrome-fg rounded-3xl p-8">
+      <p class="font-serif text-2xl mb-2">Littles and Me Knits</p>
+      <p class="text-chrome-fg/60 text-sm max-w-sm">Chrome holder seg mørk selv i lyse temaer, og mørk i mørkt tema, via egne tokens.</p>
+      <div class="mt-4 flex gap-5 text-[10px] font-bold uppercase tracking-widest text-chrome-fg/40">
+        <span class="hover:text-chrome-fg transition-colors">Hjelp</span>
+        <span class="hover:text-chrome-fg transition-colors">Personvern</span>
+        <span class="hover:text-chrome-fg transition-colors">Vilkår</span>
+      </div>
+    </div>
+  </section>
+
+  {/* ---- Token swatches -------------------------------------------- */}
+  <section>
+    <h2 class="label-eyebrow mb-4">Token-palett (leses live fra aktivt tema)</h2>
+    <div class="space-y-6">
+      {[['Overflater', surfaceTokens], ['Merkevare', brandTokens], ['Seksjoner + brand', sectionTokens]].map(([group, tokens]) => (
+        <div>
+          <p class="text-xs text-charcoal/45 mb-2">{group}</p>
+          <div class="flex flex-wrap gap-3">
+            {(tokens as string[][]).map(([varName, label]) => (
+              <div class="w-28">
+                <div class="h-14 rounded-xl border border-sage-500/15" style={`background: var(${varName})`}></div>
+                <p class="text-[11px] mt-1.5 text-charcoal/70">{label}</p>
+                <p class="text-[10px] text-charcoal/40 font-mono truncate">{varName}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</div>

@@ -72,7 +72,7 @@ const hasAny = (purchases?.length ?? 0) + (commissions?.length ?? 0) > 0;
               <h2 class="font-serif text-xl mb-3">Pågående</h2>
               <ul class="space-y-2">
                 {active.map((p) => (
-                  <li class="bg-white rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
+                  <li class="bg-surface rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                     <a href={`/market/listing/${p.id}`} class="block p-4">
                       <div class="flex items-center justify-between gap-4">
                         <div>
@@ -145,7 +145,7 @@ const hasAny = (purchases?.length ?? 0) + (commissions?.length ?? 0) > 0;
                   const offer = c.awarded_offer_id ? offerById.get(c.awarded_offer_id) : null;
                   const price = (offer as any)?.price_nok ?? null;
                   const variant = c.status === 'delivered' ? 'sage' : c.status === 'disputed' ? 'amber' : c.status === 'completed' ? 'sage' : 'amber';
-                  const bg = c.status === 'delivered' ? 'bg-oatmeal/40' : c.status === 'disputed' ? 'bg-amber-50 border-amber-200' : 'bg-white';
+                  const bg = c.status === 'delivered' ? 'bg-oatmeal/40' : c.status === 'disputed' ? 'bg-amber-50 border-amber-200' : 'bg-surface';
                   return (
                     <li class:list={[bg, 'rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors']}>
                       <a href={`/market/commissions/${c.id}`} class="block p-4">

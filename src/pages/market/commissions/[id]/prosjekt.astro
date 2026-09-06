@@ -143,7 +143,7 @@ const progressPct =
 
     {/* Progress bar (optional) */}
     {progressPct !== null && (
-      <div class="mb-6 bg-white rounded-2xl border border-sage-500/15 p-4">
+      <div class="mb-6 bg-surface rounded-2xl border border-sage-500/15 p-4">
         <div class="flex items-center justify-between text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
           <span>Fremdrift</span>
           <span class="text-terracotta-500">{progressPct} %</span>
@@ -158,7 +158,7 @@ const progressPct =
     )}
 
     {/* Knitter card */}
-    <div class="bg-white rounded-2xl border border-sage-500/15 p-4 mb-6 flex items-center gap-4">
+    <div class="bg-surface rounded-2xl border border-sage-500/15 p-4 mb-6 flex items-center gap-4">
       <ProfileAvatar url={knitterAvatarUrl} name={knitterName} size="lg" />
       <div class="flex-1 min-w-0">
         <p class="font-medium text-charcoal">{knitterName}</p>
@@ -173,14 +173,14 @@ const progressPct =
 
     {/* Project details */}
     <div class="grid sm:grid-cols-2 gap-4 mb-6">
-      <div class="bg-white rounded-2xl border border-sage-500/15 p-4">
+      <div class="bg-surface rounded-2xl border border-sage-500/15 p-4">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Strikkes med</p>
         <p class="text-sm">
           {project.yarn ?? <span class="text-charcoal/40">Ikke spesifisert</span>}
         </p>
         {project.needles && <p class="text-sm text-charcoal/70 mt-1">{project.needles}</p>}
       </div>
-      <div class="bg-white rounded-2xl border border-sage-500/15 p-4">
+      <div class="bg-surface rounded-2xl border border-sage-500/15 p-4">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Detaljer</p>
         <p class="text-sm">Størrelse {reqRow.size_label}</p>
         {project.pattern_external && (
@@ -191,7 +191,7 @@ const progressPct =
 
     {/* Knitter's summary, if any */}
     {project.summary && (
-      <div class="bg-white rounded-2xl border border-sage-500/15 p-5 mb-6">
+      <div class="bg-surface rounded-2xl border border-sage-500/15 p-5 mb-6">
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Notater fra strikkeren</p>
         <p class="text-sm whitespace-pre-line text-charcoal/80">{project.summary}</p>
       </div>
@@ -205,7 +205,7 @@ const progressPct =
       ) : (
         <ul class="space-y-4">
           {logs.map((log) => (
-            <li class="bg-white rounded-2xl border border-sage-500/15 p-5">
+            <li class="bg-surface rounded-2xl border border-sage-500/15 p-5">
               <div class="flex items-center justify-between text-xs text-charcoal/55 mb-3">
                 <span>{formatDate(log.log_date, 'short')}</span>
                 {log.rows_at && <span>{log.rows_at} rader</span>}

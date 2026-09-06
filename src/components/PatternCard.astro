@@ -18,7 +18,7 @@ const href = localizedPath(lang, `/patterns/${pattern.id}`);
 
 <a
   href={href}
-  class="group block bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300"
+  class="group block bg-surface rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300"
 >
   <div class="relative aspect-[4/5] overflow-hidden bg-oatmeal">
     <Image
@@ -30,7 +30,7 @@ const href = localizedPath(lang, `/patterns/${pattern.id}`);
       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
     />
     <div class="absolute top-3 left-3 flex flex-col gap-2">
-      <span class="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-charcoal shadow-sm">
+      <span class="bg-surface/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-charcoal shadow-sm">
         {t(`difficulty.${data.difficulty}` as const)}
       </span>
       {stashMatch && (

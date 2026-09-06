@@ -52,13 +52,13 @@ const CATEGORIES = [
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Tittel *</span>
           <input name="title" type="text" required maxlength="80" placeholder="F.eks. Sondre cardigan i str. 92"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
         </label>
 
         <div class="grid grid-cols-2 gap-4">
           <label class="block">
             <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Kategori *</span>
-            <select name="category" required class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
+            <select name="category" required class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors">
               <option value="">Velg…</option>
               {CATEGORIES.map((c) => (
                 <option value={c.value}>{c.label}</option>
@@ -69,26 +69,26 @@ const CATEGORIES = [
           <label class="block">
             <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Størrelse *</span>
             <input name="size_label" type="text" required maxlength="20" placeholder="F.eks. 92, 2 år, M"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
           </label>
         </div>
 
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Farge / fargevalg</span>
           <input name="colorway" type="text" maxlength="100" placeholder="F.eks. naturhvit, lys rosa, terracotta"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
         </label>
 
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Oppskrift</span>
           <input name="pattern_external_title" type="text" maxlength="120" placeholder="Navn på oppskrift, om du har en spesifikk"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
         </label>
 
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Garnpreferanse</span>
           <input name="yarn_preference" type="text" maxlength="200" placeholder="F.eks. Sandnes Peer Gynt, merinoull"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
         </label>
 
         <label class="flex items-center gap-3 cursor-pointer">
@@ -101,25 +101,25 @@ const CATEGORIES = [
           <label class="block">
             <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Budsjett min (NOK) *</span>
             <input name="budget_nok_min" type="number" required min="0" step="1" placeholder="300"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
           </label>
           <label class="block">
             <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Budsjett maks (NOK) *</span>
             <input name="budget_nok_max" type="number" required min="0" step="1" placeholder="800"
-              class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+              class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
           </label>
         </div>
 
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Trengs innen</span>
           <input name="needed_by" type="date"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
         </label>
 
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Beskrivelse</span>
           <textarea name="description" rows="4" maxlength="2000" placeholder="Ekstra detaljer om hva du ønsker — mønster, garntype, spesielle ønsker…"
-            class="w-full bg-white rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
+            class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
         </label>
 
         <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">

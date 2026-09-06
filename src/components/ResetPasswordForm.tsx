@@ -42,7 +42,7 @@ export default function ResetPasswordForm() {
         <input
           type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password" disabled={status === 'saving'}
-          className="w-full bg-white rounded-2xl px-5 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50"
+          className="w-full bg-surface rounded-2xl px-5 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50"
         />
         <span className="block text-xs text-charcoal/45 mt-1.5">Minst 8 tegn.</span>
       </label>
@@ -51,7 +51,7 @@ export default function ResetPasswordForm() {
         <input
           type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password" disabled={status === 'saving'}
-          className="w-full bg-white rounded-2xl px-5 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50"
+          className="w-full bg-surface rounded-2xl px-5 py-3 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500 focus:ring-2 focus:ring-sage-500/20 disabled:opacity-50"
         />
       </label>
       <button type="submit" disabled={status === 'saving'}

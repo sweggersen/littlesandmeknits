@@ -67,7 +67,7 @@ const isOpen = thread.status === 'open';
         )}
       </div>
 
-      <div class="bg-white rounded-2xl border border-sage-500/10 p-4 space-y-3">
+      <div class="bg-surface rounded-2xl border border-sage-500/10 p-4 space-y-3">
         {messages.map((m) => (
           <div class:list={[
             'rounded-xl p-3 text-sm',
@@ -88,7 +88,7 @@ const isOpen = thread.status === 'open';
       </div>
 
       {isOpen && thread.recipient_id === user.id && (
-        <form method="post" action={`/api/moderation-threads/${thread.id}/message`} class="bg-white rounded-2xl border border-sage-500/10 p-4 space-y-2">
+        <form method="post" action={`/api/moderation-threads/${thread.id}/message`} class="bg-surface rounded-2xl border border-sage-500/10 p-4 space-y-2">
           <label class="block">
             <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Svar til moderator</span>
             <textarea name="body" rows="4" required maxlength="4000"

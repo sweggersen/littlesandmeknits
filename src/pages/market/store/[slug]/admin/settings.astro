@@ -30,7 +30,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
       </div>
     )}
 
-    <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
+    <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
       <div>
         <h2 class="font-serif text-lg">Bilder</h2>
         <p class="text-xs text-charcoal/55 mt-1">
@@ -87,7 +87,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
     </div>
 
     <form method="post" action={`/api/stores/${store.slug}`} class="space-y-6">
-      <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
+      <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
         <h2 class="font-serif text-lg">Profil</h2>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -145,7 +145,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
         </script>
       </div>
 
-      <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
+      <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6 space-y-5">
         <h2 class="font-serif text-lg">Kontakt</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -186,7 +186,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
         </div>
       </div>
 
-      <div class="bg-white rounded-3xl border border-sage-500/10 p-5 sm:p-6">
+      <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6">
         <h2 class="font-serif text-lg mb-3">Registrert i Brønnøysundregistrene</h2>
         <dl class="text-sm space-y-1">
           <div class="flex gap-2"><dt class="text-charcoal/55">Navn:</dt><dd>{store.legal_name}</dd></div>
@@ -207,7 +207,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
     </form>
 
     {can.deleteStore(role) && (
-      <div class="bg-white rounded-3xl border border-red-200 p-5 sm:p-6">
+      <div class="bg-surface rounded-3xl border border-red-200 p-5 sm:p-6">
         <h2 class="font-serif text-lg text-red-700 mb-2">Slett butikk</h2>
         <p class="text-sm text-charcoal/65 mb-4">
           Butikken og alle annonser arkiveres. Du kan gjenopprette innen 90 dager.

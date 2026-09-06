@@ -57,7 +57,7 @@ const ROW: Record<PreflightStatus, string> = {
         <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">{g}</h2>
         <div class="space-y-2">
           {report.checks.filter((c) => c.group === g).map((c) => (
-            <div class:list={['flex items-start gap-3 rounded-xl border px-4 py-3 bg-white', ROW[c.status]]}>
+            <div class:list={['flex items-start gap-3 rounded-xl border px-4 py-3 bg-surface', ROW[c.status]]}>
               <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full shrink-0', DOT[c.status]]}></span>
               <div class="min-w-0">
                 <p class="text-sm font-medium">{c.label}</p>

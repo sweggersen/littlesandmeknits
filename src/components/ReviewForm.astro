@@ -12,7 +12,7 @@ const { commissionRequestId, existingReview = false } = Astro.props;
     Du har allerede gitt en vurdering for dette oppdraget.
   </div>
 ) : (
-  <div class="bg-white rounded-2xl p-5 border border-sage-500/10" data-review-form-wrapper>
+  <div class="bg-surface rounded-2xl p-5 border border-sage-500/10" data-review-form-wrapper>
     <p class="font-medium text-sm mb-3">Gi en vurdering</p>
     <form data-review-form class="space-y-3">
       <input type="hidden" name="commission_request_id" value={commissionRequestId} />

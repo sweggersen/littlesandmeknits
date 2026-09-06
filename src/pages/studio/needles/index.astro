@@ -64,7 +64,7 @@ const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - pa
   {loadErr ? (
     <Alert type="error">Vi klarte ikke å laste pinnelageret akkurat nå. Prøv igjen om litt.</Alert>
   ) : needles.length === 0 ? (
-    <div class="bg-white rounded-3xl p-12 text-center border border-sage-500/10">
+    <div class="bg-surface rounded-3xl p-12 text-center border border-sage-500/10">
       <p class="text-charcoal/55 mb-6">Ingen pinner ennå. Registrer rundpinner, strømpepinner og rette pinner for å slippe å lete neste gang.</p>
       <a
         href="/studio/needles/new"
@@ -76,7 +76,7 @@ const sortedSizes = Array.from(grouped.keys()).sort((a, b) => parseFloat(a) - pa
   ) : (
     <div class="space-y-6">
       {sortedSizes.map((size) => (
-        <section class="bg-white rounded-3xl border border-sage-500/10 overflow-hidden">
+        <section class="bg-surface rounded-3xl border border-sage-500/10 overflow-hidden">
           <header class="px-6 py-4 bg-sage-100">
             <h2 class="font-serif text-xl text-sage-900">{size} mm</h2>
           </header>

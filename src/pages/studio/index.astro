@@ -214,7 +214,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
           maxlength="60"
           required
           placeholder="Sam"
-          class="w-full bg-white rounded-xl px-3 py-2 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500"
+          class="w-full bg-surface rounded-xl px-3 py-2 text-base border border-sage-500/20 focus:outline-none focus:border-sage-500"
         />
       </div>
       <button
@@ -240,7 +240,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
         <div class="p-4">
           <div class="dash-tiles">
             {studioStats.map((s) => (
-              <a href={s.href} data-tile class="bg-white rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
+              <a href={s.href} data-tile class="bg-surface rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
                 <p class="font-serif text-3xl leading-none tabular-nums">{s.value}</p>
                 <p class="text-[11px] text-charcoal/55 mt-1.5 leading-tight">{s.label}</p>
               </a>
@@ -255,7 +255,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 
     <!-- Lær å strikke -->
     <div class="dash-widget md:col-span-4" data-widget="learn" data-size="m" data-default="1" data-label="Lær å strikke">
-      <a href="/studio/learn" class="group flex items-center gap-4 bg-white rounded-2xl p-5 border border-sage-500/20 hover:border-sage-500/30 hover:shadow-sm transition-all h-full">
+      <a href="/studio/learn" class="group flex items-center gap-4 bg-surface rounded-2xl p-5 border border-sage-500/20 hover:border-sage-500/30 hover:shadow-sm transition-all h-full">
         <div class="shrink-0 w-12 h-12 rounded-full bg-sage-100 flex items-center justify-center text-sage-900">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none" />
@@ -276,7 +276,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 
     <!-- Snarveier -->
     <div class="dash-widget md:col-span-2" data-widget="snarveier" data-size="s" data-default="1" data-label="Snarveier">
-      <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+      <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
         <h2 class="font-serif text-lg px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">Snarveier</h2>
         <div class="flex flex-col gap-2 text-sm">
           <a href="/studio/projects/new" class="text-charcoal/60 hover:text-terracotta-500 transition-colors">Nytt prosjekt →</a>
@@ -289,7 +289,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 
     <!-- Merker -->
     <div class="dash-widget md:col-span-6" data-widget="badges" data-size="l" data-default="1" data-label="Merker">
-      <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden">
+      <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
         <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
           <h2 class="font-serif text-lg">Merker</h2>
           <span class="text-xs text-charcoal/45">
@@ -302,7 +302,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
               <div
                 data-tile
                 class:list={[
-                  'bg-white rounded-2xl p-4 border text-center transition-all',
+                  'bg-surface rounded-2xl p-4 border text-center transition-all',
                   b.earned ? 'border-sage-500/30 shadow-sm' : 'border-sage-500/10 opacity-50',
                 ]}
               >
@@ -318,7 +318,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 
     <!-- Siste prosjekter (valgfritt panel) -->
     <div class="dash-widget md:col-span-4" data-widget="projects" data-size="m" data-default="0" data-label="Siste prosjekter">
-      <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden h-full">
+      <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden h-full">
         <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
           <h2 class="font-serif text-lg">Siste prosjekter</h2>
           <a href="/studio/projects" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
@@ -357,7 +357,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 
     <!-- Bibliotek (valgfritt panel) -->
     <div class="dash-widget md:col-span-2" data-widget="library" data-size="s" data-default="0" data-label="Bibliotek">
-      <section class="bg-white rounded-2xl border border-sage-500/20 p-5 h-full">
+      <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
         <h2 class="font-serif text-lg px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">Bibliotek</h2>
         <p class="font-serif text-3xl leading-none tabular-nums">{externals.length}</p>
         <p class="text-xs text-charcoal/55 mt-1">oppskrifter lagret</p>
@@ -367,7 +367,7 @@ const studioStats: Array<{ label: string; value: string; href: string }> = [
 
     <!-- Garnlager (valgfritt panel): fordeling per garntykkelse -->
     <div class="dash-widget md:col-span-4" data-widget="stash" data-size="m" data-default="0" data-label="Garnlager">
-      <section class="bg-white rounded-2xl border border-sage-500/20 overflow-hidden h-full">
+      <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden h-full">
         <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
           <h2 class="font-serif text-lg">Garnlager</h2>
           <a href="/studio/yarn" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Åpne →</a>

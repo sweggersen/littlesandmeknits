@@ -212,7 +212,7 @@ const orgJsonLd = {
           <form action="/market/used" method="get" class="relative w-full max-w-xl">
             <svg class="absolute left-4 top-1/2 -translate-y-1/2 text-charcoal/30 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             <input type="text" name="q" placeholder="Søk etter plagg, garn, størrelse..."
-              class="w-full bg-white rounded-full pl-11 pr-4 py-3 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none shadow-sm" />
+              class="w-full bg-surface rounded-full pl-11 pr-4 py-3 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none shadow-sm" />
           </form>
         </div>
       </div>
@@ -222,7 +222,7 @@ const orgJsonLd = {
         <form action="/market/used" method="get" class="relative w-full max-w-md">
           <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 text-charcoal/30 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           <input type="text" name="q" placeholder="Søk etter plagg, garn, størrelse..."
-            class="w-full bg-white rounded-full pl-10 pr-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none shadow-sm" />
+            class="w-full bg-surface rounded-full pl-10 pr-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/30 focus:outline-none shadow-sm" />
         </form>
       </div>
 
@@ -240,33 +240,33 @@ const orgJsonLd = {
            Columns follow the number of enabled sections (soft-launch flag gate). -->
       <div class:list={["grid gap-2 sm:gap-4 mb-6 sm:mb-8", visibleCategoryCards >= 3 ? 'grid-cols-3' : visibleCategoryCards === 2 ? 'grid-cols-2' : 'grid-cols-1']}>
         {showBrukt && (
-        <a href="/market/used" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-[#b08968]/40 transition-all hover:shadow-md bg-white sm:bg-[#f3ece1]">
+        <a href="/market/used" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-used-300/40 transition-all hover:shadow-md bg-surface sm:bg-used-soft">
           <img src="/category/brukt.png" alt="" aria-hidden="true" class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-[6.3rem] h-[6.3rem] object-contain z-0 transition-transform group-hover:scale-110" />
-          <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-white/85 blur-2xl rounded-full"></div>
+          <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-surface/85 blur-2xl rounded-full"></div>
           <div class="relative z-10 sm:pr-28">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-[#915f3a] mb-0.5 sm:mb-2">Brukt</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-used-500 mb-0.5 sm:mb-2">Brukt</p>
             <h2 class="font-serif text-base sm:text-xl mb-0 sm:mb-1 leading-tight">Pre-loved</h2>
             <p class="hidden sm:block text-sm text-charcoal/55">Håndstrikkede plagg med mye liv igjen.</p>
           </div>
         </a>
         )}
         {showNytt && (
-        <a href="/market/new" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-sage-500/40 transition-all hover:shadow-md bg-white sm:bg-[#e6f0e9]">
+        <a href="/market/new" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-sage-500/40 transition-all hover:shadow-md bg-surface sm:bg-new-soft">
           <img src="/category/nytt.png" alt="" aria-hidden="true" class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-[6.3rem] h-[6.3rem] object-contain z-0 transition-transform group-hover:scale-110" />
-          <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-white/85 blur-2xl rounded-full"></div>
+          <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-surface/85 blur-2xl rounded-full"></div>
           <div class="relative z-10 sm:pr-28">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-[#5d6f4b] mb-0.5 sm:mb-2">Nytt</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-new-500 mb-0.5 sm:mb-2">Nytt</p>
             <h2 class="font-serif text-base sm:text-xl mb-0 sm:mb-1 leading-tight">Ferdigstrikket</h2>
             <p class="hidden sm:block text-sm text-charcoal/55">Nystrikkede plagg fra strikkere, klare til bruk.</p>
           </div>
         </a>
         )}
         {showOppdrag && (
-        <a href="/market/commissions" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-[#9b7fc4]/40 transition-all hover:shadow-md bg-white sm:bg-[#efe9f7]">
+        <a href="/market/commissions" class="group relative block overflow-hidden rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-sage-500/10 hover:border-commission-300/40 transition-all hover:shadow-md bg-surface sm:bg-commission-soft">
           <img src="/category/oppdrag.png" alt="" aria-hidden="true" class="hidden sm:block absolute right-3 top-1/2 -translate-y-1/2 w-[6.3rem] h-[6.3rem] object-contain z-0 transition-transform group-hover:scale-110" />
-          <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-white/85 blur-2xl rounded-full"></div>
+          <div class="hidden sm:block absolute top-1/2 -translate-y-1/2 left-2 right-5 h-3/4 z-[1] bg-surface/85 blur-2xl rounded-full"></div>
           <div class="relative z-10 sm:pr-28">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-[#6f5494] mb-0.5 sm:mb-2">Strikk for meg</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-commission-500 mb-0.5 sm:mb-2">Strikk for meg</p>
             <h2 class="font-serif text-base sm:text-xl mb-0 sm:mb-1 leading-tight">Oppdrag</h2>
             <p class="hidden sm:block text-sm text-charcoal/55">Bestill et plagg fra en strikker i fellesskapet.</p>
           </div>
