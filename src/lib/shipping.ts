@@ -28,6 +28,13 @@ export function isTrackedTier(id: ShippingOption | null | undefined): boolean {
 // posten.no/priser, brev from current consumer tariff). When the rates
 // change we update this table; existing listings carry the price they
 // were saved with (shipping_price_nok), so re-pricing isn't retroactive.
+//
+// DRIFT GUARD: bump SHIPPING_RATES_VERIFIED_ON whenever you re-verify these
+// prices against posten.no/priser. `shipping.test.ts` fails once this date is
+// >18 months old, turning silent rate drift (a margin/support risk) into a
+// visible CI reminder with plenty of lead time.
+export const SHIPPING_RATES_VERIFIED_ON = '2026-01-01';
+
 export const SHIPPING_TIERS: ShippingTier[] = [
   {
     id: 'free',
