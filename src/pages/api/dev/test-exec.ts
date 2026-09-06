@@ -34,6 +34,8 @@ import { addProgressLog as svcAddProgressLog } from '../../../lib/services/proje
 import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/services/stripe-events';
 import { seedWorld } from '../../../lib/dev/seed-world';
 import { seedProfile } from '../../../lib/dev/seed-profile';
+import { seedFull } from '../../../lib/dev/seed-full';
+import { SAMPLE_IMAGES } from '../../../lib/dev/sample-images';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -128,21 +130,9 @@ async function generateListingPhotos(
 }
 
 // Real knit photos live in projects/_samples/ (uploaded by scripts/seed-sample-images.mjs
-// via `npm run seed:samples`, kept OUT of the deployed bundle). Mapped to categories
-// so a "genser" shows a sweater, "teppe" a blanket flatlay, etc.
-const SAMPLE_IMAGES: Record<string, string[]> = {
-  genser:   ['_samples/sage-sweater.jpg', '_samples/autumn-cable.jpg', '_samples/terracotta-knit.jpg'],
-  cardigan: ['_samples/brown-wool.jpg', '_samples/terracotta-knit.jpg'],
-  jakke:    ['_samples/brown-wool.jpg', '_samples/terracotta-knit.jpg'],
-  lue:      ['_samples/mustard-knit.jpg', '_samples/texture-close.jpg'],
-  bukser:   ['_samples/brown-wool.jpg'],
-  sokker:   ['_samples/texture-close.jpg', '_samples/mustard-knit.jpg'],
-  votter:   ['_samples/texture-close.jpg', '_samples/mustard-knit.jpg'],
-  teppe:    ['_samples/cream-flatlay.jpg', '_samples/autumn-cable.jpg'],
-  kjole:    ['_samples/colorful-tshirt.jpg', '_samples/cream-flatlay.jpg'],
-  body:     ['_samples/cream-flatlay.jpg', '_samples/colorful-tshirt.jpg'],
-  annet:    ['_samples/texture-close.jpg', '_samples/grey-yarn-balls.jpg'],
-};
+// via `npm run seed:samples`, kept OUT of the deployed bundle). The category → sample
+// mapping is the single source of truth in src/lib/dev/sample-images.ts (shared with
+// the comprehensive seeder) so a "genser" shows a sweater, "teppe" a blanket flatlay, etc.
 
 const TEST_COLORS: Record<string, string[]> = {
   genser:    ['c9a9a6', 'a8c8a8', 'b8a9c9'],
@@ -263,6 +253,17 @@ async function handle(
     // first broken step. See src/lib/dev/seed-world.ts.
     case 'seed-world': {
       const summary = await seedWorld({ db, handle, emailToId });
+      return { data: { seeded: summary } };
+    }
+
+    // Comprehensive seeder: seedWorld PLUS full category coverage, studio
+    // dashboards, favorites, a second store with members/invites/store listings,
+    // notifications of every type, dead-letter events and more — every visual
+    // entity gets a category-relevant image. See src/lib/dev/seed-full.ts.
+    // Run `npm run seed:samples` (or `npm run seed:full`) afterwards to hydrate
+    // the image bytes into storage.
+    case 'seed-full': {
+      const summary = await seedFull({ db, handle, emailToId });
       return { data: { seeded: summary } };
     }
 
@@ -1724,6 +1725,11 @@ async function handle(
       await db.from('external_patterns').delete().in('user_id', testUserIds);
       await db.from('purchases').delete().in('user_id', testUserIds);
       await db.from('user_achievements').delete().in('user_id', testUserIds);
+      // Favorites (seed-full) — no FK to listings, so they'd orphan otherwise.
+      await db.from('favorites').delete().in('user_id', testUserIds);
+      // Dead-letter events the comprehensive seeder inserts are tagged
+      // {seed:true}; they aren't user-scoped so sweep them by that marker.
+      await db.from('dead_letter_events').delete().contains('context', { seed: true });
 
       // Queue items submitted by or decided by test users
       await db.from('moderation_queue').delete().in('submitter_id', testUserIds);
