@@ -1,0 +1,56 @@
+---
+// User-facing theme switcher: a row of swatch circles (page colour + accent
+// dot) for each theme. Clicking sets `data-theme` on <html> and saves the pick
+// to localStorage, so it persists across pages + sessions (applied before paint
+// by the inline script in Layout.astro — no flash). Drop it into a menu.
+import { THEMES } from '../lib/theme';
+---
+<div class="px-4 py-2" data-theme-picker>
+  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Tema</p>
+  <div class="flex items-center gap-2 flex-wrap">
+    {THEMES.map((t) => (
+      <button
+        type="button"
+        data-theme-set={t.id}
+        title={t.label}
+        aria-label={`Bytt til tema ${t.label}`}
+        class="relative w-6 h-6 rounded-full border border-charcoal/20 shrink-0 transition-transform hover:scale-110 data-[active]:ring-2 data-[active]:ring-primary data-[active]:ring-offset-2 data-[active]:ring-offset-surface"
+        style={`background:${t.page}`}
+      >
+        <span class="absolute inset-0 m-auto w-2.5 h-2.5 rounded-full" style={`background:${t.primary}`}></span>
+      </button>
+    ))}
+  </div>
+</div>
+
+<script>
+  // Re-attach on every navigation (view-transitions rule). Idempotent per button.
+  function initThemePicker() {
+    if (!document.querySelector('[data-theme-picker]')) return;
+    const KEY = 'lm-theme';
+    const buttons = Array.from(document.querySelectorAll('[data-theme-set]')) as HTMLElement[];
+
+    function syncActive() {
+      const cur = document.documentElement.getAttribute('data-theme');
+      buttons.forEach((b) => {
+        if (b.getAttribute('data-theme-set') === cur) b.setAttribute('data-active', '');
+        else b.removeAttribute('data-active');
+      });
+    }
+
+    buttons.forEach((b) => {
+      if ((b as any).__themeBound) return;
+      (b as any).__themeBound = true;
+      b.addEventListener('click', () => {
+        const theme = b.getAttribute('data-theme-set');
+        if (!theme) return;
+        document.documentElement.setAttribute('data-theme', theme);
+        try { localStorage.setItem(KEY, theme); } catch {}
+        syncActive();
+      });
+    });
+
+    syncActive();
+  }
+  document.addEventListener('astro:page-load', initThemePicker);
+</script>

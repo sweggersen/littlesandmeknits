@@ -18,5 +18,33 @@ export type ThemeId =
   | 'kveld'       // dark, soft charcoal
   | 'natt';       // dark, deep near-black
 
-/** The active site-wide theme. Change this one line to re-skin everything. */
+/** The active site-wide default. A visitor's own pick (saved under
+ *  THEME_STORAGE_KEY) overrides this on their device. */
 export const SITE_THEME: ThemeId = 'kveld';
+
+/** localStorage key holding a visitor's chosen theme (applied before paint by
+ *  the inline script in Layout, so there's no flash of the default). */
+export const THEME_STORAGE_KEY = 'lm-theme';
+
+export interface ThemeMeta {
+  id: ThemeId;
+  label: string;
+  /** Swatch: the theme's page background. */
+  page: string;
+  /** Swatch: the theme's primary accent. */
+  primary: string;
+  dark?: boolean;
+}
+
+/** Presentation metadata for every theme — drives the swatch circles in the
+ *  account menu + the dev playground. Colours mirror the token blocks in
+ *  global.css; keep them in sync when a theme's page/primary changes. */
+export const THEMES: ThemeMeta[] = [
+  { id: 'kveld', label: 'Kveld', page: '#1B1A18', primary: '#E08A6B', dark: true },
+  { id: 'natt', label: 'Natt', page: '#0E0E10', primary: '#F0A07E', dark: true },
+  { id: 'linen', label: 'Linen', page: '#FAF6F0', primary: '#C76D4E' },
+  { id: 'solnedgang', label: 'Solnedgang', page: '#FDF3E7', primary: '#B23A1E' },
+  { id: 'skog', label: 'Skog', page: '#F1F0E6', primary: '#3E6B3A' },
+  { id: 'hav', label: 'Hav', page: '#EDF1F2', primary: '#2C7A8C' },
+  { id: 'lavendel', label: 'Lavendel', page: '#F4F1F8', primary: '#6F5494' },
+];

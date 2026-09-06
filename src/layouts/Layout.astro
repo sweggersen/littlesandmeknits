@@ -89,6 +89,14 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
 <html lang={lang === 'nb' ? 'nb-NO' : 'en'} data-theme={SITE_THEME}>
   <head>
     <meta charset="UTF-8" />
+    {/* Apply the visitor's saved theme before paint, overriding the SSR default
+        (SITE_THEME) with zero flash. Must run before the stylesheet applies. */}
+    <script is:inline>
+      try {
+        var t = localStorage.getItem('lm-theme');
+        if (t) document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
     <meta name="description" content={metaDescription} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/svg+xml" href={faviconHref} />
