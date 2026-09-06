@@ -256,6 +256,46 @@
   --color-logo-line: #F0A07E;      /* brighter terracotta */
 }
 
+/* Status colours on the dark themes ------------------------------------
+   amber = advarsel/venter, red = feil/fare, green = ok. Tailwind v4 exposes
+   its palette as CSS vars, so remapping the shades here fixes every notice
+   box (bg-amber-50 + text-amber-900 …) on dark at once — no component edits.
+   Light-theme boxes are untouched. Backgrounds/borders go dark; text shades go
+   light; the saturated -500 stays vivid for badges/buttons. */
+:root[data-theme="kveld"],
+:root[data-theme="natt"] {
+  /* amber / warning */
+  --color-amber-50: #2a2314;
+  --color-amber-100: #34291a;
+  --color-amber-200: #4c3d20;
+  --color-amber-300: #61502a;
+  --color-amber-500: #d99a3a;
+  --color-amber-600: #dca94b;
+  --color-amber-700: #e6bd6a;
+  --color-amber-800: #efcf8c;
+  --color-amber-900: #f5deac;
+  /* red / danger */
+  --color-red-50: #2c1918;
+  --color-red-100: #3a1f1e;
+  --color-red-200: #52302e;
+  --color-red-300: #6b3c3a;
+  --color-red-500: #e15f5e;
+  --color-red-600: #e46f6d;
+  --color-red-700: #d85a58;
+  --color-red-800: #f0a3a2;
+  --color-red-900: #f6c1c0;
+  /* green / success */
+  --color-green-50: #17251c;
+  --color-green-100: #1e3025;
+  --color-green-200: #2c4535;
+  --color-green-700: #7cc08d;
+  --color-green-800: #97cfa5;
+  --color-green-900: #b3ddbd;
+  /* incidental rose/emerald */
+  --color-rose-500: #e07892;
+  --color-emerald-500: #63c08a;
+}
+
 @layer components {
   /* Primary action button — drop on any <button>/<a> and combine with
      sizing utilities (px-*, py-*, rounded-*). Pulls from the semantic
