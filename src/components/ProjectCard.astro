@@ -1,5 +1,5 @@
 ---
-import { projectPhotoUrl, resizedImageUrl } from '../lib/storage';
+import { projectPhotoUrl, resizedImageUrl, squareThumbUrl } from '../lib/storage';
 import { PROJECT_STATUS } from '../lib/labels';
 import StatusBadge from './StatusBadge.astro';
 
@@ -48,7 +48,7 @@ const statusVariant: Record<string, 'default' | 'sage' | 'terracotta' | 'muted'>
     ]}>
       <div class="flex gap-3">
         {heroUrl ? (
-          <img src={resizedImageUrl(heroUrl, 160)} alt={title} width="64" height="64" loading="lazy" decoding="async" class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
+          <img src={squareThumbUrl(heroUrl, 160)} alt={title} width="64" height="64" loading="lazy" decoding="async" class="w-16 h-16 object-cover shrink-0 rounded-l-xl" />
         ) : (
           <div class="w-16 h-16 bg-oatmeal/40 shrink-0 rounded-l-xl"></div>
         )}
@@ -74,8 +74,8 @@ const statusVariant: Record<string, 'default' | 'sage' | 'terracotta' | 'muted'>
       {heroUrl ? (
         <div class="aspect-[4/3] bg-oatmeal overflow-hidden">
           <img
-            src={resizedImageUrl(heroUrl, 600)}
-            srcset={`${resizedImageUrl(heroUrl, 400)} 400w, ${resizedImageUrl(heroUrl, 800)} 800w`}
+            src={resizedImageUrl(heroUrl, 600, { height: 450 })}
+            srcset={`${resizedImageUrl(heroUrl, 400, { height: 300 })} 400w, ${resizedImageUrl(heroUrl, 800, { height: 600 })} 800w`}
             sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw"
             alt={title} width="400" height="300" loading="lazy" decoding="async"
             class="w-full h-full object-cover" />
