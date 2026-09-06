@@ -1,0 +1,71 @@
+---
+import AdminLayout from '../../layouts/AdminLayout.astro';
+import { requireModerator } from '../../lib/admin-auth';
+import { evaluatePreflight, type PreflightStatus } from '../../lib/services/preflight';
+import { env } from '../../lib/env';
+
+// Admin-only: exposes launch posture (which prod secrets are live vs test/sim).
+// Guard in frontmatter BEFORE reading env, matching sibling admin pages.
+const auth = await requireModerator(Astro.request, Astro.cookies);
+if (!auth || auth.role !== 'admin') return Astro.redirect('/admin');
+
+const report = evaluatePreflight(env as unknown as Record<string, string | undefined>);
+const groups = [...new Set(report.checks.map((c) => c.group))];
+
+const DOT: Record<PreflightStatus, string> = {
+  ok: 'bg-emerald-500', warn: 'bg-amber-500', fail: 'bg-rose-500',
+};
+const ROW: Record<PreflightStatus, string> = {
+  ok: 'border-emerald-500/15', warn: 'border-amber-500/25 bg-amber-50/40', fail: 'border-rose-500/30 bg-rose-50/50',
+};
+---
+
+<AdminLayout title="Lanseringssjekk" current="preflight" adminOnly>
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+    <header class="mb-6">
+      <h1 class="font-serif text-3xl mb-1">Lanseringssjekk</h1>
+      <p class="text-sm text-charcoal/55">
+        Er prod faktisk konfigurert for ekte penger og ekte innlogging? Viser om hver
+        hemmelighet er satt og av riktig type (live/test, prod/lokal). Ingen hemmelige
+        verdier vises, bare tilstand.
+      </p>
+    </header>
+
+    <div class:list={[
+      'rounded-2xl border p-5 mb-6 flex items-center gap-4',
+      report.ready ? 'border-emerald-500/30 bg-emerald-50/60' : 'border-rose-500/30 bg-rose-50/60',
+    ]}>
+      <div class:list={['h-10 w-10 rounded-full flex items-center justify-center text-white text-xl',
+        report.ready ? 'bg-emerald-500' : 'bg-rose-500']}>
+        {report.ready ? '✓' : '!'}
+      </div>
+      <div class="flex-1">
+        <p class="font-serif text-lg">{report.ready ? 'Klar for lansering' : 'Ikke klar for lansering'}</p>
+        <p class="text-sm text-charcoal/60">
+          {report.counts.fail} blokkerende · {report.counts.warn} advarsler · {report.counts.ok} OK
+        </p>
+      </div>
+    </div>
+
+    {groups.map((g) => (
+      <section class="mb-6">
+        <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">{g}</h2>
+        <div class="space-y-2">
+          {report.checks.filter((c) => c.group === g).map((c) => (
+            <div class:list={['flex items-start gap-3 rounded-xl border px-4 py-3 bg-white', ROW[c.status]]}>
+              <span class:list={['mt-1.5 h-2.5 w-2.5 rounded-full shrink-0', DOT[c.status]]}></span>
+              <div class="min-w-0">
+                <p class="text-sm font-medium">{c.label}</p>
+                <p class="text-sm text-charcoal/60">{c.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    ))}
+
+    <p class="text-xs text-charcoal/40 mt-8">
+      Scriptbar variant: <code>GET /api/admin/preflight</code> (samme admin-tilgang, JSON).
+    </p>
+  </div>
+</AdminLayout>
