@@ -26,7 +26,7 @@ import type { createAdminSupabase } from '../supabase';
 import { seedWorld } from './seed-world';
 import { seedProfile } from './seed-profile';
 import {
-  heroSample, samplesFor,
+  heroSample, nextPhotos,
   AVATAR_SAMPLES, STORE_LOGO_SAMPLES, STORE_BANNER_SAMPLES,
 } from './sample-images';
 import { CATEGORY_LABEL } from '../labels';
@@ -111,9 +111,16 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
     bump('profiles_enriched');
   }
 
-  /** Insert category-relevant sample photos + hero for a listing. */
+  // Per-category rotation (shared with seedWorld via nextPhotos) so consecutive
+  // same-category cards don't repeat the same photo. (For fully-unique real
+  // photos per listing, run `npm run seed:photos`, which the `npm run seed:full`
+  // orchestrator does after the rows are seeded.)
+  /** (Re)attach rotated category-relevant sample photos + hero for a listing. */
   async function attachPhotos(listingId: string, category: string, count = 2): Promise<void> {
-    const paths = samplesFor(category, count);
+    const paths = nextPhotos(category, count);
+    // Delete-then-insert so this is safe to call after create-listing (which has
+    // already attached its own photos) without piling up duplicate rows.
+    await db.from('listing_photos').delete().eq('listing_id', listingId);
     for (let i = 0; i < paths.length; i++) {
       await db.from('listing_photos').insert({ listing_id: listingId, path: paths[i], position: i });
     }
@@ -127,6 +134,13 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
   const sellers = [`eline${D}`, `ingrid${D}`, `solveig${D}`, `maja${D}`, EX.tuva];
   const STATUSES = ['active', 'active', 'active', 'draft', 'removed'];
   const SIZES = ['0-6 mnd', '1 år', '2 år', '3 år', '4 år', '6 år'];
+  // A colour/detail per listing so no two catalogue cards share a title, and the
+  // grid reads like real, individually-listed items rather than a template.
+  const COLORS = [
+    'rosa', 'lys blå', 'natur', 'koksgrå', 'sennepsgul', 'petrol',
+    'burgunder', 'offwhite', 'lys grønn', 'terracotta', 'lilla', 'sennep',
+    'marineblå', 'kremhvit', 'skogsgrønn', 'støvet rosa', 'okergul', 'gråmelert',
+  ];
   let catIdx = 0;
   for (const category of categories) {
     for (const kind of ['ready_made', 'pre_loved'] as const) {
@@ -134,17 +148,20 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
       const sellerId = id(seller)!;
       const status = STATUSES[catIdx % STATUSES.length];
       const ship = SHIPPING[catIdx % SHIPPING.length];
-      const price = 99 + ((catIdx * 37) % 700);
+      // Spread prices so no two cards share a price either (49 kr steps).
+      const price = 119 + catIdx * 47;
+      const color = COLORS[catIdx % COLORS.length];
+      const size = SIZES[catIdx % SIZES.length];
       const kindLabel = kind === 'ready_made' ? 'Nystrikket' : 'Pent brukt';
       const { data: l, error } = await db.from('listings').insert({
         seller_id: sellerId,
         kind,
-        title: `${kindLabel} ${CATEGORY_LABEL[category].toLowerCase()} (${SIZES[catIdx % SIZES.length]})`,
+        title: `${kindLabel} ${CATEGORY_LABEL[category].toLowerCase()} i ${color} (${size})`,
         category,
-        size_label: SIZES[catIdx % SIZES.length],
+        size_label: size,
         price_nok: price,
         condition: kind === 'ready_made' ? null : CONDITIONS[catIdx % CONDITIONS.length],
-        description: `Kategorivisning: ${CATEGORY_LABEL[category]}. Testdata fra den store seeden.`,
+        description: `Håndstrikket ${CATEGORY_LABEL[category].toLowerCase()} i ${color}, størrelse ${size}. Testdata fra den store seeden.`,
         status,
         published_at: status === 'active' ? new Date().toISOString() : null,
         escrow_enabled: catIdx % 2 === 0,
@@ -179,10 +196,11 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
   for (const email of [`eline${D}`, `ingrid${D}`, `solveig${D}`, EX.tuva]) {
     const uid = id(email);
     if (!uid) continue;
-    await seedProfile({
-      db, userId: uid,
-      genListingPhotos: (listingId, category, count) => attachPhotos(listingId, category, count),
-    });
+    // skipListings: seed-full owns each persona's seller listings (varied
+    // titles/prices/images via the catalogue above). Letting seedProfile emit
+    // its four fixed specs once per persona is exactly what produced the
+    // identical duplicate cards the owner flagged.
+    await seedProfile({ db, userId: uid, skipListings: true });
     bump('studios');
   }
 
@@ -381,6 +399,8 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
       await db.from('listings').update({
         store_id: store2Id, status: 'active', published_at: new Date().toISOString(), listing_fee_nok: 29,
       }).eq('id', listingId);
+      // Re-hero with the rotating pool so store cards don't repeat photos either.
+      await attachPhotos(listingId, category, 3);
       bump('store_listings');
       sc++;
     }

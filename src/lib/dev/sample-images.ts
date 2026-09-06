@@ -16,31 +16,85 @@ export const SAMPLE_IMAGE_NAMES = [
 
 const s = (name: string) => `_samples/${name}.jpg`;
 
+// Each category carries SEVERAL plausible samples (not one) so same-category
+// listings don't all show the identical photo. With only 10 source images we
+// can't give every listing a globally-unique picture offline — that's what
+// `npm run seed:photos` (Wikimedia, distinct per listing) is for — but a rotated
+// pool of 3-4 per category kills the "every genser is the same photo" look.
+// Each category's HEAD image ([0], the hero of its first listing) is DISTINCT
+// across the nine categories, so the first card of every category shows a
+// different photo — with 9 categories and 10 source images this is achievable
+// and kills the "every category looks the same" clustering. Deeper pool members
+// are shared (only 10 images exist), so heroAt/nextPhotos rotate within each
+// category. For fully-unique per-listing photos, `npm run seed:photos`.
 /** Listing/commission category → ordered list of category-relevant samples. */
 export const SAMPLE_IMAGES: Record<string, string[]> = {
-  genser:   [s('sage-sweater'), s('autumn-cable'), s('terracotta-knit')],
-  cardigan: [s('brown-wool'), s('terracotta-knit'), s('autumn-cable')],
-  jakke:    [s('brown-wool'), s('terracotta-knit')],
-  lue:      [s('mustard-knit'), s('texture-close')],
-  bukser:   [s('brown-wool'), s('texture-close')],
-  sokker:   [s('texture-close'), s('mustard-knit')],
-  votter:   [s('texture-close'), s('mustard-knit')],
-  teppe:    [s('cream-flatlay'), s('autumn-cable')],
-  kjole:    [s('colorful-tshirt'), s('cream-flatlay')],
-  body:     [s('cream-flatlay'), s('colorful-tshirt')],
-  annet:    [s('texture-close'), s('grey-yarn-balls')],
+  genser:   [s('sage-sweater'), s('autumn-cable'), s('terracotta-knit'), s('brown-wool')],
+  cardigan: [s('brown-wool'), s('terracotta-knit'), s('sage-sweater'), s('autumn-cable')],
+  jakke:    [s('brown-wool'), s('terracotta-knit'), s('autumn-cable')],
+  lue:      [s('mustard-knit'), s('texture-close'), s('autumn-cable')],
+  bukser:   [s('autumn-cable'), s('brown-wool'), s('texture-close')],
+  sokker:   [s('colorful-tshirt'), s('texture-close'), s('mustard-knit')],
+  votter:   [s('texture-close'), s('mustard-knit'), s('brown-wool')],
+  teppe:    [s('cream-flatlay'), s('autumn-cable'), s('sage-sweater')],
+  kjole:    [s('terracotta-knit'), s('colorful-tshirt'), s('cream-flatlay')],
+  body:     [s('cream-flatlay'), s('colorful-tshirt'), s('texture-close')],
+  annet:    [s('grey-yarn-balls'), s('texture-close'), s('colorful-tshirt'), s('cream-flatlay')],
 };
+
+const poolFor = (category: string): string[] => SAMPLE_IMAGES[category] ?? SAMPLE_IMAGES.annet;
 
 /** First (hero) sample for a category, with a safe fallback. */
 export function heroSample(category: string): string {
-  const list = SAMPLE_IMAGES[category] ?? SAMPLE_IMAGES.annet;
-  return list[0];
+  return poolFor(category)[0];
 }
 
-/** N category-relevant sample paths (cycles the list if N exceeds it). */
+/**
+ * Rotated hero for a category. Pass a monotonically increasing per-listing index
+ * so consecutive same-category listings pick DIFFERENT photos out of the pool.
+ */
+export function heroAt(category: string, index: number): string {
+  const pool = poolFor(category);
+  return pool[((index % pool.length) + pool.length) % pool.length];
+}
+
+/**
+ * N category-relevant sample paths for a listing, starting at `index` so the
+ * hero (paths[0]) rotates per listing. Distinct within the listing until the
+ * pool is exhausted.
+ */
+export function photosAt(category: string, index: number, count: number): string[] {
+  const pool = poolFor(category);
+  return Array.from({ length: count }, (_, i) => pool[(index + i) % pool.length]);
+}
+
+/** N category-relevant sample paths starting from the pool head (no rotation). */
 export function samplesFor(category: string, count: number): string[] {
-  const list = SAMPLE_IMAGES[category] ?? SAMPLE_IMAGES.annet;
-  return Array.from({ length: count }, (_, i) => list[i % list.length]);
+  return photosAt(category, 0, count);
+}
+
+// Stateful per-category rotation shared across a single seed run (seedWorld's
+// listing photos via test-exec AND seed-full's catalogue/store listings all call
+// `nextPhotos`), so consecutive listings of the same category never get the same
+// hero until that category's pool is exhausted. Reset once per run for
+// determinism. Module state persists within one request (the seed runs in one),
+// which is all that's needed; it's dev-only tooling.
+const _catCounters = new Map<string, number>();
+
+/** Reset the per-category rotation. Call once at the start of a seed run. */
+export function resetPhotoRotation(): void {
+  _catCounters.clear();
+}
+
+/**
+ * Next rotated set of `count` category-relevant photos for a listing, advancing
+ * the per-category counter so the hero (paths[0]) differs from the previous
+ * same-category listing.
+ */
+export function nextPhotos(category: string, count: number): string[] {
+  const i = _catCounters.get(category) ?? 0;
+  _catCounters.set(category, i + 1);
+  return photosAt(category, i, count);
 }
 
 // Non-listing visual entities. Reuse the same hydrated files so no entity ever

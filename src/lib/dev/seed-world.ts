@@ -11,6 +11,7 @@
 // Invoked by the `seed-world` action in src/pages/api/dev/test-exec.ts. Dev-only.
 
 import type { createAdminSupabase } from '../supabase';
+import { resetPhotoRotation } from './sample-images';
 
 type Db = ReturnType<typeof createAdminSupabase>;
 type Handle = (db: Db, action: string, actorId: string | null, p: Record<string, unknown>, emailToId: Map<string, string>) => Promise<{ data?: unknown }>;
@@ -36,6 +37,10 @@ const NAMES: Record<string, string> = {
 
 export async function seedWorld(deps: { db: Db; handle: Handle; emailToId: Map<string, string> }): Promise<Record<string, number>> {
   const { db, handle, emailToId } = deps;
+  // Fresh per-category photo rotation for this run so listing heroes vary (see
+  // sample-images.nextPhotos). seed-full relies on this NOT being reset again
+  // after seedWorld, so its catalogue continues the same rotation.
+  resetPhotoRotation();
   const counts: Record<string, number> = {};
   const bump = (k: string) => { counts[k] = (counts[k] ?? 0) + 1; };
 

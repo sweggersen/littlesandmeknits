@@ -16,6 +16,15 @@ interface Deps {
   userId: string;
   /** Optional: attach placeholder photos to a listing (test-exec passes its own). */
   genListingPhotos?: (listingId: string, category: string, count: number) => Promise<void>;
+  /**
+   * Skip creating this profile's four templated seller listings. The
+   * comprehensive seeder (seed-full) sets this because it creates each persona's
+   * listings itself with varied titles/prices/images — otherwise the SAME four
+   * specs would be emitted once per persona, producing identical duplicate cards
+   * in the grid. Defaults to false so the standalone /dev/seed profile button
+   * still fills one dashboard with listings.
+   */
+  skipListings?: boolean;
 }
 
 const MATE_EMAIL = 'profilemate@test.strikketorget.no';
@@ -40,7 +49,7 @@ async function ensureMate(db: Db): Promise<string> {
   throw new Error(`Could not ensure mate persona: ${error?.message}`);
 }
 
-export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promise<Record<string, number>> {
+export async function seedProfile({ db, userId, genListingPhotos, skipListings = false }: Deps): Promise<Record<string, number>> {
   const target = userId;
   const summary: Record<string, number> = {};
   const bump = (k: string, n = 1) => { summary[k] = (summary[k] ?? 0) + n; };
@@ -49,7 +58,7 @@ export async function seedProfile({ db, userId, genListingPhotos }: Deps): Promi
   const mateId = await ensureMate(db);
 
   // 1. Listings (target is the seller) — a spread of kinds + statuses.
-  const listingSpecs = [
+  const listingSpecs = skipListings ? [] : [
     { title: 'Babygenser i merinoull', category: 'genser', kind: 'ready_made', price: 549, status: 'active', size: '1-2 år' },
     { title: 'Strikket lue, lite brukt', category: 'lue', kind: 'pre_loved', price: 149, status: 'active', size: '1-2 år' },
     { title: 'Kabelkofte, håndlaget', category: 'cardigan', kind: 'ready_made', price: 890, status: 'draft', size: '2 år' },

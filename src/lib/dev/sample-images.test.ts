@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SAMPLE_IMAGES, SAMPLE_IMAGE_NAMES, heroSample, samplesFor,
+  SAMPLE_IMAGES, SAMPLE_IMAGE_NAMES, heroSample, heroAt, photosAt, samplesFor,
+  nextPhotos, resetPhotoRotation,
   AVATAR_SAMPLES, STORE_LOGO_SAMPLES, STORE_BANNER_SAMPLES, LIBRARY_COVER_SAMPLES, YARN_SAMPLE,
 } from './sample-images';
 import { VALID_CATEGORIES } from '../labels';
@@ -32,6 +33,50 @@ describe('sample-images (dev seed image contract)', () => {
     // Unknown category falls back to the `annet` set, never throws/empty.
     expect(heroSample('does-not-exist')).toMatch(/^_samples\/.+\.jpg$/);
     expect(samplesFor('does-not-exist', 2)).toHaveLength(2);
+  });
+
+  it('every category has a pool of at least 3 samples (so same-category cards vary)', () => {
+    for (const cat of VALID_CATEGORIES) {
+      expect(SAMPLE_IMAGES[cat].length, `category "${cat}" pool too small`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('each category has a DISTINCT hero image (first card of every category differs)', () => {
+    const heads = [...VALID_CATEGORIES].map((c) => heroAt(c, 0));
+    expect(new Set(heads).size, `category heads collide: ${heads.join(', ')}`).toBe(heads.length);
+  });
+
+  it('heroAt rotates: consecutive indices pick different photos within a category', () => {
+    for (const cat of VALID_CATEGORIES) {
+      const pool = SAMPLE_IMAGES[cat];
+      // Across one full rotation, adjacent indices never repeat.
+      for (let i = 0; i < pool.length; i++) {
+        expect(heroAt(cat, i)).not.toBe(heroAt(cat, i + 1));
+      }
+      // One full lap through the pool yields every distinct image.
+      const lap = new Set(Array.from({ length: pool.length }, (_, i) => heroAt(cat, i)));
+      expect(lap.size).toBe(pool.length);
+    }
+    // Negative/large indices are handled without throwing.
+    expect(heroAt('genser', -1)).toMatch(/^_samples\/.+\.jpg$/);
+  });
+
+  it('photosAt returns distinct photos within a listing until the pool is exhausted', () => {
+    const three = photosAt('genser', 0, 3);
+    expect(new Set(three).size).toBe(3);
+    expect(three[0]).toBe(heroAt('genser', 0)); // hero == first photo
+  });
+
+  it('nextPhotos rotates per category so consecutive same-category heroes differ', () => {
+    resetPhotoRotation();
+    const pool = SAMPLE_IMAGES.genser;
+    // First `pool.length` genser listings each get a distinct hero.
+    const heroes = Array.from({ length: pool.length }, () => nextPhotos('genser', 2)[0]);
+    expect(new Set(heroes).size).toBe(pool.length);
+    // A different category has its OWN counter (starts fresh at pool head).
+    resetPhotoRotation();
+    expect(nextPhotos('lue', 1)[0]).toBe(heroAt('lue', 0));
+    expect(nextPhotos('genser', 1)[0]).toBe(heroAt('genser', 0));
   });
 
   it('every referenced sample basename is a known, hydrated name', () => {

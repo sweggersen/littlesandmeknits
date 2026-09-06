@@ -18,6 +18,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY=<local key> \
  *   SEED_PORT=4331 node scripts/seed-full.mjs
  */
+import { spawn } from 'node:child_process';
 import { uploadSamples } from './seed-sample-images.mjs';
 
 const sbUrl = process.env.PUBLIC_SUPABASE_URL ?? '';
@@ -58,12 +59,38 @@ async function main() {
   console.log('  Rows seeded:');
   for (const [k, v] of Object.entries(seeded).sort()) console.log(`    ${k.padEnd(22)} ${v}`);
 
-  // ── Phase 2: hydrate the image bytes (AFTER cleanup wiped storage).
+  // ── Phase 2: hydrate the image bytes (AFTER cleanup wiped storage). These
+  //    cover NON-listing entities (avatars, store logos/banners, project/yarn/
+  //    library covers) and are the offline fallback for listings.
   console.log('\n  Hydrating sample images into projects/_samples/ …');
   const { ok, total } = await uploadSamples({ url: sbUrl, key, log: (m) => console.warn('    ' + m) });
   console.log(`  Uploaded ${ok}/${total} sample images.`);
 
+  // ── Phase 3: give every LISTING a distinct, category-matched real photo from
+  //    Wikimedia Commons (deduped by content hash → no two listings share an
+  //    image). Best-effort: needs network; set SEED_SKIP_PHOTOS=1 to skip (the
+  //    rotated _samples heroes from phase 1 remain, still category-relevant).
+  if (process.env.SEED_SKIP_PHOTOS === '1') {
+    console.log('\n  Skipping Wikimedia listing photos (SEED_SKIP_PHOTOS=1).');
+  } else {
+    console.log('\n  Fetching distinct per-listing photos from Wikimedia (network, ~1 min)…');
+    const code = await runPhotos(sbUrl, key);
+    if (code === 0) console.log('  Per-listing photos done.');
+    else console.warn(`  Wikimedia photos step exited ${code} (kept rotated _samples heroes). Re-run: npm run seed:photos`);
+  }
+
   console.log('\n  Done. Log in as a persona (e.g. eline@test.strikketorget.no) and browse.\n');
+}
+
+function runPhotos(sbUrl, key) {
+  return new Promise((resolve) => {
+    const child = spawn('npx', ['tsx', 'scripts/marketplace-real-photos.ts'], {
+      stdio: 'inherit',
+      env: { ...process.env, PUBLIC_SUPABASE_URL: sbUrl, SUPABASE_SERVICE_ROLE_KEY: key },
+    });
+    child.on('close', (code) => resolve(code ?? 1));
+    child.on('error', () => resolve(1));
+  });
 }
 
 main().catch((e) => { console.error('\nFailed:', e); process.exit(1); });

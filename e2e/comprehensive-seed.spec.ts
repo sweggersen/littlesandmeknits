@@ -73,4 +73,66 @@ test('seed-full populates every area with category-relevant, resolving images', 
     const type = imgRes.headers()['content-type'] ?? '';
     expect(type).toContain('image');
   }
+
+  // ── The grid must read like a real marketplace: no two visible cards share
+  //    the same (title + image), and same-category cards don't all show the
+  //    identical photo. Regression guard for the owner-flagged duplicate cards.
+  //    This validates the OFFLINE _samples fallback (10 shared images, rotated).
+  //    Full per-listing uniqueness comes from `npm run seed:photos` (Wikimedia),
+  //    exercised by the opt-in strict block below.
+  const readCards = () => page.$$eval('[data-listing-item]', (els) =>
+    els.slice(0, 24).map((el) => ({
+      title: el.querySelector('[data-card-body] p.font-medium')?.textContent?.trim() ?? '',
+      src: el.querySelector('[data-card-img-wrap] img')?.getAttribute('src') ?? '',
+    })),
+  );
+  const cards = await readCards();
+  expect(cards.length, 'grid has cards').toBeGreaterThanOrEqual(8);
+
+  // No exact duplicate cards (same title AND same image) — the "3 identical
+  // lue cards" / "2 identical grey cards" the owner saw. Must be exactly zero.
+  const cardKeys = cards.map((c) => `${c.title}||${c.src}`);
+  expect(new Set(cardKeys).size, `duplicate cards: ${JSON.stringify(cards)}`).toBe(cards.length);
+
+  // No listing title repeats across the whole catalogue (data-level de-dup).
+  const allTitles = await page.$$eval('[data-listing-item] [data-card-body] p.font-medium',
+    (els) => els.map((e) => e.textContent?.trim() ?? ''));
+  const titleFreq = new Map<string, number>();
+  for (const t of allTitles) titleFreq.set(t, (titleFreq.get(t) ?? 0) + 1);
+  expect([...titleFreq.entries()].filter(([, n]) => n > 1),
+    'a listing title repeats').toHaveLength(0);
+
+  // Same-category listings vary: several distinct images, and no single image
+  // dominates (the "one image per category" regression). With the 10-image
+  // offline pool a couple of cross-category repeats can remain; the strict
+  // no-repeat guarantee is the Wikimedia block below.
+  const srcs = cards.map((c) => c.src).filter(Boolean);
+  const imgFreq = new Map<string, number>();
+  for (const sInner of srcs) imgFreq.set(sInner, (imgFreq.get(sInner) ?? 0) + 1);
+  expect(new Set(srcs).size, 'grid shows several distinct images').toBeGreaterThanOrEqual(7);
+  expect(Math.max(...imgFreq.values()), 'no image dominates the grid').toBeLessThanOrEqual(4);
+
+  // ── Opt-in strict check: SEED_E2E_PHOTOS=1 runs the Wikimedia per-listing
+  //    photo step (what `npm run seed:full` does) and asserts EVERY listing gets
+  //    a distinct photo with zero adjacent repeats. Off by default so CI stays
+  //    network-independent.
+  if (process.env.SEED_E2E_PHOTOS === '1' && canHydrate) {
+    const { spawn } = await import('node:child_process');
+    const code: number = await new Promise((resolve) => {
+      const child = spawn('npx', ['tsx', 'scripts/marketplace-real-photos.ts'], {
+        stdio: 'inherit',
+        env: { ...process.env, PUBLIC_SUPABASE_URL: SB_URL, SUPABASE_SERVICE_ROLE_KEY: SB_KEY },
+      });
+      child.on('close', (c) => resolve(c ?? 1));
+      child.on('error', () => resolve(1));
+    });
+    expect(code, 'Wikimedia photo step').toBe(0);
+    await page.goto('/market/used', { waitUntil: 'domcontentloaded' });
+    const wCards = await readCards();
+    const wSrcs = wCards.map((c) => c.src).filter(Boolean);
+    expect(new Set(wSrcs).size, 'every listing has a distinct photo').toBe(wSrcs.length);
+    for (let i = 1; i < wCards.length; i++) {
+      expect(wCards[i].src, `adjacent Wikimedia photos repeat at ${i}`).not.toBe(wCards[i - 1].src);
+    }
+  }
 });

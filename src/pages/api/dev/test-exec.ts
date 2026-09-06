@@ -35,7 +35,7 @@ import { handleChargebackOpened, handleChargebackClosed } from '../../../lib/ser
 import { seedWorld } from '../../../lib/dev/seed-world';
 import { seedProfile } from '../../../lib/dev/seed-profile';
 import { seedFull } from '../../../lib/dev/seed-full';
-import { SAMPLE_IMAGES } from '../../../lib/dev/sample-images';
+import { nextPhotos } from '../../../lib/dev/sample-images';
 
 /** Test-only synthetic ctx: the admin client backs both `supabase` and
  *  `admin` slots, so services can do their work without RLS getting
@@ -120,10 +120,11 @@ async function generateListingPhotos(
   count: number,
 ): Promise<void> {
   const cat = String(category ?? 'genser');
-  const samples = SAMPLE_IMAGES[cat] ?? SAMPLE_IMAGES.annet;
+  // Rotated per-category set (shared counter with seed-full) so same-category
+  // listings don't all show the identical hero photo. Hydrated into
+  // projects/_samples/ by `npm run seed:samples`.
+  const samples = nextPhotos(cat, Math.max(1, Math.min(count, 6)));
   for (let i = 0; i < Math.min(count, 6); i++) {
-    // Reference a category-relevant sample (hydrated into projects/_samples/ by
-    // `npm run seed:samples`) rather than a solid-colour placeholder.
     await db.from('listing_photos').insert({ listing_id: listingId, path: samples[i % samples.length], position: i });
   }
   await db.from('listings').update({ hero_photo_path: samples[0] }).eq('id', listingId);
