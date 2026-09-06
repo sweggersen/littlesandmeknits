@@ -1,15 +1,20 @@
 ---
 import AdminLayout from '../../layouts/AdminLayout.astro';
 import { requireModerator } from '../../lib/admin-auth';
-import { evaluatePreflight, type PreflightStatus } from '../../lib/services/preflight';
+import { buildServiceContext } from '../../lib/services/context';
+import { launchPreflight, type PreflightStatus } from '../../lib/services/preflight';
 import { env } from '../../lib/env';
 
-// Admin-only: exposes launch posture (which prod secrets are live vs test/sim).
-// Guard in frontmatter BEFORE reading env, matching sibling admin pages.
+// Admin-only: exposes launch posture (which prod secrets are live vs test/sim)
+// plus a live DB-reachability probe. Guard in frontmatter BEFORE the service
+// runs, matching sibling admin pages; launchPreflight re-checks admin too.
 const auth = await requireModerator(Astro.request, Astro.cookies);
 if (!auth || auth.role !== 'admin') return Astro.redirect('/admin');
 
-const report = evaluatePreflight(env as unknown as Record<string, string | undefined>);
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+const result = ctx ? await launchPreflight(ctx, env as unknown as Record<string, string | undefined>) : null;
+if (!result || !result.ok) return Astro.redirect('/admin');
+const report = result.data;
 const groups = [...new Set(report.checks.map((c) => c.group))];
 
 const DOT: Record<PreflightStatus, string> = {

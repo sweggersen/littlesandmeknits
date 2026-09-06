@@ -40,9 +40,9 @@ Section names: `brukt`, `nytt`, `oppdrag`, `butikker`, `profil`, `strikkestua`, 
 None of the money sections can open until this is done. Non-money sections (Profil, Strikkestua) are independent of M0.
 
 - [ ] **Stripe live cutover** — set `sk_live_…` `STRIPE_SECRET_KEY` + live `STRIPE_WEBHOOK_SECRET` as Cloudflare prod secrets; register the live webhook endpoint for API version `2026-04-22.dahlia`. *(Until done, `createStripe()` throws in prod on the sim key — fail-loud by design.)* Owner-only.
-- [ ] **Verify prod secrets present**: `RESEND_API_KEY`, `PUBLIC_VAPID_KEY` + `VAPID_PRIVATE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — notifications / welcome email / webhook admin alerts silently no-op without them.
-- [ ] **Confirm Vipps prod credentials** (`VIPPS_ENV=prod`, client id/secret/subscription key/MSN) — login blocker for all authed sections.
-- [ ] **Verify `KILL_*` switches are settable + effective** in the Cloudflare prod runtime (break-glass; `docs/INCIDENT_RUNBOOK.md`).
+- [ ] **Verify prod secrets present** — now a one-glance check: open **`/admin/preflight`** as admin (or `GET /api/admin/preflight`). It classifies `RESEND_API_KEY`, `VAPID_PRIVATE_KEY`/`PUBLIC_VAPID_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, Stripe, Vipps etc. as live/test/missing, and does a **live DB-reachability probe** (proves the service-role key actually works, not just that it's set). Launch when it reads "Klar for lansering".
+- [ ] **Confirm Vipps prod credentials** (`VIPPS_ENV=prod` — exactly `prod`, the code checks `=== 'prod'`; client id/secret/subscription key/MSN) — login blocker for all authed sections. Flagged red by `/admin/preflight` if wrong.
+- [ ] **Verify `KILL_*` switches are settable + effective** in the Cloudflare prod runtime (break-glass; `docs/INCIDENT_RUNBOOK.md`). `/admin/preflight` surfaces any currently-active `KILL_*` (so you don't launch paused), but still do the live set/unset test.
 - [ ] **One real Stripe fulfilment smoke** in test mode: at minimum a pattern purchase → `purchases` row → PDF download. (Current webhook test is static-analysis only — no behavioral coverage of `checkout.session.completed`.)
 
 ---

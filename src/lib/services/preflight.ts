@@ -133,9 +133,37 @@ export function evaluatePreflight(e: Env): PreflightReport {
   return { ready: counts.fail === 0, counts, checks };
 }
 
-/** Admin-gated wrapper. Caller passes the real runtime env (from lib/env). */
+/**
+ * Live probe: presence of SUPABASE_SERVICE_ROLE_KEY isn't proof it's valid,
+ * unrotated, or that the DB is reachable. A trivial service-role read confirms
+ * all three — the one thing env inspection can't.
+ */
+async function probeDatabase(ctx: ServiceContext): Promise<PreflightCheck> {
+  try {
+    const { error } = await ctx.admin.from('profiles').select('id').limit(1);
+    if (error) {
+      return { key: 'DB_REACHABLE', label: 'Database når frem (service-role)', group: G_DB, status: 'fail',
+        detail: `Service-role-spørring feilet (${error.code || 'ukjent'}). Nøkkelen kan være feil/rotert eller DB utilgjengelig.` };
+    }
+    return { key: 'DB_REACHABLE', label: 'Database når frem (service-role)', group: G_DB, status: 'ok',
+      detail: 'En service-role-lesing lyktes. Nøkkelen virker og DB svarer.' };
+  } catch {
+    return { key: 'DB_REACHABLE', label: 'Database når frem (service-role)', group: G_DB, status: 'fail',
+      detail: 'Kunne ikke nå databasen i det hele tatt.' };
+  }
+}
+
+/**
+ * Admin-gated wrapper. Caller passes the real runtime env (from lib/env).
+ * Runs the pure env checks, then appends a live DB-reachability probe.
+ */
 export async function launchPreflight(ctx: ServiceContext, e: Env): Promise<ServiceResult<PreflightReport>> {
   const denied = await ensureAdmin(ctx);
   if (denied) return denied;
-  return ok(evaluatePreflight(e));
+  const report = evaluatePreflight(e);
+  const probe = await probeDatabase(ctx);
+  report.checks.push(probe);
+  report.counts[probe.status]++;
+  report.ready = report.counts.fail === 0;
+  return ok(report);
 }
