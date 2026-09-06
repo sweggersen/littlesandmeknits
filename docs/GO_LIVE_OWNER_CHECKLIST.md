@@ -73,7 +73,9 @@ Then in Stripe (once the AS exists):
 ### B3. Vipps (production)
 - [ ] From the Vipps merchant portal, set on the Worker: `VIPPS_CLIENT_ID`,
   `VIPPS_CLIENT_SECRET`, `VIPPS_MSN`, `VIPPS_SUBSCRIPTION_KEY`, and
-  `VIPPS_ENV=production`.
+  `VIPPS_ENV=prod`. **Exactly `prod`** — the code checks `VIPPS_ENV === 'prod'`
+  (`vipps.ts`), so any other value (e.g. `production`) silently keeps Vipps in
+  test mode and everyone logs into the test bank. The preflight (B5) flags this.
 
 ### B4. Email + shipping secrets
 - [ ] `RESEND_API_KEY` set, and the **sending domain verified** in Resend
@@ -82,10 +84,22 @@ Then in Stripe (once the AS exists):
 - [ ] *(Optional, for real shipping labels)* `BRING_API_UID`, `BRING_API_KEY`,
   `BRING_CUSTOMER_NUMBER`. If unset, sellers keep the manual-tracking fallback.
 
-### B5. Verify the rest of the secrets are present
-On the Worker, confirm these exist (most are already set): `SUPABASE_SERVICE_ROLE_KEY`,
-`CRON_SECRET`, `VAPID_PRIVATE_KEY`, `LOGIN_INVITE_KEY`. The `PUBLIC_*` set is
-baked by CI — don't set those as runtime secrets.
+### B5. Verify everything with the launch preflight
+Once B2–B4 are set, log in as an admin and open **`/admin/preflight`** (Admin nav
+→ "Lanseringssjekk"). It inspects the live Worker env and classifies every
+required secret — **live vs test/sim, prod vs local, set vs missing** — as
+green/amber/red. It never shows a secret value, only its state.
+
+- [ ] **Preflight reads "Klar for lansering"** (zero red/blocking rows). This is
+  the one-glance replacement for hand-checking each secret. It catches the silent
+  traps: a `sk_test_`/`sk_simulate` Stripe key, `VIPPS_ENV` ≠ `prod`, a localhost
+  Supabase URL, or an accidentally-on `KILL_*` switch. Amber rows are
+  non-blocking (e.g. no Sentry) — clear them if you want, but they won't stop a
+  launch. (Scriptable equivalent: `GET /api/admin/preflight`, admin-authed JSON.)
+
+The remaining always-on secrets (`SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`,
+`VAPID_PRIVATE_KEY`, `LOGIN_INVITE_KEY`) are covered by their own preflight rows.
+The `PUBLIC_*` set is baked by CI — don't set those as runtime secrets.
 
 ### B6. Verify the kill-switches work (do this BEFORE opening any section)
 - [ ] Set `KILL_PURCHASES=on`, confirm a buy action returns the 503 pause
@@ -129,7 +143,7 @@ Profil + Strikkestua are already ON (no money surface, shipped M1).
 | `CRON_HEARTBEAT_URL` | A | cron dead-man's-switch |
 | `STRIPE_SECRET_KEY` | B2 | `sk_live_…` |
 | `STRIPE_WEBHOOK_SECRET` | B2 | `whsec_…` from the live endpoint |
-| `VIPPS_CLIENT_ID` / `_CLIENT_SECRET` / `_MSN` / `_SUBSCRIPTION_KEY` / `VIPPS_ENV=production` | B3 | |
+| `VIPPS_CLIENT_ID` / `_CLIENT_SECRET` / `_MSN` / `_SUBSCRIPTION_KEY` / `VIPPS_ENV=prod` | B3 | `VIPPS_ENV` must be exactly `prod` |
 | `RESEND_API_KEY` / `EMAIL_FROM` | B4 | verified domain |
 | `BRING_API_UID` / `_API_KEY` / `_CUSTOMER_NUMBER` | B4 | optional |
 | `FLAG_SECTION_OPPSKRIFTER` / `_BRUKT` / `_NYTT` / `_OPPDRAG` / `_BUTIKKER` = `on` | C | one at a time |
