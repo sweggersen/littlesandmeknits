@@ -1670,7 +1670,12 @@ async function handle(
         const { data: photos } = await db.from('listing_photos')
           .select('path').eq('listing_id', l.id);
         if (photos?.length) {
-          await db.storage.from('projects').remove(photos.map(p => p.path));
+          // NEVER delete the shared sample images: seeded listings/stores all
+          // point at projects/_samples/*, so removing them here would wipe the
+          // images out from under every other seeded row (the recurring
+          // "images missing" bug). Only sweep genuinely per-listing uploads.
+          const removable = photos.map(p => p.path).filter(p => !p.startsWith('_samples/'));
+          if (removable.length) await db.storage.from('projects').remove(removable);
         }
         await db.from('listing_photos').delete().eq('listing_id', l.id);
 
