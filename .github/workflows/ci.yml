@@ -138,6 +138,52 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  # Visual QA report — screenshots every launch-facing page against real seeded
+  # data and publishes a self-contained HTML report as a build artifact. Runs
+  # independently (NOT in deploy's `needs`) so a screenshot hiccup never blocks a
+  # deploy. Starts Supabase WITH imgproxy (only edge-runtime/studio/vector
+  # excluded) so the resized thumbnails render in the shots.
+  qa-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.101.0
+      - run: npm ci
+      - name: Install Playwright (chromium)
+        run: npx playwright install --with-deps chromium
+      - name: Start Supabase (with imgproxy for image transforms)
+        run: supabase start -x edge-runtime,studio,vector
+      - name: Generate QA report
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export SB_/')"
+          # Same .dev.vars dance as the e2e job: the dev endpoints read secrets
+          # via the cloudflare:workers shim (.dev.vars), not process.env.
+          cat > .dev.vars <<EOF
+          PUBLIC_SUPABASE_URL=$SB_API_URL
+          PUBLIC_SUPABASE_ANON_KEY=$SB_ANON_KEY
+          SUPABASE_SERVICE_ROLE_KEY=$SB_SERVICE_ROLE_KEY
+          STRIPE_SECRET_KEY=sk_simulate
+          EOF
+          export PUBLIC_SUPABASE_URL="$SB_API_URL"
+          export PUBLIC_SUPABASE_ANON_KEY="$SB_ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SB_SERVICE_ROLE_KEY"
+          # astro dev directly (skip `npm run dev`'s predev supabase-start).
+          npx astro dev &
+          for i in $(seq 1 90); do curl -sf http://localhost:4321 >/dev/null && break; sleep 1; done
+          npm run qa:report
+      - name: Upload QA report
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-report
+          path: qa-report/qa-report.html
+          retention-days: 30
+
   deploy:
     needs: [quality, database, e2e]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

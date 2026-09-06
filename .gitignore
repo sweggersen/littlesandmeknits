@@ -44,3 +44,6 @@ reports/
 
 # local env backups (contain prod secrets)
 *.prodbak
+
+# generated QA report (npm run qa:report)
+qa-report/
