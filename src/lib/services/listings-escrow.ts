@@ -172,7 +172,7 @@ export async function purchaseListing(
   if (!listing) return fail('not_found', 'Listing not found');
   if (listing.status !== 'active') return fail('conflict', 'Listing not available');
   if (listing.seller_id === ctx.user.id) return fail('bad_input', 'Cannot buy own listing');
-  if (!listing.escrow_enabled) return fail('conflict', 'Selger har ikke aktivert trygg betaling på denne annonsen — kontakt selger direkte');
+  if (!listing.escrow_enabled) return fail('conflict', 'Denne annonsen har ikke trygg betaling i appen. Ta kontakt med selgeren for å avtale kjøp.');
 
   const { shippingTier } = await import('../shipping');
   const { MoneyBreakdown } = await import('../money');
