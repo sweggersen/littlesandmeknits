@@ -2,8 +2,8 @@
 /**
  * QA report — build step. Reads the manifest + screenshots + video written by
  * capture.mjs and emits a single self-contained HTML file (all assets inlined as
- * data URIs) at qa-report/qa-report.html. Self-contained so it works opened from
- * disk, uploaded as a CI artifact, or published as a claude.ai Artifact.
+ * data URIs) at qa-report/qa-report.html. Self-contained so it works opened
+ * straight from disk locally and travels as a single-file CI build artifact.
  *
  * Env: QA_OUT (default ./qa-report).
  */
