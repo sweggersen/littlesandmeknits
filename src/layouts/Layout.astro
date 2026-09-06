@@ -90,12 +90,20 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
   <head>
     <meta charset="UTF-8" />
     {/* Apply the visitor's saved theme before paint, overriding the SSR default
-        (SITE_THEME) with zero flash. Must run before the stylesheet applies. */}
+        (SITE_THEME) with zero flash — on first load AND after every ClientRouter
+        view-transition swap (which otherwise restores the SSR data-theme). */}
     <script is:inline>
-      try {
-        var t = localStorage.getItem('lm-theme');
-        if (t) document.documentElement.setAttribute('data-theme', t);
-      } catch (e) {}
+      (function () {
+        function applySavedTheme() {
+          try {
+            var t = localStorage.getItem('lm-theme');
+            if (t) document.documentElement.setAttribute('data-theme', t);
+          } catch (e) {}
+        }
+        applySavedTheme();
+        // Re-apply after each view-transition swap (fires before paint, no flash).
+        document.addEventListener('astro:after-swap', applySavedTheme);
+      })();
     </script>
     <meta name="description" content={metaDescription} />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

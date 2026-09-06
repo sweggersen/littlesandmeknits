@@ -26,8 +26,18 @@ test.describe('Account menu — theme picker', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('hav');
     expect(await page.evaluate(() => localStorage.getItem('lm-theme'))).toBe('hav');
 
-    // A full page load re-applies the saved theme before paint (no flash, no reset).
-    await page.goto('/market/used');
+    // CLIENT-SIDE navigation (ClientRouter view transition) — the real-user path.
+    // The incoming page's SSR data-theme is the default, so without an
+    // after-swap re-apply the theme would silently reset here.
+    await page.keyboard.press('Escape');
+    await page.getByRole('link', { name: 'Brukt', exact: true }).first().click();
+    await expect(page).toHaveURL(/\/market\/used/);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.getAttribute('data-theme')))
+      .toBe('hav');
+
+    // And a hard reload re-applies it before paint (inline head script).
+    await page.reload();
     expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme'))).toBe('hav');
   });
 });
