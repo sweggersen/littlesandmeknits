@@ -48,15 +48,22 @@ export function init(): void {
       const link = li.querySelector('[data-card-link]') as HTMLElement;
       const imgWrap = li.querySelector('[data-card-img-wrap]') as HTMLElement;
       const img = imgWrap?.querySelector('img, div');
+      const title = li.querySelector('[data-card-title]') as HTMLElement | null;
+      const price = li.querySelector('[data-card-price]') as HTMLElement | null;
 
       if (mode === 'list') {
         link.classList.add('flex', 'flex-row', 'items-center');
         if (imgWrap) imgWrap.className = 'w-28 h-28 flex-shrink-0';
         if (img) { img.classList.remove('aspect-square'); img.classList.add('w-28', 'h-28', 'rounded-l-2xl'); }
+        // List view has room to breathe: larger title + a prominent, accented price.
+        title?.classList.remove('text-sm'); title?.classList.add('text-lg');
+        price?.classList.remove('text-sm'); price?.classList.add('text-xl', 'font-bold', 'text-primary');
       } else {
         link.classList.remove('flex', 'flex-row', 'items-center');
         if (imgWrap) imgWrap.className = '';
         if (img) { img.classList.add('aspect-square'); img.classList.remove('w-28', 'h-28', 'rounded-l-2xl'); }
+        title?.classList.add('text-sm'); title?.classList.remove('text-lg');
+        price?.classList.add('text-sm'); price?.classList.remove('text-xl', 'font-bold', 'text-primary');
       }
     });
 

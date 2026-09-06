@@ -65,12 +65,12 @@ const {
       {meta && (
         <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">{meta}</p>
       )}
-      <p class="text-sm font-medium line-clamp-2">{title}</p>
+      <p data-card-title class="text-sm font-medium line-clamp-2">{title}</p>
       {inactiveLabel ? (
         <p class="text-xs text-charcoal/45 mt-1">{inactiveLabel}</p>
       ) : (
         <Fragment>
-          <p class="font-mono tabular-nums text-sm mt-1">{price} NOK</p>
+          <p data-card-price class="font-mono tabular-nums text-sm mt-1">{price} NOK</p>
           {(escrowEnabled || canMeet) && (
             <div class="flex flex-wrap items-center gap-1 mt-1.5">
               {escrowEnabled && (
