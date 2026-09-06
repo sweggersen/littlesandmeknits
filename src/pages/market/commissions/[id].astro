@@ -299,6 +299,8 @@ const commissionShare = commissionShareMeta({
           hasUser={!!user}
           daysUntilExpiry={daysUntilExpiry}
           expiringSoon={expiringSoon}
+          budgetMin={req.budget_nok_min}
+          budgetMax={req.budget_nok_max}
         />
       )}
 

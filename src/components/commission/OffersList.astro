@@ -37,11 +37,26 @@ interface Props {
   hasUser: boolean;
   daysUntilExpiry: number | null;
   expiringSoon: boolean;
+  /** Buyer's stated budget — drives the price-field hint so it doesn't
+   *  contradict the range shown on the request. */
+  budgetMin?: number | null;
+  budgetMax?: number | null;
 }
 const {
   requestId, paramId, isBuyer, allOffers, myOffer, hasUser,
-  daysUntilExpiry, expiringSoon,
+  daysUntilExpiry, expiringSoon, budgetMin, budgetMax,
 } = Astro.props;
+
+// Hint the knitter toward the buyer's budget: use the midpoint (rounded to the
+// nearest 50 kr) when both bounds exist, else whichever bound we have. A blank
+// placeholder is fine if there's no budget — better than a made-up 600.
+const hasBudget = typeof budgetMin === 'number' || typeof budgetMax === 'number';
+const pricePlaceholder = (() => {
+  if (typeof budgetMin === 'number' && typeof budgetMax === 'number') {
+    return String(Math.round((budgetMin + budgetMax) / 2 / 50) * 50);
+  }
+  return String(budgetMin ?? budgetMax ?? '');
+})();
 ---
 
 <div class="mb-10">
@@ -90,13 +105,18 @@ const {
         <div class="grid grid-cols-2 gap-2">
           <label class="block">
             <span class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Pris (NOK)</span>
-            <input name="price_nok" type="number" required min="1" step="1" placeholder="600" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
+            <input name="price_nok" type="number" required min="1" step="1" placeholder={pricePlaceholder} class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </label>
           <label class="block">
             <span class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Uker</span>
             <input name="turnaround_weeks" type="number" required min="1" max="52" placeholder="3" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
           </label>
         </div>
+        {hasBudget && (
+          <p class="text-[11px] text-charcoal/45 -mt-1">
+            Bestillers budsjett: {budgetMin ?? '?'}{budgetMax != null ? `–${budgetMax}` : ''} NOK
+          </p>
+        )}
         <textarea name="message" required rows="2" maxlength="500" placeholder="Kort melding til bestiller…" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
         <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send tilbud</button>
       </form>
