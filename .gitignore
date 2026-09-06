@@ -45,5 +45,6 @@ reports/
 # local env backups (contain prod secrets)
 *.prodbak
 
-# generated QA report (npm run qa:report)
-qa-report/
+# generated QA report output (npm run qa:report) — anchored to repo root so it
+# does NOT match scripts/qa-report/ (the committed generator).
+/qa-report/
