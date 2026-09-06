@@ -8,6 +8,7 @@ import StrikketorgetFooter from '../components/StrikketorgetFooter.astro';
 import CookieBanner from '../components/CookieBanner.astro';
 import InterestForm from '../components/InterestForm.astro';
 import { getLangFromUrl, type Lang } from '../lib/i18n';
+import { SITE_THEME } from '../lib/theme';
 
 const isStrikketorget = Astro.locals.isStrikketorget ?? false;
 
@@ -83,7 +84,9 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
 ---
 
 <!doctype html>
-<html lang={lang === 'nb' ? 'nb-NO' : 'en'}>
+<!-- Site-wide theme comes from ONE config value (src/lib/theme.ts → SITE_THEME);
+     changing that line re-skins the whole site. See docs/THEMING.md. -->
+<html lang={lang === 'nb' ? 'nb-NO' : 'en'} data-theme={SITE_THEME}>
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={metaDescription} />

@@ -8,6 +8,7 @@ interface Props {
   lang?: 'nb' | 'en';
 }
 import { sectionEnabled, type Section } from '../lib/sections';
+import StrikketorgetLogo from './StrikketorgetLogo.astro';
 
 const { variant = 'strikketorget', lang = 'nb' } = Astro.props;
 const isStudio = variant === 'strikkestua';
@@ -124,7 +125,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
       </a>
       <a href={isHome ? '/' : sectionRoot} class="group shrink-0 flex items-center gap-2.5">
         {variant === 'strikketorget' && (
-          <img src="/strikketorget-icon.svg" alt="" width="32" height="32" class="shrink-0 group-hover:opacity-90 transition-opacity" />
+          <StrikketorgetLogo class="shrink-0 w-8 h-8 group-hover:opacity-90 transition-opacity" />
         )}
         <span class="flex flex-col leading-tight">
           <span class="font-serif text-xl font-medium tracking-tight text-charcoal group-hover:text-terracotta-500 transition-colors">

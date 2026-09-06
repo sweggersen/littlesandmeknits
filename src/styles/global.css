@@ -66,6 +66,14 @@
   --color-vipps: #FF5B24;
   --color-vipps-hover: #E04E1C;
 
+  /* ---- Logo mark ------------------------------------------------------
+     The inline Strikketorget logo (StrikketorgetLogo.astro) draws from these
+     two so a theme can tune the mark. Defaults = the original brand cream +
+     terracotta; dark themes soften the cream + brighten the line so it isn't
+     a harsh bright blob on a near-black page. */
+  --color-logo-fill: #FAF3E6;     /* cream yarn body + tag */
+  --color-logo-line: #C97B5D;     /* terracotta wraps + string */
+
   /* ---- Semantic typography aliases ------------------------------------
      Point display/body type at the two families so a theme can swap the
      typeface without editing every usage site. */
@@ -149,6 +157,103 @@
   --color-new-soft: #2b332b;
   --color-commission-500: #c3a8e0;
   --color-commission-soft: #302b38;
+  --color-logo-fill: #E7D9C2;      /* softer cream so the mark isn't a harsh blob */
+  --color-logo-line: #E08A6B;      /* brighter terracotta to match dark primary */
+}
+
+/* Skog — a calm forest theme: green-forward primary, cool cream page,
+   deep green-black ink. Light. */
+:root[data-theme="skog"] {
+  --color-page: #F1F0E6;
+  --color-linen: #F1F0E6;
+  --color-surface: #FFFFFF;
+  --color-oatmeal: #E2E4D3;
+  --color-charcoal: #1E2A1B;
+  --color-chrome: #24331E;
+  --color-chrome-fg: #F1F0E6;
+  --color-sage-100: #DDE6CE;
+  --color-sage-500: #7A9463;
+  --color-sage-700: #4C6438;
+  --color-terracotta-500: #C08A3E;   /* warm honey as the secondary */
+  --color-primary: #3E6B3A;          /* forest green */
+  --color-primary-hover: #2C4E29;
+  --color-primary-fg: #F1F0E6;
+  --color-used-500: #7d6a2f;
+  --color-new-500: #3e6b3a;
+  --color-commission-500: #6a5a8f;
+}
+
+/* Hav — a cool coastal theme: teal primary, slate ink, soft blue-grey page.
+   Light. */
+:root[data-theme="hav"] {
+  --color-page: #EDF1F2;
+  --color-linen: #EDF1F2;
+  --color-surface: #FFFFFF;
+  --color-oatmeal: #DCE4E6;
+  --color-charcoal: #14232B;
+  --color-chrome: #1A2C33;
+  --color-chrome-fg: #EDF1F2;
+  --color-sage-100: #D3E3E1;
+  --color-sage-500: #6C9C9A;
+  --color-sage-700: #3E6360;
+  --color-terracotta-500: #D67A54;   /* coral accent against the teal */
+  --color-primary: #2C7A8C;          /* teal */
+  --color-primary-hover: #205C6B;
+  --color-primary-fg: #EDF1F2;
+  --color-used-500: #7f6a4a;
+  --color-new-500: #3f7a6a;
+  --color-commission-500: #5f6aa0;
+}
+
+/* Lavendel — a soft berry theme: muted purple primary, warm-cool neutral,
+   plum ink. Light. */
+:root[data-theme="lavendel"] {
+  --color-page: #F4F1F8;
+  --color-linen: #F4F1F8;
+  --color-surface: #FFFFFF;
+  --color-oatmeal: #E6E0EE;
+  --color-charcoal: #241E2B;
+  --color-chrome: #2E2438;
+  --color-chrome-fg: #F4F1F8;
+  --color-sage-100: #E3E1EE;
+  --color-sage-500: #8E86B0;
+  --color-sage-700: #5A5178;
+  --color-terracotta-500: #C25E8A;   /* rosy accent */
+  --color-primary: #6F5494;          /* lavender/plum */
+  --color-primary-hover: #533B73;
+  --color-primary-fg: #F4F1F8;
+  --color-used-500: #8a5a7a;
+  --color-new-500: #5a7a6a;
+  --color-commission-500: #6f5494;
+}
+
+/* Natt — a deeper, higher-contrast OLED-leaning dark theme (vs. Kveld's
+   softer charcoal). Near-black page, cool light ink. Dark. */
+:root[data-theme="natt"] {
+  --color-page: #0E0E10;
+  --color-linen: #0E0E10;
+  --color-surface: #1A1A1E;
+  --color-oatmeal: #26262C;
+  --color-charcoal: #EDEDF2;         /* cool light ink */
+  --color-chrome: #050506;
+  --color-chrome-fg: #EDEDF2;
+  --color-sage-100: #2C3A34;
+  --color-sage-500: #93B8A2;
+  --color-sage-700: #B6D3C2;
+  --color-sage-800: #C6DDD0;
+  --color-sage-900: #D6E7DD;
+  --color-terracotta-500: #F0A07E;
+  --color-primary: #F0A07E;          /* warm accent pops on near-black */
+  --color-primary-hover: #E0855F;
+  --color-primary-fg: #0E0E10;
+  --color-used-500: #d8a884;
+  --color-used-soft: #26262C;
+  --color-new-500: #a8d0a0;
+  --color-new-soft: #1c281f;
+  --color-commission-500: #cbb0ea;
+  --color-commission-soft: #262233;
+  --color-logo-fill: #EADCC5;      /* warm cream, dimmed for near-black */
+  --color-logo-line: #F0A07E;      /* brighter terracotta */
 }
 
 @layer components {

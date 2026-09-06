@@ -2,16 +2,22 @@
 // Live theme switcher for /dev/theme. Sets `data-theme` on <html>, which the
 // :root[data-theme="…"] blocks in global.css pick up — reskinning the whole
 // page (nav, footer, showcase) at runtime with zero component edits. DB-free.
+import { SITE_THEME } from '../../lib/theme';
 const themes = [
-  { id: 'linen', label: 'Linen', hint: 'Standard (produksjon)' },
+  { id: 'kveld', label: 'Kveld', hint: 'Mørkt tema (standard)' },
+  { id: 'natt', label: 'Natt', hint: 'Dypt mørkt, høy kontrast' },
+  { id: 'linen', label: 'Linen', hint: 'Lyst, nøytralt' },
   { id: 'solnedgang', label: 'Solnedgang', hint: 'Varmt, høy kontrast' },
-  { id: 'kveld', label: 'Kveld', hint: 'Mørkt tema' },
+  { id: 'skog', label: 'Skog', hint: 'Skogsgrønt' },
+  { id: 'hav', label: 'Hav', hint: 'Kjølig teal' },
+  { id: 'lavendel', label: 'Lavendel', hint: 'Mykt lilla' },
 ];
 ---
 
 <div
   class="sticky top-4 z-30 bg-surface/90 backdrop-blur-md rounded-full border border-sage-500/15 shadow-sm px-2 py-2 inline-flex items-center gap-1"
   data-theme-switcher
+  data-site-default={SITE_THEME}
 >
   <span class="label-eyebrow px-3 hidden sm:inline">Tema</span>
   {themes.map((t) => (
@@ -34,6 +40,9 @@ const themes = [
     if (!wrap) return;
     const buttons = Array.from(wrap.querySelectorAll('[data-theme-btn]')) as HTMLElement[];
     const STORAGE_KEY = 'lm-playground-theme';
+    // The site-wide default (from src/lib/theme.ts) — restored on leave so the
+    // playground never leaks a preview onto the rest of the site.
+    const SITE_DEFAULT = wrap.getAttribute('data-site-default') || 'kveld';
 
     function apply(theme: string) {
       document.documentElement.setAttribute('data-theme', theme);
@@ -45,18 +54,23 @@ const themes = [
     }
 
     buttons.forEach((b) => {
-      b.addEventListener('click', () => apply(b.getAttribute('data-theme-btn') || 'linen'));
+      b.addEventListener('click', () => apply(b.getAttribute('data-theme-btn') || SITE_DEFAULT));
     });
 
-    let initial = 'linen';
-    try { initial = sessionStorage.getItem(STORAGE_KEY) || 'linen'; } catch {}
+    // Default to the site default unless the visitor already picked one.
+    let initial = SITE_DEFAULT;
+    try { initial = sessionStorage.getItem(STORAGE_KEY) || SITE_DEFAULT; } catch {}
     apply(initial);
+
+    // Restore the site default when navigating away, so the playground never
+    // leaks its preview onto the rest of the site. Registered here so it can
+    // close over SITE_DEFAULT; guarded to bind once.
+    if (!(window as any).__themeResetBound) {
+      (window as any).__themeResetBound = true;
+      document.addEventListener('astro:before-swap', () => {
+        document.documentElement.setAttribute('data-theme', SITE_DEFAULT);
+      });
+    }
   }
   document.addEventListener('astro:page-load', initThemePlayground);
-
-  // Reset <html> theme when navigating away so the playground never leaks its
-  // theme onto the rest of the site.
-  document.addEventListener('astro:before-swap', () => {
-    document.documentElement.removeAttribute('data-theme');
-  });
 </script>
