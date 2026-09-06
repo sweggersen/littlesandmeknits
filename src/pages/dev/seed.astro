@@ -18,12 +18,26 @@ if (import.meta.env.PROD) return Astro.redirect('/market');
       Alt kjøres gjennom de ekte tjenestene. Kun for lokal utvikling.
     </p>
 
-    <button
-      data-seed
-      class="btn-primary px-6 py-3 rounded-full text-sm font-semibold disabled:opacity-50"
-    >
-      Kjør seed-world
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <button
+        data-seed
+        class="btn-primary px-6 py-3 rounded-full text-sm font-semibold disabled:opacity-50"
+      >
+        Kjør seed-world
+      </button>
+      <button
+        data-seed-full
+        class="px-6 py-3 rounded-full text-sm font-semibold border border-terracotta-500 text-terracotta-500 hover:bg-terracotta-500/10 transition-colors disabled:opacity-50"
+      >
+        Fyll ALT (seed-full)
+      </button>
+    </div>
+    <p class="text-xs text-charcoal/50 mt-2">
+      «Fyll ALT» legger til full kategoridekning, studio-data, favoritter, en butikk nummer to
+      med medlemmer og invitasjoner, varsler av alle typer og mer, oppå seed-world. Kjør
+      <code>npm run seed:samples</code> etterpå for ekte bilder (eller <code>npm run seed:full</code>
+      som gjør begge deler i riktig rekkefølge).
+    </p>
 
     <p data-status class="text-sm text-charcoal/60 mt-4"></p>
     <pre data-summary class="hidden mt-4 bg-surface rounded-2xl border border-sage-500/15 p-4 text-xs overflow-x-auto"></pre>
@@ -96,6 +110,38 @@ if (import.meta.env.PROD) return Astro.redirect('/market');
       });
     }
     document.addEventListener('astro:page-load', initSeed);
+
+    function initSeedFull() {
+      const btn = document.querySelector('[data-seed-full]') as HTMLButtonElement | null;
+      if (!btn) return;
+      const status = document.querySelector('[data-status]') as HTMLElement;
+      const summary = document.querySelector('[data-summary]') as HTMLElement;
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        summary.classList.add('hidden');
+        status.textContent = 'Fyller ALT … dette tar ca. 30–60 sekunder.';
+        const started = performance.now();
+        try {
+          const { token } = await (await fetch('/api/dev/test-token')).json();
+          const res = await fetch('/api/dev/test-exec', {
+            method: 'POST',
+            headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'seed-full' }),
+          });
+          const body = await res.json();
+          if (!body.ok) throw new Error(body.error || 'Ukjent feil');
+          const secs = ((performance.now() - started) / 1000).toFixed(1);
+          status.textContent = `Ferdig på ${secs}s. Kjør «npm run seed:samples» i terminalen for ekte bilder.`;
+          summary.textContent = JSON.stringify(body.data.seeded, null, 2);
+          summary.classList.remove('hidden');
+        } catch (e) {
+          status.textContent = 'Feilet: ' + (e instanceof Error ? e.message : String(e));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
+    document.addEventListener('astro:page-load', initSeedFull);
 
     function initSeedProfile() {
       const btn = document.querySelector('[data-seed-profile]') as HTMLButtonElement | null;

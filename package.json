@@ -21,6 +21,7 @@
     "prepare": "git config core.hooksPath .githooks || true",
     "seed:photos": "npx tsx scripts/marketplace-real-photos.ts",
     "seed:samples": "node scripts/seed-sample-images.mjs",
+    "seed:full": "node scripts/seed-full.mjs",
     "qa:report": "node scripts/qa-report/capture.mjs && node scripts/qa-report/build.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
