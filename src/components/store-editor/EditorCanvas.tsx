@@ -39,6 +39,7 @@ export default function EditorCanvas({
   selectedId,
   onSelect,
   onLayoutChange,
+  onUpdateProps,
   onRemove,
   onThemeChange,
 }: {
@@ -49,6 +50,7 @@ export default function EditorCanvas({
   selectedId: string | null;
   onSelect: (id: string) => void;
   onLayoutChange: (layout: Layout[]) => void;
+  onUpdateProps: (id: string, patch: Record<string, unknown>) => void;
   onRemove: (id: string) => void;
   onThemeChange: (theme: StoreTheme) => void;
 }) {
@@ -56,7 +58,14 @@ export default function EditorCanvas({
   // Click-to-edit: clicking a heading in a preview opens this popover, anchored
   // near the click, exposing the SAME theme-level heading controls as the rail.
   const [headEditor, setHeadEditor] = useState<{ x: number; y: number } | null>(null);
+  // Set true by a hero element drag on pointer-up so the trailing click doesn't
+  // ALSO open the heading popover. Checked (and cleared) first thing here.
+  const suppressHeadingClickRef = useRef(false);
   const openHeadingEditor = useCallback((e: ReactMouseEvent) => {
+    if (suppressHeadingClickRef.current) {
+      suppressHeadingClickRef.current = false;
+      return;
+    }
     const target = e.target as HTMLElement | null;
     if (!target?.closest('[data-heading-edit]')) return;
     // A heading isn't a drag handle (headings live outside .rgl-drag), but stop
@@ -172,7 +181,13 @@ export default function EditorCanvas({
                 </button>
               </div>
               <div className="p-3">
-                <BlockPreview block={block} storeName={storeName} assets={assets} />
+                <BlockPreview
+                  block={block}
+                  storeName={storeName}
+                  assets={assets}
+                  onUpdateProps={onUpdateProps}
+                  suppressHeadingClickRef={suppressHeadingClickRef}
+                />
               </div>
             </>
           );

@@ -104,6 +104,14 @@ export default function StoreEditor(props: StoreEditorProps) {
     setBlocks(updateBlockProps(blocks, selectedBlock.id, patch));
     markDirty();
   }
+  // Patch a SPECIFIC block by id (the hero free-layout drag commits against the
+  // dragged block, which may differ from the current selection). One snapshot
+  // per call = one undo step per drag gesture.
+  function handleUpdateBlockProps(id: string, patch: Record<string, unknown>) {
+    snapshot();
+    setBlocks(updateBlockProps(blocks, id, patch));
+    markDirty();
+  }
   function handleLayoutChange(layout: Layout[]) {
     const next = gridToBlocks(blocks, layout);
     if (!layoutsDiffer(blocks, next)) return;
@@ -239,6 +247,7 @@ export default function StoreEditor(props: StoreEditorProps) {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onLayoutChange={handleLayoutChange}
+            onUpdateProps={handleUpdateBlockProps}
             onRemove={handleRemove}
             onThemeChange={handleThemeChange}
           />
