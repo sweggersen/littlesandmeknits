@@ -17,8 +17,10 @@ import type { StoreBlockProps } from './types';
 
 const { store, props = {}, assets = [] } = Astro.props as StoreBlockProps;
 
-const rawTagline = typeof props.tagline === 'string' ? props.tagline.trim() : '';
-const tagline = rawTagline || (store.tagline ?? '');
+// The tagline is the hero field's value; an empty field means no tagline (so it
+// matches the builder). Only an unset tagline (undefined) falls back to the
+// store-level tagline.
+const tagline = props.tagline === undefined ? (store.tagline ?? '') : String(props.tagline).trim();
 const showBanner = props.showBanner !== false;
 
 // The hero title is an explicit value that changes only the hero display, never
