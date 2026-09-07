@@ -49,9 +49,11 @@ export default function BlockPreview({
                 className="max-h-12 max-w-[70%] w-auto object-contain mx-auto mb-2 drop-shadow"
               />
             )}
-            <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
-              {storeName}
-            </div>
+            {!p.hideTitle && (
+              <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+                {storeName}
+              </div>
+            )}
             {str(p.tagline) && <div className="text-xs opacity-80 mt-1">{str(p.tagline)}</div>}
             {str(p.ctaText) && (
               <span

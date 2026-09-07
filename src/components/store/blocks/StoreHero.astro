@@ -66,7 +66,9 @@ const cta = ctaText && /^(https?:\/\/|\/)/i.test(ctaHref) ? { text: ctaText, hre
       <img src={logoUrl} alt={store.name}
         class="max-h-20 sm:max-h-28 max-w-[min(100%,24rem)] w-auto object-contain mb-5 drop-shadow" data-hero-logo />
     )}
-    <h1 class="font-serif text-3xl sm:text-5xl leading-tight" style="font-family: var(--font-display);">{store.name}</h1>
+    {!props.hideTitle && (
+      <h1 class="font-serif text-3xl sm:text-5xl leading-tight" style="font-family: var(--font-display);">{store.name}</h1>
+    )}
     {tagline && <p class="mt-3 max-w-xl text-white/85 text-base sm:text-lg">{tagline}</p>}
     {cta && (
       <a href={cta.href} rel="nofollow"

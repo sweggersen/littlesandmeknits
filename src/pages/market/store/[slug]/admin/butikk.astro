@@ -54,15 +54,7 @@ const listings = (listingRows ?? []).map((l) => ({
 ---
 
 <Layout title={`${STORE_EDITOR_LABELS.title} · ${store.name}`} lang="nb">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-    <div class="mb-5">
-      <a
-        href={`/market/store/${slug}/admin`}
-        class="text-sm text-charcoal/55 hover:text-charcoal"
-      >← Administrasjon</a>
-      <h1 class="font-serif text-2xl sm:text-3xl mt-1">{STORE_EDITOR_LABELS.title}</h1>
-    </div>
-
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 pt-2 pb-6">
     <StoreEditor
       client:load
       slug={slug}

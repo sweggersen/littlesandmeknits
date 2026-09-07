@@ -186,20 +186,28 @@ export default function StoreEditor(props: StoreEditorProps) {
 
   return (
     <div className="space-y-4" data-store-editor data-hydrated={hydrated ? '1' : undefined}>
-      {/* Toolbar stays pinned below the site nav (h-16 = 64px) while scrolling. */}
+      {/* Title + all actions in one sticky row, pinned below the site nav (h-16). */}
       <div className="sticky top-16 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 bg-linen border-b border-sage-500/10">
-        <Toolbar
-          dirty={dirty}
-          saveState={saveState}
-          publishState={publishState}
-          error={error}
-          onSave={() => void doSave()}
-          onPreview={() => void handlePreview()}
-          onPublish={() => void handlePublish()}
-          onReset={() => void handleReset()}
-          onUndo={handleUndo}
-          canUndo={history.length > 0}
-        />
+        <div className="flex items-center gap-4">
+          <div className="shrink-0">
+            <a href={`/market/store/${slug}/admin`} className="block text-xs text-charcoal/55 hover:text-charcoal leading-tight">← Administrasjon</a>
+            <h1 className="font-serif text-lg sm:text-2xl leading-tight">{L.title}</h1>
+          </div>
+          <div className="flex-1 min-w-0">
+            <Toolbar
+              dirty={dirty}
+              saveState={saveState}
+              publishState={publishState}
+              error={error}
+              onSave={() => void doSave()}
+              onPreview={() => void handlePreview()}
+              onPublish={() => void handlePublish()}
+              onReset={() => void handleReset()}
+              onUndo={handleUndo}
+              canUndo={history.length > 0}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] gap-4 items-start">
