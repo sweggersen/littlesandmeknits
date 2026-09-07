@@ -56,6 +56,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       colors: {
         page: '#FAF4EC',
         surface: '#FFFFFF',
+        heading: '#3A2A20',
         text: '#2C2A26',
         muted: '#7A7267',
         border: '#E7DCCB',
@@ -66,6 +67,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       },
       fontDisplay: 'fraunces',
       fontBody: 'inter',
+      heading: { weight: 'semibold', italic: false, underline: false, scale: 'base' },
     },
     page_config: baseBlocks({
       tagline: 'Håndlagde plagg, strikket med omtanke.',
@@ -83,6 +85,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       colors: {
         page: '#FBFBF9',
         surface: '#FFFFFF',
+        heading: '#1F1E1C',
         text: '#1F1E1C',
         muted: '#8A867E',
         border: '#EAE8E2',
@@ -93,6 +96,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       },
       fontDisplay: 'space-grotesk',
       fontBody: 'dm-sans',
+      heading: { weight: 'medium', italic: false, underline: false, scale: 'base' },
     },
     page_config: baseBlocks({
       tagline: 'Enkelt, ærlig håndverk.',
@@ -110,6 +114,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       colors: {
         page: '#1B1A18',
         surface: '#262421',
+        heading: '#F6F1E8',
         text: '#ECE7DE',
         muted: '#A8A29A',
         border: '#3A362F',
@@ -120,6 +125,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       },
       fontDisplay: 'playfair',
       fontBody: 'inter',
+      heading: { weight: 'bold', italic: false, underline: false, scale: 'lg' },
     },
     page_config: baseBlocks({
       tagline: 'Strikk med karakter.',

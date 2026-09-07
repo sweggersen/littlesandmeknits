@@ -56,13 +56,28 @@ export const VALID_PROJECT_STATUSES = new Set(Object.keys(PROJECT_STATUS));
 export const STORE_COLOR_ROLE_LABEL: Record<string, string> = {
   page: 'Sidebakgrunn',
   surface: 'Kortbakgrunn',
-  text: 'Tekst',
+  heading: 'Overskrift',
+  text: 'Innhold',
   muted: 'Dempet tekst',
   border: 'Kantlinje',
   primary: 'Hovedfarge',
   primaryFg: 'Tekst på hovedfarge',
   accent: 'Aksentfarge',
   headerBg: 'Toppbakgrunn',
+};
+
+// Heading typography controls (theme-level, applies to all headings).
+export const STORE_HEADING_WEIGHT_LABEL: Record<string, string> = {
+  normal: 'Normal',
+  medium: 'Medium',
+  semibold: 'Halvfet',
+  bold: 'Fet',
+};
+export const STORE_HEADING_SCALE_LABEL: Record<string, string> = {
+  sm: 'Liten',
+  base: 'Standard',
+  lg: 'Stor',
+  xl: 'Ekstra stor',
 };
 
 export const STORE_EDITOR_LABELS = {
@@ -73,6 +88,13 @@ export const STORE_EDITOR_LABELS = {
   fontDisplay: 'Overskriftsfont',
   fontBody: 'Brødtekstfont',
   colors: 'Farger',
+  headings: 'Overskrifter',
+  headingColor: 'Overskriftsfarge',
+  headingWeight: 'Tykkelse',
+  headingItalic: 'Kursiv',
+  headingUnderline: 'Understrek',
+  headingScale: 'Størrelse',
+  headingEditHint: 'Endrer alle overskrifter i butikken.',
   presets: 'Forhåndsvalg',
   properties: 'Egenskaper',
   noSelection: 'Velg en blokk for å redigere den.',

@@ -82,6 +82,64 @@ describe('sanitizeStoreTheme', () => {
     expect(t.colors.primary).toBe(DEFAULT_STORE_THEME.colors.primary);
     expect(t.colors.page).toBe(DEFAULT_STORE_THEME.colors.page);
   });
+
+  it('splits heading colour from body/content colour', () => {
+    const t = sanitizeStoreTheme({ colors: { heading: '#112233', text: '#445566' } });
+    expect(t.colors.heading).toBe('#112233');
+    expect(t.colors.text).toBe('#445566');
+  });
+
+  it('rejects a CSS-injection attempt in the heading colour to a safe default', () => {
+    const t = sanitizeStoreTheme({ colors: { heading: 'red;}body{display:none' } });
+    expect(t.colors.heading).toBe(DEFAULT_STORE_THEME.colors.heading);
+    expect(isValidHex(t.colors.heading)).toBe(true);
+  });
+});
+
+describe('sanitizeStoreTheme — heading typography', () => {
+  it('defaults the whole heading block when absent', () => {
+    const t = sanitizeStoreTheme({});
+    expect(t.heading).toEqual(DEFAULT_STORE_THEME.heading);
+  });
+
+  it('keeps valid heading fields', () => {
+    const t = sanitizeStoreTheme({
+      heading: { weight: 'bold', italic: true, underline: true, scale: 'xl' },
+    });
+    expect(t.heading).toEqual({ weight: 'bold', italic: true, underline: true, scale: 'xl' });
+  });
+
+  it('coerces unknown weight / scale to the default enum member', () => {
+    const t = sanitizeStoreTheme({
+      heading: { weight: 'ultra-heavy; }', scale: 'gigantic', italic: false, underline: false },
+    });
+    expect(t.heading.weight).toBe(DEFAULT_STORE_THEME.heading.weight);
+    expect(t.heading.scale).toBe(DEFAULT_STORE_THEME.heading.scale);
+  });
+
+  it('rejects non-boolean italic / underline (no truthy coercion)', () => {
+    const t = sanitizeStoreTheme({
+      heading: { weight: 'medium', scale: 'lg', italic: 'true', underline: 1 },
+    } as unknown);
+    expect(t.heading.italic).toBe(DEFAULT_STORE_THEME.heading.italic);
+    expect(t.heading.underline).toBe(DEFAULT_STORE_THEME.heading.underline);
+    // Valid siblings still kept.
+    expect(t.heading.weight).toBe('medium');
+    expect(t.heading.scale).toBe('lg');
+  });
+
+  it('fills missing heading fields with defaults (partial object)', () => {
+    const t = sanitizeStoreTheme({ heading: { italic: true } });
+    expect(t.heading.italic).toBe(true);
+    expect(t.heading.weight).toBe(DEFAULT_STORE_THEME.heading.weight);
+    expect(t.heading.underline).toBe(DEFAULT_STORE_THEME.heading.underline);
+    expect(t.heading.scale).toBe(DEFAULT_STORE_THEME.heading.scale);
+  });
+
+  it('ignores a non-object heading (string / null)', () => {
+    expect(sanitizeStoreTheme({ heading: 'red;}body{}' }).heading).toEqual(DEFAULT_STORE_THEME.heading);
+    expect(sanitizeStoreTheme({ heading: null }).heading).toEqual(DEFAULT_STORE_THEME.heading);
+  });
 });
 
 describe('storeThemeToCssVars', () => {
@@ -112,5 +170,32 @@ describe('storeThemeToCssVars', () => {
     expect(css).toContain('--color-primary:');
     expect(css).toContain('--color-surface:');
     expect(css).toContain('--store-header-bg:');
+  });
+
+  it('emits the heading typography vars from validated values', () => {
+    const css = storeThemeToCssVars({
+      colors: { heading: '#abc' },
+      heading: { weight: 'bold', italic: true, underline: true, scale: 'lg' },
+    });
+    expect(css).toContain('--store-heading:#ABC');
+    expect(css).toContain('--store-heading-weight:700');
+    expect(css).toContain('--store-heading-style:italic');
+    expect(css).toContain('--store-heading-decoration:underline');
+    expect(css).toContain('--store-heading-scale:1.15');
+  });
+
+  it('emits safe heading vars even for a hostile heading block', () => {
+    const css = storeThemeToCssVars({
+      colors: { heading: 'red;}html{}' },
+      heading: { weight: '900;}x{', italic: 'yes', underline: 'no', scale: 'huge;}' },
+    } as unknown);
+    // Colour fell back to a hex, weight/scale to the default enum literals.
+    expect(css).toContain('--store-heading:#2C2A26');
+    expect(css).toContain('--store-heading-weight:600');
+    expect(css).toContain('--store-heading-style:normal');
+    expect(css).toContain('--store-heading-decoration:none');
+    expect(css).toContain('--store-heading-scale:1');
+    expect(css).not.toContain('}');
+    expect(css).not.toContain('html{');
   });
 });

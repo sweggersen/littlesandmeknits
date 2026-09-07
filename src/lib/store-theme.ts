@@ -39,7 +39,8 @@ const FONT_BY_ID = new Map(STORE_FONTS.map((f) => [f.id, f]));
 export const STORE_COLOR_ROLES = [
   'page', // page background
   'surface', // card / panel background
-  'text', // primary ink
+  'heading', // title / heading ink
+  'text', // body / content ink
   'muted', // secondary text
   'border', // hairline borders
   'primary', // primary action / accent-strong
@@ -49,18 +50,61 @@ export const STORE_COLOR_ROLES = [
 ] as const;
 export type StoreColorRole = (typeof STORE_COLOR_ROLES)[number];
 
+// Bounded, per-element-TYPE typography controls for headings. This is a
+// theme-level setting: changing any of these reskins EVERY heading across the
+// storefront. Each field is a hard enum / strict boolean, so a hostile theme
+// JSON can only ever select one of these known values — never inject raw CSS.
+export const HEADING_WEIGHTS = ['normal', 'medium', 'semibold', 'bold'] as const;
+export type HeadingWeight = (typeof HEADING_WEIGHTS)[number];
+export const HEADING_SCALES = ['sm', 'base', 'lg', 'xl'] as const;
+export type HeadingScale = (typeof HEADING_SCALES)[number];
+
+// Enum -> hard-coded CSS value maps. The OUTPUT is always one of these literals,
+// never anything derived from user input, so nothing user-typed reaches CSS.
+export const HEADING_WEIGHT_CSS: Record<HeadingWeight, string> = {
+  normal: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+};
+export const HEADING_SCALE_CSS: Record<HeadingScale, string> = {
+  sm: '0.85',
+  base: '1',
+  lg: '1.15',
+  xl: '1.3',
+};
+
+export interface StoreHeadingStyle {
+  weight: HeadingWeight;
+  italic: boolean;
+  underline: boolean;
+  scale: HeadingScale;
+}
+
 export interface StoreTheme {
   colors: Record<StoreColorRole, string>;
   /** A known font id (display role). */
   fontDisplay: string;
   /** A known font id (body role). */
   fontBody: string;
+  /** Global, theme-level typography applied to ALL headings. */
+  heading: StoreHeadingStyle;
 }
+
+export const DEFAULT_HEADING_STYLE: StoreHeadingStyle = {
+  weight: 'semibold',
+  italic: false,
+  underline: false,
+  scale: 'base',
+};
 
 export const DEFAULT_STORE_THEME: StoreTheme = {
   colors: {
     page: '#FAF6F0',
     surface: '#FFFFFF',
+    // Heading defaults to the same ink as body text for back-compat: a theme
+    // that predates the split reads identically until the owner differentiates.
+    heading: '#2C2A26',
     text: '#2C2A26',
     muted: '#6E6A63',
     border: '#E8DFD0',
@@ -71,6 +115,7 @@ export const DEFAULT_STORE_THEME: StoreTheme = {
   },
   fontDisplay: 'fraunces',
   fontBody: 'inter',
+  heading: { ...DEFAULT_HEADING_STYLE },
 };
 
 // Strict: `#rgb` or `#rrggbb` only. No `rgb()`, no named colours, no url(),
@@ -97,6 +142,32 @@ function sanitizeFontId(value: unknown, fallback: string): string {
   return isKnownFont(value) ? value : fallback;
 }
 
+// Coerce to a member of a bounded string-literal set, else the default. Unknown
+// / non-string input (including prototype-pollution keys) can never pass.
+function sanitizeEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value)
+    ? (value as T)
+    : fallback;
+}
+
+// Strict boolean: only a real `true`/`false` is honoured. Truthy/falsy strings
+// or numbers (`"true"`, `1`) fall back to the default, so nothing ambiguous
+// (or attacker-shaped) flips a flag.
+function sanitizeBool(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
+/** Whitelist + validate the heading typography block into a safe shape. */
+export function sanitizeHeadingStyle(input: unknown): StoreHeadingStyle {
+  const obj = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  return {
+    weight: sanitizeEnum(obj.weight, HEADING_WEIGHTS, DEFAULT_HEADING_STYLE.weight),
+    italic: sanitizeBool(obj.italic, DEFAULT_HEADING_STYLE.italic),
+    underline: sanitizeBool(obj.underline, DEFAULT_HEADING_STYLE.underline),
+    scale: sanitizeEnum(obj.scale, HEADING_SCALES, DEFAULT_HEADING_STYLE.scale),
+  };
+}
+
 /**
  * Whitelist + validate arbitrary input into a safe StoreTheme. Unknown keys are
  * dropped, bad hex is replaced with the default for that role, unknown font ids
@@ -117,6 +188,7 @@ export function sanitizeStoreTheme(input: unknown): StoreTheme {
     colors,
     fontDisplay: sanitizeFontId(obj.fontDisplay, DEFAULT_STORE_THEME.fontDisplay),
     fontBody: sanitizeFontId(obj.fontBody, DEFAULT_STORE_THEME.fontBody),
+    heading: sanitizeHeadingStyle(obj.heading),
   };
 }
 
@@ -137,6 +209,8 @@ function colorVarPairs(colors: Record<StoreColorRole, string>): string[] {
     `--color-linen:${colors.page}`,
     `--color-surface:${colors.surface}`,
     `--color-charcoal:${colors.text}`,
+    // Heading ink is its own role; blocks apply it to h1/h2/h3 via --store-heading.
+    `--store-heading:${colors.heading}`,
     `--store-muted:${colors.muted}`,
     `--store-border:${colors.border}`,
     // Card borders in shared components use border-sage-500/… — retint it.
@@ -164,5 +238,11 @@ export function storeThemeToCssVars(theme: unknown): string {
   parts.push(`--font-serif:${display}`);
   parts.push(`--font-body:${body}`);
   parts.push(`--font-sans:${body}`);
+  // Heading typography: every value below is looked up from a hard-coded enum
+  // map, so a hostile theme can only select one of these known literals.
+  parts.push(`--store-heading-weight:${HEADING_WEIGHT_CSS[t.heading.weight]}`);
+  parts.push(`--store-heading-style:${t.heading.italic ? 'italic' : 'normal'}`);
+  parts.push(`--store-heading-decoration:${t.heading.underline ? 'underline' : 'none'}`);
+  parts.push(`--store-heading-scale:${HEADING_SCALE_CSS[t.heading.scale]}`);
   return parts.join(';') + ';';
 }

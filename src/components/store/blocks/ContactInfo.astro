@@ -22,7 +22,7 @@ const email = typeof store.contact_email === 'string' && store.contact_email.inc
 ---
 
 <section class="rounded-3xl p-6" style="background-color: var(--color-surface); border: 1px solid var(--store-border);">
-  <h2 class="font-serif text-xl mb-4" style="font-family: var(--font-display);">{heading}</h2>
+  <h2 class="font-serif mb-4" style="font-family: var(--font-display); font-size: calc(1.25rem * var(--store-heading-scale));">{heading}</h2>
   <dl class="space-y-3 text-sm">
     {store.location_city && (
       <div>

@@ -13,7 +13,7 @@ const items = listings.slice(0, limit);
 
 <section>
   <div class="flex items-baseline justify-between mb-4">
-    <h2 class="font-serif text-2xl" style="font-family: var(--font-display);">{heading}</h2>
+    <h2 class="font-serif" style="font-family: var(--font-display); font-size: calc(1.5rem * var(--store-heading-scale));">{heading}</h2>
     {items.length > 0 && <span class="text-sm" style="color: var(--store-muted);">{items.length} aktive</span>}
   </div>
   {items.length === 0 ? (

@@ -3,6 +3,7 @@
 // quick, recognisable sketch so the owner sees structure + theme while editing.
 // All colours/fonts come from the CSS vars the canvas sets via
 // storeThemeToCssVars, so it reflects the live theme automatically.
+import type { CSSProperties } from 'react';
 import type { StoreBlock } from '../../lib/store-blocks';
 import { heroOverlayCss, coerceOverlayStyle, MAX_GALLERY_IMAGES } from '../../lib/store-blocks';
 import { projectPhotoUrl } from '../../lib/storage';
@@ -11,6 +12,24 @@ import type { EditorAsset } from './types';
 function str(v: unknown, fallback = ''): string {
   return typeof v === 'string' && v.trim() ? v : fallback;
 }
+
+// Heading style for the schematic previews. Colour/weight/italic/underline come
+// from the live theme CSS vars the canvas sets, and the size is the block's own
+// base scaled by --store-heading-scale — matching the real SSR blocks. Pass
+// `contrast` for headings that sit on the dark hero band (they keep white).
+function headingStyle(baseRem: string, contrast = false): CSSProperties {
+  return {
+    fontFamily: 'var(--font-display)',
+    ...(contrast ? {} : { color: 'var(--store-heading)' }),
+    fontWeight: 'var(--store-heading-weight)',
+    fontStyle: 'var(--store-heading-style)',
+    textDecoration: 'var(--store-heading-decoration)',
+    fontSize: `calc(${baseRem} * var(--store-heading-scale))`,
+  } as CSSProperties;
+}
+
+// data-hook the canvas listens on to open the click-to-edit heading popover.
+const HEAD_EDIT = { 'data-heading-edit': '' } as const;
 
 export default function BlockPreview({
   block,
@@ -50,7 +69,7 @@ export default function BlockPreview({
               />
             )}
             {(p.title === undefined ? storeName : String(p.title).trim()) && (
-              <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+              <div {...HEAD_EDIT} style={headingStyle('1.125rem', true)}>
                 {p.title === undefined ? storeName : String(p.title).trim()}
               </div>
             )}
@@ -71,10 +90,10 @@ export default function BlockPreview({
     case 'textSection':
       return (
         <div>
-          <div className="text-sm font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+          <div {...HEAD_EDIT} style={headingStyle('0.875rem')}>
             {str(p.heading, 'Tekstseksjon')}
           </div>
-          <p className="text-xs opacity-70 mt-1 line-clamp-3">
+          <p className="text-xs mt-1 line-clamp-3" style={{ color: 'var(--color-charcoal)' }}>
             {str(p.body, 'Tekstinnhold vises her.')}
           </p>
         </div>
@@ -83,7 +102,7 @@ export default function BlockPreview({
     case 'productGrid':
       return (
         <div>
-          <div className="text-sm font-semibold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+          <div {...HEAD_EDIT} className="mb-2" style={headingStyle('0.875rem')}>
             {str(p.heading, 'Annonser')}
           </div>
           {/* A short EXAMPLE row — the live grid grows with the store's actual
@@ -107,7 +126,7 @@ export default function BlockPreview({
       const ids = Array.isArray(p.ids) ? p.ids : [];
       return (
         <div>
-          <div className="text-sm font-semibold mb-1" style={{ fontFamily: 'var(--font-display)' }}>
+          <div {...HEAD_EDIT} className="mb-1" style={headingStyle('0.875rem')}>
             {str(p.heading, 'Utvalgte')}
           </div>
           <div className="text-xs opacity-65">{ids.length} valgte produkter</div>
@@ -141,7 +160,7 @@ export default function BlockPreview({
       return (
         <div>
           {str(p.heading) && (
-            <div className="text-sm font-semibold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+            <div {...HEAD_EDIT} className="mb-2" style={headingStyle('0.875rem')}>
               {str(p.heading)}
             </div>
           )}
@@ -176,7 +195,7 @@ export default function BlockPreview({
     case 'contactInfo':
       return (
         <div>
-          <div className="text-sm font-semibold mb-1" style={{ fontFamily: 'var(--font-display)' }}>
+          <div {...HEAD_EDIT} className="mb-1" style={headingStyle('0.875rem')}>
             {str(p.heading, 'Kontakt')}
           </div>
           <div className="text-xs opacity-65 space-y-0.5">

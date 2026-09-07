@@ -4,6 +4,7 @@
 import { STORE_FONTS, STORE_COLOR_ROLES, isValidHex, type StoreTheme, type StoreColorRole } from '../../lib/store-theme';
 import { STORE_PRESETS, STORE_PRESET_IDS } from '../../lib/store-presets';
 import { STORE_COLOR_ROLE_LABEL, STORE_EDITOR_LABELS as L } from '../../lib/labels';
+import HeadingControls from './HeadingControls';
 
 const DISPLAY_FONTS = STORE_FONTS.filter((f) => f.role === 'display' || f.role === 'both');
 const BODY_FONTS = STORE_FONTS.filter((f) => f.role === 'body' || f.role === 'both');
@@ -83,6 +84,12 @@ export default function ThemePanel({
             </div>
           ))}
         </div>
+      </div>
+
+      <div data-heading-section>
+        <span className="block text-xs font-medium text-charcoal/60 mb-1">{L.headings}</span>
+        <p className="text-[11px] text-charcoal/45 mb-1.5">{L.headingEditHint}</p>
+        <HeadingControls theme={theme} onChange={onChange} />
       </div>
 
       <div>

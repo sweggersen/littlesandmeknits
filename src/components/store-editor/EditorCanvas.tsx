@@ -4,7 +4,8 @@
 // so every schematic preview reflects the live theme.
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout';
 import { BLOCK_REGISTRY, GRID_COLUMNS } from '../../lib/store-blocks';
 import type { StoreBlock } from '../../lib/store-blocks';
@@ -12,6 +13,7 @@ import { storeThemeToCssVars, type StoreTheme } from '../../lib/store-theme';
 import { blocksToGrid } from './editor-state';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
 import BlockPreview from './BlockPreview';
+import HeadingControls from './HeadingControls';
 import type { EditorAsset } from './types';
 
 const Grid = WidthProvider(GridLayout);
@@ -38,6 +40,7 @@ export default function EditorCanvas({
   onSelect,
   onLayoutChange,
   onRemove,
+  onThemeChange,
 }: {
   blocks: StoreBlock[];
   theme: StoreTheme;
@@ -47,8 +50,23 @@ export default function EditorCanvas({
   onSelect: (id: string) => void;
   onLayoutChange: (layout: Layout[]) => void;
   onRemove: (id: string) => void;
+  onThemeChange: (theme: StoreTheme) => void;
 }) {
   const cssVars = storeThemeToCssVars(theme);
+  // Click-to-edit: clicking a heading in a preview opens this popover, anchored
+  // near the click, exposing the SAME theme-level heading controls as the rail.
+  const [headEditor, setHeadEditor] = useState<{ x: number; y: number } | null>(null);
+  const openHeadingEditor = useCallback((e: ReactMouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (!target?.closest('[data-heading-edit]')) return;
+    // A heading isn't a drag handle (headings live outside .rgl-drag), but stop
+    // propagation so nothing treats this as a canvas/background interaction.
+    e.stopPropagation();
+    const PANEL_W = 240;
+    const x = Math.min(e.clientX, window.innerWidth - PANEL_W - 12);
+    const y = Math.min(e.clientY + 8, window.innerHeight - 320);
+    setHeadEditor({ x: Math.max(12, x), y: Math.max(12, y) });
+  }, []);
   const typeById: Record<string, StoreBlock['type']> = {};
   for (const b of blocks) typeById[b.id] = b.type;
 
@@ -110,6 +128,7 @@ export default function EditorCanvas({
       className="store-editor-canvas rounded-2xl p-3 sm:p-4 min-h-[50vh]"
       style={styleFromVars(cssVars)}
       data-editor-canvas
+      onClickCapture={openHeadingEditor}
     >
       <Grid
         className="layout"
@@ -183,6 +202,40 @@ export default function EditorCanvas({
           );
         })}
       </Grid>
+
+      {/* Portalled to <body> so the popover escapes the store-theme CSS vars on
+          the canvas and renders in the editor's own (neutral) chrome. */}
+      {headEditor && typeof document !== 'undefined' && createPortal(
+        <>
+          {/* Click-away backdrop closes the popover. */}
+          <div
+            className="fixed inset-0 z-40"
+            onMouseDown={() => setHeadEditor(null)}
+            data-heading-popover-backdrop
+          />
+          <div
+            className="fixed z-50 w-60 bg-surface rounded-xl border border-sage-500/20 shadow-xl p-3 text-charcoal"
+            style={{ left: headEditor.x, top: headEditor.y }}
+            onMouseDown={(e) => e.stopPropagation()}
+            data-heading-popover
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{L.headings}</span>
+              <button
+                type="button"
+                className="px-1.5 rounded hover:opacity-70 text-charcoal/60"
+                aria-label={L.remove}
+                onClick={() => setHeadEditor(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-[11px] text-charcoal/45 mb-2">{L.headingEditHint}</p>
+            <HeadingControls theme={theme} onChange={onThemeChange} />
+          </div>
+        </>,
+        document.body,
+      )}
     </div>
   );
 }
