@@ -357,6 +357,14 @@
   background-color: var(--color-page);
   color: var(--color-charcoal);
   font-family: var(--font-body);
+  /* Heading typography fallbacks. The storefront/preview inline style always
+     re-emits these (storeThemeToCssVars), but declaring them here keeps any
+     stray heading sane if a var is ever absent. */
+  --store-heading: var(--color-charcoal);
+  --store-heading-weight: 600;
+  --store-heading-style: normal;
+  --store-heading-decoration: none;
+  --store-heading-scale: 1;
   /* Full-bleed: break out of MarketplaceShell's max-w-5xl container + eat its
      vertical padding so the store's theme fills the whole page (edge to edge,
      up to the nav) instead of reading as a light box inside the dark site. */
@@ -374,6 +382,24 @@
 .store-scope h2,
 .store-scope h3 {
   font-family: var(--font-display);
+  /* Theme-level, per-element-TYPE heading styling. Colour/weight/style/
+     decoration apply uniformly; each heading sizes itself with
+     calc(<its base> * var(--store-heading-scale)) inline, so the global scale
+     multiplies every heading while preserving each block's relative size. */
+  color: var(--store-heading);
+  font-weight: var(--store-heading-weight);
+  font-style: var(--store-heading-style);
+  text-decoration: var(--store-heading-decoration);
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.15em;
+}
+/* The hero title sits on the dark --store-header-bg band (and/or an image
+   overlay) where white is the contrast-safe ink — and the default heading ink
+   equals the default band colour, so applying --store-heading there would make
+   the title vanish. Keep the hero title inheriting the band's white while it
+   STILL picks up the theme weight/italic/underline/scale above. */
+.store-scope .store-hero h1 {
+  color: inherit;
 }
 .store-grid {
   display: grid;

@@ -40,7 +40,7 @@ const uid = `gal-${Math.random().toString(36).slice(2, 10)}`;
 {images.length > 0 && (
   <section class="store-gallery" data-gallery={uid}>
     {heading && (
-      <h2 class="font-serif text-xl mb-4" style="font-family: var(--font-display); color: var(--color-charcoal);">{heading}</h2>
+      <h2 class="font-serif mb-4" style="font-family: var(--font-display); font-size: calc(1.25rem * var(--store-heading-scale));">{heading}</h2>
     )}
     <ul class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 list-none p-0 m-0">
       {images.map((img, i) => (

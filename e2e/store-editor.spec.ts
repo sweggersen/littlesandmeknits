@@ -80,6 +80,44 @@ test.describe('Strikketorget — butikk-editor', () => {
     expect(style).toContain(`--color-primary:${NEW_PRIMARY}`);
   });
 
+  test('heading style (colour + weight + underline) applies to all headings and goes live', async ({ page, request }) => {
+    const slug = `editor-heading-${Date.now().toString(36)}`;
+    const heading = `Om oss ${Date.now().toString(36)}`;
+    const HEAD_COLOR = '#3355AA';
+
+    await exec(request, 'seed-store', { actor: OWNER, params: { slug, name: 'Overskrift Strikk' } });
+    await loginAs(page, OWNER);
+
+    await page.goto(`/market/store/${slug}/admin/butikk`);
+    await expect(page.locator('[data-store-editor][data-hydrated="1"]')).toBeVisible();
+
+    // A block with a heading so there is something to restyle.
+    await page.locator('[data-add-block="textSection"]').click();
+    await page.locator('[data-prop="heading"]').fill(heading);
+
+    // The "Overskrifter" section drives the theme-level heading style. Scope to
+    // the section so we hit its controls (the colour also appears in the list).
+    const section = page.locator('[data-heading-section]');
+    await section.locator('[data-color-hex="heading"]').fill(HEAD_COLOR);
+    await section.locator('[data-heading-weight]').selectOption('bold');
+    await section.locator('[data-heading-underline]').check();
+
+    await page.locator('[data-save]').click();
+    await expect(page.locator('[data-save]')).toHaveText('Lagret');
+    await page.locator('[data-publish]').click();
+    await expect(page.locator('[data-publish]')).toHaveText('Publisert');
+
+    await page.goto(`/market/store/${slug}`);
+    const scope = page.locator('[data-store-scope]');
+    await expect(scope).toBeVisible();
+    const style = (await scope.getAttribute('style')) ?? '';
+    expect(style).toContain(`--store-heading:${HEAD_COLOR}`);
+    expect(style).toContain('--store-heading-weight:700');
+    expect(style).toContain('--store-heading-decoration:underline');
+    // The section heading actually renders the recoloured ink.
+    await expect(page.locator('[data-block-type="textSection"] h2')).toHaveText(heading);
+  });
+
   test('draft preview shows unpublished edits to the editor only', async ({ page, request }) => {
     const slug = `editor-preview-${Date.now().toString(36)}`;
     await exec(request, 'seed-store', { actor: OWNER, params: { slug, name: 'Preview Strikk' } });

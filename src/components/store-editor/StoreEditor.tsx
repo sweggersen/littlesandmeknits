@@ -226,6 +226,7 @@ export default function StoreEditor(props: StoreEditorProps) {
             onSelect={setSelectedId}
             onLayoutChange={handleLayoutChange}
             onRemove={handleRemove}
+            onThemeChange={handleThemeChange}
           />
         </main>
 
