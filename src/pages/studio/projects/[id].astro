@@ -70,7 +70,7 @@ if (p.commission_offer_id) {
     };
     const req = (offerData as unknown as OfferJoin).commission_requests;
     commissionInfo = {
-      requestId: req?.id,
+      requestId: req?.id ?? '',
       requestTitle: req?.title ?? '',
       buyerName: req?.profiles?.display_name ?? 'Bestiller',
       priceNok: offerData.price_nok,

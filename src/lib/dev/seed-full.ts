@@ -23,6 +23,10 @@
 // via seedWorld + the `handle()` switch.
 
 import type { createAdminSupabase } from '../supabase';
+import type { Database } from '../database.types';
+
+type NotifType = Database['public']['Tables']['notifications']['Insert']['type'];
+type ListingCategory = Database['public']['Tables']['listings']['Insert']['category'];
 import { seedWorld } from './seed-world';
 import { seedProfile } from './seed-profile';
 import {
@@ -59,7 +63,7 @@ const PERSONA_META: Record<string, { name: string; location: string; bio: string
 
 // Every category × kind, spread across statuses/conditions/shipping so the grids
 // (brukt/nytt/index) show a full catalogue. Titles are Norwegian and unique.
-const CONDITIONS = ['som_ny', 'lite_brukt', 'brukt', 'slitt'];
+const CONDITIONS = ['som_ny', 'lite_brukt', 'brukt', 'slitt'] as const;
 const SHIPPING = [
   { option: 'free', price: 0 },
   { option: 'small_letter', price: 59 },
@@ -130,9 +134,9 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
   // ── 2. Full catalogue: every category × kind, varied status/condition/shipping.
   //     Sellers rotate across eline/ingrid/solveig/maja/tuva. These are inserted
   //     directly (draft/active/removed are display states, not money flows).
-  const categories = Object.keys(CATEGORY_LABEL); // genser, cardigan, lue, votter, sokker, teppe, kjole, bukser, annet
+  const categories = Object.keys(CATEGORY_LABEL) as (keyof typeof CATEGORY_LABEL)[]; // genser, cardigan, lue, …
   const sellers = [`eline${D}`, `ingrid${D}`, `solveig${D}`, `maja${D}`, EX.tuva];
-  const STATUSES = ['active', 'active', 'active', 'draft', 'removed'];
+  const STATUSES = ['active', 'active', 'active', 'draft', 'removed'] as const;
   const SIZES = ['0-6 mnd', '1 år', '2 år', '3 år', '4 år', '6 år'];
   // A colour/detail per listing so no two catalogue cards share a title, and the
   // grid reads like real, individually-listed items rather than a template.
@@ -157,7 +161,7 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
         seller_id: sellerId,
         kind,
         title: `${kindLabel} ${CATEGORY_LABEL[category].toLowerCase()} i ${color} (${size})`,
-        category,
+        category: category as ListingCategory,
         size_label: size,
         price_nok: price,
         condition: kind === 'ready_made' ? null : CONDITIONS[catIdx % CONDITIONS.length],
@@ -424,7 +428,7 @@ export async function seedFull(deps: { db: Db; handle: Handle; emailToId: Map<st
   //     full showcase (seed-world already produced message/dispute/follow ones).
   const livId = id(`liv${D}`)!;
   const sellerActor = elineId;
-  const notifTypes: { type: string; title: string; body: string; read?: boolean }[] = [
+  const notifTypes: { type: NotifType; title: string; body: string; read?: boolean }[] = [
     { type: 'listing_purchased', title: 'Kjøpet er bekreftet', body: 'Betalingen for «Strikket genser» er mottatt.', read: true },
     { type: 'listing_shipped', title: 'Varen er sendt', body: 'Selger har sendt «Strikket genser». Sporing: POSTEN-100200.' },
     { type: 'listing_delivered', title: 'Levering bekreftet', body: 'Du bekreftet mottak. Beløpet frigis til selger.' , read: true },

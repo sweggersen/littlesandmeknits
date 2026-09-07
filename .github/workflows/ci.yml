@@ -105,7 +105,11 @@ jobs:
       - name: Install Playwright (chromium)
         run: npx playwright install --with-deps chromium
       - name: Start Supabase
-        run: supabase start -x edge-runtime,studio,imgproxy,vector
+        # Include imgproxy: card images now go through the storage image-transform
+        # (render) endpoint (squareThumbUrl/resizedImageUrl), so the e2e suite must
+        # exercise it like prod does (comprehensive-seed.spec asserts the transform
+        # URL resolves). Only edge-runtime/studio/vector are excluded.
+        run: supabase start -x edge-runtime,studio,vector
       - name: Run smoke + flow scenarios
         run: |
           eval "$(supabase status -o env | sed 's/^/export SB_/')"

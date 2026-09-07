@@ -80,7 +80,7 @@ describe('sample-images (dev seed image contract)', () => {
   });
 
   it('every referenced sample basename is a known, hydrated name', () => {
-    const known = new Set(SAMPLE_IMAGE_NAMES);
+    const known = new Set<string>(SAMPLE_IMAGE_NAMES);
     const referenced = [
       ...Object.values(SAMPLE_IMAGES).flat(),
       ...AVATAR_SAMPLES, ...STORE_LOGO_SAMPLES, ...STORE_BANNER_SAMPLES,
