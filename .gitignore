@@ -48,3 +48,6 @@ reports/
 # generated QA report output (npm run qa:report) — anchored to repo root so it
 # does NOT match scripts/qa-report/ (the committed generator).
 /qa-report/
+
+# agent worktrees (transient, each is its own git repo)
+.claude/worktrees/

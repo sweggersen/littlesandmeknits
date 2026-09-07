@@ -85,8 +85,17 @@ describe('editor-state', () => {
   it('gridToBlocks merges new positions, keeps blocks missing from the layout', () => {
     const start = [block('a', 'hero'), block('b', 'textSection', { y: 1 })];
     const next = gridToBlocks(start, [{ i: 'a', x: 3, y: 5, w: 6, h: 2 }]);
-    expect(next[0].layout).toEqual({ x: 3, y: 5, w: 6, h: 2 });
+    // hero is content-driven: x/y/w merge, but its auto-measured h is ignored
+    // (keeps the stored value) so the draft doesn't churn.
+    expect(next[0].layout).toEqual({ x: 3, y: 5, w: 6, h: start[0].layout.h });
     expect(next[1]).toBe(start[1]); // no layout entry -> unchanged
+  });
+
+  it('gridToBlocks persists the resized h for flexible blocks', () => {
+    const start = [block('a', 'textSection', { h: 4 })];
+    const next = gridToBlocks(start, [{ i: 'a', x: 0, y: 0, w: 12, h: 9 }]);
+    // flexible blocks are user-sized vertically, so the new h is kept.
+    expect(next[0].layout).toEqual({ x: 0, y: 0, w: 12, h: 9 });
   });
 
   it('orderedBlocks sorts by y then x', () => {

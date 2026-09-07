@@ -77,9 +77,12 @@ export function gridToBlocks(
   return blocks.map((b) => {
     const l = byId.get(b.id);
     if (!l) return b;
-    // Keep the stored h: block height is auto-measured in the editor (content-
-    // driven) and unused by the storefront, so it must not churn the draft.
-    return { ...b, layout: { x: l.x, y: l.y, w: l.w, h: b.layout.h } };
+    // Content-driven blocks auto-measure their height in the editor, so their
+    // grid `h` is transient — keep the stored value so it doesn't churn the
+    // draft. Flexible blocks are user-sized vertically, so persist the new `h`.
+    const contentHeight = BLOCK_REGISTRY[b.type]?.contentHeight;
+    const h = contentHeight ? b.layout.h : l.h;
+    return { ...b, layout: { x: l.x, y: l.y, w: l.w, h } };
   });
 }
 

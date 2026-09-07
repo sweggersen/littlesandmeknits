@@ -106,11 +106,17 @@ export interface BlockDef {
   /** Sensible default span when the block is first dropped. */
   defaultW: number;
   defaultH: number;
+  /** Content-driven height: the block sizes to its content (a hero, a product
+   *  grid that grows with listings), so the editor auto-fits it and offers only
+   *  horizontal resize. Flexible blocks (text, contact, banner) are user-sized
+   *  in both directions. */
+  contentHeight?: boolean;
 }
 
 export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
   hero: {
     type: 'hero',
+    contentHeight: true,
     label: 'Toppseksjon',
     description: 'Logo, butikknavn og en kort undertittel, over et valgfritt bakgrunnsbilde.',
     defaultProps: {
@@ -146,10 +152,11 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'ctaText', kind: 'text', label: 'Knappetekst' },
       { key: 'ctaHref', kind: 'url', label: 'Knappelenke' },
     ],
-    minW: 6, minH: 2, defaultW: 12, defaultH: 3,
+    minW: 6, minH: 6, defaultW: 12, defaultH: 14,
   },
   productGrid: {
     type: 'productGrid',
+    contentHeight: true,
     label: 'Produktrutenett',
     description: 'Alle aktive annonser fra butikken i et rutenett.',
     defaultProps: { heading: 'Annonser', limit: 24 },
@@ -157,10 +164,11 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'limit', kind: 'number', label: 'Maks antall' },
     ],
-    minW: 6, minH: 3, defaultW: 12, defaultH: 5,
+    minW: 6, minH: 6, defaultW: 12, defaultH: 13,
   },
   featuredProducts: {
     type: 'featuredProducts',
+    contentHeight: true,
     label: 'Utvalgte produkter',
     description: 'Et lite utvalg annonser du velger selv.',
     defaultProps: { heading: 'Utvalgte', ids: [] },
@@ -168,7 +176,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'ids', kind: 'listingIds', label: 'Annonser' },
     ],
-    minW: 4, minH: 3, defaultW: 8, defaultH: 4,
+    minW: 4, minH: 5, defaultW: 8, defaultH: 8,
   },
   textSection: {
     type: 'textSection',
@@ -179,7 +187,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'body', kind: 'textarea', label: 'Tekst' },
     ],
-    minW: 4, minH: 2, defaultW: 8, defaultH: 3,
+    minW: 4, minH: 4, defaultW: 8, defaultH: 8,
   },
   imageBanner: {
     type: 'imageBanner',
@@ -191,10 +199,11 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'alt', kind: 'text', label: 'Alt-tekst' },
       { key: 'height', kind: 'number', label: 'Høyde (px)' },
     ],
-    minW: 6, minH: 2, defaultW: 12, defaultH: 3,
+    minW: 6, minH: 4, defaultW: 12, defaultH: 8,
   },
   imageGallery: {
     type: 'imageGallery',
+    contentHeight: true,
     label: 'Bildegalleri',
     description: 'Opptil ti opplastede bilder i kvadratiske miniatyrer som åpnes i en bildekarusell.',
     defaultProps: { heading: 'Galleri', images: [] },
@@ -202,7 +211,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'images', kind: 'assetIds', label: 'Bilder (maks 10)' },
     ],
-    minW: 4, minH: 3, defaultW: 12, defaultH: 4,
+    minW: 4, minH: 5, defaultW: 12, defaultH: 10,
   },
   contactInfo: {
     type: 'contactInfo',
@@ -210,7 +219,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     description: 'Sted, e-post og lenker til sosiale medier.',
     defaultProps: { heading: 'Kontakt' },
     propSchema: [{ key: 'heading', kind: 'text', label: 'Overskrift' }],
-    minW: 4, minH: 2, defaultW: 4, defaultH: 3,
+    minW: 4, minH: 4, defaultW: 4, defaultH: 7,
   },
 };
 

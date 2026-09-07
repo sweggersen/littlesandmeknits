@@ -15,8 +15,15 @@ import BlockPreview from './BlockPreview';
 import type { EditorAsset } from './types';
 
 const Grid = WidthProvider(GridLayout);
-const ROW_HEIGHT = 44;
-const MARGIN = 12;
+// A fine row unit so the grid snaps tightly to content (small leftover gap) and
+// vertical resizing of flexible blocks feels smooth.
+const ROW_HEIGHT = 12;
+const MARGIN = 10;
+
+// Per-item resize affordances: content-driven blocks auto-size their height, so
+// only horizontal resize is offered; flexible blocks are user-sized both ways.
+const CONTENT_HANDLES: Layout['resizeHandles'] = ['e'];
+const FLEX_HANDLES: Layout['resizeHandles'] = ['e', 's', 'se'];
 
 export default function EditorCanvas({
   blocks,
@@ -38,11 +45,13 @@ export default function EditorCanvas({
   onRemove: (id: string) => void;
 }) {
   const cssVars = storeThemeToCssVars(theme);
+  const typeById: Record<string, StoreBlock['type']> = {};
+  for (const b of blocks) typeById[b.id] = b.type;
 
-  // Blocks are content-height (a hero, a product grid that grows with listings),
-  // so the editor auto-sizes each card to its content instead of a fixed grid
-  // height — and only horizontal resizing is offered. The grid `h` is a purely
-  // visual, editor-only value (the storefront renders at natural height).
+  // Content-driven blocks (contentHeight) auto-size to their content, so the
+  // editor measures each and offers only horizontal resize; the storefront
+  // renders them at natural height too. Flexible blocks (text, contact, banner)
+  // are user-sized in both directions, so they keep their stored grid `h`.
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
 
@@ -80,6 +89,13 @@ export default function EditorCanvas({
     );
   }
 
+  const layout = blocksToGrid(blocks).map((item) => {
+    const content = BLOCK_REGISTRY[typeById[item.i]]?.contentHeight;
+    return content
+      ? { ...item, h: rowSpans[item.i] ?? item.h, resizeHandles: CONTENT_HANDLES }
+      : { ...item, resizeHandles: FLEX_HANDLES };
+  });
+
   return (
     <div
       className="store-editor-canvas rounded-2xl p-3 sm:p-4 min-h-[50vh]"
@@ -88,58 +104,77 @@ export default function EditorCanvas({
     >
       <Grid
         className="layout"
-        layout={blocksToGrid(blocks).map((item) => ({ ...item, h: rowSpans[item.i] ?? item.h }))}
+        layout={layout}
         cols={GRID_COLUMNS}
         rowHeight={ROW_HEIGHT}
         margin={[MARGIN, MARGIN]}
         isBounded
         isResizable
-        resizeHandles={['e']}
         draggableHandle=".rgl-drag"
         onLayoutChange={onLayoutChange}
         compactType="vertical"
       >
         {blocks.map((block) => {
           const def = BLOCK_REGISTRY[block.type];
+          const content = def.contentHeight;
           const selected = block.id === selectedId;
-          return (
+          const cardStyle = {
+            background: 'var(--color-surface)',
+            color: 'var(--color-charcoal)',
+            border: selected ? '2px solid var(--color-primary)' : '1px solid var(--store-border)',
+          };
+          const card = (
+            <>
+              <div
+                className="rgl-drag flex items-center justify-between px-2.5 py-1.5 cursor-move select-none text-[11px] font-medium"
+                style={{ borderBottom: '1px solid var(--store-border)', color: 'var(--store-muted)' }}
+              >
+                <span>{def.label}</span>
+                <button
+                  type="button"
+                  className="rgl-no-drag px-1.5 rounded hover:opacity-70"
+                  aria-label={L.remove}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(block.id);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div className={content ? 'p-3' : 'p-3 flex-1'}>
+                <BlockPreview block={block} storeName={storeName} assets={assets} />
+              </div>
+            </>
+          );
+          // Content blocks: the bordered card is an inner wrapper at NATURAL
+          // height (measured + observed for auto-fit), and the leftover grid
+          // cell stays transparent so there's no dead space inside the card.
+          // Flexible blocks: the bordered card fills the user-sized grid cell.
+          return content ? (
             <div
               key={block.id}
-              className="rounded-xl overflow-hidden flex flex-col"
-              style={{
-                background: 'var(--color-surface)',
-                color: 'var(--color-charcoal)',
-                border: selected ? '2px solid var(--color-primary)' : '1px solid var(--store-border)',
-              }}
               onMouseDownCapture={() => onSelect(block.id)}
               data-block-card={block.type}
             >
-              {/* Inner wrapper flows at NATURAL content height (the outer card is
-                  RGL-fixed); we measure + observe THIS so auto-height reflects the
-                  real content, including late-loading images. */}
-              <div ref={(el) => { cardRefs.current[block.id] = el; }} className="flex flex-col">
-                <div
-                  className="rgl-drag flex items-center justify-between px-2.5 py-1.5 cursor-move select-none text-[11px] font-medium"
-                  style={{ borderBottom: '1px solid var(--store-border)', color: 'var(--store-muted)' }}
-                >
-                  <span>{def.label}</span>
-                  <button
-                    type="button"
-                    className="rgl-no-drag px-1.5 rounded hover:opacity-70"
-                    aria-label={L.remove}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemove(block.id);
-                    }}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="p-3">
-                  <BlockPreview block={block} storeName={storeName} assets={assets} />
-                </div>
+              <div
+                ref={(el) => { cardRefs.current[block.id] = el; }}
+                className="rounded-xl overflow-hidden flex flex-col"
+                style={cardStyle}
+              >
+                {card}
               </div>
+            </div>
+          ) : (
+            <div
+              key={block.id}
+              className="rounded-xl overflow-hidden flex flex-col h-full"
+              style={cardStyle}
+              onMouseDownCapture={() => onSelect(block.id)}
+              data-block-card={block.type}
+            >
+              {card}
             </div>
           );
         })}
