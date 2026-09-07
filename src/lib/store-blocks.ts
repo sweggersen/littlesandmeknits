@@ -124,8 +124,6 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     description: 'Logo, butikknavn og en kort undertittel, over et valgfritt bakgrunnsbilde.',
     defaultProps: {
       showBanner: true,
-      hideTitle: false,
-      title: '',
       tagline: '',
       ctaText: '',
       ctaHref: '',
@@ -135,10 +133,9 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       overlayStyle: 'bottom',
     },
     propSchema: [
-      { key: 'title', kind: 'text', label: 'Butikknavn', placeholder: '{store}' },
+      { key: 'title', kind: 'text', label: 'Butikknavn (tomt felt = ingen tittel)' },
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
       { key: 'logo', kind: 'assetId', label: 'Logo' },
-      { key: 'hideTitle', kind: 'boolean', label: 'Skjul butikknavn (bruk logo som navn)' },
       { key: 'bgImage', kind: 'assetId', label: 'Bakgrunnsbilde' },
       { key: 'overlay', kind: 'number', label: 'Mørkt overlegg (0–100)' },
       {

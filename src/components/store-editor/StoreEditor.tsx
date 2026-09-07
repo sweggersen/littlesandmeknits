@@ -28,11 +28,25 @@ function layoutsDiffer(blocks: StoreBlock[], next: StoreBlock[]): boolean {
   });
 }
 
+/** Give hero blocks whose title was never set an explicit value equal to the
+ *  store name, so the editor field shows a real, editable title. Leaves an
+ *  empty-string title (an intentional "no title") untouched. */
+function withHeroTitleDefaults(blocks: StoreBlock[], storeName: string): StoreBlock[] {
+  return blocks.map((b) =>
+    b.type === 'hero' && (b.props as Record<string, unknown>).title === undefined
+      ? { ...b, props: { ...b.props, title: storeName } }
+      : b,
+  );
+}
+
 export default function StoreEditor(props: StoreEditorProps) {
   const { slug, storeName, initialTheme, initialBlocks, initialAssets, listings } = props;
 
   const [theme, setTheme] = useState<StoreTheme>(initialTheme);
-  const [blocks, setBlocks] = useState<StoreBlock[]>(initialBlocks);
+  // Pre-fill hero titles with the store's own name so the "Butikknavn" field
+  // holds a real, editable value. An undefined title (never set) becomes the
+  // store name; an empty string is left alone so "cleared = no title" sticks.
+  const [blocks, setBlocks] = useState<StoreBlock[]>(() => withHeroTitleDefaults(initialBlocks, storeName));
   const [assets, setAssets] = useState<EditorAsset[]>(initialAssets);
   const [selectedId, setSelectedId] = useState<string | null>(initialBlocks[0]?.id ?? null);
   const [dirty, setDirty] = useState(false);
@@ -73,7 +87,7 @@ export default function StoreEditor(props: StoreEditorProps) {
   // ── Mutations ──────────────────────────────────────────────────────
   function handleAddBlock(type: StoreBlockType) {
     snapshot();
-    const next = addBlock(blocks, type);
+    const next = withHeroTitleDefaults(addBlock(blocks, type), storeName);
     setBlocks(next);
     setSelectedId(next[next.length - 1].id);
     markDirty();
