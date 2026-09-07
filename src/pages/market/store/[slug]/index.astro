@@ -11,6 +11,7 @@ import type { Store, PublicStorefront } from '../../../../lib/types/stores';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/services/stores';
 import { getMyRole } from '../../../../lib/services/store-members';
+import { can } from '../../../../lib/services/store-permissions';
 import { projectPhotoUrl } from '../../../../lib/storage';
 import { storeShareMeta } from '../../../../lib/seo';
 import { createServerSupabase, createAdminSupabase } from '../../../../lib/supabase';
@@ -132,10 +133,22 @@ const avgRating = reviewCount > 0
 // Fallback to the terracotta brand colour when no accent is set.
 const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
 
+// Draft preview: a store's branding editor can preview UNPUBLISHED changes via
+// ?preview=draft. Gated to editors (manager+); every other viewer always sees
+// the live storefront, so a half-edited draft never leaks to the public.
+const wantsDraftPreview = Astro.url.searchParams.get('preview') === 'draft';
+let previewDraft = false;
+if (wantsDraftPreview && ctx && rawStore) {
+  const editorRole = await getMyRole(ctx, store.id);
+  if (can.editBranding(editorRole)) previewDraft = true;
+}
+const activeTheme = previewDraft ? (store.theme_draft ?? store.theme) : store.theme;
+const activePageConfig = previewDraft ? (store.page_config_draft ?? store.page_config) : store.page_config;
+
 // Page-builder storefront: if the store has a non-empty, sanitisable
 // page_config, render the themed block layout instead of the default
 // storefront. Stores without config keep the existing storefront untouched.
-const useBuilder = hasBuilderConfig(store.page_config);
+const useBuilder = hasBuilderConfig(activePageConfig);
 let storeAssets: Array<{ id: string; path: string; kind: string | null; alt: string | null }> = [];
 if (useBuilder) {
   const { data: assetRows } = await admin
@@ -165,6 +178,13 @@ const storeShare = storeShareMeta({
 
 <Layout title={`${store.name} — Strikketorget`} description={storeShare.description} ogImage={storeShare.ogImage} lang="nb">
   <MarketplaceShell>
+    {previewDraft && (
+      <div class="mb-4 bg-sage-500/10 border border-sage-500/30 text-charcoal rounded-2xl px-4 py-3 text-sm flex items-center gap-2 flex-wrap">
+        <span>✏️</span>
+        <span>Forhåndsvisning av utkast. Endringene er ikke publisert enda.</span>
+        <a href={`/market/store/${store.slug}/admin/butikk`} class="underline font-medium ml-auto">Tilbake til redigering</a>
+      </div>
+    )}
     {previewBanner && (
       <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl px-4 py-3 text-sm flex items-center gap-2 flex-wrap">
         <span class="text-amber-600">👁</span>
@@ -178,8 +198,8 @@ const storeShare = storeShareMeta({
     {useBuilder ? (
       <StorePageRenderer
         store={store}
-        theme={store.theme}
-        pageConfig={store.page_config}
+        theme={activeTheme}
+        pageConfig={activePageConfig}
         listings={listings ?? []}
         assets={storeAssets}
       />
