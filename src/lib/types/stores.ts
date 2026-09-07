@@ -35,6 +35,12 @@ export interface Store {
   theme: Record<string, unknown> | null;
   page_config: { blocks?: unknown[] } | null;
 
+  // Draft copies (Phase 2 editor). The editor writes here; the public
+  // storefront keeps rendering the LIVE theme/page_config until "Publiser"
+  // copies draft -> live. Null = no unpublished changes.
+  theme_draft: Record<string, unknown> | null;
+  page_config_draft: { blocks?: unknown[] } | null;
+
   // Contact
   location_city: string | null;
   contact_email: string | null;

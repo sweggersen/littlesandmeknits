@@ -319,6 +319,49 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  // 0107 Phase 2 draft columns: theme_draft / page_config_draft are covered by
+  // the existing stores UPDATE policy (owner/admin/manager only). A non-member
+  // cannot write another store's draft; a branding editor (manager+) can.
+  describe('stores draft columns (0107)', () => {
+    let storeId: string;
+    beforeAll(async () => {
+      const slug = `rls-draft-${Date.now()}`;
+      const { data: store, error } = await admin.from('stores').insert({
+        slug, orgnr: String(920000000 + (Date.now() % 79999999)),
+        created_by: bobId, legal_name: 'RLS DRAFT AS', legal_address: 'Storgata 3',
+        legal_business_type: 'AS', legal_status: 'aktiv', name: 'RLS Draft-butikk',
+        contact_email: 'rls-draft@test.no', status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`store insert failed: ${error.message}`);
+      storeId = store!.id;
+      // bob = owner, charlie = manager (branding editor). alice = non-member.
+      await admin.from('store_members').insert([
+        { store_id: storeId, user_id: bobId, role: 'owner', visible_on_storefront: true },
+        { store_id: storeId, user_id: charlieId, role: 'manager', visible_on_storefront: true },
+      ]);
+    });
+
+    it('a non-member CANNOT write theme_draft', async () => {
+      await aliceClient.from('stores')
+        .update({ theme_draft: { colors: { page: '#000000' } } }).eq('id', storeId);
+      const { data } = await admin.from('stores').select('theme_draft').eq('id', storeId).maybeSingle();
+      expect(data?.theme_draft).toBeNull(); // unchanged: the update matched no row
+    });
+
+    it('a store manager (branding editor) CAN write page_config_draft', async () => {
+      const { error } = await charlieClient.from('stores')
+        .update({ page_config_draft: { blocks: [] } }).eq('id', storeId);
+      expect(error).toBeNull();
+      const { data } = await admin.from('stores').select('page_config_draft').eq('id', storeId).maybeSingle();
+      expect(data?.page_config_draft).toEqual({ blocks: [] });
+    });
+
+    afterAll(async () => {
+      await admin.from('store_members').delete().eq('store_id', storeId);
+      await admin.from('stores').delete().eq('id', storeId);
+    });
+  });
+
   // 0106 store page-builder: store_assets RLS + the stores theme/page_config
   // write path. Editors (owner/admin/manager) write; the public reads assets of
   // an active store; non-members cannot write theme or assets.

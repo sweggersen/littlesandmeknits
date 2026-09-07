@@ -9,6 +9,10 @@ import {
   saveStoreTheme,
   saveStorePage,
   resetStorePage,
+  saveStoreDraft,
+  publishStoreDraft,
+  applyPresetToDraft,
+  resetStoreDraft,
 } from '../../../../lib/services/store-page';
 import { toResponse } from '../../../../lib/services/response';
 
@@ -30,6 +34,18 @@ export const POST: APIRoute = async ({ params, request, cookies }) => {
       return toResponse(await saveStorePage(ctx, store.id, body.page_config));
     case 'reset':
       return toResponse(await resetStorePage(ctx, store.id));
+    // Phase 2 editor: draft/publish flow.
+    case 'save-draft':
+      return toResponse(await saveStoreDraft(ctx, store.id, {
+        theme: body.theme,
+        pageConfig: body.page_config,
+      }));
+    case 'publish-draft':
+      return toResponse(await publishStoreDraft(ctx, store.id));
+    case 'apply-preset-draft':
+      return toResponse(await applyPresetToDraft(ctx, store.id, String(body.presetId ?? '')));
+    case 'reset-draft':
+      return toResponse(await resetStoreDraft(ctx, store.id));
     default:
       return new Response('Unknown action', { status: 400 });
   }
