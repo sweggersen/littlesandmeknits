@@ -55,15 +55,16 @@ export function init(): void {
         link.classList.add('flex', 'flex-row', 'items-center');
         if (imgWrap) imgWrap.className = 'w-28 h-28 flex-shrink-0';
         if (img) { img.classList.remove('aspect-square'); img.classList.add('w-28', 'h-28', 'rounded-l-2xl'); }
-        // List view has room to breathe: larger title + a prominent, accented price.
+        // List view has room to breathe: larger title, and the (already bold +
+        // accented) price bumped up a size. Grid keeps the same style, smaller.
         title?.classList.remove('text-sm'); title?.classList.add('text-lg');
-        price?.classList.remove('text-sm'); price?.classList.add('text-xl', 'font-bold', 'text-primary');
+        price?.classList.remove('text-sm'); price?.classList.add('text-xl');
       } else {
         link.classList.remove('flex', 'flex-row', 'items-center');
         if (imgWrap) imgWrap.className = '';
         if (img) { img.classList.add('aspect-square'); img.classList.remove('w-28', 'h-28', 'rounded-l-2xl'); }
         title?.classList.add('text-sm'); title?.classList.remove('text-lg');
-        price?.classList.add('text-sm'); price?.classList.remove('text-xl', 'font-bold', 'text-primary');
+        price?.classList.add('text-sm'); price?.classList.remove('text-xl');
       }
     });
 
