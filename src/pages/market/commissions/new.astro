@@ -35,18 +35,19 @@ const CATEGORIES = [
 
 <Layout title="Nytt oppdrag · Strikketorget" lang="nb">
   <MarketplaceShell current="oppdrag">
-      <h1 class="font-serif text-3xl mb-2">Ny forespørsel</h1>
-      <p class="text-sm text-charcoal/55 mb-8">Beskriv hva du ønsker strikket — strikkere kan gi tilbud på pris og leveringstid.</p>
+      <div class="max-w-2xl mx-auto">
+      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny forespørsel</h1>
+      <p class="text-sm text-charcoal/55 mb-6">Beskriv hva du ønsker strikket, så kan strikkere gi tilbud på pris og leveringstid.</p>
 
       {targetKnitterName && (
         <div class="bg-sage-100/50 rounded-2xl p-4 border border-sage-500/15 mb-6">
           <p class="text-sm text-charcoal/65">
-            Privat forespørsel til <span class="font-medium text-charcoal">{targetKnitterName}</span> — kun denne strikkeren ser forespørselen.
+            Privat forespørsel til <span class="font-medium text-charcoal">{targetKnitterName}</span>. Kun denne strikkeren ser forespørselen.
           </p>
         </div>
       )}
 
-      <form method="post" action="/api/marketplace/commissions/create" enctype="multipart/form-data" data-astro-reload class="space-y-5">
+      <form method="post" action="/api/marketplace/commissions/create" enctype="multipart/form-data" data-astro-reload class="bg-surface rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
         {targetKnitterId && <input type="hidden" name="target_knitter_id" value={targetKnitterId} />}
 
         <label class="block">
@@ -135,14 +136,17 @@ const CATEGORIES = [
 
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Beskrivelse</span>
-          <textarea name="description" rows="4" maxlength="2000" placeholder="Ekstra detaljer om hva du ønsker — mønster, garntype, spesielle ønsker…"
+          <textarea name="description" rows="4" maxlength="2000" placeholder="Ekstra detaljer om hva du ønsker, f.eks. mønster, garntype, spesielle ønsker…"
             class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors resize-none"></textarea>
         </label>
 
-        <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
-          Publiser forespørsel
-        </button>
-        <p class="text-[11px] text-charcoal/45 text-center">Forespørselen er åpen i 30 dager. Du kan avbryte når som helst.</p>
+        <div class="flex items-center justify-between gap-3 pt-2 border-t border-sage-500/10 mt-6">
+          <a href="/market/commissions" class="text-sm font-medium text-charcoal/60 hover:text-charcoal transition-colors px-4 py-2">Avbryt</a>
+          <div class="flex-1"></div>
+          <button type="submit" class="bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">Publiser forespørsel →</button>
+        </div>
       </form>
+      <p class="text-[11px] text-charcoal/45 text-center mt-4">Forespørselen er åpen i 30 dager. Du kan avbryte når som helst.</p>
+      </div>
   </MarketplaceShell>
 </Layout>
