@@ -84,6 +84,7 @@ export const STORE_EDITOR_LABELS = {
   published: 'Publisert',
   publishing: 'Publiserer …',
   reset: 'Tilbakestill',
+  undo: 'Angre',
   remove: 'Fjern',
   moveUp: 'Flytt opp',
   moveDown: 'Flytt ned',

@@ -40,6 +40,8 @@ export default function StoreEditor(props: StoreEditorProps) {
   const [saveState, setSaveState] = useState<AsyncState>('idle');
   const [publishState, setPublishState] = useState<AsyncState>('idle');
   const [error, setError] = useState<string | null>(null);
+  // Undo history: prior {theme, layout} snapshots, capped at 50.
+  const [history, setHistory] = useState<{ theme: StoreTheme; blocks: StoreBlock[] }[]>([]);
 
   const selectedBlock = blocks.find((b) => b.id === selectedId) ?? null;
 
@@ -51,37 +53,59 @@ export default function StoreEditor(props: StoreEditorProps) {
     setDirty(true);
     setPublishState('idle');
   }
+  // Snapshot the current state BEFORE a mutation so Undo can restore it.
+  function snapshot() {
+    setHistory((h) => [...h.slice(-49), { theme: structuredClone(theme), blocks: structuredClone(blocks) }]);
+  }
+  function handleUndo() {
+    setHistory((h) => {
+      if (h.length === 0) return h;
+      const prev = h[h.length - 1];
+      setTheme(prev.theme);
+      setBlocks(prev.blocks);
+      setSelectedId((cur) => (prev.blocks.some((b) => b.id === cur) ? cur : prev.blocks[0]?.id ?? null));
+      setDirty(true);
+      setPublishState('idle');
+      return h.slice(0, -1);
+    });
+  }
 
   // ── Mutations ──────────────────────────────────────────────────────
   function handleAddBlock(type: StoreBlockType) {
+    snapshot();
     const next = addBlock(blocks, type);
     setBlocks(next);
     setSelectedId(next[next.length - 1].id);
     markDirty();
   }
   function handleRemove(id: string) {
+    snapshot();
     setBlocks(removeBlock(blocks, id));
     if (selectedId === id) setSelectedId(null);
     markDirty();
   }
   function handleUpdateProps(patch: Record<string, unknown>) {
     if (!selectedBlock) return;
+    snapshot();
     setBlocks(updateBlockProps(blocks, selectedBlock.id, patch));
     markDirty();
   }
   function handleLayoutChange(layout: Layout[]) {
     const next = gridToBlocks(blocks, layout);
     if (!layoutsDiffer(blocks, next)) return;
+    snapshot();
     setBlocks(next);
     markDirty();
   }
   function handleThemeChange(t: StoreTheme) {
+    snapshot();
     setTheme(t);
     markDirty();
   }
   function handleApplyPreset(presetId: string) {
     const preset = STORE_PRESETS[presetId];
     if (!preset) return;
+    snapshot();
     // A preset dictates COLOUR + FONT (the theme). It only seeds a starting
     // LAYOUT when the store has none yet, so picking a theme never wipes a
     // layout you've already built. Deep clone so editing doesn't mutate the
@@ -148,6 +172,7 @@ export default function StoreEditor(props: StoreEditorProps) {
     setError(null);
     try {
       await resetDraft(slug);
+      snapshot();
       setTheme(structuredClone(DEFAULT_STORE_THEME));
       setBlocks([]);
       setSelectedId(null);
@@ -161,19 +186,24 @@ export default function StoreEditor(props: StoreEditorProps) {
 
   return (
     <div className="space-y-4" data-store-editor data-hydrated={hydrated ? '1' : undefined}>
-      <Toolbar
-        dirty={dirty}
-        saveState={saveState}
-        publishState={publishState}
-        error={error}
-        onSave={() => void doSave()}
-        onPreview={() => void handlePreview()}
-        onPublish={() => void handlePublish()}
-        onReset={() => void handleReset()}
-      />
+      {/* Toolbar stays pinned below the site nav (h-16 = 64px) while scrolling. */}
+      <div className="sticky top-16 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 bg-linen border-b border-sage-500/10">
+        <Toolbar
+          dirty={dirty}
+          saveState={saveState}
+          publishState={publishState}
+          error={error}
+          onSave={() => void doSave()}
+          onPreview={() => void handlePreview()}
+          onPublish={() => void handlePublish()}
+          onReset={() => void handleReset()}
+          onUndo={handleUndo}
+          canUndo={history.length > 0}
+        />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] gap-4 items-start">
-        <aside className="space-y-6 lg:sticky lg:top-4">
+        <aside className="space-y-6 lg:sticky lg:top-[132px]">
           <BlockPalette onAdd={handleAddBlock} />
           <ThemePanel theme={theme} onChange={handleThemeChange} onApplyPreset={handleApplyPreset} />
         </aside>
@@ -191,7 +221,7 @@ export default function StoreEditor(props: StoreEditorProps) {
           />
         </main>
 
-        <aside className="bg-surface rounded-2xl border border-sage-500/10 p-4 lg:sticky lg:top-4">
+        <aside className="bg-surface rounded-2xl border border-sage-500/10 p-4 lg:sticky lg:top-[132px]">
           <PropertyPanel
             block={selectedBlock}
             slug={slug}
@@ -199,7 +229,7 @@ export default function StoreEditor(props: StoreEditorProps) {
             listings={listings}
             onUpdate={handleUpdateProps}
             onAssetUploaded={handleAssetUploaded}
-            onMove={(dir) => { if (selectedBlock) { setBlocks(moveBlock(blocks, selectedBlock.id, dir)); markDirty(); } }}
+            onMove={(dir) => { if (selectedBlock) { snapshot(); setBlocks(moveBlock(blocks, selectedBlock.id, dir)); markDirty(); } }}
           />
         </aside>
       </div>

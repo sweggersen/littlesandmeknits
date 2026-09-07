@@ -13,6 +13,8 @@ export default function Toolbar({
   onPreview,
   onPublish,
   onReset,
+  onUndo,
+  canUndo,
 }: {
   dirty: boolean;
   saveState: AsyncState;
@@ -22,6 +24,8 @@ export default function Toolbar({
   onPreview: () => void;
   onPublish: () => void;
   onReset: () => void;
+  onUndo: () => void;
+  canUndo: boolean;
 }) {
   const saveLabel =
     saveState === 'busy' ? L.saving : saveState === 'done' && !dirty ? L.saved : L.save;
@@ -29,17 +33,28 @@ export default function Toolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {/* Reset stays on the left, well away from the primary actions. */}
-      <button
-        type="button"
-        onClick={onReset}
-        className="px-4 py-2 rounded-full text-sm font-medium text-charcoal/60 hover:bg-sage-100/60 transition-colors"
-        data-reset
-      >
-        {L.reset}
-      </button>
+      {/* Undo + reset centred in the middle. */}
+      <div className="mx-auto flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="px-4 py-2 rounded-full text-sm font-medium text-charcoal/60 hover:bg-sage-100/60 transition-colors disabled:opacity-40 disabled:hover:bg-transparent"
+          data-undo
+        >
+          {L.undo}
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          className="px-4 py-2 rounded-full text-sm font-medium text-charcoal/60 hover:bg-sage-100/60 transition-colors"
+          data-reset
+        >
+          {L.reset}
+        </button>
+      </div>
       {/* Primary actions grouped on the right, where the eye lands. */}
-      <div className="ml-auto flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={onSave}
