@@ -52,9 +52,9 @@ const COMPONENTS: Record<StoreBlockType, any> = {
       const Comp = COMPONENTS[block.type];
       if (!Comp || !def) return null; // defensive: skip unknown
       // Content-driven blocks render at natural height. Flexible blocks are
-      // user-sized vertically in the editor, so honour that as a min-height
-      // floor (same 12px row / 10px gap metrics the editor grid uses).
-      const minH = def.contentHeight ? null : Math.max(0, block.layout.h * 22 - 10);
+      // user-sized vertically in the editor (h is a pixel value that includes
+      // the editor's 12px bottom spacer), so honour it as a min-height floor.
+      const minH = def.contentHeight ? null : Math.max(0, block.layout.h - 12);
       const style = minH ? `--col-span:${block.layout.w};min-height:${minH}px` : `--col-span:${block.layout.w}`;
       return (
         <div class="store-block" style={style} data-block-type={block.type}>

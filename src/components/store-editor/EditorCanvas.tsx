@@ -15,10 +15,14 @@ import BlockPreview from './BlockPreview';
 import type { EditorAsset } from './types';
 
 const Grid = WidthProvider(GridLayout);
-// A fine row unit so the grid snaps tightly to content (small leftover gap) and
-// vertical resizing of flexible blocks feels smooth.
-const ROW_HEIGHT = 12;
-const MARGIN = 10;
+// A 1px row unit with ZERO vertical margin means a block's grid height equals
+// its pixel height exactly — no row-snapping overshoot, so every block fits its
+// content with no dead space. The uniform vertical gap between blocks is added
+// as a transparent GAP spacer inside each cell (not via grid margin, which would
+// re-introduce rounding). Horizontal margin still separates side-by-side blocks.
+const ROW_HEIGHT = 1;
+const MARGIN_X = 12;
+const GAP = 12;
 
 // Content-driven blocks auto-size to their content and aren't manually resized
 // (no handles). Flexible blocks are user-sized via the bottom-right corner,
@@ -62,7 +66,8 @@ export default function EditorCanvas({
       for (const id of Object.keys(cardRefs.current)) {
         const el = cardRefs.current[id];
         if (!el) continue;
-        const rows = Math.max(1, Math.ceil((el.scrollHeight + MARGIN) / (ROW_HEIGHT + MARGIN)));
+        // 1px row unit: the natural content height (in px) IS the row count.
+        const rows = Math.max(1, Math.ceil(el.scrollHeight));
         if (next[id] !== rows) { next[id] = rows; changed = true; }
       }
       return changed ? next : prev;
@@ -91,12 +96,13 @@ export default function EditorCanvas({
 
   const layout = blocksToGrid(blocks).map((item) => {
     const content = BLOCK_REGISTRY[typeById[item.i]]?.contentHeight;
-    const measured = rowSpans[item.i];
+    // Cell height = natural content + the uniform bottom spacer.
+    const floor = (rowSpans[item.i] ?? item.h) + GAP;
     return content
-      ? { ...item, h: measured ?? item.h, resizeHandles: [], isResizable: false }
+      ? { ...item, h: floor, resizeHandles: [], isResizable: false }
       // Never shorter than the content, so flexible blocks can't clip their
       // text; the user's corner-drag only adds space beyond that floor.
-      : { ...item, h: Math.max(measured ?? 1, item.h), resizeHandles: FLEX_HANDLES };
+      : { ...item, h: Math.max(floor, item.h), resizeHandles: FLEX_HANDLES };
   });
 
   return (
@@ -110,7 +116,7 @@ export default function EditorCanvas({
         layout={layout}
         cols={GRID_COLUMNS}
         rowHeight={ROW_HEIGHT}
-        margin={[MARGIN, MARGIN]}
+        margin={[MARGIN_X, 0]}
         isBounded
         isResizable
         draggableHandle=".rgl-drag"
@@ -151,37 +157,28 @@ export default function EditorCanvas({
               </div>
             </>
           );
-          // We measure the inner wrapper's NATURAL height for every block.
-          // Content blocks: the bordered card IS that inner wrapper, so it hugs
-          // its content and the leftover cell stays transparent (no dead space).
-          // Flexible blocks: the bordered card fills the cell (whose height is
-          // floored at the content height, so text never clips); any extra
-          // vertical space the user adds shows below the content, in the border.
-          return content ? (
+          // Every cell = a bordered card + a transparent GAP spacer, so the gap
+          // below every block is identical. We measure the inner (natural)
+          // content for all blocks. Content blocks: the card hugs that content.
+          // Flexible blocks: the card grows to fill the user-sized cell (never
+          // shorter than the content, so text can't clip) while the inner stays
+          // natural at the top — so measurement isn't skewed by the fill.
+          return (
             <div
               key={block.id}
+              className="flex flex-col"
               onMouseDownCapture={() => onSelect(block.id)}
               data-block-card={block.type}
             >
               <div
-                ref={(el) => { cardRefs.current[block.id] = el; }}
-                className="rounded-xl overflow-hidden flex flex-col"
+                className={content ? 'rounded-xl overflow-hidden flex flex-col' : 'rounded-xl overflow-hidden flex flex-col flex-1'}
                 style={cardStyle}
               >
-                {card}
+                <div ref={(el) => { cardRefs.current[block.id] = el; }} className="flex flex-col">
+                  {card}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div
-              key={block.id}
-              className="rounded-xl overflow-hidden flex flex-col h-full"
-              style={cardStyle}
-              onMouseDownCapture={() => onSelect(block.id)}
-              data-block-card={block.type}
-            >
-              <div ref={(el) => { cardRefs.current[block.id] = el; }} className="flex flex-col">
-                {card}
-              </div>
+              <div style={{ height: GAP }} aria-hidden="true" />
             </div>
           );
         })}

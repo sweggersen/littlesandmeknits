@@ -233,6 +233,7 @@ export default function StoreEditor(props: StoreEditorProps) {
           <PropertyPanel
             block={selectedBlock}
             slug={slug}
+            storeName={storeName}
             assets={assets}
             listings={listings}
             onUpdate={handleUpdateProps}

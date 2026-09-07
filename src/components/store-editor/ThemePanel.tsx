@@ -30,10 +30,11 @@ export default function ThemePanel({
           value={theme.fontDisplay}
           onChange={(e) => onChange({ ...theme, fontDisplay: e.target.value })}
           className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+          style={{ fontFamily: DISPLAY_FONTS.find((f) => f.id === theme.fontDisplay)?.family }}
           data-font-display
         >
           {DISPLAY_FONTS.map((f) => (
-            <option key={f.id} value={f.id}>{f.label}</option>
+            <option key={f.id} value={f.id} style={{ fontFamily: f.family }}>{f.label}</option>
           ))}
         </select>
       </label>
@@ -44,10 +45,11 @@ export default function ThemePanel({
           value={theme.fontBody}
           onChange={(e) => onChange({ ...theme, fontBody: e.target.value })}
           className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+          style={{ fontFamily: BODY_FONTS.find((f) => f.id === theme.fontBody)?.family }}
           data-font-body
         >
           {BODY_FONTS.map((f) => (
-            <option key={f.id} value={f.id}>{f.label}</option>
+            <option key={f.id} value={f.id} style={{ fontFamily: f.family }}>{f.label}</option>
           ))}
         </select>
       </label>

@@ -89,6 +89,9 @@ export interface PropField {
    *  render/sanitise path independently re-validates against its own enum, so
    *  these are UI affordances, not the security boundary. */
   options?: { value: string; label: string }[];
+  /** Placeholder for text/textarea/url inputs. The token `{store}` is replaced
+   *  with the store's own name, so an empty field visibly defaults to it. */
+  placeholder?: string;
 }
 
 export interface BlockDef {
@@ -132,7 +135,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       overlayStyle: 'bottom',
     },
     propSchema: [
-      { key: 'title', kind: 'text', label: 'Butikknavn (tomt = bruk butikkens navn)' },
+      { key: 'title', kind: 'text', label: 'Butikknavn', placeholder: '{store}' },
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
       { key: 'logo', kind: 'assetId', label: 'Logo' },
       { key: 'hideTitle', kind: 'boolean', label: 'Skjul butikknavn (bruk logo som navn)' },
@@ -154,7 +157,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'ctaText', kind: 'text', label: 'Knappetekst' },
       { key: 'ctaHref', kind: 'url', label: 'Knappelenke' },
     ],
-    minW: 6, minH: 6, defaultW: 12, defaultH: 14,
+    minW: 6, minH: 60, defaultW: 12, defaultH: 220,
   },
   productGrid: {
     type: 'productGrid',
@@ -166,7 +169,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'limit', kind: 'number', label: 'Maks antall' },
     ],
-    minW: 6, minH: 6, defaultW: 12, defaultH: 13,
+    minW: 6, minH: 60, defaultW: 12, defaultH: 240,
   },
   featuredProducts: {
     type: 'featuredProducts',
@@ -178,7 +181,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'ids', kind: 'listingIds', label: 'Annonser' },
     ],
-    minW: 4, minH: 5, defaultW: 8, defaultH: 8,
+    minW: 4, minH: 60, defaultW: 8, defaultH: 140,
   },
   textSection: {
     type: 'textSection',
@@ -189,7 +192,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'body', kind: 'textarea', label: 'Tekst' },
     ],
-    minW: 4, minH: 4, defaultW: 8, defaultH: 8,
+    minW: 4, minH: 100, defaultW: 8, defaultH: 150,
   },
   imageBanner: {
     type: 'imageBanner',
@@ -201,7 +204,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'alt', kind: 'text', label: 'Alt-tekst' },
       { key: 'height', kind: 'number', label: 'Høyde (px)' },
     ],
-    minW: 6, minH: 4, defaultW: 12, defaultH: 8,
+    minW: 6, minH: 100, defaultW: 12, defaultH: 180,
   },
   imageGallery: {
     type: 'imageGallery',
@@ -213,7 +216,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'heading', kind: 'text', label: 'Overskrift' },
       { key: 'images', kind: 'assetIds', label: 'Bilder (maks 10)' },
     ],
-    minW: 4, minH: 5, defaultW: 12, defaultH: 10,
+    minW: 4, minH: 60, defaultW: 12, defaultH: 200,
   },
   contactInfo: {
     type: 'contactInfo',
@@ -221,7 +224,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     description: 'Sted, e-post og lenker til sosiale medier.',
     defaultProps: { heading: 'Kontakt' },
     propSchema: [{ key: 'heading', kind: 'text', label: 'Overskrift' }],
-    minW: 4, minH: 4, defaultW: 4, defaultH: 7,
+    minW: 4, minH: 100, defaultW: 4, defaultH: 140,
   },
 };
 
@@ -247,7 +250,8 @@ export function sanitizeLayout(input: unknown, def: BlockDef): BlockLayout {
     // x + w must not overflow the grid.
     x: Math.min(x, GRID_COLUMNS - w),
     y: clampInt(l.y, 0, 9999, 0),
-    h: clampInt(l.h, def.minH, 99, def.defaultH),
+    // h is a pixel row count (the editor grid uses a 1px row unit).
+    h: clampInt(l.h, def.minH, 6000, def.defaultH),
   };
 }
 

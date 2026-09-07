@@ -273,8 +273,8 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
           <a href="/market/my-listings" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine annonser</a>
           <a href="/market/my-purchases" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine kjøp</a>
           <a href="/market/favorites" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Favoritter</a>
-          <a href="/profile/stores" data-link-my-stores class="hidden px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine butikker</a>
-          <a href="/market/commissions/my-listings" data-link-my-requests class="hidden px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine oppdrag</a>
+          <a href="/profile/stores" data-link-my-stores class="hidden block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine butikker</a>
+          <a href="/market/commissions/my-listings" data-link-my-requests class="hidden block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Mine oppdrag</a>
           <div class="border-t border-sage-500/10 my-1"></div>
           {externalLinks.map((l) => (
             <a href={l.href} class="block px-4 py-2 text-sm text-charcoal/60 hover:bg-sage-100/40">{l.label} →</a>
@@ -347,10 +347,10 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
         <a href="/market/favorites" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Favoritter</a>
       </li>
       <li>
-        <a href="/profile/stores" data-link-my-stores-mobile class="hidden py-2 text-base font-medium text-charcoal/80">Mine butikker</a>
+        <a href="/profile/stores" data-link-my-stores-mobile class="hidden block py-2 text-base font-medium text-charcoal/80">Mine butikker</a>
       </li>
       <li>
-        <a href="/market/commissions/my-listings" data-link-my-requests-mobile class="hidden py-2 text-base font-medium text-charcoal/80">Mine oppdrag</a>
+        <a href="/market/commissions/my-listings" data-link-my-requests-mobile class="hidden block py-2 text-base font-medium text-charcoal/80">Mine oppdrag</a>
       </li>
       <li>
         <a href="/profile" class="block py-2 text-base font-medium text-charcoal/80 hidden" data-st-auth>Min profil</a>

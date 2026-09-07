@@ -11,6 +11,7 @@ import type { EditorAsset, EditorListing } from './types';
 export default function PropertyPanel({
   block,
   slug,
+  storeName,
   assets,
   listings,
   onUpdate,
@@ -19,6 +20,7 @@ export default function PropertyPanel({
 }: {
   block: StoreBlock | null;
   slug: string;
+  storeName: string;
   assets: EditorAsset[];
   listings: EditorListing[];
   onUpdate: (patch: Record<string, unknown>) => void;
@@ -52,6 +54,7 @@ export default function PropertyPanel({
           field={field}
           value={props[field.key]}
           slug={slug}
+          storeName={storeName}
           assets={assets}
           listings={listings}
           onChange={(v) => onUpdate({ [field.key]: v })}
@@ -66,6 +69,7 @@ function Field({
   field,
   value,
   slug,
+  storeName,
   assets,
   listings,
   onChange,
@@ -74,6 +78,7 @@ function Field({
   field: PropField;
   value: unknown;
   slug: string;
+  storeName: string;
   assets: EditorAsset[];
   listings: EditorListing[];
   onChange: (v: unknown) => void;
@@ -82,6 +87,8 @@ function Field({
   const labelEl = (
     <span className="block text-xs font-medium text-charcoal/60 mb-1">{field.label}</span>
   );
+  // `{store}` in a placeholder resolves to the store's own name.
+  const placeholder = field.placeholder?.replace('{store}', storeName);
 
   switch (field.kind) {
     case 'boolean':
@@ -194,6 +201,7 @@ function Field({
           <input
             type={field.kind === 'url' ? 'url' : 'text'}
             value={typeof value === 'string' ? value : ''}
+            placeholder={placeholder}
             onChange={(e) => onChange(e.target.value)}
             className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
             data-prop={field.key}
