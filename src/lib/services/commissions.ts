@@ -4,6 +4,7 @@ import { createNotification } from '../notify';
 import { createStripe } from '../stripe';
 import { insertQueueItem } from '../moderation';
 import { VALID_CATEGORIES } from '../labels';
+import { ALLOWED_IMAGE_TYPES, MAX_PHOTO_BYTES, extFromMime } from '../storage';
 import { bookShipment, getTracking as bringGetTracking } from '../bring';
 import { recordDeadLetter } from './dead-letter';
 import { recordPaymentEvent } from './payment-events';
@@ -38,14 +39,19 @@ export async function knitterCompletedCount(
   return reqs?.length ?? 0;
 }
 
+/** Reference/inspiration images a bestiller can attach to a commission brief. */
+export const MAX_COMMISSION_REFERENCE_PHOTOS = 6;
+
 export async function createRequest(
   ctx: ServiceContext,
   input: {
     title: string; category: string; sizeLabel: string;
     budgetNokMin: string; budgetNokMax: string;
     description?: string; colorway?: string; patternExternalTitle?: string;
+    patternReference?: string; requiresAgreement?: boolean;
     yarnPreference?: string; yarnProvidedByBuyer: boolean; neededBy?: string;
     sizeAgeMonthsMin?: string; sizeAgeMonthsMax?: string; targetKnitterId?: string;
+    referenceImages?: File[];
   },
 ): Promise<ServiceResult<{ redirect: string }>> {
   const title = input.title.trim();
@@ -58,6 +64,21 @@ export async function createRequest(
   const budgetNokMax = toIntOrNull(input.budgetNokMax);
   if (budgetNokMin === null || budgetNokMax === null) return fail('bad_input', 'Budget required');
   if (budgetNokMax < budgetNokMin) return fail('bad_input', 'Max budget must exceed minimum');
+
+  // Validate reference images up front so a bad upload never leaves an orphan
+  // request row behind. Same rules as listing photos (0013 / uploadListingPhotos).
+  const referenceImages = (input.referenceImages ?? []).filter((f) => f && f.size > 0);
+  if (referenceImages.length > MAX_COMMISSION_REFERENCE_PHOTOS) {
+    return fail('bad_input', `Maks ${MAX_COMMISSION_REFERENCE_PHOTOS} referansebilder`);
+  }
+  for (const file of referenceImages) {
+    if (file.size > MAX_PHOTO_BYTES) return fail('bad_input', 'Bildet er for stort (maks 10 MB)');
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) return fail('bad_input', 'Filtypen støttes ikke');
+  }
+
+  // A pattern reference is free text: a name and/or a link (NOT a hosted PDF).
+  const patternReference = input.patternReference?.trim() || null;
+  const requiresAgreement = input.requiresAgreement === true;
 
   // Daily quota — prevents bot floods.
   const quotaFail = await assertWithinQuota(ctx, 'commission_request_create');
@@ -78,7 +99,13 @@ export async function createRequest(
       size_age_months_min: toIntOrNull(input.sizeAgeMonthsMin),
       size_age_months_max: toIntOrNull(input.sizeAgeMonthsMax),
       colorway: input.colorway?.trim() || null,
-      pattern_external_title: input.patternExternalTitle?.trim() || null,
+      // The single "Oppskrift eller referanse" field feeds pattern_reference
+      // (the new canonical column, linkified on the detail page). We also mirror
+      // it into pattern_external_title so the existing project-prefill on offer
+      // accept (ensureCommissionProject -> pattern_external) keeps working.
+      pattern_reference: patternReference,
+      pattern_external_title: input.patternExternalTitle?.trim() || patternReference,
+      requires_agreement: requiresAgreement,
       yarn_preference: input.yarnPreference?.trim() || null,
       yarn_provided_by_buyer: input.yarnProvidedByBuyer,
       budget_nok_min: budgetNokMin,
@@ -93,6 +120,27 @@ export async function createRequest(
   if (error || !data) {
     console.error('Commission request create failed', JSON.stringify(error));
     return fail('server_error', `Could not create request: ${error?.message ?? 'unknown'}`);
+  }
+
+  // Upload reference images + record photo rows. RLS-respecting client: the
+  // buyer owns the request, and the storage path is under their own uid folder
+  // (0003 projects-bucket policy pins folder[1] = auth.uid()). Best-effort per
+  // file — a failed upload doesn't roll back the (already valid) request.
+  if (referenceImages.length) {
+    let position = 0;
+    for (const file of referenceImages) {
+      const ext = extFromMime(file.type);
+      const path = `${ctx.user.id}/commissions/${data.id}/photo-${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await ctx.supabase.storage
+        .from('projects').upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) {
+        console.error('Commission reference image upload failed', JSON.stringify(upErr));
+        continue;
+      }
+      await ctx.supabase.from('commission_request_photos')
+        .insert({ request_id: data.id, path, position });
+      position++;
+    }
   }
 
   if (!autoApprove) {

@@ -489,6 +489,72 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  // Migration 0105: reference/inspiration images on a commission brief. RLS
+  // mirrors the parent request's visibility (read), and only the request's
+  // buyer may write (column-pinned WITH CHECK on request_id).
+  describe('commission_request_photos (0105)', () => {
+    it('read follows the parent request visibility (open public: everyone; private: target only)', async () => {
+      const { data: openReq } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId, title: 'rls photos open',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200, status: 'open',
+      }).select('id').single();
+      const { data: privReq } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId, title: 'rls photos private',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200, status: 'open',
+        target_knitter_id: bobId,
+      }).select('id').single();
+      const { data: openPhoto } = await admin.from('commission_request_photos').insert({
+        request_id: openReq!.id, path: 'rls/open-ref.jpg', position: 0,
+      }).select('id').single();
+      const { data: privPhoto } = await admin.from('commission_request_photos').insert({
+        request_id: privReq!.id, path: 'rls/priv-ref.jpg', position: 0,
+      }).select('id').single();
+
+      // Positive: a third party sees the open request's photo.
+      const { data: charlieOpen } = await charlieClient.from('commission_request_photos')
+        .select('id').eq('id', openPhoto!.id);
+      expect(charlieOpen ?? []).toHaveLength(1);
+
+      // Negative: the same third party cannot see the private request's photo,
+      // but the targeted knitter (bob) can.
+      const { data: charliePriv } = await charlieClient.from('commission_request_photos')
+        .select('id').eq('id', privPhoto!.id);
+      expect(charliePriv ?? []).toHaveLength(0);
+      const { data: bobPriv } = await bobClient.from('commission_request_photos')
+        .select('id').eq('id', privPhoto!.id);
+      expect(bobPriv ?? []).toHaveLength(1);
+
+      await admin.from('commission_requests').delete().in('id', [openReq!.id, privReq!.id]);
+    });
+
+    it('only the request buyer may write; a third party cannot, and request_id is pinned to an owned request', async () => {
+      const { data: aliceReq } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId, title: 'rls photos write',
+        category: 'genser', size_label: 'M',
+        budget_nok_min: 100, budget_nok_max: 200, status: 'open',
+      }).select('id').single();
+
+      // Positive: the owner (alice) inserts a photo on her own request.
+      const { data: mine, error: mineErr } = await aliceClient.from('commission_request_photos')
+        .insert({ request_id: aliceReq!.id, path: 'rls/alice-ref.jpg', position: 0 })
+        .select('id').single();
+      expect(mineErr).toBeNull();
+      expect(mine?.id).toBeTruthy();
+
+      // Negative: a third party (charlie) cannot attach a photo to alice's request.
+      const { error: intruderErr } = await charlieClient.from('commission_request_photos')
+        .insert({ request_id: aliceReq!.id, path: 'rls/intruder.jpg', position: 1 });
+      expect(intruderErr).not.toBeNull(); // WITH CHECK: request must be the writer's own
+      const { data: rows } = await admin.from('commission_request_photos')
+        .select('id').eq('request_id', aliceReq!.id);
+      expect(rows ?? []).toHaveLength(1); // only alice's photo survived
+
+      await admin.from('commission_requests').delete().eq('id', aliceReq!.id);
+    });
+  });
+
   describe('commission_offers', () => {
     it('only the offering knitter and the request buyer can read the offer', async () => {
       const { data: req } = await admin.from('commission_requests').insert({

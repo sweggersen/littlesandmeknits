@@ -164,6 +164,38 @@ export type Database = {
           },
         ]
       }
+      commission_request_photos: {
+        Row: {
+          created_at: string | null
+          id: string
+          path: string
+          position: number
+          request_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          path: string
+          position?: number
+          request_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          path?: string
+          position?: number
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_request_photos_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "commission_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commission_requests: {
         Row: {
           auto_release_at: string | null
@@ -191,9 +223,11 @@ export type Database = {
           needed_by: string | null
           offer_count: number
           pattern_external_title: string | null
+          pattern_reference: string | null
           pattern_slug: string | null
           platform_fee_nok: number | null
           report_count: number
+          requires_agreement: boolean
           review_deadline_at: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -243,9 +277,11 @@ export type Database = {
           needed_by?: string | null
           offer_count?: number
           pattern_external_title?: string | null
+          pattern_reference?: string | null
           pattern_slug?: string | null
           platform_fee_nok?: number | null
           report_count?: number
+          requires_agreement?: boolean
           review_deadline_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -295,9 +331,11 @@ export type Database = {
           needed_by?: string | null
           offer_count?: number
           pattern_external_title?: string | null
+          pattern_reference?: string | null
           pattern_slug?: string | null
           platform_fee_nok?: number | null
           report_count?: number
+          requires_agreement?: boolean
           review_deadline_at?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null

@@ -8,6 +8,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (!ctx) return redirect('/login?next=/market/commissions/new');
 
   const form = await request.formData();
+  const referenceImages = form.getAll('reference_images').filter((v): v is File => v instanceof File);
   const result = await createRequest(ctx, {
     title: form.get('title')?.toString() ?? '',
     category: form.get('category')?.toString() ?? '',
@@ -16,13 +17,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     budgetNokMax: form.get('budget_nok_max')?.toString() ?? '',
     description: form.get('description')?.toString(),
     colorway: form.get('colorway')?.toString(),
-    patternExternalTitle: form.get('pattern_external_title')?.toString(),
+    patternReference: form.get('pattern_reference')?.toString(),
+    requiresAgreement: form.get('requires_agreement') === '1',
     yarnPreference: form.get('yarn_preference')?.toString(),
     yarnProvidedByBuyer: form.get('yarn_provided_by_buyer') === '1',
     neededBy: form.get('needed_by')?.toString(),
     sizeAgeMonthsMin: form.get('size_age_months_min')?.toString(),
     sizeAgeMonthsMax: form.get('size_age_months_max')?.toString(),
     targetKnitterId: form.get('target_knitter_id')?.toString(),
+    referenceImages,
   });
   return toResponse(result, redirect);
 };
