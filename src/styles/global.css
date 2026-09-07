@@ -357,6 +357,18 @@
   background-color: var(--color-page);
   color: var(--color-charcoal);
   font-family: var(--font-body);
+  /* Full-bleed: break out of MarketplaceShell's max-w-5xl container + eat its
+     vertical padding so the store's theme fills the whole page (edge to edge,
+     up to the nav) instead of reading as a light box inside the dark site. */
+  width: 100vw;
+  margin-left: 50%;
+  transform: translateX(-50%);
+  margin-top: -0.5rem;
+  padding: 2.5rem 1.25rem 5rem;
+  min-height: calc(100vh - 5rem);
+}
+@media (min-width: 640px) {
+  .store-scope { margin-top: -1.5rem; padding: 3rem 2rem 6rem; }
 }
 .store-scope h1,
 .store-scope h2,
@@ -367,6 +379,9 @@
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 1.5rem 1.5rem;
+  /* Keep content at a readable width, centered within the full-bleed page. */
+  max-width: 64rem;
+  margin: 0 auto;
 }
 .store-block {
   grid-column: span 12;
