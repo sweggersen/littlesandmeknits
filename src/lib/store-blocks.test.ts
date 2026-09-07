@@ -76,6 +76,17 @@ describe('sanitizePageConfig', () => {
     expect(props.evil).toBeUndefined();
   });
 
+  it('keeps a hero title override and caps it at 80 chars', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [
+        { id: 'a', type: 'hero', layout: {}, props: { title: 'Fjellgarn' } },
+        { id: 'b', type: 'hero', layout: {}, props: { title: 'x'.repeat(200) } },
+      ],
+    });
+    expect(cfg.blocks[0].props.title).toBe('Fjellgarn');
+    expect((cfg.blocks[1].props.title as string).length).toBe(80);
+  });
+
   it('returns empty blocks for junk input', () => {
     expect(sanitizePageConfig(null).blocks).toEqual([]);
     expect(sanitizePageConfig({ blocks: 'no' }).blocks).toEqual([]);

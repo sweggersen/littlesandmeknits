@@ -20,10 +20,10 @@ const Grid = WidthProvider(GridLayout);
 const ROW_HEIGHT = 12;
 const MARGIN = 10;
 
-// Per-item resize affordances: content-driven blocks auto-size their height, so
-// only horizontal resize is offered; flexible blocks are user-sized both ways.
-const CONTENT_HANDLES: Layout['resizeHandles'] = ['e'];
-const FLEX_HANDLES: Layout['resizeHandles'] = ['e', 's', 'se'];
+// Content-driven blocks auto-size to their content and aren't manually resized
+// (no handles). Flexible blocks are user-sized via the bottom-right corner,
+// which adjusts width and height together.
+const FLEX_HANDLES: Layout['resizeHandles'] = ['se'];
 
 export default function EditorCanvas({
   blocks,
@@ -48,10 +48,10 @@ export default function EditorCanvas({
   const typeById: Record<string, StoreBlock['type']> = {};
   for (const b of blocks) typeById[b.id] = b.type;
 
-  // Content-driven blocks (contentHeight) auto-size to their content, so the
-  // editor measures each and offers only horizontal resize; the storefront
-  // renders them at natural height too. Flexible blocks (text, contact, banner)
-  // are user-sized in both directions, so they keep their stored grid `h`.
+  // We measure every block's natural content height. Content-driven blocks
+  // (contentHeight) render at exactly that height with no resize handles.
+  // Flexible blocks use it as a floor (so text never clips) and can be grown
+  // via the corner handle. `rowSpans` holds each block's measured row count.
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
 
@@ -91,9 +91,12 @@ export default function EditorCanvas({
 
   const layout = blocksToGrid(blocks).map((item) => {
     const content = BLOCK_REGISTRY[typeById[item.i]]?.contentHeight;
+    const measured = rowSpans[item.i];
     return content
-      ? { ...item, h: rowSpans[item.i] ?? item.h, resizeHandles: CONTENT_HANDLES }
-      : { ...item, resizeHandles: FLEX_HANDLES };
+      ? { ...item, h: measured ?? item.h, resizeHandles: [], isResizable: false }
+      // Never shorter than the content, so flexible blocks can't clip their
+      // text; the user's corner-drag only adds space beyond that floor.
+      : { ...item, h: Math.max(measured ?? 1, item.h), resizeHandles: FLEX_HANDLES };
   });
 
   return (
@@ -143,15 +146,17 @@ export default function EditorCanvas({
                   ✕
                 </button>
               </div>
-              <div className={content ? 'p-3' : 'p-3 flex-1'}>
+              <div className="p-3">
                 <BlockPreview block={block} storeName={storeName} assets={assets} />
               </div>
             </>
           );
-          // Content blocks: the bordered card is an inner wrapper at NATURAL
-          // height (measured + observed for auto-fit), and the leftover grid
-          // cell stays transparent so there's no dead space inside the card.
-          // Flexible blocks: the bordered card fills the user-sized grid cell.
+          // We measure the inner wrapper's NATURAL height for every block.
+          // Content blocks: the bordered card IS that inner wrapper, so it hugs
+          // its content and the leftover cell stays transparent (no dead space).
+          // Flexible blocks: the bordered card fills the cell (whose height is
+          // floored at the content height, so text never clips); any extra
+          // vertical space the user adds shows below the content, in the border.
           return content ? (
             <div
               key={block.id}
@@ -174,7 +179,9 @@ export default function EditorCanvas({
               onMouseDownCapture={() => onSelect(block.id)}
               data-block-card={block.type}
             >
-              {card}
+              <div ref={(el) => { cardRefs.current[block.id] = el; }} className="flex flex-col">
+                {card}
+              </div>
             </div>
           );
         })}

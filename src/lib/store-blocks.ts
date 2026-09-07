@@ -122,6 +122,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     defaultProps: {
       showBanner: true,
       hideTitle: false,
+      title: '',
       tagline: '',
       ctaText: '',
       ctaHref: '',
@@ -131,6 +132,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       overlayStyle: 'bottom',
     },
     propSchema: [
+      { key: 'title', kind: 'text', label: 'Butikknavn (tomt = bruk butikkens navn)' },
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
       { key: 'logo', kind: 'assetId', label: 'Logo' },
       { key: 'hideTitle', kind: 'boolean', label: 'Skjul butikknavn (bruk logo som navn)' },
@@ -322,6 +324,8 @@ function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>
   if (type === 'hero') {
     out.overlay = clampInt(out.overlay, 0, 100, 45);
     out.overlayStyle = coerceOverlayStyle(out.overlayStyle);
+    // Defensive cap: the title renders as a large H1, never a paragraph.
+    if (typeof out.title === 'string') out.title = out.title.slice(0, 80);
   } else if (type === 'imageGallery') {
     out.images = capAssetIds(out.images);
   }

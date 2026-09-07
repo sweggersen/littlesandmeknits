@@ -51,7 +51,7 @@ export default function BlockPreview({
             )}
             {!p.hideTitle && (
               <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
-                {storeName}
+                {str(p.title, storeName)}
               </div>
             )}
             {str(p.tagline) && <div className="text-xs opacity-80 mt-1">{str(p.tagline)}</div>}
