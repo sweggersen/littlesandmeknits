@@ -32,6 +32,34 @@ export type HeroOverlayStyle = (typeof HERO_OVERLAY_STYLES)[number];
  *  sanitizePageConfig, and a third time at render in ImageGallery.astro. */
 export const MAX_GALLERY_IMAGES = 10;
 
+/** The hero's free-layout sub-elements. The owner can position each one inside
+ *  the hero box; an absent key uses the default centred-stack position below. */
+export const HERO_ELEMENT_KEYS = ['logo', 'title', 'subtitle', 'cta'] as const;
+export type HeroElementKey = (typeof HERO_ELEMENT_KEYS)[number];
+
+/** Logo size, as a percent of the hero box width. Bounded so a hostile config
+ *  can't blow the logo up past the hero or shrink it to nothing. */
+export const HERO_LOGO_SCALE_MIN = 10;
+export const HERO_LOGO_SCALE_MAX = 100;
+export const HERO_LOGO_SCALE_DEFAULT = 40;
+
+/** A positioned hero sub-element: x/y are the element's CENTRE as a percent
+ *  (0-100) of the hero box; the logo additionally carries a `scale` percent. */
+export interface HeroElementPos {
+  x: number;
+  y: number;
+  scale?: number;
+}
+
+/** Default centre positions (percent of the hero box) that reproduce today's
+ *  centred vertical stack, used for any element the owner hasn't placed yet. */
+export const HERO_DEFAULT_ELEMENTS: Record<HeroElementKey, HeroElementPos> = {
+  logo: { x: 50, y: 24, scale: HERO_LOGO_SCALE_DEFAULT },
+  title: { x: 50, y: 46 },
+  subtitle: { x: 50, y: 62 },
+  cta: { x: 50, y: 80 },
+};
+
 export interface BlockLayout {
   x: number; // column offset 0..11 (advisory; renderer flows by y then x)
   y: number; // row order (>= 0)
@@ -231,7 +259,7 @@ export function isKnownBlockType(type: unknown): type is StoreBlockType {
   return typeof type === 'string' && Object.prototype.hasOwnProperty.call(BLOCK_REGISTRY, type);
 }
 
-function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+export function clampInt(value: unknown, min: number, max: number, fallback: number): number {
   const n = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(n)) return fallback;
   return Math.min(max, Math.max(min, Math.round(n)));
@@ -315,10 +343,46 @@ export function heroOverlayCss(strength: unknown, style: HeroOverlayStyle): stri
 }
 
 /**
+ * Validate the hero's free-layout `elements` map (trust boundary: assume the
+ * stored value is attacker-controlled). Only the four known keys survive; each
+ * must be an object carrying finite numeric x/y (clamped to 0-100 ints) and the
+ * logo may carry a scale (clamped to the bounded percent range). Anything else
+ * (strings, NaN, arrays, non-object entries, extra keys) is dropped, so the
+ * output is ALWAYS a map of bounded integers or `undefined` when nothing valid
+ * remains — the storefront never sees a raw user value in an inline style.
+ */
+export function sanitizeHeroElements(
+  input: unknown,
+): Partial<Record<HeroElementKey, HeroElementPos>> | undefined {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return undefined;
+  const src = input as Record<string, unknown>;
+  const out: Partial<Record<HeroElementKey, HeroElementPos>> = {};
+  for (const key of HERO_ELEMENT_KEYS) {
+    const raw = src[key];
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+    const o = raw as Record<string, unknown>;
+    // x/y must be present and finite; a NaN/string/missing coord drops the whole
+    // element so it falls back to its default centred-stack position at render.
+    if (typeof o.x !== 'number' || !Number.isFinite(o.x)) continue;
+    if (typeof o.y !== 'number' || !Number.isFinite(o.y)) continue;
+    const pos: HeroElementPos = {
+      x: clampInt(o.x, 0, 100, 50),
+      y: clampInt(o.y, 0, 100, 50),
+    };
+    if (key === 'logo' && typeof o.scale === 'number' && Number.isFinite(o.scale)) {
+      pos.scale = clampInt(o.scale, HERO_LOGO_SCALE_MIN, HERO_LOGO_SCALE_MAX, HERO_LOGO_SCALE_DEFAULT);
+    }
+    out[key] = pos;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
  * Apply per-block-type SEMANTIC clamping on top of the generic structural
  * sanitiser: hero overlay strength -> 0-100 int, overlay style -> bounded enum,
- * gallery images -> at most MAX_GALLERY_IMAGES unique strings. Runs on props
- * that already have the block defaults merged in, so every key is present.
+ * hero element positions -> bounded-int map, gallery images -> at most
+ * MAX_GALLERY_IMAGES unique strings. Runs on props that already have the block
+ * defaults merged in, so every key is present.
  */
 function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>): Record<string, unknown> {
   const out = { ...props };
@@ -327,6 +391,11 @@ function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>
     out.overlayStyle = coerceOverlayStyle(out.overlayStyle);
     // Defensive cap: the title renders as a large H1, never a paragraph.
     if (typeof out.title === 'string') out.title = out.title.slice(0, 80);
+    // Free-layout positions: keep only a fully-validated bounded-int map, else
+    // drop the key entirely so the default centred stack applies.
+    const elements = sanitizeHeroElements(out.elements);
+    if (elements) out.elements = elements;
+    else delete out.elements;
   } else if (type === 'imageGallery') {
     out.images = capAssetIds(out.images);
   }

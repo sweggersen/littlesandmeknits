@@ -7,7 +7,11 @@ import {
   coerceOverlayStyle,
   capAssetIds,
   heroOverlayCss,
+  sanitizeHeroElements,
   HERO_OVERLAY_STYLES,
+  HERO_ELEMENT_KEYS,
+  HERO_LOGO_SCALE_MIN,
+  HERO_LOGO_SCALE_MAX,
   MAX_GALLERY_IMAGES,
   BLOCK_REGISTRY,
   GRID_COLUMNS,
@@ -215,5 +219,109 @@ describe('sanitizePageConfig semantic clamping', () => {
     const kept = (cfg.blocks[0].props as Record<string, unknown>).images as string[];
     expect(kept).toHaveLength(MAX_GALLERY_IMAGES);
     expect(new Set(kept).size).toBe(kept.length); // no dupes
+  });
+});
+
+describe('sanitizeHeroElements', () => {
+  const int = (v: unknown) => typeof v === 'number' && Number.isInteger(v);
+
+  it('keeps valid positions for the four known keys as bounded integers', () => {
+    const el = sanitizeHeroElements({
+      logo: { x: 20, y: 30, scale: 55 },
+      title: { x: 50, y: 45 },
+      subtitle: { x: 50, y: 60 },
+      cta: { x: 50, y: 80 },
+    });
+    expect(el).toBeDefined();
+    expect(el).toEqual({
+      logo: { x: 20, y: 30, scale: 55 },
+      title: { x: 50, y: 45 },
+      subtitle: { x: 50, y: 60 },
+      cta: { x: 50, y: 80 },
+    });
+    for (const key of HERO_ELEMENT_KEYS) {
+      expect(int(el![key]!.x)).toBe(true);
+      expect(int(el![key]!.y)).toBe(true);
+    }
+  });
+
+  it('clamps x/y to 0-100 and rounds to integers', () => {
+    const el = sanitizeHeroElements({
+      logo: { x: -50, y: 250, scale: 40 },
+      title: { x: 33.7, y: 12.2 },
+    });
+    expect(el!.logo).toMatchObject({ x: 0, y: 100 });
+    expect(el!.title).toEqual({ x: 34, y: 12 });
+  });
+
+  it('clamps the logo scale to the bounded percent range', () => {
+    expect(sanitizeHeroElements({ logo: { x: 50, y: 50, scale: 500 } })!.logo!.scale).toBe(HERO_LOGO_SCALE_MAX);
+    expect(sanitizeHeroElements({ logo: { x: 50, y: 50, scale: 1 } })!.logo!.scale).toBe(HERO_LOGO_SCALE_MIN);
+    // Non-logo keys never carry a scale even if one is smuggled in.
+    expect(sanitizeHeroElements({ title: { x: 50, y: 50, scale: 80 } })!.title).toEqual({ x: 50, y: 50 });
+  });
+
+  it('drops junk: extra keys, non-object entries, arrays, NaN and non-numeric coords', () => {
+    const el = sanitizeHeroElements({
+      logo: { x: 40, y: 40 },
+      title: 'nope',
+      subtitle: [1, 2],
+      cta: { x: NaN, y: 10 },
+      evil: { x: 10, y: 10 },
+      constructor: { x: 10, y: 10 },
+    });
+    // Only the one valid element survives; unknown keys are never present.
+    expect(el).toEqual({ logo: { x: 40, y: 40 } });
+    expect(Object.keys(el!)).toEqual(['logo']);
+  });
+
+  it('drops an element whose x or y is a string (never coerced)', () => {
+    expect(sanitizeHeroElements({ title: { x: '50', y: 20 } })).toBeUndefined();
+    expect(sanitizeHeroElements({ title: { x: 50 } })).toBeUndefined(); // missing y
+  });
+
+  it('returns undefined for non-object / empty / all-invalid input', () => {
+    expect(sanitizeHeroElements(undefined)).toBeUndefined();
+    expect(sanitizeHeroElements(null)).toBeUndefined();
+    expect(sanitizeHeroElements('x')).toBeUndefined();
+    expect(sanitizeHeroElements([{ x: 1, y: 1 }])).toBeUndefined();
+    expect(sanitizeHeroElements({})).toBeUndefined();
+    expect(sanitizeHeroElements({ title: {} })).toBeUndefined();
+  });
+
+  it('is applied by sanitizePageConfig on the hero block', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [
+        {
+          id: 'h',
+          type: 'hero',
+          layout: {},
+          props: {
+            elements: {
+              logo: { x: 999, y: -10, scale: 9999 },
+              title: { x: 50.4, y: 40.6 },
+              bogus: { x: 1, y: 1 },
+            },
+          },
+        },
+      ],
+    });
+    const props = cfg.blocks[0].props as Record<string, unknown>;
+    expect(props.elements).toEqual({
+      logo: { x: 100, y: 0, scale: HERO_LOGO_SCALE_MAX },
+      title: { x: 50, y: 41 },
+    });
+  });
+
+  it('omits elements entirely when absent or all-invalid, so defaults apply', () => {
+    const noEl = sanitizePageConfig({
+      blocks: [{ id: 'h', type: 'hero', layout: {}, props: {} }],
+    });
+    expect('elements' in (noEl.blocks[0].props as Record<string, unknown>)).toBe(false);
+
+    const badEl = sanitizePageConfig({
+      blocks: [{ id: 'h', type: 'hero', layout: {}, props: { elements: { title: 'x' } } }],
+    });
+    expect('elements' in (badEl.blocks[0].props as Record<string, unknown>)).toBe(false);
   });
 });

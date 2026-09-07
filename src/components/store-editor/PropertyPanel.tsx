@@ -61,6 +61,24 @@ export default function PropertyPanel({
           onAssetUploaded={onAssetUploaded}
         />
       ))}
+      {block.type === 'hero' && (
+        <div className="pt-2 mt-1 border-t border-sage-500/15 space-y-1.5">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+            {L.heroLayout}
+          </span>
+          <p className="text-[11px] text-charcoal/45">{L.heroLayoutHint}</p>
+          {props.elements != null && (
+            <button
+              type="button"
+              onClick={() => onUpdate({ elements: undefined })}
+              className="text-xs px-3 py-1.5 rounded-full border border-sage-500/30 hover:bg-oatmeal/40"
+              data-hero-reset-layout
+            >
+              {L.heroResetLayout}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
