@@ -105,7 +105,6 @@ export default function EditorCanvas({
           return (
             <div
               key={block.id}
-              ref={(el) => { cardRefs.current[block.id] = el; }}
               className="rounded-xl overflow-hidden flex flex-col"
               style={{
                 background: 'var(--color-surface)',
@@ -115,27 +114,31 @@ export default function EditorCanvas({
               onMouseDownCapture={() => onSelect(block.id)}
               data-block-card={block.type}
             >
-              <div
-                className="rgl-drag flex items-center justify-between px-2.5 py-1.5 cursor-move select-none text-[11px] font-medium"
-                style={{ borderBottom: '1px solid var(--store-border)', color: 'var(--store-muted)' }}
-              >
-                <span>{def.label}</span>
-                <button
-                  type="button"
-                  className="rgl-no-drag px-1.5 rounded hover:opacity-70"
-                  aria-label={L.remove}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(block.id);
-                  }}
+              {/* Inner wrapper flows at NATURAL content height (the outer card is
+                  RGL-fixed); we measure + observe THIS so auto-height reflects the
+                  real content, including late-loading images. */}
+              <div ref={(el) => { cardRefs.current[block.id] = el; }} className="flex flex-col">
+                <div
+                  className="rgl-drag flex items-center justify-between px-2.5 py-1.5 cursor-move select-none text-[11px] font-medium"
+                  style={{ borderBottom: '1px solid var(--store-border)', color: 'var(--store-muted)' }}
                 >
-                  ✕
-                </button>
-              </div>
-              {/* Natural height — the auto-measure sizes the grid cell to fit. */}
-              <div className="p-3">
-                <BlockPreview block={block} storeName={storeName} assets={assets} />
+                  <span>{def.label}</span>
+                  <button
+                    type="button"
+                    className="rgl-no-drag px-1.5 rounded hover:opacity-70"
+                    aria-label={L.remove}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(block.id);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="p-3">
+                  <BlockPreview block={block} storeName={storeName} assets={assets} />
+                </div>
               </div>
             </div>
           );
