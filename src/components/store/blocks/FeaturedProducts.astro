@@ -1,0 +1,35 @@
+---
+// Featured products: a hand-picked subset of the store's listings, by id.
+// Ids are matched against the store's own fetched listings, so a forged id
+// can never surface a listing that isn't the store's.
+import ListingCard from '../../ListingCard.astro';
+import { projectPhotoUrl } from '../../../lib/storage';
+import type { StoreBlockProps } from './types';
+
+const { props = {}, listings = [] } = Astro.props as StoreBlockProps;
+const heading = typeof props.heading === 'string' && props.heading.trim() ? props.heading.trim() : 'Utvalgte';
+const rawIds = Array.isArray(props.ids) ? props.ids : [];
+const ids = rawIds.filter((x): x is string => typeof x === 'string');
+
+const byId = new Map(listings.map((l) => [l.id, l]));
+const picked = ids.map((id) => byId.get(id)).filter((l): l is NonNullable<typeof l> => Boolean(l));
+---
+
+{picked.length > 0 && (
+  <section>
+    <h2 class="font-serif text-2xl mb-4" style="font-family: var(--font-display);">{heading}</h2>
+    <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 list-none p-0 m-0">
+      {picked.map((l) => (
+        <ListingCard
+          id={l.id}
+          title={l.title}
+          price={l.price_nok}
+          imgUrl={l.hero_photo_path ? projectPhotoUrl(l.hero_photo_path) : undefined}
+          meta={l.size_label ?? undefined}
+          escrowEnabled={l.escrow_enabled ?? false}
+          canMeet={l.can_meet ?? false}
+        />
+      ))}
+    </ul>
+  </section>
+)}

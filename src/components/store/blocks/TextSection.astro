@@ -1,0 +1,16 @@
+---
+// Text section: heading + body. Both rendered as ESCAPED text (Astro's default
+// `{}` interpolation) — never set:html — so store copy can't inject markup.
+import type { StoreBlockProps } from './types';
+
+const { props = {} } = Astro.props as StoreBlockProps;
+const heading = typeof props.heading === 'string' ? props.heading.trim() : '';
+const body = typeof props.body === 'string' ? props.body.trim() : '';
+---
+
+{(heading || body) && (
+  <section class="rounded-3xl p-6" style="background-color: var(--color-surface); border: 1px solid var(--store-border);">
+    {heading && <h2 class="font-serif text-xl mb-3" style="font-family: var(--font-display);">{heading}</h2>}
+    {body && <p class="whitespace-pre-wrap leading-relaxed" style="color: var(--store-muted);">{body}</p>}
+  </section>
+)}

@@ -28,6 +28,7 @@ import {
   releaseExpiredReservation as svcReleaseExpiredReservation,
 } from '../../../lib/services/listings';
 import { submitSellerReview as svcSubmitSellerReview } from '../../../lib/services/seller-reviews';
+import { applyPreset as svcApplyPreset } from '../../../lib/services/store-page';
 import { requestRefund as svcRequestRefund, respondToRefund as svcRespondToRefund } from '../../../lib/services/refunds';
 import { resolveDispute as svcResolveDispute } from '../../../lib/services/disputes';
 import { addProgressLog as svcAddProgressLog } from '../../../lib/services/projects';
@@ -931,6 +932,17 @@ async function handle(
       if (memErr) throw memErr;
 
       return { data: { storeId: store.id, slug: store.slug } };
+    }
+
+    case 'apply-store-preset': {
+      // Apply a page-builder preset to a store via the real service (member-gated).
+      if (!actorId) throw new Error('Actor required');
+      const storeId = p.store_id as string | undefined;
+      const presetId = (p.preset_id as string) ?? 'varm-klassisk';
+      if (!storeId) throw new Error('store_id required');
+      const res = await svcApplyPreset(synthCtx(db, actorId), storeId, presetId);
+      if (!res.ok) throw new Error(res.message);
+      return { data: res.data };
     }
 
     case 'count-follows': {
