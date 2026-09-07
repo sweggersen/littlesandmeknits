@@ -93,7 +93,7 @@ function Field({
             type="number"
             value={typeof value === 'number' ? value : ''}
             onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
-            className="w-full bg-white rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+            className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
             data-prop={field.key}
           />
         </label>
@@ -107,7 +107,7 @@ function Field({
             value={typeof value === 'string' ? value : ''}
             onChange={(e) => onChange(e.target.value)}
             rows={4}
-            className="w-full bg-white rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm resize-y"
+            className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm resize-y"
             data-prop={field.key}
           />
         </label>
@@ -149,7 +149,7 @@ function Field({
             type={field.kind === 'url' ? 'url' : 'text'}
             value={typeof value === 'string' ? value : ''}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full bg-white rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+            className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
             data-prop={field.key}
           />
         </label>

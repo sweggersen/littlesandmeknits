@@ -16,7 +16,7 @@ export default function BlockPalette({ onAdd }: { onAdd: (type: StoreBlockType) 
               key={type}
               type="button"
               onClick={() => onAdd(type)}
-              className="w-full text-left bg-white rounded-xl border border-sage-500/15 hover:border-primary/40 hover:bg-oatmeal/30 transition-colors px-3 py-2"
+              className="w-full text-left bg-surface rounded-xl border border-sage-500/15 hover:border-primary/40 hover:bg-oatmeal/30 transition-colors px-3 py-2"
               data-add-block={type}
             >
               <div className="flex items-center justify-between gap-2">

@@ -204,7 +204,7 @@ export default function StoreEditor(props: StoreEditorProps) {
           )}
         </main>
 
-        <aside className="bg-white rounded-2xl border border-sage-500/10 p-4 lg:sticky lg:top-4">
+        <aside className="bg-surface rounded-2xl border border-sage-500/10 p-4 lg:sticky lg:top-4">
           <PropertyPanel
             block={selectedBlock}
             slug={slug}

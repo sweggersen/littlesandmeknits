@@ -29,7 +29,7 @@ export default function ThemePanel({
         <select
           value={theme.fontDisplay}
           onChange={(e) => onChange({ ...theme, fontDisplay: e.target.value })}
-          className="w-full bg-white rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+          className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
           data-font-display
         >
           {DISPLAY_FONTS.map((f) => (
@@ -43,7 +43,7 @@ export default function ThemePanel({
         <select
           value={theme.fontBody}
           onChange={(e) => onChange({ ...theme, fontBody: e.target.value })}
-          className="w-full bg-white rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+          className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
           data-font-body
         >
           {BODY_FONTS.map((f) => (
@@ -61,7 +61,7 @@ export default function ThemePanel({
                 type="color"
                 value={theme.colors[role]}
                 onChange={(e) => setColor(role, e.target.value.toUpperCase())}
-                className="w-7 h-7 rounded border border-sage-500/20 bg-white shrink-0 cursor-pointer"
+                className="w-7 h-7 rounded border border-sage-500/20 bg-surface shrink-0 cursor-pointer"
                 aria-label={STORE_COLOR_ROLE_LABEL[role]}
                 data-color={role}
               />
@@ -74,7 +74,7 @@ export default function ThemePanel({
                   if (isValidHex(v)) setColor(role, v.toUpperCase());
                   else setColor(role, v); // keep typing; sanitised server-side
                 }}
-                className="w-20 bg-white rounded border border-sage-500/20 px-1.5 py-1 text-[11px] font-mono"
+                className="w-20 bg-surface rounded border border-sage-500/20 px-1.5 py-1 text-[11px] font-mono"
                 spellCheck={false}
                 data-color-hex={role}
               />
