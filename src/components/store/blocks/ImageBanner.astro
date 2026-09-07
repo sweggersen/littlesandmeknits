@@ -1,0 +1,21 @@
+---
+// Image banner: a store-uploaded asset in full width. The asset is resolved by
+// id against the store's OWN assets (passed in), so props can only reference
+// images that belong to this store — never an arbitrary storage path.
+import { projectPhotoUrl, resizedImageUrl } from '../../../lib/storage';
+import type { StoreBlockProps } from './types';
+
+const { props = {}, assets = [] } = Astro.props as StoreBlockProps;
+const assetId = typeof props.assetId === 'string' ? props.assetId : '';
+const asset = assets.find((a) => a.id === assetId) ?? null;
+const height = typeof props.height === 'number' && props.height > 0 ? Math.min(props.height, 900) : 320;
+const alt = (typeof props.alt === 'string' && props.alt.trim()) || asset?.alt || '';
+const url = asset ? resizedImageUrl(projectPhotoUrl(asset.path), 1600, { height, resize: 'cover' }) : null;
+---
+
+{url && (
+  <section class="overflow-hidden rounded-3xl" style="border: 1px solid var(--store-border);">
+    <img src={url} alt={alt} loading="lazy" decoding="async"
+      class="w-full object-cover" style={`height:${height}px;`} />
+  </section>
+)}

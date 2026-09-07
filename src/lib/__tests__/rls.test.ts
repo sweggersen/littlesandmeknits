@@ -319,6 +319,83 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  // 0106 store page-builder: store_assets RLS + the stores theme/page_config
+  // write path. Editors (owner/admin/manager) write; the public reads assets of
+  // an active store; non-members cannot write theme or assets.
+  describe('store_assets + store theme (0106)', () => {
+    let storeId: string;
+    let seededAssetId: string;
+    let anonClient: SupabaseClient;
+
+    beforeAll(async () => {
+      anonClient = createClient(SUPABASE_URL!, ANON_KEY!);
+      const slug = `rls-sa-${Date.now()}`;
+      const { data: store, error } = await admin.from('stores').insert({
+        slug, orgnr: String(920000000 + (Date.now() % 79999999)),
+        created_by: bobId, legal_name: 'RLS SA AS', legal_address: 'Storgata 3',
+        legal_business_type: 'AS', legal_status: 'aktiv', name: 'RLS SA-butikk',
+        contact_email: 'rls-sa@test.no', status: 'active',
+      }).select('id').single();
+      if (error) throw new Error(`store insert failed: ${error.message}`);
+      storeId = store!.id;
+      // bob = owner, charlie = manager (editor). alice is a non-member.
+      await admin.from('store_members').insert([
+        { store_id: storeId, user_id: bobId, role: 'owner', visible_on_storefront: true },
+        { store_id: storeId, user_id: charlieId, role: 'manager', visible_on_storefront: true },
+      ]);
+      const { data: asset } = await admin.from('store_assets')
+        .insert({ store_id: storeId, path: `${bobId}/stores/${storeId}/banner-seed.jpg`, kind: 'banner', position: 0 })
+        .select('id').single();
+      seededAssetId = asset!.id;
+    });
+
+    afterAll(async () => {
+      await admin.from('store_assets').delete().eq('store_id', storeId);
+      await admin.from('store_members').delete().eq('store_id', storeId);
+      await admin.from('stores').delete().eq('id', storeId);
+    });
+
+    it('public (anon) CAN read assets of an active store', async () => {
+      const { data } = await anonClient.from('store_assets').select('id').eq('store_id', storeId);
+      expect((data ?? []).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('a store editor (manager) CAN insert an asset', async () => {
+      const { error } = await charlieClient.from('store_assets')
+        .insert({ store_id: storeId, path: `${charlieId}/stores/${storeId}/logo-x.png`, kind: 'logo', position: 1 });
+      expect(error).toBeNull();
+    });
+
+    it('a non-member CANNOT insert an asset (WITH CHECK)', async () => {
+      const { error } = await aliceClient.from('store_assets')
+        .insert({ store_id: storeId, path: `evil/${storeId}/x.png`, kind: 'banner', position: 9 });
+      expect(error).not.toBeNull();
+      const { data } = await admin.from('store_assets').select('id').eq('path', `evil/${storeId}/x.png`);
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('a non-member CANNOT delete an asset', async () => {
+      await aliceClient.from('store_assets').delete().eq('id', seededAssetId);
+      const { data } = await admin.from('store_assets').select('id').eq('id', seededAssetId).maybeSingle();
+      expect(data?.id).toBe(seededAssetId); // still there
+    });
+
+    it('a non-member CANNOT set a store theme via direct PostgREST', async () => {
+      await aliceClient.from('stores').update({ theme: { hacked: true } }).eq('id', storeId);
+      const { data } = await admin.from('stores').select('theme').eq('id', storeId).maybeSingle();
+      expect(data?.theme).toBeNull(); // unchanged
+    });
+
+    it('a store editor (manager) CAN set the theme + page_config', async () => {
+      const { error } = await charlieClient.from('stores')
+        .update({ theme: { colors: { page: '#FFFFFF' } }, page_config: { blocks: [] } })
+        .eq('id', storeId);
+      expect(error).toBeNull();
+      const { data } = await admin.from('stores').select('theme').eq('id', storeId).maybeSingle();
+      expect(data?.theme).not.toBeNull();
+    });
+  });
+
   // Security review 0097 #4: impressions can no longer be fabricated for
   // non-existent listings, and a signed-in caller can't attribute one to
   // someone else. Logged-out impressions for a REAL listing still work.

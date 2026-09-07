@@ -1,0 +1,36 @@
+---
+// Product grid: all active store listings, reusing the shared ListingCard.
+import ListingCard from '../../ListingCard.astro';
+import EmptyState from '../../EmptyState.astro';
+import { projectPhotoUrl } from '../../../lib/storage';
+import type { StoreBlockProps } from './types';
+
+const { props = {}, listings = [] } = Astro.props as StoreBlockProps;
+const heading = typeof props.heading === 'string' && props.heading.trim() ? props.heading.trim() : 'Annonser';
+const limit = typeof props.limit === 'number' && props.limit > 0 ? Math.min(props.limit, 60) : 24;
+const items = listings.slice(0, limit);
+---
+
+<section>
+  <div class="flex items-baseline justify-between mb-4">
+    <h2 class="font-serif text-2xl" style="font-family: var(--font-display);">{heading}</h2>
+    {items.length > 0 && <span class="text-sm" style="color: var(--store-muted);">{items.length} aktive</span>}
+  </div>
+  {items.length === 0 ? (
+    <EmptyState message="Ingen aktive annonser akkurat nå." />
+  ) : (
+    <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 list-none p-0 m-0">
+      {items.map((l) => (
+        <ListingCard
+          id={l.id}
+          title={l.title}
+          price={l.price_nok}
+          imgUrl={l.hero_photo_path ? projectPhotoUrl(l.hero_photo_path) : undefined}
+          meta={l.size_label ?? undefined}
+          escrowEnabled={l.escrow_enabled ?? false}
+          canMeet={l.can_meet ?? false}
+        />
+      ))}
+    </ul>
+  )}
+</section>

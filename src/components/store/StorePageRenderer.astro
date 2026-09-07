@@ -1,0 +1,58 @@
+---
+// Server-side storefront renderer. Lays sanitised blocks onto a 12-column grid
+// inside a `.store-scope` container whose inline style carries the (sanitised)
+// theme CSS variables, so the theme cascades to every block AND the shared
+// components they reuse (ListingCard etc.).
+//
+// Security: theme + page_config are user JSON. Both are sanitised here —
+// unknown block types are dropped, the theme string is built only from
+// validated hex + known font families — before anything reaches the DOM.
+import { storeThemeToCssVars } from '../../lib/store-theme';
+import { sanitizePageConfig, BLOCK_REGISTRY } from '../../lib/store-blocks';
+import type { StorefrontListing, StorefrontAsset, StoreBlockType } from '../../lib/store-blocks';
+import type { Store } from '../../lib/types/stores';
+import StoreHero from './blocks/StoreHero.astro';
+import ProductGrid from './blocks/ProductGrid.astro';
+import FeaturedProducts from './blocks/FeaturedProducts.astro';
+import TextSection from './blocks/TextSection.astro';
+import ImageBanner from './blocks/ImageBanner.astro';
+import ContactInfo from './blocks/ContactInfo.astro';
+
+interface Props {
+  store: Store;
+  theme?: unknown;
+  pageConfig?: unknown;
+  listings?: StorefrontListing[];
+  assets?: StorefrontAsset[];
+}
+
+const { store, theme, pageConfig, listings = [], assets = [] } = Astro.props as Props;
+
+const cssVars = storeThemeToCssVars(theme);
+const page = sanitizePageConfig(pageConfig);
+// Flow top-to-bottom by y, then left-to-right by x.
+const blocks = [...page.blocks].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+
+const COMPONENTS: Record<StoreBlockType, any> = {
+  hero: StoreHero,
+  productGrid: ProductGrid,
+  featuredProducts: FeaturedProducts,
+  textSection: TextSection,
+  imageBanner: ImageBanner,
+  contactInfo: ContactInfo,
+};
+---
+
+<div class="store-scope" style={cssVars} data-store-scope>
+  <div class="store-grid">
+    {blocks.map((block) => {
+      const Comp = COMPONENTS[block.type];
+      if (!Comp || !BLOCK_REGISTRY[block.type]) return null; // defensive: skip unknown
+      return (
+        <div class="store-block" style={`--col-span:${block.layout.w}`} data-block-type={block.type}>
+          <Comp store={store} props={block.props} listings={listings} assets={assets} />
+        </div>
+      );
+    })}
+  </div>
+</div>

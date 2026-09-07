@@ -5,6 +5,9 @@ import ListingCard from '../../../../components/ListingCard.astro';
 import EmptyState from '../../../../components/EmptyState.astro';
 import StoreHeader from '../../../../components/store/StoreHeader.astro';
 import StoreSidebar from '../../../../components/store/StoreSidebar.astro';
+import StorePageRenderer from '../../../../components/store/StorePageRenderer.astro';
+import { hasBuilderConfig } from '../../../../lib/store-blocks';
+import type { Store, PublicStorefront } from '../../../../lib/types/stores';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/services/stores';
 import { getMyRole } from '../../../../lib/services/store-members';
@@ -90,7 +93,14 @@ if (ctx && rawStore) {
   };
 }
 
-const { store, publicMembers } = storefront;
+// `storefront` is assembled from several branches (admin row, public Pick,
+// anon row); the row-shaped branches carry theme/page_config while the
+// public-Pick edge case doesn't (there it's simply absent -> default
+// storefront). Coerce to Store so the builder reads a stable shape.
+const { store, publicMembers } = storefront as {
+  store: Store;
+  publicMembers: PublicStorefront['publicMembers'];
+};
 
 const PREVIEW_LABEL: Record<string, string> = {
   pending_review: 'Forhåndsvisning — butikken venter på moderering',
@@ -122,6 +132,20 @@ const avgRating = reviewCount > 0
 // Fallback to the terracotta brand colour when no accent is set.
 const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
 
+// Page-builder storefront: if the store has a non-empty, sanitisable
+// page_config, render the themed block layout instead of the default
+// storefront. Stores without config keep the existing storefront untouched.
+const useBuilder = hasBuilderConfig(store.page_config);
+let storeAssets: Array<{ id: string; path: string; kind: string | null; alt: string | null }> = [];
+if (useBuilder) {
+  const { data: assetRows } = await admin
+    .from('store_assets')
+    .select('id, path, kind, alt, position')
+    .eq('store_id', store.id)
+    .order('position');
+  storeAssets = assetRows ?? [];
+}
+
 // Owners/members viewing a suspended (frozen) store get a link straight
 // into the moderator thread, if any.
 let frozenThreadId: string | null = null;
@@ -141,16 +165,26 @@ const storeShare = storeShareMeta({
 
 <Layout title={`${store.name} — Strikketorget`} description={storeShare.description} ogImage={storeShare.ogImage} lang="nb">
   <MarketplaceShell>
+    {previewBanner && (
+      <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl px-4 py-3 text-sm flex items-center gap-2 flex-wrap">
+        <span class="text-amber-600">👁</span>
+        <span>{PREVIEW_LABEL[previewBanner]}</span>
+        {previewBanner === 'suspended' && frozenThreadId && (
+          <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium ml-auto">Åpne samtalen med moderator &rarr;</a>
+        )}
+      </div>
+    )}
+
+    {useBuilder ? (
+      <StorePageRenderer
+        store={store}
+        theme={store.theme}
+        pageConfig={store.page_config}
+        listings={listings ?? []}
+        assets={storeAssets}
+      />
+    ) : (
     <div style={accentStyle}>
-      {previewBanner && (
-        <div class="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-2xl px-4 py-3 text-sm flex items-center gap-2 flex-wrap">
-          <span class="text-amber-600">👁</span>
-          <span>{PREVIEW_LABEL[previewBanner]}</span>
-          {previewBanner === 'suspended' && frozenThreadId && (
-            <a href={`/market/moderasjon/${frozenThreadId}`} class="underline font-medium ml-auto">Åpne samtalen med moderator &rarr;</a>
-          )}
-        </div>
-      )}
       <StoreHeader store={store} />
 
       <!-- Body grid: listings + sidebar -->
@@ -217,5 +251,6 @@ const storeShare = storeShareMeta({
         <StoreSidebar store={store} reviewCount={reviewCount} avgRating={avgRating} />
       </div>
     </div>
+    )}
   </MarketplaceShell>
 </Layout>

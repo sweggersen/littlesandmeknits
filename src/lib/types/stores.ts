@@ -29,6 +29,12 @@ export interface Store {
   logo_path: string | null;
   accent_color: string | null;
 
+  // Page-builder + theming (Phase 1). Raw jsonb — always sanitised by
+  // sanitizeStoreTheme / sanitizePageConfig before render. Null = the
+  // platform-default storefront.
+  theme: Record<string, unknown> | null;
+  page_config: { blocks?: unknown[] } | null;
+
   // Contact
   location_city: string | null;
   contact_email: string | null;

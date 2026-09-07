@@ -2,6 +2,10 @@
 
 @import "@fontsource-variable/fraunces";
 @import "@fontsource-variable/inter";
+/* Store page-builder fonts (self-hosted; see src/lib/store-theme.ts STORE_FONTS). */
+@import "@fontsource-variable/playfair-display";
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource-variable/space-grotesk";
 
 @theme {
   /* Brand palette — Littles and Me */
@@ -338,6 +342,39 @@
     letter-spacing: 0.05em;
     color: rgb(from var(--color-charcoal) r g b / 0.5);
     margin-bottom: 8px;
+  }
+}
+
+/* ======================================================================
+   STORE PAGE-BUILDER SCOPE — the storefront renderer wraps its blocks in
+   `.store-scope`, whose inline style carries the (sanitised) theme CSS
+   variables. Because the shared marketplace utilities resolve `var(--color-*)`
+   at the use-site, retinting the tokens here reskins ListingCard etc. inside
+   the scope with no component edits. Blocks lay out on a 12-col grid that
+   collapses to one column on small screens.
+   ====================================================================== */
+.store-scope {
+  background-color: var(--color-page);
+  color: var(--color-charcoal);
+  font-family: var(--font-body);
+}
+.store-scope h1,
+.store-scope h2,
+.store-scope h3 {
+  font-family: var(--font-display);
+}
+.store-grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1.5rem 1.5rem;
+}
+.store-block {
+  grid-column: span 12;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .store-block {
+    grid-column: span var(--col-span, 12);
   }
 }
 

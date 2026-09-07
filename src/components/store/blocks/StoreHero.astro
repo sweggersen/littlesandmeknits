@@ -1,0 +1,45 @@
+---
+// Hero block: logo + store name + tagline, over an optional banner image.
+// The header band uses --store-header-bg (a dark colour by theme convention);
+// text is white for guaranteed contrast over the band / banner overlay.
+import { projectPhotoUrl, resizedImageUrl } from '../../../lib/storage';
+import type { StoreBlockProps } from './types';
+
+const { store, props = {} } = Astro.props as StoreBlockProps;
+
+const rawTagline = typeof props.tagline === 'string' ? props.tagline.trim() : '';
+const tagline = rawTagline || (store.tagline ?? '');
+const showBanner = props.showBanner !== false;
+// <img> element (not CSS url()) so a hostile banner_path can never break out of
+// an inline style. Astro escapes the src attribute.
+const bannerUrl =
+  showBanner && store.banner_path
+    ? resizedImageUrl(projectPhotoUrl(store.banner_path), 1600, { height: 520, resize: 'cover' })
+    : null;
+const logoUrl = store.logo_path ? projectPhotoUrl(store.logo_path) : null;
+
+const ctaText = typeof props.ctaText === 'string' ? props.ctaText.trim() : '';
+const ctaHref = typeof props.ctaHref === 'string' ? props.ctaHref.trim() : '';
+// Only http(s) or same-site paths — never javascript:/data: URIs.
+const cta = ctaText && /^(https?:\/\/|\/)/i.test(ctaHref) ? { text: ctaText, href: ctaHref } : null;
+---
+
+<section class="store-hero relative overflow-hidden rounded-3xl" style="background-color: var(--store-header-bg);">
+  {bannerUrl && (
+    <img src={bannerUrl} alt="" aria-hidden="true"
+      class="absolute inset-0 w-full h-full object-cover opacity-55" loading="eager" decoding="async" />
+  )}
+  <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55));"></div>
+  <div class="relative px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center text-white">
+    {logoUrl && (
+      <img src={logoUrl} alt={store.name}
+        class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white/70 shadow-lg mb-4" />
+    )}
+    <h1 class="font-serif text-3xl sm:text-5xl leading-tight" style="font-family: var(--font-display);">{store.name}</h1>
+    {tagline && <p class="mt-3 max-w-xl text-white/85 text-base sm:text-lg">{tagline}</p>}
+    {cta && (
+      <a href={cta.href} rel="nofollow"
+        class="mt-6 inline-block btn-primary px-6 py-2.5 rounded-full text-sm font-medium">{cta.text}</a>
+    )}
+  </div>
+</section>
