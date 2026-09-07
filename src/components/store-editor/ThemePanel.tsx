@@ -84,7 +84,8 @@ export default function ThemePanel({
       </div>
 
       <div>
-        <span className="block text-xs font-medium text-charcoal/60 mb-1.5">{L.presets}</span>
+        <span className="block text-xs font-medium text-charcoal/60">{L.presets}</span>
+        <p className="text-[11px] text-charcoal/45 mb-1.5">Endrer farger og fonter. Legger til en layout hvis butikken er tom.</p>
         <div className="flex flex-wrap gap-1.5">
           {STORE_PRESET_IDS.map((id) => (
             <button

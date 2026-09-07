@@ -66,7 +66,7 @@ export const STORE_COLOR_ROLE_LABEL: Record<string, string> = {
 };
 
 export const STORE_EDITOR_LABELS = {
-  title: 'Butikk-lekeplass',
+  title: 'Butikk-bygger',
   blocks: 'Blokker',
   addBlock: 'Legg til blokk',
   theme: 'Tema',

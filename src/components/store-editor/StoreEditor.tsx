@@ -82,11 +82,16 @@ export default function StoreEditor(props: StoreEditorProps) {
   function handleApplyPreset(presetId: string) {
     const preset = STORE_PRESETS[presetId];
     if (!preset) return;
-    // Deep clone so editing doesn't mutate the shared preset objects.
+    // A preset dictates COLOUR + FONT (the theme). It only seeds a starting
+    // LAYOUT when the store has none yet, so picking a theme never wipes a
+    // layout you've already built. Deep clone so editing doesn't mutate the
+    // shared preset objects.
     setTheme(structuredClone(preset.theme));
-    const clonedBlocks = structuredClone(preset.page_config.blocks) as StoreBlock[];
-    setBlocks(clonedBlocks);
-    setSelectedId(clonedBlocks[0]?.id ?? null);
+    if (blocks.length === 0) {
+      const clonedBlocks = structuredClone(preset.page_config.blocks) as StoreBlock[];
+      setBlocks(clonedBlocks);
+      setSelectedId(clonedBlocks[0]?.id ?? null);
+    }
     markDirty();
   }
   function handleAssetUploaded(asset: EditorAsset) {
