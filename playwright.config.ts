@@ -6,6 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
 // stale). Locally, `npx playwright test` still runs everything.
 const skipExternal = process.env.PW_SKIP_EXTERNAL === '1';
 
+// Default targets the standard dev server (4321). A worktree/parallel dev
+// server can point the suite elsewhere with E2E_BASE_URL (e.g. :4335) without
+// touching CI, which leaves it unset.
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:4321';
+
 export default defineConfig({
   testDir: './e2e',
   testIgnore: ['**/._*', ...(skipExternal ? ['**/stores.spec.ts'] : [])],
@@ -15,7 +20,7 @@ export default defineConfig({
   retries: 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:4321',
+    baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
@@ -24,7 +29,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:4321',
+    url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,
   },

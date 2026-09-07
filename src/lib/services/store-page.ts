@@ -104,6 +104,122 @@ export async function resetStorePage(
   return ok({ ok: true });
 }
 
+// ── Draft / publish model (Phase 2 editor) ─────────────────────────────
+// The editor writes to the *_draft columns; the public storefront keeps
+// rendering the LIVE theme/page_config until publishStoreDraft copies the
+// (re-sanitised) draft across. Everything is re-sanitised on save AND on
+// publish, so a bad draft can never reach the live storefront.
+
+export interface StoreDraftInput {
+  theme?: unknown;
+  pageConfig?: unknown;
+}
+
+/** Persist a sanitised DRAFT theme and/or page config. Only the provided keys
+ *  are written, so the editor can debounce-save either independently. */
+export async function saveStoreDraft(
+  ctx: ServiceContext,
+  storeId: string,
+  input: StoreDraftInput,
+): Promise<ServiceResult<{ theme?: StoreTheme; page_config?: StorePageConfig }>> {
+  const denied = await requireBrandingEditor(ctx, storeId);
+  if (denied) return denied;
+
+  const update: Record<string, unknown> = {};
+  const out: { theme?: StoreTheme; page_config?: StorePageConfig } = {};
+  if (input.theme !== undefined) {
+    out.theme = sanitizeStoreTheme(input.theme);
+    update.theme_draft = out.theme;
+  }
+  if (input.pageConfig !== undefined) {
+    out.page_config = sanitizePageConfig(input.pageConfig);
+    update.page_config_draft = out.page_config;
+  }
+  if (Object.keys(update).length === 0) return ok(out); // nothing to save
+
+  const { error } = await ctx.admin.from('stores').update(update as never).eq('id', storeId);
+  if (error) {
+    console.error('saveStoreDraft failed', error);
+    return fail('server_error', 'Kunne ikke lagre utkastet');
+  }
+  return ok(out);
+}
+
+/** Copy the draft to the live storefront (re-sanitising both), so a bad draft
+ *  can never publish unsafe data. Keeps the draft mirrored to what went live. */
+export async function publishStoreDraft(
+  ctx: ServiceContext,
+  storeId: string,
+): Promise<ServiceResult<{ theme: StoreTheme; page_config: StorePageConfig }>> {
+  const denied = await requireBrandingEditor(ctx, storeId);
+  if (denied) return denied;
+
+  // admin read: the service already authorised the caller above; RLS would
+  // add nothing here and this row is store-scoped by id.
+  const { data: store } = await ctx.admin
+    .from('stores')
+    .select('theme, page_config, theme_draft, page_config_draft')
+    .eq('id', storeId)
+    .maybeSingle();
+  if (!store) return fail('not_found', 'Butikk ikke funnet');
+
+  const s = store as Record<string, unknown>;
+  const theme = sanitizeStoreTheme(s.theme_draft ?? s.theme);
+  const page_config = sanitizePageConfig(s.page_config_draft ?? s.page_config);
+
+  const { error } = await ctx.admin
+    .from('stores')
+    .update({ theme, page_config, theme_draft: theme, page_config_draft: page_config } as never)
+    .eq('id', storeId);
+  if (error) {
+    console.error('publishStoreDraft failed', error);
+    return fail('server_error', 'Kunne ikke publisere');
+  }
+  return ok({ theme, page_config });
+}
+
+/** Apply a starter preset to the DRAFT (not live), so the editor can preview
+ *  it before publishing. */
+export async function applyPresetToDraft(
+  ctx: ServiceContext,
+  storeId: string,
+  presetId: string,
+): Promise<ServiceResult<{ presetId: string; theme: StoreTheme; page_config: StorePageConfig }>> {
+  const denied = await requireBrandingEditor(ctx, storeId);
+  if (denied) return denied;
+
+  const preset = getPreset(presetId);
+  if (!preset) return fail('bad_input', `Ukjent forhåndsvalg (gyldige: ${STORE_PRESET_IDS.join(', ')})`);
+
+  const theme = sanitizeStoreTheme(preset.theme);
+  const page_config = sanitizePageConfig(preset.page_config);
+  const { error } = await ctx.admin
+    .from('stores')
+    .update({ theme_draft: theme, page_config_draft: page_config } as never)
+    .eq('id', storeId);
+  if (error) {
+    console.error('applyPresetToDraft failed', error);
+    return fail('server_error', 'Kunne ikke bruke forhåndsvalget');
+  }
+  return ok({ presetId, theme, page_config });
+}
+
+/** Clear the DRAFT back to empty (platform default) so the editor resets. Live
+ *  stays untouched until the next publish. */
+export async function resetStoreDraft(
+  ctx: ServiceContext,
+  storeId: string,
+): Promise<ServiceResult<{ ok: true }>> {
+  const denied = await requireBrandingEditor(ctx, storeId);
+  if (denied) return denied;
+  const { error } = await ctx.admin
+    .from('stores')
+    .update({ theme_draft: null, page_config_draft: null } as never)
+    .eq('id', storeId);
+  if (error) return fail('server_error', 'Kunne ikke tilbakestille utkastet');
+  return ok({ ok: true });
+}
+
 /** Upload a store asset (logo/banner/gallery) and record a store_assets row. */
 export async function uploadStoreAsset(
   ctx: ServiceContext,

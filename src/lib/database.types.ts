@@ -2430,6 +2430,7 @@ export type Database = {
           opening_hours: Json | null
           orgnr: string
           page_config: Json | null
+          page_config_draft: Json | null
           pinterest_url: string | null
           promo_year_one_free: boolean | null
           reviewed_at: string | null
@@ -2437,6 +2438,7 @@ export type Database = {
           slug: string
           status: Database["public"]["Enums"]["store_status"]
           theme: Json | null
+          theme_draft: Json | null
           stripe_account_id: string | null
           stripe_connect_requirements: Json | null
           stripe_connect_status: string | null
@@ -2476,6 +2478,7 @@ export type Database = {
           opening_hours?: Json | null
           orgnr: string
           page_config?: Json | null
+          page_config_draft?: Json | null
           pinterest_url?: string | null
           promo_year_one_free?: boolean | null
           reviewed_at?: string | null
@@ -2483,6 +2486,7 @@ export type Database = {
           slug: string
           status?: Database["public"]["Enums"]["store_status"]
           theme?: Json | null
+          theme_draft?: Json | null
           stripe_account_id?: string | null
           stripe_connect_requirements?: Json | null
           stripe_connect_status?: string | null
@@ -2522,6 +2526,7 @@ export type Database = {
           opening_hours?: Json | null
           orgnr?: string
           page_config?: Json | null
+          page_config_draft?: Json | null
           pinterest_url?: string | null
           promo_year_one_free?: boolean | null
           reviewed_at?: string | null
@@ -2529,6 +2534,7 @@ export type Database = {
           slug?: string
           status?: Database["public"]["Enums"]["store_status"]
           theme?: Json | null
+          theme_draft?: Json | null
           stripe_account_id?: string | null
           stripe_connect_requirements?: Json | null
           stripe_connect_status?: string | null

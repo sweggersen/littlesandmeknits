@@ -50,3 +50,48 @@ export const REFUND_REASON: Record<string, string> = {
 
 export const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_LABEL));
 export const VALID_PROJECT_STATUSES = new Set(Object.keys(PROJECT_STATUS));
+
+// Store page-builder editor (Phase 2). Norwegian-facing labels for the theme
+// colour roles + the editor chrome, kept here so no page/island hardcodes them.
+export const STORE_COLOR_ROLE_LABEL: Record<string, string> = {
+  page: 'Sidebakgrunn',
+  surface: 'Kortbakgrunn',
+  text: 'Tekst',
+  muted: 'Dempet tekst',
+  border: 'Kantlinje',
+  primary: 'Hovedfarge',
+  primaryFg: 'Tekst på hovedfarge',
+  accent: 'Aksentfarge',
+  headerBg: 'Toppbakgrunn',
+};
+
+export const STORE_EDITOR_LABELS = {
+  title: 'Butikk-lekeplass',
+  blocks: 'Blokker',
+  addBlock: 'Legg til blokk',
+  theme: 'Tema',
+  fontDisplay: 'Overskriftsfont',
+  fontBody: 'Brødtekstfont',
+  colors: 'Farger',
+  presets: 'Forhåndsvalg',
+  properties: 'Egenskaper',
+  noSelection: 'Velg en blokk for å redigere den.',
+  save: 'Lagre',
+  saved: 'Lagret',
+  saving: 'Lagrer …',
+  preview: 'Forhåndsvis',
+  publish: 'Publiser',
+  published: 'Publisert',
+  publishing: 'Publiserer …',
+  reset: 'Tilbakestill',
+  remove: 'Fjern',
+  moveUp: 'Flytt opp',
+  moveDown: 'Flytt ned',
+  upload: 'Last opp bilde',
+  uploading: 'Laster opp …',
+  chooseImage: 'Velg bilde',
+  noImage: 'Ingen bilde valgt',
+  noListings: 'Butikken har ingen aktive annonser å velge.',
+  confirmReset: 'Vil du tilbakestille utkastet? Ulagrede endringer forsvinner.',
+  emptyCanvas: 'Ingen blokker enda. Legg til en blokk fra venstre, eller velg et forhåndsvalg.',
+} as const;
