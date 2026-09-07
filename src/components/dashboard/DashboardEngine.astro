@@ -11,10 +11,11 @@
   /* Removed panels are hidden from the grid; they live in the palette. */
   .dash-widget.dash-removed { display: none; }
   /* Grouped panels (stats, admin): header sits inside a bordered box like every
-     other panel. The header bar is solid white to match the other panels; the
-     body stays transparent so the white tiles inside still pop. */
+     other panel. The header bar uses the surface token to match the other
+     panels (so it re-tints with the theme); the body stays transparent so the
+     tiles inside still pop. */
   .dash-group { background-color: transparent; }
-  .dash-group-head { background-color: #fff; }
+  .dash-group-head { background-color: var(--color-surface); }
   /* Staggered / masonry mode: fine auto-rows + JS-set row spans let short
      panels sit beside tall ones instead of leaving a full-height gap. Only at
      md+, where the S/M/L column spans apply; mobile stays a single column. */
@@ -58,7 +59,7 @@
   [data-dash-palette] { display: none; }
   body.dash-editing [data-dash-palette] { display: block; }
   .dash-add { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 9999px; border: 1px solid rgba(122,138,110,.3); background: #F7F2EA; color: #3B3733; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .12s, background .12s; }
-  .dash-add:hover { border-color: rgba(194,96,74,.5); background: #fff; }
+  .dash-add:hover { border-color: rgba(194,96,74,.5); background: var(--color-surface); }
   .dash-add .dash-add-plus { color: #C2604A; font-weight: 700; }
   /* Grid/staggered view: a segmented control, active segment highlighted. */
   .dash-modes { display: inline-flex; border: 1px solid rgba(122,138,110,.3); border-radius: 9999px; overflow: hidden; }
