@@ -15,6 +15,7 @@ export default function PropertyPanel({
   listings,
   onUpdate,
   onAssetUploaded,
+  onMove,
 }: {
   block: StoreBlock | null;
   slug: string;
@@ -22,6 +23,7 @@ export default function PropertyPanel({
   listings: EditorListing[];
   onUpdate: (patch: Record<string, unknown>) => void;
   onAssetUploaded: (asset: EditorAsset) => void;
+  onMove?: (dir: 'up' | 'down') => void;
 }) {
   if (!block) {
     return <p className="text-sm text-charcoal/50">{L.noSelection}</p>;
@@ -31,9 +33,19 @@ export default function PropertyPanel({
 
   return (
     <div className="space-y-3">
-      <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
-        {L.properties} · {def.label}
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+          {L.properties} · {def.label}
+        </h3>
+        {onMove && (
+          <div className="flex gap-1 shrink-0">
+            <button type="button" onClick={() => onMove('up')} title={L.moveUp}
+              className="text-xs w-7 h-7 rounded-full border border-sage-500/30 hover:bg-oatmeal/40">↑</button>
+            <button type="button" onClick={() => onMove('down')} title={L.moveDown}
+              className="text-xs w-7 h-7 rounded-full border border-sage-500/30 hover:bg-oatmeal/40">↓</button>
+          </div>
+        )}
+      </div>
       {def.propSchema.map((field) => (
         <Field
           key={field.key}
@@ -92,7 +104,9 @@ function Field({
           <input
             type="number"
             value={typeof value === 'number' ? value : ''}
-            onChange={(e) => onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+            /* Empty clears the value (falls back to the block default) instead of
+               forcing a 0 you can't delete. */
+            onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
             className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
             data-prop={field.key}
           />

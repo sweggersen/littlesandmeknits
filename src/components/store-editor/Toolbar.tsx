@@ -29,41 +29,45 @@ export default function Toolbar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saveState === 'busy'}
-        className="btn-primary px-4 py-2 rounded-full text-sm font-medium disabled:opacity-50"
-        data-save
-      >
-        {saveLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onPreview}
-        className="px-4 py-2 rounded-full text-sm font-medium border border-sage-500/30 hover:bg-oatmeal/40 transition-colors"
-        data-preview
-      >
-        {L.preview}
-      </button>
-      <button
-        type="button"
-        onClick={onPublish}
-        disabled={publishState === 'busy'}
-        className="px-4 py-2 rounded-full text-sm font-medium bg-charcoal text-linen hover:opacity-90 transition-opacity disabled:opacity-50"
-        data-publish
-      >
-        {publishLabel}
-      </button>
+      {/* Reset stays on the left, well away from the primary actions. */}
       <button
         type="button"
         onClick={onReset}
-        className="px-4 py-2 rounded-full text-sm font-medium text-charcoal/60 hover:bg-sage-100/60 transition-colors ml-auto"
+        className="px-4 py-2 rounded-full text-sm font-medium text-charcoal/60 hover:bg-sage-100/60 transition-colors"
         data-reset
       >
         {L.reset}
       </button>
-      {error && <span className="w-full text-sm text-terracotta-700">{error}</span>}
+      {/* Primary actions grouped on the right, where the eye lands. */}
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saveState === 'busy'}
+          className="btn-primary px-4 py-2 rounded-full text-sm font-medium disabled:opacity-50"
+          data-save
+        >
+          {saveLabel}
+        </button>
+        <button
+          type="button"
+          onClick={onPreview}
+          className="px-4 py-2 rounded-full text-sm font-medium border border-sage-500/30 hover:bg-oatmeal/40 transition-colors"
+          data-preview
+        >
+          {L.preview}
+        </button>
+        <button
+          type="button"
+          onClick={onPublish}
+          disabled={publishState === 'busy'}
+          className="px-4 py-2 rounded-full text-sm font-medium bg-charcoal text-linen hover:opacity-90 transition-opacity disabled:opacity-50"
+          data-publish
+        >
+          {publishLabel}
+        </button>
+      </div>
+      {error && <span className="w-full text-sm text-terracotta-700 text-right">{error}</span>}
     </div>
   );
 }

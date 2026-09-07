@@ -184,24 +184,6 @@ export default function StoreEditor(props: StoreEditorProps) {
             onLayoutChange={handleLayoutChange}
             onRemove={handleRemove}
           />
-          {selectedBlock && (
-            <div className="mt-2 flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setBlocks(moveBlock(blocks, selectedBlock.id, 'up')); markDirty(); }}
-                className="text-xs px-2.5 py-1 rounded-full border border-sage-500/30 hover:bg-oatmeal/40"
-              >
-                ↑ {L.moveUp}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setBlocks(moveBlock(blocks, selectedBlock.id, 'down')); markDirty(); }}
-                className="text-xs px-2.5 py-1 rounded-full border border-sage-500/30 hover:bg-oatmeal/40"
-              >
-                ↓ {L.moveDown}
-              </button>
-            </div>
-          )}
         </main>
 
         <aside className="bg-surface rounded-2xl border border-sage-500/10 p-4 lg:sticky lg:top-4">
@@ -212,6 +194,7 @@ export default function StoreEditor(props: StoreEditorProps) {
             listings={listings}
             onUpdate={handleUpdateProps}
             onAssetUploaded={handleAssetUploaded}
+            onMove={(dir) => { if (selectedBlock) { setBlocks(moveBlock(blocks, selectedBlock.id, dir)); markDirty(); } }}
           />
         </aside>
       </div>
