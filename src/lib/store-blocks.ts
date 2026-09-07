@@ -133,7 +133,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       overlayStyle: 'bottom',
     },
     propSchema: [
-      { key: 'title', kind: 'text', label: 'Butikknavn (tomt felt = ingen tittel)' },
+      { key: 'title', kind: 'text', label: 'Butikknavn' },
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
       { key: 'logo', kind: 'assetId', label: 'Logo' },
       { key: 'bgImage', kind: 'assetId', label: 'Bakgrunnsbilde' },
