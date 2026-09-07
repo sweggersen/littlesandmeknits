@@ -46,7 +46,7 @@ export default function BlockPreview({
               <img
                 src={logoUrl}
                 alt=""
-                className="w-10 h-10 rounded-full object-cover border-2 border-white/70 mx-auto mb-2"
+                className="max-h-12 max-w-[70%] w-auto object-contain mx-auto mb-2 drop-shadow"
               />
             )}
             <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
