@@ -72,7 +72,7 @@ describe('sanitizeStoreTheme', () => {
       script: '<script>',
     } as unknown);
     expect(Object.keys(t.colors).sort()).toEqual([...STORE_COLOR_ROLES].sort());
-    expect((t as Record<string, unknown>).script).toBeUndefined();
+    expect((t as unknown as Record<string, unknown>).script).toBeUndefined();
   });
 
   it('neutralises CSS-injection payloads in colour values', () => {

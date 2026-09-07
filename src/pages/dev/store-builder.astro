@@ -1,0 +1,78 @@
+---
+// Store page-builder demo — a DB-free visual scenario (like the Tema-lekeplass).
+// Renders the real StorePageRenderer against an in-memory demo store + listings
+// with a starter preset applied, so reviewers can see a themed, block-composed
+// storefront without seeding. Switch presets via ?preset=<id>.
+import Layout from '../../layouts/Layout.astro';
+import StorePageRenderer from '../../components/store/StorePageRenderer.astro';
+import { STORE_PRESETS, getPreset, STORE_PRESET_IDS } from '../../lib/store-presets';
+import type { Store } from '../../lib/types/stores';
+import type { StorefrontListing } from '../../lib/store-blocks';
+import { devToolsBlocked } from '../../lib/dev-guard';
+
+if (devToolsBlocked(Astro.request)) return Astro.redirect('/login');
+
+const presetId = Astro.url.searchParams.get('preset') ?? 'varm-klassisk';
+const preset = getPreset(presetId) ?? STORE_PRESETS['varm-klassisk'];
+
+// Minimal in-memory store — only the fields the blocks read. Cast to Store; the
+// renderer never touches the omitted columns.
+const demoStore = {
+  id: 'demo',
+  slug: 'demo',
+  name: 'Fjellgarn Strikk',
+  tagline: preset.theme ? 'Håndlagde plagg, strikket med omtanke.' : null,
+  description: null,
+  logo_path: null,
+  banner_path: null,
+  location_city: 'Oslo',
+  contact_email: 'hei@fjellgarn.no',
+  contact_phone: '+47 400 00 000',
+  website_url: 'https://example.no',
+  instagram_url: 'https://instagram.com/example',
+  etsy_url: null,
+  pinterest_url: null,
+  tiktok_url: null,
+  theme: preset.theme,
+  page_config: preset.page_config,
+} as unknown as Store;
+
+const demoListings: StorefrontListing[] = [
+  { id: 'l1', title: 'Håndstrikket lue i alpakka', price_nok: 349, hero_photo_path: null, size_label: 'One size', escrow_enabled: true, can_meet: true },
+  { id: 'l2', title: 'Ullgenser, voksen', price_nok: 899, hero_photo_path: null, size_label: 'M', escrow_enabled: true },
+  { id: 'l3', title: 'Babysokker i merino', price_nok: 199, hero_photo_path: null, size_label: '0–3 mnd', can_meet: true },
+  { id: 'l4', title: 'Kabelvotter', price_nok: 279, hero_photo_path: null, size_label: 'S/M', escrow_enabled: true },
+  { id: 'l5', title: 'Sjal i silke og ull', price_nok: 649, hero_photo_path: null, size_label: 'One size' },
+  { id: 'l6', title: 'Barnegenser med mønster', price_nok: 459, hero_photo_path: null, size_label: '4 år', escrow_enabled: true },
+];
+---
+
+<Layout title="Dev — Butikk-bygger demo" lang="nb">
+  <div class="max-w-5xl mx-auto px-6 py-6">
+    <div class="flex flex-wrap items-center gap-3 mb-6">
+      <h1 class="font-serif text-2xl mr-2">Butikk-bygger demo</h1>
+      <span class="text-xs text-charcoal/55">Forhåndsvalg:</span>
+      {STORE_PRESET_IDS.map((id) => (
+        <a
+          href={`/dev/store-builder?preset=${id}`}
+          class:list={[
+            'text-xs px-3 py-1.5 rounded-full border transition-colors',
+            id === preset.id
+              ? 'bg-primary text-primary-fg border-transparent'
+              : 'border-sage-500/30 hover:bg-oatmeal/40',
+          ]}
+        >{STORE_PRESETS[id].label}</a>
+      ))}
+    </div>
+    <p class="text-xs text-charcoal/55 mb-6">
+      {preset.description} Rendres av den ekte StorePageRenderer med demo-data (ingen database).
+    </p>
+
+    <StorePageRenderer
+      store={demoStore}
+      theme={demoStore.theme}
+      pageConfig={demoStore.page_config}
+      listings={demoListings}
+    />
+  </div>
+</Layout>
