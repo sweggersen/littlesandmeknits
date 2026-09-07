@@ -4,6 +4,7 @@
 // so every schematic preview reflects the live theme.
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout';
 import { BLOCK_REGISTRY, GRID_COLUMNS } from '../../lib/store-blocks';
 import type { StoreBlock } from '../../lib/store-blocks';
@@ -14,6 +15,8 @@ import BlockPreview from './BlockPreview';
 import type { EditorAsset } from './types';
 
 const Grid = WidthProvider(GridLayout);
+const ROW_HEIGHT = 44;
+const MARGIN = 12;
 
 export default function EditorCanvas({
   blocks,
@@ -36,6 +39,36 @@ export default function EditorCanvas({
 }) {
   const cssVars = storeThemeToCssVars(theme);
 
+  // Blocks are content-height (a hero, a product grid that grows with listings),
+  // so the editor auto-sizes each card to its content instead of a fixed grid
+  // height — and only horizontal resizing is offered. The grid `h` is a purely
+  // visual, editor-only value (the storefront renders at natural height).
+  const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [rowSpans, setRowSpans] = useState<Record<string, number>>({});
+
+  const measure = useCallback(() => {
+    setRowSpans((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id of Object.keys(cardRefs.current)) {
+        const el = cardRefs.current[id];
+        if (!el) continue;
+        const rows = Math.max(1, Math.ceil((el.scrollHeight + MARGIN) / (ROW_HEIGHT + MARGIN)));
+        if (next[id] !== rows) { next[id] = rows; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
+  useLayoutEffect(() => { measure(); }, [blocks, theme, measure]);
+  // Re-measure when a card's content resizes (image loads, text edits, etc.).
+  useLayoutEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => measure());
+    Object.values(cardRefs.current).forEach((el) => el && ro.observe(el));
+    return () => ro.disconnect();
+  }, [blocks, measure]);
+
   if (blocks.length === 0) {
     return (
       <div
@@ -55,11 +88,13 @@ export default function EditorCanvas({
     >
       <Grid
         className="layout"
-        layout={blocksToGrid(blocks)}
+        layout={blocksToGrid(blocks).map((item) => ({ ...item, h: rowSpans[item.i] ?? item.h }))}
         cols={GRID_COLUMNS}
-        rowHeight={44}
-        margin={[12, 12]}
+        rowHeight={ROW_HEIGHT}
+        margin={[MARGIN, MARGIN]}
         isBounded
+        isResizable
+        resizeHandles={['e']}
         draggableHandle=".rgl-drag"
         onLayoutChange={onLayoutChange}
         compactType="vertical"
@@ -70,6 +105,7 @@ export default function EditorCanvas({
           return (
             <div
               key={block.id}
+              ref={(el) => { cardRefs.current[block.id] = el; }}
               className="rounded-xl overflow-hidden flex flex-col"
               style={{
                 background: 'var(--color-surface)',
@@ -97,7 +133,8 @@ export default function EditorCanvas({
                   ✕
                 </button>
               </div>
-              <div className="p-3 flex-1 min-h-0 overflow-hidden">
+              {/* Natural height — the auto-measure sizes the grid cell to fit. */}
+              <div className="p-3">
                 <BlockPreview block={block} storeName={storeName} assets={assets} />
               </div>
             </div>

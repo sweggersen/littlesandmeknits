@@ -77,7 +77,9 @@ export function gridToBlocks(
   return blocks.map((b) => {
     const l = byId.get(b.id);
     if (!l) return b;
-    return { ...b, layout: { x: l.x, y: l.y, w: l.w, h: l.h } };
+    // Keep the stored h: block height is auto-measured in the editor (content-
+    // driven) and unused by the storefront, so it must not churn the draft.
+    return { ...b, layout: { x: l.x, y: l.y, w: l.w, h: b.layout.h } };
   });
 }
 

@@ -86,16 +86,20 @@ export default function BlockPreview({
           <div className="text-sm font-semibold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
             {str(p.heading, 'Annonser')}
           </div>
+          {/* A short EXAMPLE row — the live grid grows with the store's actual
+              listings on the storefront; the editor just represents it. */}
           <div className="grid grid-cols-3 gap-1.5">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-square rounded"
-                style={{ background: 'var(--color-surface)', border: '1px solid var(--store-border)' }}
-              />
+                className="h-16 rounded flex items-center justify-center text-[10px]"
+                style={{ background: 'var(--color-surface)', border: '1px solid var(--store-border)', color: 'var(--store-muted)' }}
+              >
+                Produkt
+              </div>
             ))}
           </div>
-          <div className="text-[10px] opacity-55 mt-1.5">Alle aktive annonser (maks {Number(p.limit) || 24})</div>
+          <div className="text-[10px] opacity-55 mt-1.5">Alle aktive annonser vises her (maks {Number(p.limit) || 24}).</div>
         </div>
       );
 
