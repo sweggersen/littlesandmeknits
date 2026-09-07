@@ -92,6 +92,7 @@ export const STORE_EDITOR_LABELS = {
   uploading: 'Laster opp …',
   chooseImage: 'Velg bilde',
   noImage: 'Ingen bilde valgt',
+  maxImagesReached: 'Maks antall bilder valgt.',
   noListings: 'Butikken har ingen aktive annonser å velge.',
   confirmReset: 'Vil du tilbakestille utkastet? Ulagrede endringer forsvinner.',
   emptyCanvas: 'Ingen blokker enda. Legg til en blokk fra venstre, eller velg et forhåndsvalg.',

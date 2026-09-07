@@ -19,7 +19,18 @@ export type StoreBlockType =
   | 'featuredProducts'
   | 'textSection'
   | 'imageBanner'
+  | 'imageGallery'
   | 'contactInfo';
+
+/** The bounded set of hero background-overlay styles. The overlay CSS is built
+ *  ONLY from a clamped 0-100 number + one of these keys, never from a raw user
+ *  string, so it is always inert inside an inline style attribute. */
+export const HERO_OVERLAY_STYLES = ['none', 'solid', 'bottom', 'top', 'radial'] as const;
+export type HeroOverlayStyle = (typeof HERO_OVERLAY_STYLES)[number];
+
+/** Hard cap on images in an imageGallery block. Enforced in the editor, again in
+ *  sanitizePageConfig, and a third time at render in ImageGallery.astro. */
+export const MAX_GALLERY_IMAGES = 10;
 
 export interface BlockLayout {
   x: number; // column offset 0..11 (advisory; renderer flows by y then x)
@@ -63,8 +74,21 @@ export interface StorefrontAsset {
 /** A single prop's shape, for the Phase 2 property panel. */
 export interface PropField {
   key: string;
-  kind: 'text' | 'textarea' | 'boolean' | 'number' | 'assetId' | 'listingIds' | 'url';
+  kind:
+    | 'text'
+    | 'textarea'
+    | 'boolean'
+    | 'number'
+    | 'assetId'
+    | 'assetIds'
+    | 'listingIds'
+    | 'url'
+    | 'select';
   label: string;
+  /** For the 'select' kind: the bounded set of choices the editor offers. The
+   *  render/sanitise path independently re-validates against its own enum, so
+   *  these are UI affordances, not the security boundary. */
+  options?: { value: string; label: string }[];
 }
 
 export interface BlockDef {
@@ -88,10 +112,34 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
   hero: {
     type: 'hero',
     label: 'Toppseksjon',
-    description: 'Logo, butikknavn og en kort undertittel, med valgfritt bannerbilde.',
-    defaultProps: { showBanner: true, tagline: '', ctaText: '', ctaHref: '' },
+    description: 'Logo, butikknavn og en kort undertittel, over et valgfritt bakgrunnsbilde.',
+    defaultProps: {
+      showBanner: true,
+      tagline: '',
+      ctaText: '',
+      ctaHref: '',
+      logo: '',
+      bgImage: '',
+      overlay: 45,
+      overlayStyle: 'bottom',
+    },
     propSchema: [
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
+      { key: 'logo', kind: 'assetId', label: 'Logo' },
+      { key: 'bgImage', kind: 'assetId', label: 'Bakgrunnsbilde' },
+      { key: 'overlay', kind: 'number', label: 'Mørkt overlegg (0–100)' },
+      {
+        key: 'overlayStyle',
+        kind: 'select',
+        label: 'Overleggsstil',
+        options: [
+          { value: 'bottom', label: 'Mørkere nederst' },
+          { value: 'top', label: 'Mørkere øverst' },
+          { value: 'radial', label: 'Mørkere i kantene' },
+          { value: 'solid', label: 'Heldekkende' },
+          { value: 'none', label: 'Ingen' },
+        ],
+      },
       { key: 'showBanner', kind: 'boolean', label: 'Vis banner' },
       { key: 'ctaText', kind: 'text', label: 'Knappetekst' },
       { key: 'ctaHref', kind: 'url', label: 'Knappelenke' },
@@ -142,6 +190,17 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'height', kind: 'number', label: 'Høyde (px)' },
     ],
     minW: 6, minH: 2, defaultW: 12, defaultH: 3,
+  },
+  imageGallery: {
+    type: 'imageGallery',
+    label: 'Bildegalleri',
+    description: 'Opptil ti opplastede bilder i kvadratiske miniatyrer som åpnes i en bildekarusell.',
+    defaultProps: { heading: 'Galleri', images: [] },
+    propSchema: [
+      { key: 'heading', kind: 'text', label: 'Overskrift' },
+      { key: 'images', kind: 'assetIds', label: 'Bilder (maks 10)' },
+    ],
+    minW: 4, minH: 3, defaultW: 12, defaultH: 4,
   },
   contactInfo: {
     type: 'contactInfo',
@@ -196,6 +255,68 @@ function sanitizeProps(input: unknown): Record<string, unknown> {
   return out;
 }
 
+/** Coerce any value into one of the bounded overlay styles. */
+export function coerceOverlayStyle(value: unknown): HeroOverlayStyle {
+  return typeof value === 'string' && (HERO_OVERLAY_STYLES as readonly string[]).includes(value)
+    ? (value as HeroOverlayStyle)
+    : 'bottom';
+}
+
+/** De-dupe + cap an assetIds-style array to strings, at most `max` entries. */
+export function capAssetIds(value: unknown, max = MAX_GALLERY_IMAGES): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of value) {
+    if (typeof v !== 'string' || v.length === 0 || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/**
+ * Build a safe CSS background value for the hero overlay from ONLY a clamped
+ * 0-100 strength + a bounded style key. The output contains nothing but digits,
+ * dots, commas, parentheses and hard-coded CSS keywords, so it is always inert
+ * inside an inline `style` attribute. No user string is ever concatenated in.
+ */
+export function heroOverlayCss(strength: unknown, style: HeroOverlayStyle): string {
+  const s = clampInt(strength, 0, 100, 45);
+  if (s === 0 || style === 'none') return 'transparent';
+  const hi = (s / 100).toFixed(3);
+  const lo = ((s / 100) * 0.35).toFixed(3);
+  switch (style) {
+    case 'solid':
+      return `rgba(0,0,0,${hi})`;
+    case 'top':
+      return `linear-gradient(0deg, rgba(0,0,0,${lo}), rgba(0,0,0,${hi}))`;
+    case 'radial':
+      return `radial-gradient(ellipse at center, rgba(0,0,0,${lo}), rgba(0,0,0,${hi}))`;
+    case 'bottom':
+    default:
+      return `linear-gradient(180deg, rgba(0,0,0,${lo}), rgba(0,0,0,${hi}))`;
+  }
+}
+
+/**
+ * Apply per-block-type SEMANTIC clamping on top of the generic structural
+ * sanitiser: hero overlay strength -> 0-100 int, overlay style -> bounded enum,
+ * gallery images -> at most MAX_GALLERY_IMAGES unique strings. Runs on props
+ * that already have the block defaults merged in, so every key is present.
+ */
+function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...props };
+  if (type === 'hero') {
+    out.overlay = clampInt(out.overlay, 0, 100, 45);
+    out.overlayStyle = coerceOverlayStyle(out.overlayStyle);
+  } else if (type === 'imageGallery') {
+    out.images = capAssetIds(out.images);
+  }
+  return out;
+}
+
 let autoId = 0;
 function ensureId(raw: unknown): string {
   if (typeof raw === 'string' && raw.length > 0 && raw.length <= 64) return raw;
@@ -220,7 +341,7 @@ export function sanitizePageConfig(input: unknown): StorePageConfig {
       id: ensureId(b.id),
       type: b.type,
       layout: sanitizeLayout(b.layout, def),
-      props: { ...def.defaultProps, ...sanitizeProps(b.props) },
+      props: sanitizeBlockProps(b.type, { ...def.defaultProps, ...sanitizeProps(b.props) }),
     });
   }
   return { blocks };

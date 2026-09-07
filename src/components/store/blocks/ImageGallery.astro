@@ -1,0 +1,140 @@
+---
+// Image gallery block: up to ten store-uploaded images as square thumbnails
+// that open the same style of carousel/lightbox viewer the listing detail page
+// uses (thumbnails -> click -> fullscreen carousel with prev/next + keyboard).
+//
+// Security: every image is resolved by asset id against THIS store's OWN assets
+// (passed in), so props can only reference images that belong to this store,
+// never an arbitrary storage path. Thumbnails use squareThumbUrl and the full
+// image uses resizedImageUrl (storage render endpoint), never CSS url(). Alt
+// text renders as attribute-escaped text.
+import { projectPhotoUrl, resizedImageUrl, squareThumbUrl } from '../../../lib/storage';
+import { MAX_GALLERY_IMAGES } from '../../../lib/store-blocks';
+import type { StoreBlockProps } from './types';
+
+const { props = {}, assets = [] } = Astro.props as StoreBlockProps;
+
+const heading = typeof props.heading === 'string' && props.heading.trim() ? props.heading.trim() : '';
+const rawIds = Array.isArray(props.images)
+  ? props.images.filter((x): x is string => typeof x === 'string')
+  : [];
+
+// Resolve ids -> this store's assets, de-dupe, cap at MAX_GALLERY_IMAGES.
+const seen = new Set<string>();
+const images: { thumb: string; full: string; alt: string }[] = [];
+for (const id of rawIds) {
+  if (images.length >= MAX_GALLERY_IMAGES || seen.has(id)) continue;
+  seen.add(id);
+  const asset = assets.find((a) => a.id === id);
+  if (!asset) continue; // unknown / not-ours -> drop
+  const objUrl = projectPhotoUrl(asset.path);
+  const thumb = squareThumbUrl(objUrl, 400);
+  const full = resizedImageUrl(objUrl, 1600, { quality: 80 });
+  if (thumb && full) images.push({ thumb, full, alt: asset.alt ?? '' });
+}
+
+// Unique per-instance id so multiple galleries on one page stay isolated.
+const uid = `gal-${Math.random().toString(36).slice(2, 10)}`;
+---
+
+{images.length > 0 && (
+  <section class="store-gallery" data-gallery={uid}>
+    {heading && (
+      <h2 class="font-serif text-xl mb-4" style="font-family: var(--font-display); color: var(--color-charcoal);">{heading}</h2>
+    )}
+    <ul class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 list-none p-0 m-0">
+      {images.map((img, i) => (
+        <li>
+          <button type="button" data-gallery-thumb={i}
+            class="block w-full aspect-square rounded-2xl overflow-hidden cursor-zoom-in"
+            style="border: 1px solid var(--store-border);" aria-label={`Åpne bilde ${i + 1}`}>
+            <img src={img.thumb} alt={img.alt} loading="lazy" decoding="async" class="w-full h-full object-cover" />
+          </button>
+        </li>
+      ))}
+    </ul>
+
+    <div data-gallery-lightbox class="fixed inset-0 z-[100] bg-black/95 hidden items-center justify-center" role="dialog" aria-modal="true">
+      <button type="button" data-gallery-close class="absolute top-4 right-4 w-10 h-10 rounded-full bg-surface/10 hover:bg-surface/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Lukk">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      {images.length > 1 && (
+        <>
+          <button type="button" data-gallery-prev class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface/10 hover:bg-surface/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Forrige">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <button type="button" data-gallery-next class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface/10 hover:bg-surface/20 flex items-center justify-center text-white transition-colors z-10" aria-label="Neste">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </>
+      )}
+      <div class="w-full h-full flex flex-col items-center px-4 pt-14 pb-4">
+        <div class="flex-1 min-h-0 flex items-center justify-center w-full">
+          <img data-gallery-img src="" alt="" class="max-h-full max-w-full object-contain rounded-lg" />
+        </div>
+        <p data-gallery-counter class="text-white/40 text-xs mt-2 shrink-0"></p>
+      </div>
+    </div>
+  </section>
+)}
+
+<script define:vars={{ uid, imageData: images.map((i) => ({ url: i.full, alt: i.alt })) }}>
+  // define:vars forces is:inline, so this re-runs on every client navigation
+  // with fresh data. Bind once per DOM instance (guard on the root) so a repeat
+  // run on the same view-transitioned DOM can't stack duplicate handlers.
+  function initStoreGallery(rootUid, data) {
+    const root = document.querySelector(`[data-gallery="${rootUid}"]`);
+    if (!root || root.dataset.galleryWired) return;
+    root.dataset.galleryWired = '1';
+
+    const lb = root.querySelector('[data-gallery-lightbox]');
+    const img = lb?.querySelector('[data-gallery-img]');
+    const counter = lb?.querySelector('[data-gallery-counter]');
+    if (!lb || !img) return;
+
+    let current = 0;
+    let lastFocused = null;
+
+    function show(idx) {
+      current = (idx + data.length) % data.length;
+      img.src = data[current].url;
+      img.alt = data[current].alt || '';
+      if (counter) counter.textContent = `${current + 1} / ${data.length}`;
+    }
+
+    function onKey(e) {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowLeft') show(current - 1);
+      else if (e.key === 'ArrowRight') show(current + 1);
+    }
+
+    function open(idx) {
+      lastFocused = document.activeElement;
+      show(idx);
+      lb.classList.remove('hidden');
+      lb.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+      document.addEventListener('keydown', onKey);
+      lb.querySelector('[data-gallery-close]')?.focus();
+    }
+
+    function close() {
+      lb.classList.add('hidden');
+      lb.classList.remove('flex');
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKey);
+      if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
+      lastFocused = null;
+    }
+
+    root.querySelectorAll('[data-gallery-thumb]').forEach((btn) =>
+      btn.addEventListener('click', () => open(parseInt(btn.dataset.galleryThumb, 10))),
+    );
+    lb.querySelector('[data-gallery-close]')?.addEventListener('click', close);
+    lb.querySelector('[data-gallery-prev]')?.addEventListener('click', () => show(current - 1));
+    lb.querySelector('[data-gallery-next]')?.addEventListener('click', () => show(current + 1));
+    lb.addEventListener('click', (e) => { if (e.target === lb) close(); });
+  }
+
+  initStoreGallery(uid, imageData);
+</script>

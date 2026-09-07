@@ -1,7 +1,7 @@
 // Right-rail property panel: renders a form for the selected block, generated
 // from BLOCK_REGISTRY[type].propSchema. One input per PropField kind.
 import { useState } from 'react';
-import { BLOCK_REGISTRY } from '../../lib/store-blocks';
+import { BLOCK_REGISTRY, MAX_GALLERY_IMAGES } from '../../lib/store-blocks';
 import type { StoreBlock, PropField } from '../../lib/store-blocks';
 import { projectPhotoUrl } from '../../lib/storage';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
@@ -141,6 +141,21 @@ function Field({
         </div>
       );
 
+    case 'assetIds':
+      return (
+        <div>
+          {labelEl}
+          <MultiAssetPicker
+            value={Array.isArray(value) ? (value as string[]) : []}
+            slug={slug}
+            assets={assets}
+            max={MAX_GALLERY_IMAGES}
+            onChange={onChange}
+            onAssetUploaded={onAssetUploaded}
+          />
+        </div>
+      );
+
     case 'listingIds':
       return (
         <div>
@@ -151,6 +166,23 @@ function Field({
             onChange={onChange}
           />
         </div>
+      );
+
+    case 'select':
+      return (
+        <label className="block">
+          {labelEl}
+          <select
+            value={typeof value === 'string' ? value : ''}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
+            data-prop={field.key}
+          >
+            {(field.options ?? []).map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
       );
 
     case 'url':
@@ -238,6 +270,100 @@ function AssetPicker({
         <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={busy} data-upload />
       </label>
       {!value && assets.length === 0 && <p className="text-[11px] text-charcoal/45 mt-1">{L.noImage}</p>}
+      {error && <p className="text-[11px] text-terracotta-700 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function MultiAssetPicker({
+  value,
+  slug,
+  assets,
+  max,
+  onChange,
+  onAssetUploaded,
+}: {
+  value: string[];
+  slug: string;
+  assets: EditorAsset[];
+  max: number;
+  onChange: (v: string[]) => void;
+  onAssetUploaded: (asset: EditorAsset) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const atMax = value.length >= max;
+
+  function toggle(id: string) {
+    if (value.includes(id)) {
+      onChange(value.filter((x) => x !== id));
+    } else if (!atMax) {
+      onChange([...value, id]);
+    }
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const { asset } = await uploadAsset(slug, 'gallery', file);
+      onAssetUploaded(asset);
+      // Auto-select the freshly uploaded image if there's room.
+      if (value.length < max) onChange([...value, asset.id]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Opplasting feilet');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div>
+      {assets.length > 0 && (
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
+          {assets.map((a) => {
+            const url = projectPhotoUrl(a.path);
+            const order = value.indexOf(a.id);
+            const selected = order >= 0;
+            const disabled = !selected && atMax;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => toggle(a.id)}
+                disabled={disabled}
+                className="relative aspect-square rounded-lg overflow-hidden disabled:opacity-40"
+                style={{ outline: selected ? '2px solid var(--color-primary, #C76D4E)' : 'none' }}
+                data-asset={a.id}
+                aria-pressed={selected}
+              >
+                {url ? (
+                  <img src={url} alt={a.alt ?? ''} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-[10px]">?</span>
+                )}
+                {selected && (
+                  <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-primary text-primary-fg text-[11px] font-bold flex items-center justify-center">
+                    {order + 1}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <label className="inline-flex items-center gap-2 text-xs font-medium text-primary cursor-pointer">
+        <span className="px-3 py-1.5 rounded-full border border-primary/40 hover:bg-oatmeal/40 transition-colors">
+          {busy ? L.uploading : L.upload}
+        </span>
+        <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={busy || atMax} data-upload />
+      </label>
+      <p className="text-[11px] text-charcoal/45 mt-1">
+        {atMax ? L.maxImagesReached : `${value.length} / ${max}`}
+      </p>
       {error && <p className="text-[11px] text-terracotta-700 mt-1">{error}</p>}
     </div>
   );

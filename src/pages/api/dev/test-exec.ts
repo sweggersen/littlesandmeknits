@@ -945,6 +945,58 @@ async function handle(
       return { data: res.data };
     }
 
+    case 'seed-store-gallery': {
+      // Seed a store with a page_config that exercises the new hero (background
+      // image + overlay + logo) and imageGallery blocks: insert store_assets
+      // (sample paths) then write a page_config referencing them by id. Admin
+      // client is fine here — this is dev-only tooling under /api/dev/*.
+      const storeId = p.store_id as string | undefined;
+      if (!storeId) throw new Error('store_id required');
+      const names = ['sage-sweater', 'autumn-cable', 'terracotta-knit', 'brown-wool', 'mustard-knit'];
+      const assetIds: string[] = [];
+      for (let i = 0; i < names.length; i++) {
+        const { data: asset, error: aErr } = await db
+          .from('store_assets')
+          .insert({ store_id: storeId, path: `_samples/${names[i]}.jpg`, kind: 'gallery', alt: names[i], position: i } as never)
+          .select('id')
+          .single();
+        if (aErr) throw aErr;
+        assetIds.push((asset as { id: string }).id);
+      }
+      const page_config = {
+        blocks: [
+          {
+            id: 'hero',
+            type: 'hero',
+            layout: { x: 0, y: 0, w: 12, h: 3 },
+            props: {
+              tagline: 'Håndlagde plagg, strikket med omtanke.',
+              logo: assetIds[0],
+              bgImage: assetIds[1],
+              overlay: 60,
+              overlayStyle: 'bottom',
+              showBanner: true,
+            },
+          },
+          {
+            id: 'gallery',
+            type: 'imageGallery',
+            layout: { x: 0, y: 1, w: 12, h: 4 },
+            props: { heading: 'Fra verkstedet', images: assetIds },
+          },
+          {
+            id: 'products',
+            type: 'productGrid',
+            layout: { x: 0, y: 2, w: 12, h: 5 },
+            props: { heading: 'Annonser', limit: 24 },
+          },
+        ],
+      };
+      const { error: uErr } = await db.from('stores').update({ page_config } as never).eq('id', storeId);
+      if (uErr) throw uErr;
+      return { data: { assetIds } };
+    }
+
     case 'count-follows': {
       const sellerId = p.seller_id as string | undefined;
       if (!sellerId) throw new Error('seller_id required');
