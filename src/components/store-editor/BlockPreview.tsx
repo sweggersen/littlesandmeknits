@@ -4,6 +4,7 @@
 // All colours/fonts come from the CSS vars the canvas sets via
 // storeThemeToCssVars, so it reflects the live theme automatically.
 import type { StoreBlock } from '../../lib/store-blocks';
+import { heroOverlayCss, coerceOverlayStyle, MAX_GALLERY_IMAGES } from '../../lib/store-blocks';
 import { projectPhotoUrl } from '../../lib/storage';
 import type { EditorAsset } from './types';
 
@@ -23,26 +24,47 @@ export default function BlockPreview({
   const p = block.props as Record<string, unknown>;
 
   switch (block.type) {
-    case 'hero':
+    case 'hero': {
+      const bgAsset = assets.find((a) => a.id === str(p.bgImage));
+      const bgUrl = bgAsset ? projectPhotoUrl(bgAsset.path) : null;
+      const logoAsset = assets.find((a) => a.id === str(p.logo));
+      const logoUrl = logoAsset ? projectPhotoUrl(logoAsset.path) : null;
+      const overlay = heroOverlayCss(p.overlay, coerceOverlayStyle(p.overlayStyle));
       return (
         <div
-          className="rounded-xl px-4 py-6 text-center text-white"
+          className="relative overflow-hidden rounded-xl px-4 py-6 text-center text-white"
           style={{ background: 'var(--store-header-bg)' }}
         >
-          <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
-            {storeName}
-          </div>
-          {str(p.tagline) && <div className="text-xs opacity-80 mt-1">{str(p.tagline)}</div>}
-          {str(p.ctaText) && (
-            <span
-              className="inline-block mt-3 text-[11px] px-3 py-1 rounded-full"
-              style={{ background: 'var(--color-primary)', color: 'var(--color-primary-fg)' }}
-            >
-              {str(p.ctaText)}
-            </span>
+          {bgUrl && (
+            <img src={bgUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />
           )}
+          {overlay !== 'transparent' && (
+            <div className="absolute inset-0" style={{ background: overlay }} />
+          )}
+          <div className="relative">
+            {logoUrl && (
+              <img
+                src={logoUrl}
+                alt=""
+                className="w-10 h-10 rounded-full object-cover border-2 border-white/70 mx-auto mb-2"
+              />
+            )}
+            <div className="text-lg font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+              {storeName}
+            </div>
+            {str(p.tagline) && <div className="text-xs opacity-80 mt-1">{str(p.tagline)}</div>}
+            {str(p.ctaText) && (
+              <span
+                className="inline-block mt-3 text-[11px] px-3 py-1 rounded-full"
+                style={{ background: 'var(--color-primary)', color: 'var(--color-primary-fg)' }}
+              >
+                {str(p.ctaText)}
+              </span>
+            )}
+          </div>
         </div>
       );
+    }
 
     case 'textSection':
       return (
@@ -98,6 +120,49 @@ export default function BlockPreview({
           style={{ height: 90, background: 'var(--color-surface)', border: '1px dashed var(--store-border)' }}
         >
           Bildebanner
+        </div>
+      );
+    }
+
+    case 'imageGallery': {
+      const ids = (Array.isArray(p.images) ? p.images : []).filter(
+        (x): x is string => typeof x === 'string',
+      );
+      const picked = ids
+        .map((id) => assets.find((a) => a.id === id))
+        .filter((a): a is EditorAsset => Boolean(a))
+        .slice(0, MAX_GALLERY_IMAGES);
+      return (
+        <div>
+          {str(p.heading) && (
+            <div className="text-sm font-semibold mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+              {str(p.heading)}
+            </div>
+          )}
+          {picked.length > 0 ? (
+            <div className="grid grid-cols-4 gap-1.5">
+              {picked.map((a) => (
+                <img
+                  key={a.id}
+                  src={projectPhotoUrl(a.path) ?? ''}
+                  alt={a.alt ?? ''}
+                  className="aspect-square w-full rounded object-cover"
+                  style={{ border: '1px solid var(--store-border)' }}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-4 gap-1.5">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="aspect-square rounded"
+                  style={{ background: 'var(--color-surface)', border: '1px dashed var(--store-border)' }}
+                />
+              ))}
+            </div>
+          )}
+          <div className="text-[10px] opacity-55 mt-1.5">Bildegalleri (maks {MAX_GALLERY_IMAGES})</div>
         </div>
       );
     }

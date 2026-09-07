@@ -4,6 +4,11 @@ import {
   sanitizeLayout,
   isKnownBlockType,
   hasBuilderConfig,
+  coerceOverlayStyle,
+  capAssetIds,
+  heroOverlayCss,
+  HERO_OVERLAY_STYLES,
+  MAX_GALLERY_IMAGES,
   BLOCK_REGISTRY,
   GRID_COLUMNS,
   STORE_BLOCK_TYPES,
@@ -102,5 +107,102 @@ describe('registry', () => {
       expect(def.defaultW).toBeGreaterThanOrEqual(def.minW);
       expect(def.defaultW).toBeLessThanOrEqual(GRID_COLUMNS);
     }
+  });
+
+  it('registers the imageGallery block with an assetIds field', () => {
+    expect(isKnownBlockType('imageGallery')).toBe(true);
+    const field = BLOCK_REGISTRY.imageGallery.propSchema.find((f) => f.kind === 'assetIds');
+    expect(field?.key).toBe('images');
+    expect(BLOCK_REGISTRY.imageGallery.defaultProps.images).toEqual([]);
+  });
+
+  it('hero exposes logo + bgImage assetId fields and an overlay-style select', () => {
+    const keys = BLOCK_REGISTRY.hero.propSchema.map((f) => `${f.key}:${f.kind}`);
+    expect(keys).toContain('logo:assetId');
+    expect(keys).toContain('bgImage:assetId');
+    const sel = BLOCK_REGISTRY.hero.propSchema.find((f) => f.key === 'overlayStyle');
+    expect(sel?.kind).toBe('select');
+    // Every option value is a real overlay style.
+    for (const o of sel?.options ?? []) {
+      expect((HERO_OVERLAY_STYLES as readonly string[]).includes(o.value)).toBe(true);
+    }
+  });
+});
+
+describe('coerceOverlayStyle', () => {
+  it('accepts the bounded set and defaults everything else to bottom', () => {
+    for (const s of HERO_OVERLAY_STYLES) expect(coerceOverlayStyle(s)).toBe(s);
+    expect(coerceOverlayStyle('diagonal')).toBe('bottom');
+    expect(coerceOverlayStyle('rgba(0,0,0,1);}evil')).toBe('bottom');
+    expect(coerceOverlayStyle(null)).toBe('bottom');
+    expect(coerceOverlayStyle(42)).toBe('bottom');
+  });
+});
+
+describe('capAssetIds', () => {
+  it('keeps only non-empty strings, de-dupes, and caps at the max', () => {
+    const many = Array.from({ length: 25 }, (_, i) => `a${i}`);
+    expect(capAssetIds(many)).toHaveLength(MAX_GALLERY_IMAGES);
+    expect(capAssetIds(['a', 'a', 'b'])).toEqual(['a', 'b']);
+    expect(capAssetIds(['a', '', 3, null, 'b'] as unknown[])).toEqual(['a', 'b']);
+    expect(capAssetIds('nope')).toEqual([]);
+    expect(capAssetIds(['x', 'y'], 1)).toEqual(['x']);
+  });
+});
+
+describe('heroOverlayCss', () => {
+  it('clamps strength to 0-100 and never emits a user string', () => {
+    // Only digits, dots, commas, parens and hard-coded keywords are ever present.
+    const safe = /^(transparent|rgba\(0,0,0,[0-9.]+\)|(linear|radial)-gradient\([^;{}<>"']*\))$/;
+    for (const style of HERO_OVERLAY_STYLES) {
+      for (const strength of [-50, 0, 1, 45, 100, 9999]) {
+        const css = heroOverlayCss(strength, style);
+        expect(css).toMatch(safe);
+        expect(css).not.toContain(';');
+        expect(css).not.toContain('url(');
+      }
+    }
+  });
+
+  it('0 strength or "none" style yields transparent', () => {
+    expect(heroOverlayCss(0, 'solid')).toBe('transparent');
+    expect(heroOverlayCss(80, 'none')).toBe('transparent');
+  });
+
+  it('maps strength to alpha and picks the right gradient shape', () => {
+    expect(heroOverlayCss(100, 'solid')).toBe('rgba(0,0,0,1.000)');
+    expect(heroOverlayCss(50, 'bottom')).toBe('linear-gradient(180deg, rgba(0,0,0,0.175), rgba(0,0,0,0.500))');
+    expect(heroOverlayCss(50, 'top')).toContain('linear-gradient(0deg');
+    expect(heroOverlayCss(50, 'radial')).toContain('radial-gradient(ellipse at center');
+  });
+});
+
+describe('sanitizePageConfig semantic clamping', () => {
+  it('clamps hero overlay to 0-100 int and coerces overlayStyle to the enum', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [
+        { id: 'h', type: 'hero', layout: {}, props: { overlay: 250, overlayStyle: 'evil; }' } },
+      ],
+    });
+    const props = cfg.blocks[0].props as Record<string, unknown>;
+    expect(props.overlay).toBe(100);
+    expect(props.overlayStyle).toBe('bottom');
+  });
+
+  it('applies default overlay when garbage is passed', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [{ id: 'h', type: 'hero', layout: {}, props: { overlay: 'lots' } }],
+    });
+    expect((cfg.blocks[0].props as Record<string, unknown>).overlay).toBe(45);
+  });
+
+  it('caps gallery images at MAX_GALLERY_IMAGES and de-dupes', () => {
+    const images = [...Array.from({ length: 15 }, (_, i) => `img${i}`), 'img0'];
+    const cfg = sanitizePageConfig({
+      blocks: [{ id: 'g', type: 'imageGallery', layout: {}, props: { images } }],
+    });
+    const kept = (cfg.blocks[0].props as Record<string, unknown>).images as string[];
+    expect(kept).toHaveLength(MAX_GALLERY_IMAGES);
+    expect(new Set(kept).size).toBe(kept.length); // no dupes
   });
 });

@@ -1,22 +1,49 @@
 ---
-// Hero block: logo + store name + tagline, over an optional banner image.
+// Hero block: logo + store name + tagline, over an optional background image.
 // The header band uses --store-header-bg (a dark colour by theme convention);
-// text is white for guaranteed contrast over the band / banner overlay.
+// text is white for guaranteed contrast over the band / image overlay.
+//
+// Security notes:
+//  - Background + logo are rendered as <img> elements (never CSS url()), and the
+//    chosen images are resolved by asset id against THIS store's own assets, so
+//    props can only reference images that belong to this store — never an
+//    arbitrary storage path. A store-level banner_path / logo_path is the
+//    fallback for the pre-builder default.
+//  - The dark overlay is built by heroOverlayCss() from ONLY a clamped 0-100
+//    number + a bounded style key. No user string ever reaches the inline style.
 import { projectPhotoUrl, resizedImageUrl } from '../../../lib/storage';
+import { heroOverlayCss, coerceOverlayStyle } from '../../../lib/store-blocks';
 import type { StoreBlockProps } from './types';
 
-const { store, props = {} } = Astro.props as StoreBlockProps;
+const { store, props = {}, assets = [] } = Astro.props as StoreBlockProps;
 
 const rawTagline = typeof props.tagline === 'string' ? props.tagline.trim() : '';
 const tagline = rawTagline || (store.tagline ?? '');
 const showBanner = props.showBanner !== false;
-// <img> element (not CSS url()) so a hostile banner_path can never break out of
-// an inline style. Astro escapes the src attribute.
-const bannerUrl =
-  showBanner && store.banner_path
-    ? resizedImageUrl(projectPhotoUrl(store.banner_path), 1600, { height: 520, resize: 'cover' })
+
+// Background image: prefer an explicitly chosen store asset (resolved by id
+// against this store's assets), else fall back to the store banner when the
+// banner toggle is on.
+const bgAsset =
+  typeof props.bgImage === 'string' && props.bgImage
+    ? assets.find((a) => a.id === props.bgImage) ?? null
     : null;
-const logoUrl = store.logo_path ? projectPhotoUrl(store.logo_path) : null;
+const bgPath = bgAsset?.path ?? (showBanner ? store.banner_path : null);
+const bgUrl = bgPath
+  ? resizedImageUrl(projectPhotoUrl(bgPath), 1600, { height: 520, resize: 'cover' })
+  : null;
+
+// Logo: prefer a chosen store asset, else the store's own logo_path.
+const logoAsset =
+  typeof props.logo === 'string' && props.logo
+    ? assets.find((a) => a.id === props.logo) ?? null
+    : null;
+const logoPath = logoAsset?.path ?? store.logo_path;
+const logoUrl = logoPath ? projectPhotoUrl(logoPath) : null;
+
+// Overlay: validated rgba/gradient built only from the clamped strength + style.
+const overlayStyle = coerceOverlayStyle(props.overlayStyle);
+const overlayCss = heroOverlayCss(props.overlay, overlayStyle);
 
 const ctaText = typeof props.ctaText === 'string' ? props.ctaText.trim() : '';
 const ctaHref = typeof props.ctaHref === 'string' ? props.ctaHref.trim() : '';
@@ -25,15 +52,17 @@ const cta = ctaText && /^(https?:\/\/|\/)/i.test(ctaHref) ? { text: ctaText, hre
 ---
 
 <section class="store-hero relative overflow-hidden rounded-3xl" style="background-color: var(--store-header-bg);">
-  {bannerUrl && (
-    <img src={bannerUrl} alt="" aria-hidden="true"
-      class="absolute inset-0 w-full h-full object-cover opacity-55" loading="eager" decoding="async" />
+  {bgUrl && (
+    <img src={bgUrl} alt="" aria-hidden="true"
+      class="absolute inset-0 w-full h-full object-cover" loading="eager" decoding="async" data-hero-bg />
   )}
-  <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.55));"></div>
+  {overlayCss !== 'transparent' && (
+    <div class="absolute inset-0" style={`background: ${overlayCss};`} data-hero-overlay></div>
+  )}
   <div class="relative px-6 py-12 sm:px-10 sm:py-16 flex flex-col items-center text-center text-white">
     {logoUrl && (
       <img src={logoUrl} alt={store.name}
-        class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white/70 shadow-lg mb-4" />
+        class="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-white/70 shadow-lg mb-4" data-hero-logo />
     )}
     <h1 class="font-serif text-3xl sm:text-5xl leading-tight" style="font-family: var(--font-display);">{store.name}</h1>
     {tagline && <p class="mt-3 max-w-xl text-white/85 text-base sm:text-lg">{tagline}</p>}
