@@ -64,8 +64,14 @@ const demoListings: StorefrontListing[] = [
         >{STORE_PRESETS[id].label}</a>
       ))}
     </div>
-    <p class="text-xs text-charcoal/55 mb-6">
+    <p class="text-xs text-charcoal/55 mb-2">
       {preset.description} Rendres av den ekte StorePageRenderer med demo-data (ingen database).
+    </p>
+    <p class="text-xs text-charcoal/55 mb-6">
+      Den interaktive redigereren (Butikk-lekeplass) ligger på
+      <code class="bg-charcoal/5 px-1 rounded">/market/store/&lt;slug&gt;/admin/butikk</code>
+      for en butikk du eier. Åpne en av dine butikker fra
+      <a href="/market/stores" class="text-terracotta-500 hover:underline">Butikker</a>.
     </p>
 
     <StorePageRenderer

@@ -10,16 +10,21 @@ import { projectPhotoUrl } from '../lib/storage';
 interface Props {
   store: Store;
   myRole: StoreRole;
-  current: 'overview' | 'listings' | 'members' | 'settings' | 'payouts';
+  current: 'overview' | 'listings' | 'members' | 'settings' | 'payouts' | 'butikk';
   title?: string;
 }
 
 const { store, myRole, current, title } = Astro.props;
 const base = `/market/store/${store.slug}/admin`;
 
+// "Rediger butikkside" (the Phase 2 editor) is visible to branding editors
+// (manager+); contributors don't see it.
+const canEditBranding = myRole === 'owner' || myRole === 'admin' || myRole === 'manager';
+
 const items: Array<{ key: Props['current']; href: string; label: string; visible: boolean }> = [
   { key: 'overview', href: base, label: 'Oversikt', visible: true },
   { key: 'listings', href: `${base}/listings`, label: 'Annonser', visible: true },
+  { key: 'butikk', href: `${base}/butikk`, label: 'Rediger butikkside', visible: canEditBranding },
   { key: 'members', href: `${base}/members`, label: 'Medlemmer', visible: true },
   { key: 'settings', href: `${base}/settings`, label: 'Innstillinger', visible: myRole !== 'contributor' },
 ];

@@ -1,0 +1,80 @@
+---
+// Store page editor ("Butikk-lekeplass"). Guarded to branding editors
+// (manager+). Seeds the React island with the DRAFT starting point
+// (draft ?? live ?? platform default) plus the store's assets + listings.
+// The island writes to the draft; Publiser copies draft -> live.
+import Layout from '../../../../../layouts/Layout.astro';
+import StoreEditor from '../../../../../components/store-editor/StoreEditor';
+import { guardStoreAdmin } from '../../../../../lib/services/store-guard';
+import { can } from '../../../../../lib/services/store-permissions';
+import { listStoreAssets } from '../../../../../lib/services/store-page';
+import { sanitizeStoreTheme, DEFAULT_STORE_THEME } from '../../../../../lib/store-theme';
+import { sanitizePageConfig } from '../../../../../lib/store-blocks';
+import { createServerSupabase } from '../../../../../lib/supabase';
+import { STORE_EDITOR_LABELS } from '../../../../../lib/labels';
+
+const slug = Astro.params.slug ?? '';
+const guard = await guardStoreAdmin(Astro.request, Astro.cookies, slug);
+if (guard instanceof Response) return guard;
+const { ctx, store, role } = guard;
+
+// Authorization lives in the service too, but a branding-editor-only page must
+// not even render for a contributor — send them back to the admin overview.
+if (!can.editBranding(role)) {
+  return Astro.redirect(`/market/store/${slug}/admin`);
+}
+
+// Draft starting point: draft, else the published live config, else default.
+const initialTheme = sanitizeStoreTheme(store.theme_draft ?? store.theme ?? DEFAULT_STORE_THEME);
+const initialBlocks = sanitizePageConfig(store.page_config_draft ?? store.page_config).blocks;
+
+// Store assets (member-gated service) for the asset picker.
+const assetsRes = await listStoreAssets(ctx, store.id);
+const initialAssets = assetsRes.ok
+  ? assetsRes.data.map((a) => ({ id: a.id, path: a.path, kind: a.kind, alt: a.alt }))
+  : [];
+
+// The store's own active listings, for the featuredProducts multi-select.
+// RLS lets a member read their store's listings (0096); read via the cookie
+// client so we don't reach for admin in a page.
+const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const { data: listingRows } = await supabase
+  .from('listings')
+  .select('id, title, price_nok, hero_photo_path')
+  .eq('store_id', store.id)
+  .eq('status', 'active')
+  .order('published_at', { ascending: false })
+  .limit(100);
+const listings = (listingRows ?? []).map((l) => ({
+  id: l.id,
+  title: l.title,
+  price_nok: l.price_nok,
+  hero_photo_path: l.hero_photo_path,
+}));
+---
+
+<Layout title={`${STORE_EDITOR_LABELS.title} · ${store.name}`} lang="nb">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+    <div class="flex flex-wrap items-center gap-3 mb-5">
+      <a
+        href={`/market/store/${slug}/admin`}
+        class="text-sm text-charcoal/55 hover:text-charcoal"
+      >← Administrasjon</a>
+      <h1 class="font-serif text-2xl sm:text-3xl">{STORE_EDITOR_LABELS.title}</h1>
+      <a
+        href={`/market/store/${slug}`}
+        class="ml-auto text-sm text-charcoal/55 hover:text-charcoal"
+      >Se publisert butikk →</a>
+    </div>
+
+    <StoreEditor
+      client:load
+      slug={slug}
+      storeName={store.name}
+      initialTheme={initialTheme}
+      initialBlocks={initialBlocks}
+      initialAssets={initialAssets}
+      listings={listings}
+    />
+  </div>
+</Layout>
