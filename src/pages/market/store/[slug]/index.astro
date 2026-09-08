@@ -6,6 +6,9 @@ import EmptyState from '../../../../components/EmptyState.astro';
 import StoreHeader from '../../../../components/store/StoreHeader.astro';
 import StoreSidebar from '../../../../components/store/StoreSidebar.astro';
 import StorePageRenderer from '../../../../components/store/StorePageRenderer.astro';
+import StoreOwnerPanel from '../../../../components/store/StoreOwnerPanel.astro';
+import ReportButton from '../../../../components/ReportButton.astro';
+import { REPORT_TARGET_LABEL } from '../../../../lib/labels';
 import { hasBuilderConfig } from '../../../../lib/store-blocks';
 import type { Store, PublicStorefront } from '../../../../lib/types/stores';
 import { buildServiceContext } from '../../../../lib/services/context';
@@ -202,6 +205,7 @@ const storeShare = storeShareMeta({
         pageConfig={activePageConfig}
         listings={listings ?? []}
         assets={storeAssets}
+        members={publicMembers}
       />
     ) : (
     <div style={accentStyle}>
@@ -244,33 +248,18 @@ const storeShare = storeShareMeta({
             )}
           </section>
 
-          {publicMembers.length > 0 && (
-            <section class="bg-surface rounded-3xl border border-sage-500/10 p-6">
-              <h2 class="font-serif text-xl mb-4">{publicMembers.length === 1 ? 'Eier' : 'Teamet'}</h2>
-              <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {publicMembers.map((m) => (
-                  <li class="flex items-center gap-3 min-w-0">
-                    {m.avatar_path ? (
-                      <img src={projectPhotoUrl(m.avatar_path)} alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sm font-serif text-sage-700 shrink-0">
-                        {m.display_name?.[0]?.toUpperCase() ?? '?'}
-                      </div>
-                    )}
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium truncate">{m.display_name ?? 'Medlem'}</p>
-                      <p class="text-xs text-charcoal/50 truncate">{m.public_title ?? ''}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          <StoreOwnerPanel members={publicMembers} />
         </div>
 
         <StoreSidebar store={store} reviewCount={reviewCount} avgRating={avgRating} />
       </div>
     </div>
     )}
+
+    <!-- Report control: sits at the very bottom for both storefront paths.
+         Outside .store-scope so it reads as neutral site chrome, not themed. -->
+    <div class="mt-10 flex justify-center">
+      <ReportButton targetType="store" targetId={store.id} label={REPORT_TARGET_LABEL.store} />
+    </div>
   </MarketplaceShell>
 </Layout>

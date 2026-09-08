@@ -1,0 +1,51 @@
+---
+// Owner / team panel: shows the store's storefront-visible members (owner or
+// team) as avatar-or-initials + name + public title. Used by BOTH storefront
+// paths:
+//   - legacy (default): plain site palette, matches the "Om butikken" card.
+//   - builder (themed): rendered INSIDE `.store-scope`, so it uses the same
+//     theme-var panel treatment as the block components (bg = --color-surface,
+//     border = --store-border) and reskins with the store's theme.
+import { projectPhotoUrl } from '../../lib/storage';
+import type { PublicStorefront } from '../../lib/types/stores';
+
+interface Props {
+  members: PublicStorefront['publicMembers'];
+  themed?: boolean;
+}
+
+const { members, themed = false } = Astro.props as Props;
+const heading = members.length === 1 ? 'Eier' : 'Teamet';
+
+const panelClass = themed ? 'rounded-3xl p-6' : 'bg-surface rounded-3xl border border-sage-500/10 p-6';
+const panelStyle = themed
+  ? 'background-color: var(--color-surface); border: 1px solid var(--store-border);'
+  : undefined;
+const headingClass = themed ? 'font-serif mb-4' : 'font-serif text-xl mb-4';
+const headingStyle = themed
+  ? 'font-family: var(--font-display); font-size: calc(1.25rem * var(--store-heading-scale));'
+  : undefined;
+---
+
+{members.length > 0 && (
+  <section class={panelClass} style={panelStyle}>
+    <h2 class={headingClass} style={headingStyle}>{heading}</h2>
+    <ul class="grid grid-cols-2 sm:grid-cols-3 gap-4 list-none p-0 m-0">
+      {members.map((m) => (
+        <li class="flex items-center gap-3 min-w-0">
+          {m.avatar_path ? (
+            <img src={projectPhotoUrl(m.avatar_path)} alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />
+          ) : (
+            <div class="w-10 h-10 rounded-full bg-sage-100 flex items-center justify-center text-sm font-serif text-sage-700 shrink-0">
+              {m.display_name?.[0]?.toUpperCase() ?? '?'}
+            </div>
+          )}
+          <div class="min-w-0">
+            <p class="text-sm font-medium truncate">{m.display_name ?? 'Medlem'}</p>
+            <p class:list={['text-xs truncate', !themed && 'text-charcoal/50']} style={themed ? 'color: var(--store-muted);' : undefined}>{m.public_title ?? ''}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}

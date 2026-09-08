@@ -10,7 +10,8 @@
 import { storeThemeToCssVars } from '../../lib/store-theme';
 import { sanitizePageConfig, BLOCK_REGISTRY } from '../../lib/store-blocks';
 import type { StorefrontListing, StorefrontAsset, StoreBlockType } from '../../lib/store-blocks';
-import type { Store } from '../../lib/types/stores';
+import type { Store, PublicStorefront } from '../../lib/types/stores';
+import StoreOwnerPanel from './StoreOwnerPanel.astro';
 import StoreHero from './blocks/StoreHero.astro';
 import ProductGrid from './blocks/ProductGrid.astro';
 import FeaturedProducts from './blocks/FeaturedProducts.astro';
@@ -25,9 +26,10 @@ interface Props {
   pageConfig?: unknown;
   listings?: StorefrontListing[];
   assets?: StorefrontAsset[];
+  members?: PublicStorefront['publicMembers'];
 }
 
-const { store, theme, pageConfig, listings = [], assets = [] } = Astro.props as Props;
+const { store, theme, pageConfig, listings = [], assets = [], members = [] } = Astro.props as Props;
 
 const cssVars = storeThemeToCssVars(theme);
 const page = sanitizePageConfig(pageConfig);
@@ -63,4 +65,19 @@ const COMPONENTS: Record<StoreBlockType, any> = {
       );
     })}
   </div>
+  {members.length > 0 && (
+    <div class="store-owner mt-6">
+      <StoreOwnerPanel members={members} themed />
+    </div>
+  )}
 </div>
+
+<style>
+  /* Match the centered, readable width the block grid uses, so the owner panel
+     lines up with the blocks above it inside the full-bleed store scope. */
+  .store-owner {
+    max-width: 64rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+</style>

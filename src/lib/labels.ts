@@ -43,6 +43,12 @@ export const REPORT_STATUS: Record<string, string> = {
   open: 'Åpen', resolved: 'Løst', dismissed: 'Avvist',
 };
 
+// Report-button labels, keyed by target type. Falls back to the generic
+// "Rapporter" (ReportButton's own default) for anything not listed here.
+export const REPORT_TARGET_LABEL: Record<string, string> = {
+  store: 'Rapporter denne butikken',
+};
+
 export const REFUND_REASON: Record<string, string> = {
   not_received: 'Ikke mottatt', damaged: 'Skadet', not_as_described: 'Ikke som beskrevet',
   wrong_size: 'Feil størrelse', changed_mind: 'Ombestemte meg', other: 'Annet',

@@ -54,6 +54,15 @@ test.describe('Strikketorget — butikk-bygger', () => {
     const style = (await scope.getAttribute('style')) ?? '';
     expect(style).toContain('--color-primary:#C06A45'); // varm-klassisk primary
     expect(style).toContain('--font-display:"Fraunces Variable"');
+
+    // (c) The owner ("Eier") panel renders on the builder storefront, and it
+    // lives INSIDE the themed scope so it reskins with the store theme.
+    const ownerHeading = page.getByRole('heading', { name: 'Eier' });
+    await expect(ownerHeading).toBeVisible();
+    await expect(scope.getByRole('heading', { name: 'Eier' })).toHaveCount(1);
+
+    // (d) A store-report control sits at the bottom of the page.
+    await expect(page.getByRole('button', { name: 'Rapporter denne butikken' })).toBeVisible();
   });
 
   test('a store WITHOUT a page_config renders the original storefront (fallback)', async ({ page, request }) => {
