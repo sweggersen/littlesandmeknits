@@ -2,7 +2,6 @@
 import Layout from '../../layouts/Layout.astro';
 import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import ListingCard from '../../components/ListingCard.astro';
-import ListingToolbar from '../../components/ListingToolbar.astro';
 import FilterPanel from '../../components/FilterPanel.astro';
 import LoadMore from '../../components/LoadMore.astro';
 import FavScript from '../../components/FavScript.astro';
@@ -12,6 +11,7 @@ import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { CATEGORY_LABEL, CONDITION_LABEL } from '../../lib/labels';
+import { LISTING_SORT_OPTIONS, normalizeListingSort, listingSortOrders } from '../../lib/listing-sort';
 
 const PAGE_SIZE = 24;
 const url = Astro.url;
@@ -21,7 +21,9 @@ const prisMin = parseInt(url.searchParams.get('pris_min') ?? '', 10);
 const prisMax = parseInt(url.searchParams.get('pris_max') ?? '', 10);
 const ageMin = parseInt(url.searchParams.get('alder_min') ?? '', 10);
 const ageMax = parseInt(url.searchParams.get('alder_max') ?? '', 10);
-const cursor = url.searchParams.get('cursor');
+const sort = normalizeListingSort(url.searchParams.get('sort'));
+const offsetRaw = parseInt(url.searchParams.get('cursor') ?? '', 10);
+const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
@@ -30,9 +32,8 @@ let q = supabase
   .from('listings')
   .select('id, title, price_nok, size_label, hero_photo_path, category, condition, escrow_enabled, can_meet, published_at, promoted_until, promotion_tier')
   .eq('status', 'active')
-  .eq('kind', 'pre_loved')
-  .order('promoted_until', { ascending: false, nullsFirst: false })
-  .order('published_at', { ascending: false });
+  .eq('kind', 'pre_loved');
+for (const [col, opts] of listingSortOrders(sort)) q = q.order(col, opts);
 
 if (search) q = q.ilike('title', `%${search}%`);
 if (category) q = q.eq('category', category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet');
@@ -40,12 +41,11 @@ if (Number.isFinite(prisMin)) q = q.gte('price_nok', prisMin);
 if (Number.isFinite(prisMax)) q = q.lte('price_nok', prisMax);
 if (Number.isFinite(ageMin)) q = q.gte('size_age_months_max', ageMin);
 if (Number.isFinite(ageMax)) q = q.lte('size_age_months_min', ageMax);
-if (cursor) q = q.lt('published_at', cursor);
 
-const { data: listings, error: listErr } = await q.limit(PAGE_SIZE);
+const { data: rows, error: listErr } = await q.range(offset, offset + PAGE_SIZE);
 if (listErr) console.error('used.astro listings query failed', listErr);
-const hasMore = (listings ?? []).length === PAGE_SIZE;
-const lastCursor = listings?.length ? listings[listings.length - 1].published_at : null;
+const hasMore = (rows ?? []).length > PAGE_SIZE;
+const listings = (rows ?? []).slice(0, PAGE_SIZE);
 
 let favIds: string[] = [];
 if (user) {
@@ -56,38 +56,52 @@ if (user) {
 }
 
 const hasFilters = !!(search || category || Number.isFinite(prisMin) || Number.isFinite(prisMax) || Number.isFinite(ageMin) || Number.isFinite(ageMax));
+const filterCount = [search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax, Number.isFinite(ageMin) && ageMin, Number.isFinite(ageMax) && ageMax].filter(Boolean).length;
 
 const nextPageParams = (() => {
-  if (!hasMore || !lastCursor) return null;
+  if (!hasMore) return null;
   const p = new URLSearchParams(url.searchParams);
-  p.set('cursor', lastCursor);
+  p.set('cursor', String(offset + PAGE_SIZE));
   return p.toString();
 })();
-
 ---
 
 <Layout title="Gjenbruk — Strikketorget" lang="nb">
   <MarketplaceShell current="brukt">
-    <div class="flex items-start justify-between mb-2">
-      <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest text-used-500 mb-1">Brukt</p>
-        <h1 class="font-serif text-4xl sm:text-5xl">Gjenbruk</h1>
+    <form method="get">
+      <div class="flex items-center justify-between gap-4 flex-wrap mb-2">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-used-500 mb-1">Brukt</p>
+          <h1 class="font-serif text-4xl sm:text-5xl">Gjenbruk</h1>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <label for="sort" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Sorter</label>
+          <select id="sort" name="sort" data-listing-sort
+            class="bg-surface rounded-full px-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
+            {LISTING_SORT_OPTIONS.map((o) => <option value={o.value} selected={sort === o.value}>{o.label}</option>)}
+          </select>
+          <button type="button" data-toggle-filter
+            class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
+              hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-surface text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+            Filter{hasFilters ? ` (${filterCount})` : ''}
+          </button>
+          <a href="/market/listing/new?kind=pre_loved" class="btn-primary px-4 py-2 rounded-full text-sm font-medium">+ Ny</a>
+        </div>
       </div>
-      <a href="/market/listing/new?kind=pre_loved" class="shrink-0 bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">+ Ny annonse</a>
-    </div>
-    <p class="text-charcoal/65 mb-8">Strikketøy søker nytt hjem.</p>
+      <p class="text-charcoal/65 mb-6">Strikketøy søker nytt hjem.</p>
 
-    <ListingToolbar search={search} hasFilters={hasFilters} filterCount={[search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax, Number.isFinite(ageMin) && ageMin, Number.isFinite(ageMax) && ageMax].filter(Boolean).length} />
-    <FilterPanel category={category} hasFilters={hasFilters} showAge params={url.searchParams} />
+      <FilterPanel search={search} category={category} hasFilters={hasFilters} showAge params={url.searchParams} resetHref="/market/used" />
+    </form>
 
     {listErr ? (
       <Alert type="error" class="my-4">Vi klarte ikke å hente annonsene akkurat nå. Prøv igjen om litt.</Alert>
-    ) : (listings ?? []).length === 0 ? (
+    ) : listings.length === 0 ? (
       <EmptyState message="Ingen treff. Prøv et annet filter." />
     ) : (
       <Fragment>
       <ul data-listing-grid class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-        {(listings ?? []).map((l) => {
+        {listings.map((l) => {
           const condLabel = l.condition ? CONDITION_LABEL[l.condition] ?? l.condition : null;
           const meta = `${CATEGORY_LABEL[l.category] ?? l.category} · str. ${l.size_label}${condLabel ? ` · ${condLabel}` : ''}`;
           return (
@@ -112,4 +126,9 @@ const nextPageParams = (() => {
   </MarketplaceShell>
   <FavScript />
   <ImpressionTracker source="category" />
+  <script>
+    import { init } from '../../lib/client/controllers/listing-directory';
+    import { registerController } from '../../lib/client/dom';
+    registerController(init);
+  </script>
 </Layout>
