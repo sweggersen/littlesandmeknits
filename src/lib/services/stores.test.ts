@@ -8,10 +8,16 @@ import { createFakeDb } from './__test_helpers__/fake-db';
 const lookupOrgnr = vi.fn();
 vi.mock('../brreg', () => ({ lookupOrgnr: (...a: unknown[]) => lookupOrgnr(...a) }));
 vi.mock('../notify', () => ({ notifyModeratorsNewItem: vi.fn(async () => {}) }));
+// Stub the Kartverket geocoder so createStore's coarse-geocode step doesn't hit
+// the network. The geocoder itself is covered by geocode.test.ts.
+vi.mock('../geocode', () => ({ geocodePostnummer: vi.fn(async () => ({ lat: 59.9, lng: 10.7 })) }));
 
 import { createStore } from './stores';
 
 const USER = 'user-1';
+// Address is required (fraud/verification). Spread into every call that should
+// get past the address gate; the two dedicated tests below omit it on purpose.
+const ADDR = { postnummer: '0150', precise_address: 'Testveien 1' } as const;
 
 function orgData(over: Record<string, unknown> = {}) {
   return {
@@ -38,7 +44,7 @@ beforeEach(() => {
 describe('createStore', () => {
   it('creates a VERIFIED business store (pending_review) + owner membership from a valid orgnr', async () => {
     const { db, ctx } = ctxWith();
-    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'Kunde@X.no', name: 'Strikkebua' });
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'Kunde@X.no', name: 'Strikkebua', ...ADDR });
 
     expect(res.ok).toBe(true);
     const store = db.find('stores', { orgnr: '971524960' })!;
@@ -57,7 +63,7 @@ describe('createStore', () => {
 
   it('creates a PERSONAL store (no orgnr) that is NOT verified and skips Brønnøysund', async () => {
     const { db, ctx } = ctxWith();
-    const res = await createStore(ctx, { contact_email: 'meg@x.no', name: 'Kari strikker' });
+    const res = await createStore(ctx, { contact_email: 'meg@x.no', name: 'Kari strikker', ...ADDR });
 
     expect(res.ok).toBe(true);
     expect(lookupOrgnr).not.toHaveBeenCalled(); // no org lookup for a personal store
@@ -75,15 +81,15 @@ describe('createStore', () => {
 
   it('lets a personal store fall back to the provided display name (required, >= 2 chars)', async () => {
     const { ctx } = ctxWith();
-    const tooShort = await createStore(ctx, { contact_email: 'meg@x.no', name: 'K' });
+    const tooShort = await createStore(ctx, { contact_email: 'meg@x.no', name: 'K', ...ADDR });
     expect(tooShort.ok).toBe(false);
     if (!tooShort.ok) expect(tooShort.code).toBe('bad_input');
   });
 
   it('allows TWO personal stores (both null orgnr) to coexist', async () => {
     const { db, ctx } = ctxWith();
-    const a = await createStore(ctx, { contact_email: 'a@x.no', name: 'Butikk A' });
-    const b = await createStore(ctx, { contact_email: 'b@x.no', name: 'Butikk B' });
+    const a = await createStore(ctx, { contact_email: 'a@x.no', name: 'Butikk A', ...ADDR });
+    const b = await createStore(ctx, { contact_email: 'b@x.no', name: 'Butikk B', ...ADDR });
     expect(a.ok).toBe(true);
     expect(b.ok).toBe(true);
     const personal = db.rows('stores').filter((s) => s.orgnr == null);
@@ -93,7 +99,7 @@ describe('createStore', () => {
   it('rejects an orgnr that is not "normal" status in Brønnøysund', async () => {
     lookupOrgnr.mockResolvedValue({ ok: true, data: orgData({ status: 'bankrupt' }) });
     const { db, ctx } = ctxWith();
-    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no' });
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', ...ADDR });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe('conflict');
     expect(db.find('stores', { orgnr: '971524960' })).toBeUndefined();
@@ -103,7 +109,7 @@ describe('createStore', () => {
     const { ctx } = ctxWith({
       stores: [{ id: 's0', orgnr: '971524960', slug: 'finnes', deleted_at: null, status: 'active' }],
     });
-    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no' });
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', ...ADDR });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe('conflict');
   });
@@ -111,7 +117,7 @@ describe('createStore', () => {
   it('surfaces a not_found lookup as not_found', async () => {
     lookupOrgnr.mockResolvedValue({ ok: false, error: 'not_found' });
     const { ctx } = ctxWith();
-    const res = await createStore(ctx, { orgnr: '999999999', contact_email: 'k@x.no' });
+    const res = await createStore(ctx, { orgnr: '999999999', contact_email: 'k@x.no', ...ADDR });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe('not_found');
   });
@@ -129,18 +135,48 @@ describe('createStore', () => {
     const { db, ctx } = ctxWith({
       user_action_counts: [{ user_id: USER, action: 'store_create', day, count: 5 }], // at the limit
     });
-    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no' });
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', ...ADDR });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe('conflict');
     expect(lookupOrgnr).not.toHaveBeenCalled();     // gated before the network call
     expect(db.find('stores', { orgnr: '971524960' })).toBeUndefined();
   });
 
+  it('requires a valid 4-digit postnummer (before the brreg lookup)', async () => {
+    const { ctx } = ctxWith();
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', postnummer: '12', precise_address: 'Testveien 1' });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe('bad_input');
+    expect(lookupOrgnr).not.toHaveBeenCalled();
+  });
+
+  it('requires a precise address (before the brreg lookup)', async () => {
+    const { ctx } = ctxWith();
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', postnummer: '0150' });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe('bad_input');
+    expect(lookupOrgnr).not.toHaveBeenCalled();
+  });
+
+  it('persists the private address + public postnummer, and geocodes', async () => {
+    const { db, ctx } = ctxWith();
+    const res = await createStore(ctx, { contact_email: 'a@x.no', name: 'Kari strikker', ...ADDR });
+    expect(res.ok).toBe(true);
+    const store = db.rows('stores')[0]!;
+    expect(store.postnummer).toBe('0150');
+    // Private address landed in the separate table, NOT on the store row.
+    expect(store.precise_address).toBeUndefined();
+    expect(db.find('store_private_details', { store_id: store.id })!.precise_address).toBe('Testveien 1');
+    // Coarse coords from the stubbed geocoder.
+    expect(store.lat).toBe(59.9);
+    expect(store.lng).toBe(10.7);
+  });
+
   it('rejects a provided slug that is already taken', async () => {
     const { ctx } = ctxWith({
       stores: [{ id: 's0', orgnr: '111111111', slug: 'strikkebua', deleted_at: null, status: 'active' }],
     });
-    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', slug: 'strikkebua' });
+    const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'k@x.no', slug: 'strikkebua', ...ADDR });
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe('conflict');
   });

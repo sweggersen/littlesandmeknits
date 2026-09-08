@@ -1,0 +1,27 @@
+---
+// Yarn-inspired "verified" checkmark for stores backed by a valid org number.
+// The check is a single strand whose tail curls into a little loop of yarn.
+// Icon only (inherits currentColor) — callers wrap it in the coloured pill.
+interface Props {
+  size?: number;
+  class?: string;
+  title?: string;
+}
+const { size = 14, class: cls, title = 'Verifisert butikk' } = Astro.props;
+---
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="2.2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+  class={cls}
+  role="img"
+  aria-label={title}
+>
+  <title>{title}</title>
+  <path d="M5.5 12.6 9.4 16.6 15.4 8.4 C16.9 6 19.7 7.1 18.8 9.2 18.1 10.8 15.8 10.1 16.7 8.1" />
+</svg>

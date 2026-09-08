@@ -1,18 +1,15 @@
 ---
 import Layout from '../../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../../components/MarketplaceShell.astro';
-import ListingCard from '../../../../components/ListingCard.astro';
-import EmptyState from '../../../../components/EmptyState.astro';
-import StoreHeader from '../../../../components/store/StoreHeader.astro';
-import StoreSidebar from '../../../../components/store/StoreSidebar.astro';
 import StorePageRenderer from '../../../../components/store/StorePageRenderer.astro';
-import StoreOwnerPanel from '../../../../components/store/StoreOwnerPanel.astro';
 import ReportButton from '../../../../components/ReportButton.astro';
 import { REPORT_TARGET_LABEL } from '../../../../lib/labels';
 import { hasBuilderConfig } from '../../../../lib/store-blocks';
+import { buildDefaultStorePage } from '../../../../lib/store-presets';
 import type { Store, PublicStorefront } from '../../../../lib/types/stores';
 import { buildServiceContext } from '../../../../lib/services/context';
 import { getStoreBySlugAdmin, getPublicStorefront } from '../../../../lib/services/stores';
+import { markStoreSeen } from '../../../../lib/services/store-favorites';
 import { getMyRole } from '../../../../lib/services/store-members';
 import { can } from '../../../../lib/services/store-permissions';
 import { projectPhotoUrl } from '../../../../lib/storage';
@@ -28,6 +25,10 @@ const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.c
 // preview to moderators or members of pending/suspended stores).
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
 const rawStore = ctx ? await getStoreBySlugAdmin(ctx, slug) : null;
+
+// Bump last_seen_at so the "new listings" dot clears for a logged-in viewer who
+// has favourited this store. No-op (0 rows) when it isn't favourited.
+if (ctx && rawStore) await markStoreSeen(ctx, rawStore.id);
 
 // For anonymous viewers: only active stores are visible.
 let storefront;
@@ -122,20 +123,6 @@ const { data: listings } = await supabase
   .order('published_at', { ascending: false })
   .limit(60);
 
-// Aggregate review rating
-const { data: reviews } = await supabase
-  .from('seller_reviews')
-  .select('rating')
-  .eq('store_id', store.id);
-const reviewCount = (reviews ?? []).length;
-const avgRating = reviewCount > 0
-  ? ((reviews ?? []).reduce((s, r) => s + r.rating, 0) / reviewCount).toFixed(1)
-  : null;
-
-// Apply accent_color via a CSS variable so descendants can reference it.
-// Fallback to the terracotta brand colour when no accent is set.
-const accentStyle = `--store-accent: ${store.accent_color ?? '#C97B5D'};`;
-
 // Draft preview: a store's branding editor can preview UNPUBLISHED changes via
 // ?preview=draft. Gated to editors (manager+); every other viewer always sees
 // the live storefront, so a half-edited draft never leaks to the public.
@@ -148,12 +135,16 @@ if (wantsDraftPreview && ctx && rawStore) {
 const activeTheme = previewDraft ? (store.theme_draft ?? store.theme) : store.theme;
 const activePageConfig = previewDraft ? (store.page_config_draft ?? store.page_config) : store.page_config;
 
-// Page-builder storefront: if the store has a non-empty, sanitisable
-// page_config, render the themed block layout instead of the default
-// storefront. Stores without config keep the existing storefront untouched.
-const useBuilder = hasBuilderConfig(activePageConfig);
+// Every store renders through the ONE themed block pipeline. A store with a
+// non-empty saved config uses it; otherwise it falls back to the platform
+// default page (DEFAULT_STORE_THEME + core blocks that read the store's own
+// name/logo/banner/description/contact). There is no separate legacy layout.
+const hasConfig = hasBuilderConfig(activePageConfig);
+const fallback = hasConfig ? null : buildDefaultStorePage(store);
+const renderTheme = fallback ? fallback.theme : activeTheme;
+const renderPageConfig = fallback ? fallback.page_config : activePageConfig;
 let storeAssets: Array<{ id: string; path: string; kind: string | null; alt: string | null }> = [];
-if (useBuilder) {
+if (hasConfig) {
   const { data: assetRows } = await admin
     .from('store_assets')
     .select('id, path, kind, alt, position')
@@ -198,63 +189,14 @@ const storeShare = storeShareMeta({
       </div>
     )}
 
-    {useBuilder ? (
-      <StorePageRenderer
-        store={store}
-        theme={activeTheme}
-        pageConfig={activePageConfig}
-        listings={listings ?? []}
-        assets={storeAssets}
-        members={publicMembers}
-      />
-    ) : (
-    <div style={accentStyle}>
-      <StoreHeader store={store} />
-
-      <!-- Body grid: listings + sidebar -->
-      <div class="mt-8 sm:mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        <!-- Listings + about -->
-        <div class="lg:col-span-2 space-y-8">
-          {store.description && (
-            <section class="bg-surface rounded-3xl border border-sage-500/10 p-6">
-              <h2 class="font-serif text-xl mb-3">Om butikken</h2>
-              <p class="text-charcoal/75 whitespace-pre-wrap">{store.description}</p>
-            </section>
-          )}
-
-          <section>
-            <div class="flex items-baseline justify-between mb-4">
-              <h2 class="font-serif text-2xl">Annonser</h2>
-              {listings && listings.length > 0 && (
-                <span class="text-sm text-charcoal/55">{listings.length} aktive</span>
-              )}
-            </div>
-            {(!listings || listings.length === 0) ? (
-              <EmptyState message="Ingen aktive annonser akkurat nå." />
-            ) : (
-              <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 list-none p-0 m-0">
-                {listings.map((l: any) => (
-                  <ListingCard
-                    id={l.id}
-                    title={l.title}
-                    price={l.price_nok}
-                    imgUrl={l.hero_photo_path ? projectPhotoUrl(l.hero_photo_path) : undefined}
-                    meta={l.size_label}
-                    escrowEnabled={l.escrow_enabled ?? false}
-                    canMeet={l.can_meet ?? false}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <StoreOwnerPanel members={publicMembers} />
-        </div>
-
-        <StoreSidebar store={store} reviewCount={reviewCount} avgRating={avgRating} />
-      </div>
-    </div>
-    )}
+    <StorePageRenderer
+      store={store}
+      theme={renderTheme}
+      pageConfig={renderPageConfig}
+      listings={listings ?? []}
+      assets={storeAssets}
+      members={publicMembers}
+    />
 
     <!-- Report control: sits at the very bottom for both storefront paths.
          Outside .store-scope so it reads as neutral site chrome, not themed. -->

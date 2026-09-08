@@ -4,7 +4,8 @@
 // so applying one always produces a valid, renderable storefront.
 
 import type { StoreTheme } from './store-theme';
-import type { StorePageConfig } from './store-blocks';
+import { DEFAULT_STORE_THEME } from './store-theme';
+import type { StorePageConfig, StoreBlock } from './store-blocks';
 
 export interface StorePreset {
   id: string;
@@ -146,4 +147,38 @@ export const STORE_PRESET_IDS = Object.keys(STORE_PRESETS);
 
 export function getPreset(id: string): StorePreset | null {
   return Object.prototype.hasOwnProperty.call(STORE_PRESETS, id) ? STORE_PRESETS[id] : null;
+}
+
+/**
+ * The platform default storefront expressed as a real builder config — the
+ * brand-aligned DEFAULT_STORE_THEME plus a page_config of core blocks. Every
+ * store renders through this one themed pipeline: a store with no saved config
+ * falls back to exactly this, and the editor seeds it for a never-configured
+ * store, so "the default" and "what you can edit" are the same thing.
+ *
+ * The hero + contact blocks read the store's own name / logo / banner / contact
+ * fields; the about block is included only when the store has a description
+ * (an empty text panel would look broken).
+ */
+export function buildDefaultStorePage(
+  store?: { description?: string | null } | null,
+): { theme: StoreTheme; page_config: StorePageConfig } {
+  const about = (store?.description ?? '').trim();
+  const blocks: StoreBlock[] = [
+    // props omit title/tagline so the hero falls back to the store's own name +
+    // tagline; showBanner uses the store's banner_path when present.
+    { id: 'hero', type: 'hero', layout: { x: 0, y: 0, w: 12, h: 3 }, props: { showBanner: true } },
+  ];
+  if (about) {
+    blocks.push(
+      { id: 'about', type: 'textSection', layout: { x: 0, y: 1, w: 8, h: 3 }, props: { heading: 'Om butikken', body: about } },
+      { id: 'contact', type: 'contactInfo', layout: { x: 8, y: 1, w: 4, h: 3 }, props: { heading: 'Kontakt' } },
+    );
+  } else {
+    blocks.push(
+      { id: 'contact', type: 'contactInfo', layout: { x: 0, y: 1, w: 12, h: 2 }, props: { heading: 'Kontakt' } },
+    );
+  }
+  blocks.push({ id: 'products', type: 'productGrid', layout: { x: 0, y: 2, w: 12, h: 5 }, props: { heading: 'Annonser', limit: 24 } });
+  return { theme: DEFAULT_STORE_THEME, page_config: { blocks } };
 }
