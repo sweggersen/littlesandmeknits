@@ -31,6 +31,18 @@ export function removeBlock(blocks: StoreBlock[], id: string): StoreBlock[] {
   return blocks.filter((b) => b.id !== id);
 }
 
+/** The default starter layout, mirroring the platform's default storefront
+ *  (a store with no builder config): top section, about, all listings, contact.
+ *  Used when the owner clicks Tilbakestill so they return to that default rather
+ *  than a blank canvas. */
+export function defaultStoreBlocks(): StoreBlock[] {
+  let blocks: StoreBlock[] = [];
+  for (const type of ['hero', 'textSection', 'productGrid', 'contactInfo'] as StoreBlockType[]) {
+    blocks = addBlock(blocks, type);
+  }
+  return blocks;
+}
+
 /** Shallow-merge a props patch into one block. */
 export function updateBlockProps(
   blocks: StoreBlock[],

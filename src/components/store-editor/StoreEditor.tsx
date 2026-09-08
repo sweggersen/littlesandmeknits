@@ -10,8 +10,8 @@ import type { StoreTheme } from '../../lib/store-theme';
 import { DEFAULT_STORE_THEME } from '../../lib/store-theme';
 import { STORE_PRESETS } from '../../lib/store-presets';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
-import { addBlock, removeBlock, updateBlockProps, gridToBlocks, moveBlock } from './editor-state';
-import { saveDraft, publishDraft, resetDraft } from './api';
+import { addBlock, removeBlock, updateBlockProps, gridToBlocks, moveBlock, defaultStoreBlocks } from './editor-state';
+import { saveDraft, publishDraft } from './api';
 import BlockPalette from './BlockPalette';
 import ThemePanel from './ThemePanel';
 import EditorCanvas from './EditorCanvas';
@@ -189,21 +189,20 @@ export default function StoreEditor(props: StoreEditorProps) {
     }
   }
 
-  async function handleReset() {
+  function handleReset() {
     if (!window.confirm(L.confirmReset)) return;
     setError(null);
-    try {
-      await resetDraft(slug);
-      snapshot();
-      setTheme(structuredClone(DEFAULT_STORE_THEME));
-      setBlocks([]);
-      setSelectedId(null);
-      setDirty(false);
-      setSaveState('idle');
-      setPublishState('idle');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Tilbakestilling feilet');
-    }
+    snapshot();
+    setTheme(structuredClone(DEFAULT_STORE_THEME));
+    // Return to the default store layout (top section, about, listings, contact)
+    // rather than a blank canvas. Marking dirty lets autosave persist it as the
+    // new draft, so we don't depend on a separate reset API call succeeding.
+    const def = withHeroTitleDefaults(defaultStoreBlocks(), storeName);
+    setBlocks(def);
+    setSelectedId(def[0]?.id ?? null);
+    setDirty(true);
+    setSaveState('idle');
+    setPublishState('idle');
   }
 
   return (
