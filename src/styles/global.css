@@ -365,6 +365,13 @@
   --store-heading-style: normal;
   --store-heading-decoration: none;
   --store-heading-scale: 1;
+  /* Body typography fallbacks (mirrors the heading fallbacks). The storefront/
+     preview inline style always re-emits these (storeThemeToCssVars); declaring
+     them here keeps body text sane if a var is ever absent. */
+  --store-body-weight: 400;
+  --store-body-style: normal;
+  --store-body-decoration: none;
+  --store-body-scale: 1;
   /* Full-bleed: break out of MarketplaceShell's max-w-5xl container + eat its
      vertical padding so the store's theme fills the whole page (edge to edge,
      up to the nav) instead of reading as a light box inside the dark site.
@@ -403,6 +410,17 @@
    STILL picks up the theme weight/italic/underline/scale above. */
 .store-scope .store-hero h1 {
   color: inherit;
+}
+/* Theme-level, per-element-TYPE body typography. Applied ONLY to block body
+   text tagged with `.store-body` (paragraphs / value text) so headings are
+   untouched. Weight/style/decoration apply uniformly; font-size scales relative
+   to the element's inherited size (`1em`) so a `text-sm` value and a base
+   paragraph both scale by the same global factor while keeping their own base. */
+.store-scope .store-body {
+  font-weight: var(--store-body-weight);
+  font-style: var(--store-body-style);
+  text-decoration: var(--store-body-decoration);
+  font-size: calc(1em * var(--store-body-scale));
 }
 /* Delivery/status pills on store-scoped listing cards use the themeable tag
    colour, with text auto-contrasted to black or white (--store-tag-fg) so it is

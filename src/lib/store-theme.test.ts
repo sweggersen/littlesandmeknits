@@ -172,6 +172,63 @@ describe('sanitizeStoreTheme — heading typography', () => {
   });
 });
 
+describe('sanitizeStoreTheme — body typography', () => {
+  it('defaults the whole body block when absent', () => {
+    const t = sanitizeStoreTheme({});
+    expect(t.body).toEqual(DEFAULT_STORE_THEME.body);
+    // The default body look is plain (normal weight, base size, no decoration).
+    expect(t.body).toEqual({ weight: 'normal', italic: false, underline: false, scale: 'base' });
+  });
+
+  it('keeps valid body fields', () => {
+    const t = sanitizeStoreTheme({
+      body: { weight: 'medium', italic: true, underline: true, scale: 'lg' },
+    });
+    expect(t.body).toEqual({ weight: 'medium', italic: true, underline: true, scale: 'lg' });
+  });
+
+  it('coerces unknown weight / scale to the body default enum member', () => {
+    const t = sanitizeStoreTheme({
+      body: { weight: 'ultra-heavy; }', scale: 'gigantic', italic: false, underline: false },
+    });
+    expect(t.body.weight).toBe(DEFAULT_STORE_THEME.body.weight);
+    expect(t.body.scale).toBe(DEFAULT_STORE_THEME.body.scale);
+  });
+
+  it('rejects non-boolean italic / underline (no truthy coercion)', () => {
+    const t = sanitizeStoreTheme({
+      body: { weight: 'bold', scale: 'sm', italic: 'true', underline: 1 },
+    } as unknown);
+    expect(t.body.italic).toBe(DEFAULT_STORE_THEME.body.italic);
+    expect(t.body.underline).toBe(DEFAULT_STORE_THEME.body.underline);
+    // Valid siblings still kept.
+    expect(t.body.weight).toBe('bold');
+    expect(t.body.scale).toBe('sm');
+  });
+
+  it('fills missing body fields with defaults (partial object)', () => {
+    const t = sanitizeStoreTheme({ body: { underline: true } });
+    expect(t.body.underline).toBe(true);
+    expect(t.body.weight).toBe(DEFAULT_STORE_THEME.body.weight);
+    expect(t.body.italic).toBe(DEFAULT_STORE_THEME.body.italic);
+    expect(t.body.scale).toBe(DEFAULT_STORE_THEME.body.scale);
+  });
+
+  it('ignores a non-object body (string / null)', () => {
+    expect(sanitizeStoreTheme({ body: 'red;}body{}' }).body).toEqual(DEFAULT_STORE_THEME.body);
+    expect(sanitizeStoreTheme({ body: null }).body).toEqual(DEFAULT_STORE_THEME.body);
+  });
+
+  it('keeps heading and body independent', () => {
+    const t = sanitizeStoreTheme({
+      heading: { weight: 'bold', italic: false, underline: false, scale: 'xl' },
+      body: { weight: 'medium', italic: true, underline: false, scale: 'sm' },
+    });
+    expect(t.heading).toEqual({ weight: 'bold', italic: false, underline: false, scale: 'xl' });
+    expect(t.body).toEqual({ weight: 'medium', italic: true, underline: false, scale: 'sm' });
+  });
+});
+
 describe('storeThemeToCssVars', () => {
   it('emits only validated hex + known font families', () => {
     const css = storeThemeToCssVars({ colors: { page: '#abc' }, fontDisplay: 'playfair' });
@@ -227,5 +284,36 @@ describe('storeThemeToCssVars', () => {
     expect(css).toContain('--store-heading-scale:1');
     expect(css).not.toContain('}');
     expect(css).not.toContain('html{');
+  });
+
+  it('emits the body typography vars from validated values', () => {
+    const css = storeThemeToCssVars({
+      body: { weight: 'bold', italic: true, underline: true, scale: 'xl' },
+    });
+    expect(css).toContain('--store-body-weight:700');
+    expect(css).toContain('--store-body-style:italic');
+    expect(css).toContain('--store-body-decoration:underline');
+    expect(css).toContain('--store-body-scale:1.3');
+  });
+
+  it('emits the default body vars when the body block is absent', () => {
+    const css = storeThemeToCssVars({});
+    expect(css).toContain('--store-body-weight:400');
+    expect(css).toContain('--store-body-style:normal');
+    expect(css).toContain('--store-body-decoration:none');
+    expect(css).toContain('--store-body-scale:1');
+  });
+
+  it('emits safe body vars even for a hostile body block', () => {
+    const css = storeThemeToCssVars({
+      body: { weight: '900;}x{', italic: 'yes', underline: 'no', scale: 'huge;}' },
+    } as unknown);
+    // weight/scale fell back to the default enum literals; flags to false.
+    expect(css).toContain('--store-body-weight:400');
+    expect(css).toContain('--store-body-style:normal');
+    expect(css).toContain('--store-body-decoration:none');
+    expect(css).toContain('--store-body-scale:1');
+    expect(css).not.toContain('}');
+    expect(css).not.toContain('x{');
   });
 });

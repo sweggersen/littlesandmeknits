@@ -47,6 +47,20 @@ function headingStyle(baseRem: string, contrast = false): CSSProperties {
   } as CSSProperties;
 }
 
+// Body-text style for the schematic previews, mirroring the real SSR blocks:
+// weight/italic/underline come from the live theme body CSS vars, and the size
+// scales the element's own base by --store-body-scale.
+function bodyStyle(extra?: CSSProperties): CSSProperties {
+  return {
+    color: 'var(--color-charcoal)',
+    fontWeight: 'var(--store-body-weight)',
+    fontStyle: 'var(--store-body-style)',
+    textDecoration: 'var(--store-body-decoration)',
+    fontSize: 'calc(1em * var(--store-body-scale))',
+    ...extra,
+  } as CSSProperties;
+}
+
 // data-hook the canvas listens on to open the click-to-edit popover. The value
 // is the element KIND, so one handler routes every element to the right controls.
 const HEAD_EDIT = { 'data-elem-edit': 'heading' } as const;
@@ -92,7 +106,7 @@ export default function BlockPreview({
           <div {...HEAD_EDIT} style={headingStyle('0.875rem')}>
             {str(p.heading, 'Tekstseksjon')}
           </div>
-          <p {...elemEdit('text')} className="text-xs mt-1 line-clamp-3" style={{ color: 'var(--color-charcoal)' }}>
+          <p {...elemEdit('text')} className="text-xs mt-1 line-clamp-3" style={bodyStyle()}>
             {str(p.body, 'Tekstinnhold vises her.')}
           </p>
         </div>
@@ -206,7 +220,7 @@ export default function BlockPreview({
           <div {...HEAD_EDIT} className="mb-1" style={headingStyle('0.875rem')}>
             {str(p.heading, 'Kontakt')}
           </div>
-          <div {...elemEdit('text')} className="text-xs opacity-65 space-y-0.5">
+          <div {...elemEdit('text')} className="text-xs opacity-65 space-y-0.5" style={bodyStyle()}>
             <div>Sted, e-post</div>
             <div>Sosiale medier</div>
           </div>
