@@ -7,7 +7,7 @@ import type { Section } from '../lib/sections';
 const s = (Astro.url.searchParams.get('s') ?? '') as Section;
 
 const COPY: Partial<Record<Section, { title: string; body: string }>> = {
-  brukt: { title: 'Brukt kommer snart', body: 'Kjøp og salg av brukte strikkeplagg åpner om kort tid.' },
+  brukt: { title: 'Gjenbruk kommer snart', body: 'Kjøp og salg av brukte strikkeplagg åpner om kort tid.' },
   nytt: { title: 'Nytt kommer snart', body: 'Nye, håndlagde strikkeplagg åpner om kort tid.' },
   oppdrag: { title: 'Oppdrag kommer snart', body: '«Strikk for meg» — bestill et plagg fra en strikker — åpner om kort tid.' },
   butikker: { title: 'Butikker kommer snart', body: 'Butikker for registrerte virksomheter åpner om kort tid.' },

@@ -21,7 +21,7 @@ if (!VALID_KINDS.has(kindParam) || !VALID_CATEGORIES.has(categoryParam)) {
 }
 
 const dbKind = kindParam === 'used' ? 'pre_loved' : 'ready_made';
-const kindLabelNo = kindParam === 'used' ? 'Brukt' : 'Nytt';
+const kindLabelNo = kindParam === 'used' ? 'Gjenbruk' : 'Nytt';
 const categoryLabel = CATEGORY_LABEL[categoryParam] ?? categoryParam;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
