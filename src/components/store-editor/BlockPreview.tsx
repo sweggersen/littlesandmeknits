@@ -215,11 +215,22 @@ export default function BlockPreview({
 // absolutely positioned by percent inside the preview box. A plain click on the
 // title still opens the heading-style popover (via HEAD_EDIT); a click-DRAG
 // (past a small threshold) moves the element instead and suppresses that click.
-// The logo carries a corner handle that resizes it. Positions snap to a 5% grid
-// on release and commit as ONE props patch (one undo step per gesture).
+// The logo carries a corner handle that resizes it. Commits as ONE props patch
+// (one undo step per gesture). Positions snap to a SQUARE pixel grid (so the
+// visible grid cells are actually square, not stretched by the box aspect), with
+// a stronger pull to the exact centre; scale still snaps to a 5% step.
 const SNAP = 5;
 const DRAG_THRESHOLD = 4;
+const GRID_PX = 24; // square snap-grid cell size, in px
+const CENTER_PX = 14; // pull-to-centre threshold, in px
 const snap = (v: number) => Math.round(v / SNAP) * SNAP;
+// Snap one axis (a px offset within a `size`-px box) to the grid, or to the
+// exact centre when close. Returns a px offset.
+function snapAxisPx(offset: number, size: number): number {
+  const centre = size / 2;
+  if (Math.abs(offset - centre) <= CENTER_PX) return centre;
+  return Math.round(offset / GRID_PX) * GRID_PX;
+}
 
 function HeroPreview({
   block,
@@ -268,12 +279,12 @@ function HeroPreview({
     onUpdateProps(block.id, { elements: { ...stored, [key]: pos } });
   }
 
-  // Percent-of-box from a client coordinate, clamped to a bounded integer.
-  function pctX(clientX: number, box: DOMRect, fallback: number) {
-    return clampInt(((clientX - box.left) / box.width) * 100, 0, 100, fallback);
-  }
-  function pctY(clientY: number, box: DOMRect, fallback: number) {
-    return clampInt(((clientY - box.top) / box.height) * 100, 0, 100, fallback);
+  // Snap a client point to the square grid / centre, as bounded x/y percents.
+  function snapPos(clientX: number, clientY: number, box: DOMRect, orig: HeroElementPos) {
+    return {
+      x: clampInt((snapAxisPx(clientX - box.left, box.width) / box.width) * 100, 0, 100, orig.x),
+      y: clampInt((snapAxisPx(clientY - box.top, box.height) / box.height) * 100, 0, 100, orig.y),
+    };
   }
 
   function startMove(key: HeroElementKey, e: ReactPointerEvent) {
@@ -289,7 +300,8 @@ function HeroPreview({
       moved = true;
       ev.preventDefault();
       setShowGrid(true);
-      setActive({ key, pos: { ...orig, x: pctX(ev.clientX, box, orig.x), y: pctY(ev.clientY, box, orig.y) } });
+      // Snap live so the element visibly locks to the grid / centre while dragging.
+      setActive({ key, pos: { ...orig, ...snapPos(ev.clientX, ev.clientY, box, orig) } });
     };
     const onUp = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', onMove);
@@ -299,11 +311,7 @@ function HeroPreview({
       if (!moved) return;
       // Suppress the trailing click so it doesn't open the heading popover.
       if (suppressElementClickRef) suppressElementClickRef.current = true;
-      commit(key, {
-        ...orig,
-        x: clampInt(snap(pctX(ev.clientX, box, orig.x)), 0, 100, orig.x),
-        y: clampInt(snap(pctY(ev.clientY, box, orig.y)), 0, 100, orig.y),
-      });
+      commit(key, { ...orig, ...snapPos(ev.clientX, ev.clientY, box, orig) });
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -374,17 +382,22 @@ function HeroPreview({
       {bgUrl && <img src={bgUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />}
       {overlay !== 'transparent' && <div className="absolute inset-0" style={{ background: overlay }} />}
 
-      {/* Snap-grid overlay, visible only mid-drag. */}
+      {/* Snap-grid overlay, visible only mid-drag: a SQUARE px grid plus red
+          centre lines (x and y) that the element snaps to. */}
       {showGrid && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          data-hero-grid
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.35) 1px, transparent 1px)',
-            backgroundSize: '5% 5%',
-          }}
-        />
+        <div className="absolute inset-0 pointer-events-none" data-hero-grid>
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgba(255,255,255,.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,.35) 1px, transparent 1px)',
+              backgroundSize: `${GRID_PX}px ${GRID_PX}px`,
+            }}
+          />
+          {/* Vertical + horizontal centre guides. */}
+          <div className="absolute top-0 bottom-0" style={{ left: '50%', width: 0, borderLeft: '1px solid rgba(239,68,68,.85)', transform: 'translateX(-.5px)' }} />
+          <div className="absolute left-0 right-0" style={{ top: '50%', height: 0, borderTop: '1px solid rgba(239,68,68,.85)', transform: 'translateY(-.5px)' }} />
+        </div>
       )}
 
       {logoUrl && (
