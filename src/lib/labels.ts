@@ -3,7 +3,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   sokker: 'Sokker', teppe: 'Teppe', kjole: 'Kjole', bukser: 'Bukser', annet: 'Annet',
 };
 
-export const KIND_LABEL: Record<string, string> = { pre_loved: 'Gjenbruk', ready_made: 'Nytt' };
+export const KIND_LABEL: Record<string, string> = { pre_loved: 'Brukt', ready_made: 'Nytt' };
 
 export const CONDITION_LABEL: Record<string, string> = {
   som_ny: 'Som ny', lite_brukt: 'Lite brukt', brukt: 'Brukt', slitt: 'Slitt',
