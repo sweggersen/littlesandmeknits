@@ -4,12 +4,24 @@ import { BLOCK_REGISTRY, STORE_BLOCK_TYPES } from '../../lib/store-blocks';
 import type { StoreBlockType } from '../../lib/store-blocks';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
 
-export default function BlockPalette({ onAdd }: { onAdd: (type: StoreBlockType) => void }) {
+export default function BlockPalette({
+  onAdd,
+  existingTypes,
+}: {
+  onAdd: (type: StoreBlockType) => void;
+  existingTypes: StoreBlockType[];
+}) {
+  // Singleton blocks (hero, product grid, featured, contact) can only exist once,
+  // so drop them from the palette when one is already on the page.
+  const used = new Set(existingTypes);
+  const available = STORE_BLOCK_TYPES.filter(
+    (type) => !(BLOCK_REGISTRY[type].singleton && used.has(type)),
+  );
   return (
     <div>
       <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">{L.blocks}</h3>
       <div className="space-y-1.5">
-        {STORE_BLOCK_TYPES.map((type) => {
+        {available.map((type) => {
           const def = BLOCK_REGISTRY[type];
           return (
             <button

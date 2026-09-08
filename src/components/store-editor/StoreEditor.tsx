@@ -234,7 +234,7 @@ export default function StoreEditor(props: StoreEditorProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_300px] gap-4 items-start">
         <aside className="space-y-6 lg:sticky lg:top-[132px]">
-          <BlockPalette onAdd={handleAddBlock} />
+          <BlockPalette onAdd={handleAddBlock} existingTypes={blocks.map((b) => b.type)} />
           <ThemePanel theme={theme} onChange={handleThemeChange} onApplyPreset={handleApplyPreset} />
         </aside>
 
@@ -250,6 +250,7 @@ export default function StoreEditor(props: StoreEditorProps) {
             onUpdateProps={handleUpdateBlockProps}
             onRemove={handleRemove}
             onThemeChange={handleThemeChange}
+            onApplyPreset={handleApplyPreset}
           />
         </main>
 

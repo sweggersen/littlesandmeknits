@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import GridLayout, { WidthProvider, type Layout } from 'react-grid-layout';
 import { BLOCK_REGISTRY, GRID_COLUMNS } from '../../lib/store-blocks';
 import type { StoreBlock } from '../../lib/store-blocks';
+import { STORE_PRESETS, STORE_PRESET_IDS } from '../../lib/store-presets';
 import { storeThemeToCssVars, type StoreTheme } from '../../lib/store-theme';
 import { blocksToGrid } from './editor-state';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
@@ -42,6 +43,7 @@ export default function EditorCanvas({
   onUpdateProps,
   onRemove,
   onThemeChange,
+  onApplyPreset,
 }: {
   blocks: StoreBlock[];
   theme: StoreTheme;
@@ -53,6 +55,7 @@ export default function EditorCanvas({
   onUpdateProps: (id: string, patch: Record<string, unknown>) => void;
   onRemove: (id: string) => void;
   onThemeChange: (theme: StoreTheme) => void;
+  onApplyPreset: (id: string) => void;
 }) {
   const cssVars = storeThemeToCssVars(theme);
   // Click-to-edit: clicking a heading in a preview opens this popover, anchored
@@ -111,12 +114,31 @@ export default function EditorCanvas({
   }, [blocks, measure]);
 
   if (blocks.length === 0) {
+    // Empty (e.g. right after Tilbakestill): surface the presets front-and-centre
+    // so picking a starting layout+theme is obvious, instead of buried in the rail.
     return (
       <div
-        className="rounded-2xl p-10 text-center text-sm min-h-[50vh] flex items-center justify-center"
+        className="rounded-2xl p-10 text-center min-h-[50vh] flex flex-col items-center justify-center gap-5"
         style={{ ...(styleFromVars(cssVars)), border: '1px dashed var(--store-border)' }}
       >
-        <span style={{ color: 'var(--store-muted)' }}>{L.emptyCanvas}</span>
+        <div className="max-w-sm">
+          <p className="text-base font-medium" style={{ color: 'var(--color-charcoal)' }}>{L.emptyTitle}</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--store-muted)' }}>{L.emptyCanvas}</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {STORE_PRESET_IDS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onApplyPreset(id)}
+              className="text-sm font-medium px-4 py-2 rounded-full border-2 transition-colors"
+              style={{ borderColor: 'var(--color-primary)', color: 'var(--color-primary)' }}
+              data-preset-empty={id}
+            >
+              {STORE_PRESETS[id].label}
+            </button>
+          ))}
+        </div>
       </div>
     );
   }

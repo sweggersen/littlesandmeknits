@@ -142,12 +142,17 @@ export interface BlockDef {
    *  horizontal resize. Flexible blocks (text, contact, banner) are user-sized
    *  in both directions. */
   contentHeight?: boolean;
+  /** Only one of this block type makes sense per page (a single hero, the
+   *  all-listings grid, the featured picks, the contact card). The palette hides
+   *  it once one exists. */
+  singleton?: boolean;
 }
 
 export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
   hero: {
     type: 'hero',
     contentHeight: true,
+    singleton: true,
     label: 'Toppseksjon',
     description: 'Logo, butikknavn og en kort undertittel, over et valgfritt bakgrunnsbilde.',
     defaultProps: {
@@ -187,6 +192,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
   productGrid: {
     type: 'productGrid',
     contentHeight: true,
+    singleton: true,
     label: 'Produktrutenett',
     description: 'Alle aktive annonser fra butikken i et rutenett.',
     defaultProps: { heading: 'Annonser', limit: 24 },
@@ -199,6 +205,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
   featuredProducts: {
     type: 'featuredProducts',
     contentHeight: true,
+    singleton: true,
     label: 'Utvalgte produkter',
     description: 'Et lite utvalg annonser du velger selv.',
     defaultProps: { heading: 'Utvalgte', ids: [] },
@@ -245,6 +252,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
   },
   contactInfo: {
     type: 'contactInfo',
+    singleton: true,
     label: 'Kontaktinfo',
     description: 'Sted, e-post og lenker til sosiale medier.',
     defaultProps: { heading: 'Kontakt' },

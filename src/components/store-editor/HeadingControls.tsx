@@ -22,9 +22,14 @@ import {
 export default function HeadingControls({
   theme,
   onChange,
+  showColor = true,
 }: {
   theme: StoreTheme;
   onChange: (theme: StoreTheme) => void;
+  // The colour also lives in the "Farger" list, so the ThemePanel section hides
+  // it here to avoid a duplicate; the click-to-edit popover keeps it (that's
+  // where editing a heading's colour in place is the point).
+  showColor?: boolean;
 }) {
   const setColor = (value: string) =>
     onChange({ ...theme, colors: { ...theme.colors, heading: value } });
@@ -34,6 +39,7 @@ export default function HeadingControls({
   return (
     <div className="space-y-2.5" data-heading-controls>
       {/* Heading colour — same row pattern as the colour list. */}
+      {showColor && (
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -56,6 +62,7 @@ export default function HeadingControls({
           data-color-hex="heading"
         />
       </div>
+      )}
 
       <label className="block">
         <span className="block text-xs font-medium text-charcoal/60 mb-1">{L.headingWeight}</span>

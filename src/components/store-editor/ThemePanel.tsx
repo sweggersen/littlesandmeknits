@@ -89,7 +89,7 @@ export default function ThemePanel({
       <div data-heading-section>
         <span className="block text-xs font-medium text-charcoal/60 mb-1">{L.headings}</span>
         <p className="text-[11px] text-charcoal/45 mb-1.5">{L.headingEditHint}</p>
-        <HeadingControls theme={theme} onChange={onChange} />
+        <HeadingControls theme={theme} onChange={onChange} showColor={false} />
       </div>
 
       <div>
