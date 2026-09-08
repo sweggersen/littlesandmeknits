@@ -97,10 +97,18 @@ export default function BlockPreview({
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
-                className="h-16 rounded flex items-center justify-center text-[10px]"
+                className="h-16 rounded flex flex-col items-center justify-center gap-1 text-[10px]"
                 style={{ background: 'var(--color-surface)', border: '1px solid var(--store-border)', color: 'var(--store-muted)' }}
               >
-                Produkt
+                <span>Produkt</span>
+                {/* Mini preview of the themeable "Merkelapp" (tag) colour with its
+                    auto-contrasted text, so the owner sees it in context. */}
+                <span
+                  className="text-[8px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'var(--store-tag)', color: 'var(--store-tag-fg)' }}
+                >
+                  Sendes
+                </span>
               </div>
             ))}
           </div>
