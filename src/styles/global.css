@@ -412,27 +412,22 @@
   background: var(--store-tag);
   color: var(--store-tag-fg);
 }
-/* Flexible-block resize handle (react-grid-layout's se corner). It sits at the
-   grid-cell corner, but a flexible block's card ends 12px above that (the
-   uniform GAP spacer the editor adds below every block), so the default (faint,
-   6px) glyph floats in the gap. Replace it with a clear corner caret drawn from
-   two borders, tucked INSIDE the card's bottom-right corner with an equal 6px
-   inset on both axes (lifted by GAP 12 + 6). NOTE: the 12 tracks EditorCanvas GAP. */
-.store-editor-canvas .react-resizable-handle-se {
-  width: 8px;
-  height: 8px;
-  right: 5px;
-  bottom: 17px; /* GAP (12) + 5px inset */
-  padding: 0;
-  margin: 0;
-  background: none;
-  border-right: 2px solid var(--store-muted);
-  border-bottom: 2px solid var(--store-muted);
-  border-bottom-right-radius: 2px;
-  opacity: 0.45;
+/* Flexible-block resize handle. react-grid-layout OWNS the handle: it sizes the
+   20px span (`.react-grid-item > .react-resizable-handle`, specificity 0,3,0)
+   and draws the small corner caret as a `::after` pseudo-element. A flexible
+   card ends 12px above the grid cell (the uniform GAP spacer), so RGL's handle
+   floats in that gap. We simply lift the whole handle up by the GAP so its
+   built-in ::after caret lands in the card's bottom-right corner, and retint
+   that caret so it reads on any theme. The selectors must out-specify RGL's own
+   (hence the full `.react-grid-item > .react-resizable-handle...` chain), which
+   is why earlier, lower-specificity rules silently lost. NOTE: the 12px must
+   track EditorCanvas's GAP constant. */
+.store-editor-canvas .react-grid-item > .react-resizable-handle.react-resizable-handle-se {
+  bottom: 12px;
+  right: 0;
 }
-.store-editor-canvas .react-resizable-handle-se:hover {
-  opacity: 0.9;
+.store-editor-canvas .react-grid-item > .react-resizable-handle.react-resizable-handle-se::after {
+  border-color: var(--store-muted);
 }
 .store-grid {
   display: grid;
