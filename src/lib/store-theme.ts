@@ -47,6 +47,7 @@ export const STORE_COLOR_ROLES = [
   'primaryFg', // text on primary
   'accent', // secondary accent
   'headerBg', // hero / header band background
+  'tag', // status / delivery pill background (text auto-contrasts black/white)
 ] as const;
 export type StoreColorRole = (typeof STORE_COLOR_ROLES)[number];
 
@@ -112,6 +113,7 @@ export const DEFAULT_STORE_THEME: StoreTheme = {
     primaryFg: '#FAF6F0',
     accent: '#9CAF88',
     headerBg: '#2C2A26',
+    tag: '#8A9A5B',
   },
   fontDisplay: 'fraunces',
   fontBody: 'inter',
@@ -220,7 +222,28 @@ function colorVarPairs(colors: Record<StoreColorRole, string>): string[] {
     `--color-primary-fg:${colors.primaryFg}`,
     `--store-accent:${colors.accent}`,
     `--store-header-bg:${colors.headerBg}`,
+    // The tag/pill background is themeable; its text auto-contrasts to black or
+    // white so it stays readable on any chosen colour. Both values are derived
+    // from the validated hex — nothing user-authored reaches the style string.
+    `--store-tag:${colors.tag}`,
+    `--store-tag-fg:${readableTextColor(colors.tag)}`,
   ];
+}
+
+/**
+ * Pick black or white text for a background so it stays legible. Input is a
+ * validated `#rgb`/`#rrggbb`; we compute WCAG relative luminance and flip at the
+ * standard 0.179 threshold (the crossover where black vs white contrast is equal).
+ */
+export function readableTextColor(hex: string): '#000000' | '#FFFFFF' {
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const channel = (i: number) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  };
+  const luminance = 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4);
+  return luminance > 0.179 ? '#000000' : '#FFFFFF';
 }
 
 /**

@@ -64,6 +64,7 @@ export const STORE_COLOR_ROLE_LABEL: Record<string, string> = {
   primaryFg: 'Tekst på hovedfarge',
   accent: 'Aksentfarge',
   headerBg: 'Toppbakgrunn',
+  tag: 'Merkelapp',
 };
 
 // Heading typography controls (theme-level, applies to all headings).

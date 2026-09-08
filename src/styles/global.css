@@ -401,6 +401,14 @@
 .store-scope .store-hero h1 {
   color: inherit;
 }
+/* Delivery/status pills on store-scoped listing cards use the themeable tag
+   colour, with text auto-contrasted to black or white (--store-tag-fg) so it is
+   always legible. The shield icon uses stroke:currentColor, so it follows suit.
+   Outside .store-scope the pills keep their default sage/oatmeal utilities. */
+.store-scope [data-delivery-tag] {
+  background: var(--store-tag);
+  color: var(--store-tag-fg);
+}
 .store-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));

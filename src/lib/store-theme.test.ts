@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   sanitizeStoreTheme,
   storeThemeToCssVars,
+  readableTextColor,
   isValidHex,
   isKnownFont,
   DEFAULT_STORE_THEME,
@@ -23,6 +24,35 @@ describe('isValidHex', () => {
     expect(isValidHex('#fff;')).toBe(false);
     expect(isValidHex(123)).toBe(false);
     expect(isValidHex(null)).toBe(false);
+  });
+});
+
+describe('readableTextColor', () => {
+  it('picks black on light backgrounds and white on dark', () => {
+    expect(readableTextColor('#FFFFFF')).toBe('#000000');
+    expect(readableTextColor('#FAF6F0')).toBe('#000000');
+    expect(readableTextColor('#8A9A5B')).toBe('#000000'); // mid sage default
+    expect(readableTextColor('#000000')).toBe('#FFFFFF');
+    expect(readableTextColor('#2C2A26')).toBe('#FFFFFF');
+    expect(readableTextColor('#5B4B7A')).toBe('#FFFFFF'); // dark plum preset tag
+  });
+  it('handles #rgb shorthand', () => {
+    expect(readableTextColor('#fff')).toBe('#000000');
+    expect(readableTextColor('#000')).toBe('#FFFFFF');
+  });
+});
+
+describe('tag colour + auto-contrast text', () => {
+  it("emits --store-tag and an auto-contrasted --store-tag-fg", () => {
+    const css = storeThemeToCssVars({ colors: { tag: '#111111' } });
+    expect(css).toContain('--store-tag:#111111');
+    expect(css).toContain('--store-tag-fg:#FFFFFF');
+    const light = storeThemeToCssVars({ colors: { tag: '#EEEEEE' } });
+    expect(light).toContain('--store-tag-fg:#000000');
+  });
+  it('sanitises a junk tag colour to the default', () => {
+    const t = sanitizeStoreTheme({ colors: { tag: 'red;}body{}' } });
+    expect(t.colors.tag).toBe(DEFAULT_STORE_THEME.colors.tag);
   });
 });
 
