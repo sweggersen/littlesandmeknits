@@ -258,6 +258,93 @@ export function recommendationForStoreScore(total: number): StoreScoreRecommenda
   };
 }
 
+/** Confidence for a PERSONAL store (no org number). There's no business to
+ *  verify against Brønnøysund, so we favour real marketplace activity: active
+ *  listings, completed sales, reviews and account longevity, minus past
+ *  rejections. A brand-new seller simply scores low (never negative), and the
+ *  recommendation never treats "no org number" as grounds for rejection. */
+export interface PersonalStoreScoreInput {
+  activeListings: number;
+  completedTransactions: number;
+  reviewAvg: number;
+  reviewCount: number;
+  accountAgeDays: number;
+  totalRejections: number;
+}
+
+export function computePersonalStoreScore(
+  input: PersonalStoreScoreInput,
+): { total: number; breakdown: { label: string; points: number; max: number }[] } {
+  const breakdown: { label: string; points: number; max: number }[] = [];
+
+  // Active listings — a real, stocked store (0-25).
+  let listPts = 0;
+  if (input.activeListings >= 10) listPts = 25;
+  else if (input.activeListings >= 5) listPts = 20;
+  else if (input.activeListings >= 3) listPts = 14;
+  else if (input.activeListings >= 1) listPts = 8;
+  breakdown.push({ label: 'Aktive annonser', points: listPts, max: 25 });
+
+  // Completed sales — the strongest activity signal (0-30).
+  let salesPts = 0;
+  const t = input.completedTransactions;
+  if (t >= 10) salesPts = 30;
+  else if (t >= 5) salesPts = 24;
+  else if (t >= 3) salesPts = 18;
+  else if (t >= 1) salesPts = 10;
+  breakdown.push({ label: 'Fullførte salg', points: salesPts, max: 30 });
+
+  // Buyer reviews (0-20).
+  let revPts = 0;
+  if (input.reviewAvg >= 4.5 && input.reviewCount >= 3) revPts = 20;
+  else if (input.reviewAvg >= 4.0 && input.reviewCount >= 2) revPts = 13;
+  else if (input.reviewAvg >= 3.0 && input.reviewCount >= 1) revPts = 6;
+  breakdown.push({ label: 'Vurderinger', points: revPts, max: 20 });
+
+  // Account longevity / activity (0-15).
+  let agePts = 0;
+  const d = input.accountAgeDays;
+  if (d >= 365) agePts = 15;
+  else if (d >= 180) agePts = 11;
+  else if (d >= 90) agePts = 7;
+  else if (d >= 30) agePts = 4;
+  else if (d >= 7) agePts = 2;
+  breakdown.push({ label: 'Kontoalder', points: agePts, max: 15 });
+
+  // Past rejections (0 to -20).
+  const rejPenalty = Math.min(input.totalRejections * 5, 20);
+  breakdown.push({ label: 'Tidligere avvisninger', points: -rejPenalty, max: 0 });
+
+  const total = Math.max(0, Math.min(100, breakdown.reduce((s, b) => s + b.points, 0)));
+  return { total, breakdown };
+}
+
+/** Recommendation for a PERSONAL store (no org number). There is no business to
+ *  verify against Brønnøysund, so we judge by the seller's own activity/trust
+ *  and content, never "no representative match". Even a brand-new account is
+ *  never flagged as a likely rejection just for lacking an org number. */
+export function recommendationForPersonalStore(sellerTrust: number): StoreScoreRecommendation {
+  if (sellerTrust >= 50) {
+    return {
+      tone: 'green',
+      label: 'Ser greit ut',
+      detail: 'Personlig butikk uten organisasjonsnummer. Selgeren har gode tillitssignaler. Godkjenn med mindre innholdet bryter reglene.',
+    };
+  }
+  if (sellerTrust >= 25) {
+    return {
+      tone: 'amber',
+      label: 'Vurder innholdet',
+      detail: 'Personlig butikk uten organisasjonsnummer. Vurder ut fra selgerens profil, historikk og butikkinnhold.',
+    };
+  }
+  return {
+    tone: 'orange',
+    label: 'Ny selger, sjekk innhold',
+    detail: 'Personlig butikk fra en ny eller lite etablert konto. Ingen foretaksverifisering forventes her. Sjekk at innholdet er ekte og i tråd med reglene.',
+  };
+}
+
 export async function getReviewStats(admin: SupabaseClient, userId: string): Promise<ReviewStats> {
   const { data } = await admin
     .from('transaction_reviews')

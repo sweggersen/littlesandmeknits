@@ -3,7 +3,7 @@ import AdminLayout from '../../../layouts/AdminLayout.astro';
 import ItemDetailsPanel from '../../../components/moderation/ItemDetailsPanel.astro';
 import { requireModerator } from '../../../lib/admin-auth';
 import { createServerSupabase } from '../../../lib/supabase';
-import { computeConfidenceScore, computeStoreConfidenceScore, recommendationForStoreScore, getReviewStats } from '../../../lib/moderation';
+import { computeConfidenceScore, computeStoreConfidenceScore, recommendationForStoreScore, recommendationForPersonalStore, computePersonalStoreScore, getReviewStats } from '../../../lib/moderation';
 import { anonymizeUser } from '../../../lib/anonymize';
 import { projectPhotoUrl } from '../../../lib/storage';
 import { CATEGORY_LABEL } from '../../../lib/labels';
@@ -194,6 +194,28 @@ if (submitter && itemData && queueItem.item_type !== 'store') {
   }, reviewStats);
 }
 
+// A PERSONAL store (no org number) has no business to verify against
+// Brønnøysund, so the org-representative confidence score is meaningless (it
+// would always be 0 -> "likely rejection"). Score it on real marketplace
+// activity instead: active listings, completed sales, reviews, longevity.
+const isPersonalStore = queueItem.item_type === 'store' && !itemData?.orgnr;
+if (isPersonalStore && submitter) {
+  const { count: activeListings } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('seller_id', submitter.id)
+    .eq('status', 'active');
+  const accountAgeDays = (Date.now() - new Date(submitter.created_at).getTime()) / 86400_000;
+  confidence = computePersonalStoreScore({
+    activeListings: activeListings ?? 0,
+    completedTransactions: submitter.total_completed_transactions ?? 0,
+    reviewAvg: reviewStats.avg_rating,
+    reviewCount: reviewStats.review_count,
+    accountAgeDays,
+    totalRejections: submitter.total_rejections ?? 0,
+  });
+}
+
 // Previous moderation history for submitter
 const { data: prevQueue } = await supabase
   .from('moderation_queue')
@@ -224,7 +246,9 @@ const canDecide = ['pending', 'assigned', 'escalated'].includes(queueItem.status
   && !isStoreMember;
 
 const storeRecommendation = queueItem.item_type === 'store'
-  ? recommendationForStoreScore(confidence.total)
+  ? (isPersonalStore
+      ? recommendationForPersonalStore(confidence.total)
+      : recommendationForStoreScore(confidence.total))
   : null;
 const RECOMMENDATION_TONE: Record<string, string> = {
   green: 'bg-sage-100/70 border-sage-500/30 text-sage-800',
@@ -317,7 +341,7 @@ function scoreColor(s: number) {
     <div class="space-y-4">
       <!-- Confidence score -->
       <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tillitsscore</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">{isPersonalStore ? 'Selgerens tillitsscore' : 'Tillitsscore'}</p>
         <div class="flex items-center gap-3 mb-3">
           <span class:list={['font-mono text-3xl font-bold tabular-nums rounded-lg px-3 py-1', scoreColor(confidence.total)]}>
             {confidence.total}
