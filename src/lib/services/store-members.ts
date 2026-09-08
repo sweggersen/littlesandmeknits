@@ -159,6 +159,35 @@ export async function removeMember(
   return ok({ ok: true });
 }
 
+/** Owner/admin toggles ANY member's visibility in the storefront "team" panel.
+ *  (A member can also toggle their own via updateMyPresentation.) Gated on
+ *  can.manageMembers so contributors/managers can't reveal or hide others. */
+export async function setMemberVisibility(
+  ctx: ServiceContext,
+  storeId: string,
+  targetUserId: string,
+  visible: boolean,
+): Promise<ServiceResult<{ ok: true }>> {
+  const myRole = await getMyRole(ctx, storeId);
+  if (!can.manageMembers(myRole)) return fail('forbidden', 'Ikke tilgang');
+
+  const { data: target } = await ctx.admin
+    .from('store_members')
+    .select('user_id')
+    .eq('store_id', storeId)
+    .eq('user_id', targetUserId)
+    .maybeSingle();
+  if (!target) return fail('not_found', 'Medlem ikke funnet');
+
+  const { error } = await ctx.admin
+    .from('store_members')
+    .update({ visible_on_storefront: visible })
+    .eq('store_id', storeId)
+    .eq('user_id', targetUserId);
+  if (error) return fail('server_error', 'Kunne ikke oppdatere synlighet');
+  return ok({ ok: true });
+}
+
 export interface UpdateMemberPresentationInput {
   visible_on_storefront?: boolean;
   public_title?: string | null;
