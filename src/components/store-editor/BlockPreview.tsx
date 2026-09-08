@@ -205,6 +205,31 @@ export default function BlockPreview({
         </div>
       );
 
+    case 'team':
+      return (
+        <div>
+          <div {...HEAD_EDIT} className="mb-2" style={headingStyle('0.875rem')}>
+            {str(p.heading, 'Eier / team')}
+          </div>
+          {/* The live block shows the store's real members; the editor draws a
+              representative sketch, like productGrid's example tiles. */}
+          <div className="flex gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-2 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-full shrink-0"
+                  style={{ background: 'var(--color-surface)', border: '1px solid var(--store-border)' }}
+                />
+                <div className="min-w-0">
+                  <div className="text-[11px] font-medium truncate" style={{ color: 'var(--color-charcoal)' }}>Navn</div>
+                  <div className="text-[10px] truncate" style={{ color: 'var(--store-muted)' }}>Tittel</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+
     default:
       return <div className="text-xs opacity-60">{block.type}</div>;
   }

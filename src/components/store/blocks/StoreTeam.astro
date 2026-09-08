@@ -1,0 +1,16 @@
+---
+// Owner / team block: a first-class builder block that surfaces the store's
+// storefront-visible members (owner or team). It delegates rendering to the
+// shared StoreOwnerPanel in `themed` mode (which IS the themed panel), so the
+// member markup lives in one place. Heading: the block's own `heading` prop if
+// set, else the panel's auto label ("Eier" for one member, "Teamet" for more).
+// Renders nothing when the store has no visible members, so an empty store
+// never shows an empty panel on the live storefront.
+import StoreOwnerPanel from '../StoreOwnerPanel.astro';
+import type { StoreBlockProps } from './types';
+
+const { props = {}, members = [] } = Astro.props as StoreBlockProps;
+const heading = typeof props.heading === 'string' && props.heading.trim() ? props.heading.trim() : undefined;
+---
+
+{members.length > 0 && <StoreOwnerPanel members={members} themed heading={heading} />}

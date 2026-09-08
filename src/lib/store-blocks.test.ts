@@ -132,6 +132,36 @@ describe('registry', () => {
     expect(BLOCK_REGISTRY.imageGallery.defaultProps.images).toEqual([]);
   });
 
+  it('registers the team block as a content-height singleton with a heading field', () => {
+    expect(isKnownBlockType('team')).toBe(true);
+    expect(STORE_BLOCK_TYPES).toContain('team');
+    const def = BLOCK_REGISTRY.team;
+    expect(def.singleton).toBe(true);
+    expect(def.contentHeight).toBe(true);
+    expect(def.defaultProps.heading).toBe('');
+    const field = def.propSchema.find((f) => f.key === 'heading');
+    expect(field?.kind).toBe('text');
+  });
+
+  it('sanitizes a team block through the page config, keeping a heading override', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [{ id: 't', type: 'team', layout: { x: 0, y: 0, w: 12, h: 3 }, props: { heading: 'Vårt team' } }],
+    });
+    expect(cfg.blocks).toHaveLength(1);
+    expect(cfg.blocks[0].type).toBe('team');
+    expect((cfg.blocks[0].props as Record<string, unknown>).heading).toBe('Vårt team');
+  });
+
+  it('still drops genuinely unknown types alongside a valid team block', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [
+        { id: 't', type: 'team', layout: {}, props: {} },
+        { id: 'x', type: 'ownerPanel', layout: {}, props: {} }, // not a real type
+      ],
+    });
+    expect(cfg.blocks.map((b) => b.type)).toEqual(['team']);
+  });
+
   it('hero exposes logo + bgImage assetId fields and an overlay-style select', () => {
     const keys = BLOCK_REGISTRY.hero.propSchema.map((f) => `${f.key}:${f.kind}`);
     expect(keys).toContain('logo:assetId');
