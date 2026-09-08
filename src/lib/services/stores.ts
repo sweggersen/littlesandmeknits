@@ -3,7 +3,7 @@
 
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
-import { lookupOrgnr } from '../brreg';
+import { lookupOrgnr, type OrgnrData } from '../brreg';
 import { ensureUniqueSlug, isReserved, isValidSlugSyntax, slugify } from './store-slug';
 import { can } from './store-permissions';
 import { getMyRole } from './store-members';
@@ -13,8 +13,11 @@ import type { Store, StoreStatus, PublicStorefront } from '../types/stores';
 const STORE_SELECT = '*';
 
 export interface CreateStoreInput {
-  orgnr: string;
-  /** Optional override for display name. Defaults to legal name from Brønnøysund. */
+  /** Optional. When present + valid, the store is a verified business. When
+   *  absent/empty, it's a personal store (profile page) with verified=false. */
+  orgnr?: string;
+  /** Display name. Defaults to the Brønnøysund legal name for business stores;
+   *  REQUIRED for personal stores (there is no legal name to fall back to). */
   name?: string;
   /** Optional slug. Defaults to slugified name. */
   slug?: string;
@@ -28,7 +31,11 @@ export async function createStore(
   ctx: ServiceContext,
   input: CreateStoreInput,
 ): Promise<ServiceResult<{ storeId: string; slug: string; redirect: string }>> {
-  if (!input.orgnr) return fail('bad_input', 'Orgnr er påkrevd');
+  // orgnr is now optional: a store WITH a valid org number is a verified
+  // business; one WITHOUT is a personal store/profile page. `verified` and
+  // `status` are decided here (server-controlled), never taken from input.
+  const rawOrgnr = input.orgnr?.trim();
+  const hasOrgnr = !!rawOrgnr;
 
   const contactEmail = input.contact_email?.trim().toLowerCase();
   if (!contactEmail) return fail('bad_input', 'Kontakt-e-post er påkrevd');
@@ -38,29 +45,36 @@ export async function createStore(
   const quotaFail = await assertWithinQuota(ctx, 'store_create');
   if (quotaFail) return quotaFail;
 
-  const lookup = await lookupOrgnr(input.orgnr);
-  if (!lookup.ok || !lookup.data) {
-    if (lookup.error === 'not_found') return fail('not_found', 'Fant ikke organisasjonen i Brønnøysundregistrene');
-    if (lookup.error === 'invalid_format' || lookup.error === 'invalid_checksum') {
-      return fail('bad_input', 'Ugyldig organisasjonsnummer');
+  // Business path: resolve + validate the org against Brønnøysund. Personal
+  // path skips the lookup entirely (org stays null).
+  let org: OrgnrData | null = null;
+  if (hasOrgnr) {
+    const lookup = await lookupOrgnr(rawOrgnr!);
+    if (!lookup.ok || !lookup.data) {
+      if (lookup.error === 'not_found') return fail('not_found', 'Fant ikke organisasjonen i Brønnøysundregistrene');
+      if (lookup.error === 'invalid_format' || lookup.error === 'invalid_checksum') {
+        return fail('bad_input', 'Ugyldig organisasjonsnummer');
+      }
+      return fail('server_error', 'Kunne ikke slå opp organisasjonen akkurat nå');
     }
-    return fail('server_error', 'Kunne ikke slå opp organisasjonen akkurat nå');
-  }
-  const org = lookup.data;
-  if (org.status !== 'normal') {
-    return fail('conflict', `Organisasjonen er registrert som ${org.status} i Brønnøysund og kan ikke brukes`);
+    org = lookup.data;
+    if (org.status !== 'normal') {
+      return fail('conflict', `Organisasjonen er registrert som ${org.status} i Brønnøysund og kan ikke brukes`);
+    }
+
+    // Orgnr must be unique among non-deleted stores
+    const { data: existingOrgnr } = await ctx.admin
+      .from('stores')
+      .select('id')
+      .eq('orgnr', org.orgnr)
+      .is('deleted_at', null)
+      .maybeSingle();
+    if (existingOrgnr) return fail('conflict', 'Denne organisasjonen har allerede en butikk');
   }
 
-  // Orgnr must be unique among non-deleted stores
-  const { data: existingOrgnr } = await ctx.admin
-    .from('stores')
-    .select('id')
-    .eq('orgnr', org.orgnr)
-    .is('deleted_at', null)
-    .maybeSingle();
-  if (existingOrgnr) return fail('conflict', 'Denne organisasjonen har allerede en butikk');
-
-  const name = (input.name ?? org.legalName).trim();
+  // For a personal store there is no legal name to fall back to, so a display
+  // name is required.
+  const name = (input.name ?? org?.legalName ?? '').trim();
   if (name.length < 2) return fail('bad_input', 'Navn er for kort');
 
   // Slug
@@ -82,20 +96,24 @@ export async function createStore(
     .from('stores')
     .insert({
       slug,
-      orgnr: org.orgnr,
-      legal_name: org.legalName,
-      legal_address: org.address || null,
-      legal_business_type: org.businessType,
-      legal_industry_code: org.industryCode,
-      legal_status: org.status,
-      legal_founded_date: org.foundedDate,
+      // Business fields come from Brønnøysund; all null for a personal store.
+      orgnr: org?.orgnr ?? null,
+      legal_name: org?.legalName ?? null,
+      legal_address: org?.address || null,
+      legal_business_type: org?.businessType ?? null,
+      legal_industry_code: org?.industryCode ?? null,
+      legal_status: org?.status ?? null,
+      legal_founded_date: org?.foundedDate ?? null,
       name,
       tagline: input.tagline?.trim() || null,
       description: input.description?.trim() || null,
       website_url: input.website_url?.trim() || null,
       contact_email: contactEmail,
-      location_city: org.city,
+      location_city: org?.city ?? null,
+      // Server-controlled: both personal and business stores go through
+      // moderation; only a valid org number earns the verified badge.
       status: 'pending_review' as StoreStatus,
+      verified: hasOrgnr,
       created_by: ctx.user.id,
     })
     .select('id, slug')

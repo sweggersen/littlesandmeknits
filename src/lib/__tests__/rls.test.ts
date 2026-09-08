@@ -362,6 +362,56 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  // Migration 0108: stores are open to all sellers, but a direct PostgREST
+  // caller (anon key + user JWT, bypassing createStore) must NEVER be able to
+  // self-verify or self-activate. The hardened stores_insert_self WITH CHECK
+  // pins created_by = auth.uid() AND verified = false AND status = 'draft'.
+  describe('stores insert policy (0108 hardening)', () => {
+    it('a direct caller CAN insert an unverified draft store they own', async () => {
+      const slug = `rls-ins-ok-${Date.now()}`;
+      const { data, error } = await aliceClient.from('stores').insert({
+        slug, name: 'RLS Personal', created_by: aliceId,
+        verified: false, status: 'draft',
+      }).select('id').single();
+      expect(error).toBeNull();
+      expect(data?.id).toBeTruthy();
+      if (data?.id) await admin.from('stores').delete().eq('id', data.id);
+    });
+
+    it('a direct caller CANNOT self-insert a VERIFIED store', async () => {
+      const slug = `rls-ins-ver-${Date.now()}`;
+      const { error } = await aliceClient.from('stores').insert({
+        slug, name: 'RLS Fake Verified', created_by: aliceId,
+        verified: true, status: 'draft',
+      });
+      expect(error).not.toBeNull(); // WITH CHECK: verified must be false
+      const { data } = await admin.from('stores').select('id').eq('slug', slug);
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('a direct caller CANNOT self-insert an ACTIVE store', async () => {
+      const slug = `rls-ins-act-${Date.now()}`;
+      const { error } = await aliceClient.from('stores').insert({
+        slug, name: 'RLS Fake Active', created_by: aliceId,
+        verified: false, status: 'active',
+      });
+      expect(error).not.toBeNull(); // WITH CHECK: status must be draft
+      const { data } = await admin.from('stores').select('id').eq('slug', slug);
+      expect(data ?? []).toHaveLength(0);
+    });
+
+    it('a direct caller CANNOT insert a store owned by someone else', async () => {
+      const slug = `rls-ins-other-${Date.now()}`;
+      const { error } = await aliceClient.from('stores').insert({
+        slug, name: 'RLS Not Mine', created_by: bobId,
+        verified: false, status: 'draft',
+      });
+      expect(error).not.toBeNull(); // created_by must equal auth.uid()
+      const { data } = await admin.from('stores').select('id').eq('slug', slug);
+      expect(data ?? []).toHaveLength(0);
+    });
+  });
+
   // 0106 store page-builder: store_assets RLS + the stores theme/page_config
   // write path. Editors (owner/admin/manager) write; the public reads assets of
   // an active store; non-members cannot write theme or assets.

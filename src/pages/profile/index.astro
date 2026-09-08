@@ -18,7 +18,7 @@ import { buildServiceContext } from '../../lib/services/context';
 import { listMyInvitations } from '../../lib/services/store-invitations';
 import { projectPhotoUrl } from '../../lib/storage';
 import { loadProfileDashboard } from '../../lib/profile-dashboard-data';
-import { COMMISSION_STATUS, LISTING_STATUS, PROJECT_STATUS, KIND_LABEL, CATEGORY_LABEL } from '../../lib/labels';
+import { COMMISSION_STATUS, LISTING_STATUS, PROJECT_STATUS, KIND_LABEL, CATEGORY_LABEL, STORE_NUDGE } from '../../lib/labels';
 import { formatDate } from '../../lib/time';
 
 const user = Astro.locals.user!; // middleware-gated
@@ -29,6 +29,10 @@ const d = await loadProfileDashboard(supabase, user);
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 const invRes = ctx ? await listMyInvitations(ctx) : null;
 const pendingInvites = invRes?.ok ? invRes.data.length : 0;
+
+// Store nudge: seller has >= 5 active listings and no store. Suppress when a
+// store invitation is already pending (they're mid-onboarding into a store).
+const showStoreNudge = d.showStoreNudge && pendingInvites === 0;
 
 // Status → StatusBadge colour.
 function comVariant(s: string) {
@@ -233,7 +237,15 @@ for (const o of d.allOffers.slice(0, 4)) {
               </a>
             )}
             {d.myStores.length === 0 ? (
-              <p class="text-sm text-charcoal/50">{pendingInvites > 0 ? 'Ingen butikker enda.' : 'Ingen butikker.'}</p>
+              showStoreNudge ? (
+                <div class="rounded-xl bg-sage-100/50 border border-sage-500/20 px-3 py-3 text-center">
+                  <p class="text-sm font-medium text-charcoal/80 mb-1">{STORE_NUDGE.title}</p>
+                  <p class="text-xs text-charcoal/55 mb-3">{STORE_NUDGE.body}</p>
+                  <a href="/profile/stores/new" class="btn-primary px-4 py-2 rounded-full text-xs font-medium inline-block">{STORE_NUDGE.cta}</a>
+                </div>
+              ) : (
+                <p class="text-sm text-charcoal/50">{pendingInvites > 0 ? 'Ingen butikker enda.' : 'Ingen butikker.'}</p>
+              )
             ) : (
               <ul class="space-y-2">
                 {d.myStores.slice(0, 4).map((s) => (

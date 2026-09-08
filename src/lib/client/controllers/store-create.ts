@@ -1,5 +1,6 @@
-// Controller for /profile/stores/new — Brønnøysund lookup, slug
-// auto-fill from legal name, and form submit with redirect handling.
+// Controller for /profile/stores/new — store type choice (personal vs
+// business), Brønnøysund lookup for the business path, slug auto-fill from the
+// name, and form submit with redirect handling.
 // Extracted from inline script as part of refactor item 9.
 
 import { bindOnce } from '../dom';
@@ -13,19 +14,40 @@ interface BrregData {
   status: string;
 }
 
+type Mode = 'personal' | 'business';
+
+interface WizardCopy {
+  businessConsent: string;
+  personalConsent: string;
+  submitPersonal: string;
+  submitBusiness: string;
+}
+
 export function init(): void {
   const orgnrInput = document.getElementById('orgnr-input') as HTMLInputElement | null;
   const lookupBtn = document.getElementById('lookup-btn') as HTMLButtonElement | null;
   const lookupResult = document.getElementById('lookup-result');
+  const businessBlock = document.getElementById('business-block');
   const detailsSection = document.getElementById('details-section');
   const nameInput = document.getElementById('name-input') as HTMLInputElement | null;
   const slugInput = document.getElementById('slug-input') as HTMLInputElement | null;
+  const submitBtn = document.getElementById('submit-btn');
+  const consentText = document.querySelector('[data-consent-text]');
   const errorEl = document.getElementById('error-message');
   const form = document.getElementById('store-form') as HTMLFormElement | null;
-  if (!orgnrInput || !lookupBtn || !form) return;
+  const typeRadios = Array.from(
+    document.querySelectorAll<HTMLInputElement>('input[data-store-type]'),
+  );
+  if (!form) return;
   // registerController re-runs init() (incl. on the initial hard load); bind
   // once or store creation + the orgnr lookup fire twice.
   if (!bindOnce('store-create', form)) return;
+
+  const copy: WizardCopy = (window as any).__storeWizardCopy ?? {
+    businessConsent: '', personalConsent: '', submitPersonal: 'Opprett butikk', submitBusiness: 'Opprett butikk',
+  };
+
+  let mode: Mode | null = null;
 
   function slugify(s: string): string {
     return s.toLowerCase()
@@ -36,8 +58,40 @@ export function init(): void {
       .slice(0, 48);
   }
 
+  function applyMode(next: Mode) {
+    mode = next;
+    showError(null);
+    if (next === 'business') {
+      businessBlock?.classList.remove('hidden');
+      // Details stay hidden until a successful Brønnøysund lookup.
+      detailsSection!.classList.add('hidden');
+      lookupResult?.classList.add('hidden');
+      if (consentText) consentText.textContent = copy.businessConsent;
+      if (submitBtn) submitBtn.textContent = copy.submitBusiness;
+    } else {
+      // Personal store: no org number. Clear it so it isn't submitted, and go
+      // straight to the storefront details.
+      businessBlock?.classList.add('hidden');
+      lookupResult?.classList.add('hidden');
+      if (orgnrInput) orgnrInput.value = '';
+      detailsSection!.classList.remove('hidden');
+      if (consentText) consentText.textContent = copy.personalConsent;
+      if (submitBtn) submitBtn.textContent = copy.submitPersonal;
+    }
+    // Re-append the "Les mer" link that lives inside the consent span (we blew
+    // it away by setting textContent).
+    if (consentText) {
+      const link = document.createElement('a');
+      link.href = '/privacy#butikker';
+      link.target = '_blank';
+      link.className = 'text-terracotta-500 hover:underline whitespace-nowrap';
+      link.textContent = 'Les mer';
+      consentText.append(' ', link);
+    }
+  }
+
   async function doLookup() {
-    const orgnr = orgnrInput!.value.replace(/\D/g, '');
+    const orgnr = (orgnrInput?.value ?? '').replace(/\D/g, '');
     if (orgnr.length !== 9) {
       showError('Organisasjonsnummer må være 9 sifre');
       return;
@@ -94,8 +148,14 @@ export function init(): void {
     }
   }
 
-  lookupBtn.addEventListener('click', doLookup);
-  orgnrInput.addEventListener('keydown', (e) => {
+  typeRadios.forEach((radio) => {
+    radio.addEventListener('change', () => {
+      if (radio.checked) applyMode(radio.value as Mode);
+    });
+  });
+
+  lookupBtn?.addEventListener('click', doLookup);
+  orgnrInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); doLookup(); }
   });
   nameInput?.addEventListener('input', () => {
@@ -107,6 +167,7 @@ export function init(): void {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!mode) { showError('Velg om butikken er personlig eller en bedrift'); return; }
     showError(null);
     const formData = new FormData(form);
     const res = await fetch('/api/stores', { method: 'POST', body: formData });

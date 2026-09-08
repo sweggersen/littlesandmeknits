@@ -1,66 +1,86 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import { STORE_WIZARD } from '../../../lib/labels';
 const user = Astro.locals.user!;  // middleware-gated route
 ---
 
-<Layout title="Opprett butikk — Strikketorget" lang="nb">
+<Layout title="Opprett butikk · Strikketorget" lang="nb">
   <div class="bg-linen min-h-[80vh]">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
       <a href="/profile/stores" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-flex items-center gap-1">
         ← Mine butikker
       </a>
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Opprett butikk</h1>
-      <p class="text-charcoal/55 mb-8">
-        Butikker er for registrerte virksomheter (orgnr). Vi henter informasjon
-        fra Brønnøysundregistrene automatisk.
-      </p>
+      <p class="text-charcoal/55 mb-8">{STORE_WIZARD.intro}</p>
 
       <form id="store-form" method="post" action="/api/stores" class="space-y-6">
-        <div>
-          <label for="orgnr-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-            Organisasjonsnummer
-          </label>
-          <div class="flex gap-2">
-            <input
-              type="text"
-              name="orgnr"
-              id="orgnr-input"
-              placeholder="9 sifre"
-              required
-              autocomplete="off"
-              class="flex-1 bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono tracking-widest"
-            />
-            <button
-              type="button"
-              id="lookup-btn"
-              class="bg-primary text-primary-fg px-4 py-3 rounded-xl text-sm font-medium hover:bg-primary-hover transition-colors shrink-0"
-            >
-              Slå opp
-            </button>
+        <!-- Step 1: choose store type -->
+        <fieldset id="type-choice" class="space-y-3">
+          <legend class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+            {STORE_WIZARD.typeLegend}
+          </legend>
+          <div class="grid sm:grid-cols-2 gap-3">
+            <label class="store-type-card cursor-pointer bg-surface rounded-2xl border border-sage-500/15 p-4 hover:border-sage-500/40 transition-colors has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/40">
+              <input type="radio" name="store_type" value="personal" class="sr-only" data-store-type />
+              <span class="block font-medium mb-1">{STORE_WIZARD.personalTitle}</span>
+              <span class="block text-xs text-charcoal/55">{STORE_WIZARD.personalDesc}</span>
+            </label>
+            <label class="store-type-card cursor-pointer bg-surface rounded-2xl border border-sage-500/15 p-4 hover:border-sage-500/40 transition-colors has-[:checked]:border-sage-500 has-[:checked]:bg-sage-100/40">
+              <input type="radio" name="store_type" value="business" class="sr-only" data-store-type />
+              <span class="block font-medium mb-1">{STORE_WIZARD.businessTitle}</span>
+              <span class="block text-xs text-charcoal/55">{STORE_WIZARD.businessDesc}</span>
+            </label>
           </div>
-          <p class="text-xs text-charcoal/45 mt-2">
-            Aksjeselskap, enkeltpersonforetak, samvirkeforetak osv. fungerer.
-            Vi sjekker at organisasjonen er aktiv i Brønnøysund.
-          </p>
+        </fieldset>
+
+        <!-- Step 2 (business only): Brønnøysund lookup -->
+        <div id="business-block" class="hidden space-y-4">
+          <div>
+            <label for="orgnr-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
+              Organisasjonsnummer
+            </label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                name="orgnr"
+                id="orgnr-input"
+                placeholder="9 sifre"
+                autocomplete="off"
+                class="flex-1 bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono tracking-widest"
+              />
+              <button
+                type="button"
+                id="lookup-btn"
+                class="bg-primary text-primary-fg px-4 py-3 rounded-xl text-sm font-medium hover:bg-primary-hover transition-colors shrink-0"
+              >
+                Slå opp
+              </button>
+            </div>
+            <p class="text-xs text-charcoal/45 mt-2">
+              Aksjeselskap, enkeltpersonforetak, samvirkeforetak osv. fungerer.
+              Vi sjekker at organisasjonen er aktiv i Brønnøysund.
+            </p>
+          </div>
+
+          <div id="lookup-result" class="hidden">
+            <div class="bg-surface rounded-2xl border border-sage-500/15 p-5 space-y-2">
+              <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Registrert i Brønnøysund</p>
+              <h2 class="font-serif text-2xl" data-legal-name>–</h2>
+              <p class="text-sm text-charcoal/70" data-legal-address></p>
+              <p class="text-xs text-charcoal/45">
+                <span data-business-type></span> · Etablert <span data-founded-date></span>
+              </p>
+            </div>
+          </div>
         </div>
 
         <div id="error-message" class="hidden bg-red-50 text-red-700 rounded-xl p-4 text-sm"></div>
 
-        <div id="lookup-result" class="hidden">
-          <div class="bg-surface rounded-2xl border border-sage-500/15 p-5 space-y-2">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-sage-700">Registrert i Brønnøysund</p>
-            <h2 class="font-serif text-2xl" data-legal-name>—</h2>
-            <p class="text-sm text-charcoal/70" data-legal-address></p>
-            <p class="text-xs text-charcoal/45">
-              <span data-business-type></span> · Etablert <span data-founded-date></span>
-            </p>
-          </div>
-        </div>
-
+        <!-- Step 3 (shared): storefront details -->
         <div id="details-section" class="hidden space-y-5">
           <div>
             <label for="name-input" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
-              Visningsnavn
+              {STORE_WIZARD.nameLabel}
             </label>
             <input
               type="text"
@@ -68,7 +88,7 @@ const user = Astro.locals.user!;  // middleware-gated route
               id="name-input"
               required
               maxlength="60"
-              placeholder="Slik vises navnet i butikken"
+              placeholder={STORE_WIZARD.namePlaceholder}
               class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
           </div>
@@ -114,11 +134,11 @@ const user = Astro.locals.user!;  // middleware-gated route
               name="description"
               rows="4"
               maxlength="2000"
-              placeholder="Fortell hvem dere er, hva dere lager, og hva som gjør butikken spesiell."
+              placeholder="Fortell hvem du er, hva du lager, og hva som gjør butikken spesiell."
               class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none resize-none"
             ></textarea>
             <p class="text-xs text-charcoal/45 mt-2">
-              Hjelper moderator å forstå virksomheten raskere, og er nyttig for kundene når butikken er aktiv.
+              Hjelper moderator å forstå butikken raskere, og er nyttig for kundene når butikken er aktiv.
             </p>
           </div>
 
@@ -148,39 +168,48 @@ const user = Astro.locals.user!;  // middleware-gated route
               class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
             />
             <p class="text-xs text-charcoal/45 mt-2">
-              Brukes for kundekontakt og av moderator for å verifisere
-              eierskapet ved behov.
+              Brukes for kundekontakt og av moderator for å bekrefte
+              registreringen ved behov.
             </p>
           </div>
 
           <div class="bg-sage-100/50 rounded-2xl p-4 text-sm text-charcoal/70">
-            <p class="font-medium mb-1">Etter opprettelse</p>
-            <p>Butikken sendes til moderering. Når den er godkjent kan du
-              redigere alle detaljer, laste opp logo og banner, og invitere
-              medlemmer.</p>
+            <p class="font-medium mb-1">Før publisering</p>
+            <p>{STORE_WIZARD.reviewNote}</p>
           </div>
 
           <label class="flex items-start gap-2.5 text-sm text-charcoal/75 cursor-pointer">
             <input type="checkbox" name="privacy_consent" required class="mt-0.5 rounded" />
-            <span>
-              Jeg samtykker til at navn, e-postadresse og opplysninger fra
-              Brønnøysundregistrene kan deles med moderatorer for å bekrefte
-              at jeg er autorisert til å representere virksomheten.
+            <span data-consent-text>
+              {STORE_WIZARD.personalConsent}
               <a href="/privacy#butikker" target="_blank" class="text-terracotta-500 hover:underline whitespace-nowrap">Les mer</a>
             </span>
           </label>
 
           <button
+            id="submit-btn"
             type="submit"
             class="w-full bg-primary text-primary-fg px-6 py-4 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors"
           >
-            Opprett butikk
+            {STORE_WIZARD.submitPersonal}
           </button>
         </div>
       </form>
     </div>
   </div>
 
+  <script
+    define:vars={{
+      businessConsent:
+        'Jeg samtykker til at navn, e-postadresse og opplysninger fra Brønnøysundregistrene kan deles med moderatorer for å bekrefte at jeg er autorisert til å representere virksomheten.',
+      personalConsent: STORE_WIZARD.personalConsent,
+      submitPersonal: STORE_WIZARD.submitPersonal,
+      submitBusiness: STORE_WIZARD.submitBusiness,
+    }}
+    is:inline
+  >
+    window.__storeWizardCopy = { businessConsent, personalConsent, submitPersonal, submitBusiness };
+  </script>
   <script>
     import { init } from "../../../lib/client/controllers/store-create";
     import { registerController } from "../../../lib/client/dom";

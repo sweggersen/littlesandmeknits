@@ -51,6 +51,31 @@ export const REFUND_REASON: Record<string, string> = {
 export const VALID_CATEGORIES = new Set(Object.keys(CATEGORY_LABEL));
 export const VALID_PROJECT_STATUSES = new Set(Object.keys(PROJECT_STATUS));
 
+// Store-creation wizard (/profile/stores/new). Personal store vs business store.
+export const STORE_WIZARD = {
+  intro: 'En butikk er også profilsiden din. Alle selgere kan opprette en. Velg om butikken er personlig eller knyttet til en registrert virksomhet.',
+  typeLegend: 'Hva slags butikk vil du opprette?',
+  personalTitle: 'Personlig butikk',
+  personalDesc: 'Profilside uten organisasjonsnummer. Perfekt for deg som selger som privatperson.',
+  businessTitle: 'Bedrift',
+  businessDesc: 'Registrert virksomhet med organisasjonsnummer. Får et «Verifisert»-merke.',
+  nameLabel: 'Navn på butikken',
+  namePlaceholder: 'Slik vises navnet i butikken',
+  reviewNote: 'Butikken sendes til moderering før den publiseres. Det gjelder både personlige butikker og bedrifter. Når den er godkjent kan du redigere alt, laste opp logo og banner, og invitere medlemmer.',
+  personalConsent: 'Jeg samtykker til at navn og e-postadresse kan deles med moderatorer for å behandle registreringen.',
+  submitPersonal: 'Opprett personlig butikk',
+  submitBusiness: 'Opprett butikk',
+  personalStoreBadge: 'Personlig butikk',
+} as const;
+
+// Nudge shown in the profile dashboard when a seller has enough listings to
+// benefit from a storefront but hasn't created one yet.
+export const STORE_NUDGE = {
+  title: 'Klar for en egen butikk?',
+  body: 'Du har flere aktive annonser. Samle dem på en egen butikkside og gjør det lettere for kundene å finne deg.',
+  cta: 'Opprett butikk',
+} as const;
+
 // Store page-builder editor (Phase 2). Norwegian-facing labels for the theme
 // colour roles + the editor chrome, kept here so no page/island hardcodes them.
 export const STORE_COLOR_ROLE_LABEL: Record<string, string> = {

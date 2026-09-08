@@ -20,7 +20,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   }
 
   const result = await createStore(ctx, {
-    orgnr: body.orgnr ?? '',
+    // Empty/absent orgnr => personal store (profile page). The service decides
+    // verified/status; they are never read from the request body.
+    orgnr: body.orgnr || undefined,
     name: body.name,
     slug: body.slug,
     tagline: body.tagline,

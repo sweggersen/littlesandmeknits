@@ -36,7 +36,7 @@ beforeEach(() => {
 });
 
 describe('createStore', () => {
-  it('creates a store (pending_review) + owner membership from a valid orgnr', async () => {
+  it('creates a VERIFIED business store (pending_review) + owner membership from a valid orgnr', async () => {
     const { db, ctx } = ctxWith();
     const res = await createStore(ctx, { orgnr: '971524960', contact_email: 'Kunde@X.no', name: 'Strikkebua' });
 
@@ -44,10 +44,50 @@ describe('createStore', () => {
     const store = db.find('stores', { orgnr: '971524960' })!;
     expect(store).toBeTruthy();
     expect(store.status).toBe('pending_review');
-    expect(store.legal_name).toBe('Strikk AS');
+    expect(store.verified).toBe(true);          // valid org number => verified badge
+    expect(store.legal_name).toBe('Strikk AS'); // legal_* copied from Brønnøysund
+    expect(store.legal_business_type).toBe('AS');
+    expect(store.location_city).toBe('Oslo');
     expect(store.contact_email).toBe('kunde@x.no'); // normalised
     // Creator is seeded as owner.
     expect(db.find('store_members', { store_id: store.id, user_id: USER })!.role).toBe('owner');
+    // Moderation is enqueued for a business store too.
+    expect(db.find('moderation_queue', { item_id: store.id, item_type: 'store' })).toBeTruthy();
+  });
+
+  it('creates a PERSONAL store (no orgnr) that is NOT verified and skips Brønnøysund', async () => {
+    const { db, ctx } = ctxWith();
+    const res = await createStore(ctx, { contact_email: 'meg@x.no', name: 'Kari strikker' });
+
+    expect(res.ok).toBe(true);
+    expect(lookupOrgnr).not.toHaveBeenCalled(); // no org lookup for a personal store
+    const store = db.rows('stores')[0]!;
+    expect(store.name).toBe('Kari strikker');
+    expect(store.status).toBe('pending_review'); // still moderated
+    expect(store.verified).toBe(false);          // no org number => not verified
+    expect(store.orgnr).toBeNull();
+    expect(store.legal_name).toBeNull();
+    expect(store.location_city).toBeNull();
+    // Owner membership + moderation enqueue still happen.
+    expect(db.find('store_members', { store_id: store.id, user_id: USER })!.role).toBe('owner');
+    expect(db.find('moderation_queue', { item_id: store.id, item_type: 'store' })).toBeTruthy();
+  });
+
+  it('lets a personal store fall back to the provided display name (required, >= 2 chars)', async () => {
+    const { ctx } = ctxWith();
+    const tooShort = await createStore(ctx, { contact_email: 'meg@x.no', name: 'K' });
+    expect(tooShort.ok).toBe(false);
+    if (!tooShort.ok) expect(tooShort.code).toBe('bad_input');
+  });
+
+  it('allows TWO personal stores (both null orgnr) to coexist', async () => {
+    const { db, ctx } = ctxWith();
+    const a = await createStore(ctx, { contact_email: 'a@x.no', name: 'Butikk A' });
+    const b = await createStore(ctx, { contact_email: 'b@x.no', name: 'Butikk B' });
+    expect(a.ok).toBe(true);
+    expect(b.ok).toBe(true);
+    const personal = db.rows('stores').filter((s) => s.orgnr == null);
+    expect(personal).toHaveLength(2); // the NULL orgnr UNIQUE tolerance holds
   });
 
   it('rejects an orgnr that is not "normal" status in Brønnøysund', async () => {
