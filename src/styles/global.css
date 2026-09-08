@@ -419,20 +419,20 @@
    two borders, tucked INSIDE the card's bottom-right corner with an equal 6px
    inset on both axes (lifted by GAP 12 + 6). NOTE: the 12 tracks EditorCanvas GAP. */
 .store-editor-canvas .react-resizable-handle-se {
-  width: 14px;
-  height: 14px;
-  right: 6px;
-  bottom: 18px;
+  width: 8px;
+  height: 8px;
+  right: 5px;
+  bottom: 17px; /* GAP (12) + 5px inset */
   padding: 0;
   margin: 0;
   background: none;
-  border-right: 2.5px solid var(--store-muted);
-  border-bottom: 2.5px solid var(--store-muted);
+  border-right: 2px solid var(--store-muted);
+  border-bottom: 2px solid var(--store-muted);
   border-bottom-right-radius: 2px;
-  opacity: 0.6;
+  opacity: 0.45;
 }
 .store-editor-canvas .react-resizable-handle-se:hover {
-  opacity: 0.95;
+  opacity: 0.9;
 }
 .store-grid {
   display: grid;
