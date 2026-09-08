@@ -414,13 +414,25 @@
 }
 /* Flexible-block resize handle (react-grid-layout's se corner). It sits at the
    grid-cell corner, but a flexible block's card ends 12px above that (the
-   uniform GAP spacer the editor adds below every block), so the default handle
-   floats in the gap. Lift it by the GAP so the standard resize glyph sits on the
-   card's bottom-right corner, with its built-in symmetric inset kept (equal
-   overlap in x and y). NOTE: the 12px must track EditorCanvas's GAP constant. */
+   uniform GAP spacer the editor adds below every block), so the default (faint,
+   6px) glyph floats in the gap. Replace it with a clear corner caret drawn from
+   two borders, tucked INSIDE the card's bottom-right corner with an equal 6px
+   inset on both axes (lifted by GAP 12 + 6). NOTE: the 12 tracks EditorCanvas GAP. */
 .store-editor-canvas .react-resizable-handle-se {
-  bottom: 12px;
-  right: 0;
+  width: 14px;
+  height: 14px;
+  right: 6px;
+  bottom: 18px;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border-right: 2.5px solid var(--store-muted);
+  border-bottom: 2.5px solid var(--store-muted);
+  border-bottom-right-radius: 2px;
+  opacity: 0.6;
+}
+.store-editor-canvas .react-resizable-handle-se:hover {
+  opacity: 0.95;
 }
 .store-grid {
   display: grid;
