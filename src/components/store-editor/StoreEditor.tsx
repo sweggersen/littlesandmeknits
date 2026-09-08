@@ -40,7 +40,7 @@ function withHeroTitleDefaults(blocks: StoreBlock[], storeName: string): StoreBl
 }
 
 export default function StoreEditor(props: StoreEditorProps) {
-  const { slug, storeName, initialTheme, initialBlocks, initialAssets, listings } = props;
+  const { slug, storeName, storeLogoUrl, initialTheme, initialBlocks, initialAssets, listings } = props;
 
   const [theme, setTheme] = useState<StoreTheme>(initialTheme);
   // Pre-fill hero titles with the store's own name so the "Butikknavn" field
@@ -242,6 +242,7 @@ export default function StoreEditor(props: StoreEditorProps) {
             blocks={blocks}
             theme={theme}
             storeName={storeName}
+            storeLogoUrl={storeLogoUrl}
             assets={assets}
             selectedId={selectedId}
             onSelect={setSelectedId}

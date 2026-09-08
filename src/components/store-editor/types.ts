@@ -23,6 +23,9 @@ export interface EditorAsset {
 export interface StoreEditorProps {
   slug: string;
   storeName: string;
+  /** The store's own logo (logo_path resolved to a URL), used as the hero
+   *  preview fallback when no builder asset is chosen, matching the storefront. */
+  storeLogoUrl?: string | null;
   initialTheme: StoreTheme;
   initialBlocks: StoreBlock[];
   initialAssets: EditorAsset[];

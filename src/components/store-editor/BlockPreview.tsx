@@ -50,12 +50,14 @@ const elemEdit = (kind: 'text' | 'tag' | 'header' | 'logo') => ({ 'data-elem-edi
 export default function BlockPreview({
   block,
   storeName,
+  storeLogoUrl,
   assets,
   onUpdateProps,
   suppressElementClickRef,
 }: {
   block: StoreBlock;
   storeName: string;
+  storeLogoUrl?: string | null;
   assets: EditorAsset[];
   /** Commit a props patch for THIS block (used by the hero free-layout drag).
    *  Absent = static preview (no interaction). */
@@ -72,6 +74,7 @@ export default function BlockPreview({
         <HeroPreview
           block={block}
           storeName={storeName}
+          storeLogoUrl={storeLogoUrl}
           assets={assets}
           onUpdateProps={onUpdateProps}
           suppressElementClickRef={suppressElementClickRef}
@@ -260,12 +263,14 @@ function snapAxisPx(offset: number, size: number): number {
 function HeroPreview({
   block,
   storeName,
+  storeLogoUrl,
   assets,
   onUpdateProps,
   suppressElementClickRef,
 }: {
   block: StoreBlock;
   storeName: string;
+  storeLogoUrl?: string | null;
   assets: EditorAsset[];
   onUpdateProps?: (id: string, patch: Record<string, unknown>) => void;
   suppressElementClickRef?: MutableRefObject<boolean>;
@@ -274,7 +279,10 @@ function HeroPreview({
   const bgAsset = assets.find((a) => a.id === str(p.bgImage));
   const bgUrl = bgAsset ? projectPhotoUrl(bgAsset.path) : null;
   const logoAsset = assets.find((a) => a.id === str(p.logo));
-  const logoUrl = logoAsset ? projectPhotoUrl(logoAsset.path) : null;
+  // Fall back to the store's own logo (like the storefront) so the logo shows
+  // in the preview even when no builder asset is chosen -- otherwise the tint /
+  // size controls appear to do nothing.
+  const logoUrl = logoAsset ? projectPhotoUrl(logoAsset.path) : (storeLogoUrl ?? null);
   const overlay = heroOverlayCss(p.overlay, coerceOverlayStyle(p.overlayStyle));
   // Logo tint: a grayscale filter built ONLY from a clamped integer, mirroring
   // the storefront (StoreHero.astro). Never concatenates a raw prop into CSS.

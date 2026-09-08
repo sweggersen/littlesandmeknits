@@ -11,6 +11,7 @@ import { listStoreAssets } from '../../../../../lib/services/store-page';
 import { sanitizeStoreTheme, DEFAULT_STORE_THEME } from '../../../../../lib/store-theme';
 import { sanitizePageConfig } from '../../../../../lib/store-blocks';
 import { createServerSupabase } from '../../../../../lib/supabase';
+import { projectPhotoUrl } from '../../../../../lib/storage';
 import { STORE_EDITOR_LABELS } from '../../../../../lib/labels';
 
 const slug = Astro.params.slug ?? '';
@@ -59,6 +60,7 @@ const listings = (listingRows ?? []).map((l) => ({
       client:load
       slug={slug}
       storeName={store.name}
+      storeLogoUrl={store.logo_path ? projectPhotoUrl(store.logo_path) : null}
       initialTheme={initialTheme}
       initialBlocks={initialBlocks}
       initialAssets={initialAssets}

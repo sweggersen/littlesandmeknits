@@ -52,6 +52,7 @@ export default function EditorCanvas({
   blocks,
   theme,
   storeName,
+  storeLogoUrl,
   assets,
   selectedId,
   onSelect,
@@ -64,6 +65,7 @@ export default function EditorCanvas({
   blocks: StoreBlock[];
   theme: StoreTheme;
   storeName: string;
+  storeLogoUrl?: string | null;
   assets: EditorAsset[];
   selectedId: string | null;
   onSelect: (id: string) => void;
@@ -226,6 +228,7 @@ export default function EditorCanvas({
                 <BlockPreview
                   block={block}
                   storeName={storeName}
+                  storeLogoUrl={storeLogoUrl}
                   assets={assets}
                   onUpdateProps={onUpdateProps}
                   suppressElementClickRef={suppressElementClickRef}
