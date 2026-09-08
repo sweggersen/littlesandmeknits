@@ -10,7 +10,7 @@ import type { StoreTheme } from '../../lib/store-theme';
 import { DEFAULT_STORE_THEME } from '../../lib/store-theme';
 import { STORE_PRESETS } from '../../lib/store-presets';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
-import { addBlock, removeBlock, updateBlockProps, gridToBlocks, moveBlock, defaultStoreBlocks } from './editor-state';
+import { addBlock, removeBlock, updateBlockProps, gridToBlocks, moveBlock } from './editor-state';
 import { saveDraft, publishDraft } from './api';
 import BlockPalette from './BlockPalette';
 import ThemePanel from './ThemePanel';
@@ -194,12 +194,12 @@ export default function StoreEditor(props: StoreEditorProps) {
     setError(null);
     snapshot();
     setTheme(structuredClone(DEFAULT_STORE_THEME));
-    // Return to the default store layout (top section, about, listings, contact)
-    // rather than a blank canvas. Marking dirty lets autosave persist it as the
-    // new draft, so we don't depend on a separate reset API call succeeding.
-    const def = withHeroTitleDefaults(defaultStoreBlocks(), storeName);
-    setBlocks(def);
-    setSelectedId(def[0]?.id ?? null);
+    // Clear to an EMPTY builder. With no blocks the storefront falls back to the
+    // platform default store. We update state directly (not via a reset API call
+    // whose failure previously got swallowed in a catch, making the button
+    // appear to do nothing); marking dirty lets autosave persist the cleared draft.
+    setBlocks([]);
+    setSelectedId(null);
     setDirty(true);
     setSaveState('idle');
     setPublishState('idle');

@@ -425,6 +425,7 @@
 .store-editor-canvas .react-grid-item > .react-resizable-handle.react-resizable-handle-se {
   bottom: 12px;
   right: 0;
+  background: none; /* drop react-resizable's own faint glyph; keep only ::after */
 }
 .store-editor-canvas .react-grid-item > .react-resizable-handle.react-resizable-handle-se::after {
   border-color: var(--store-muted);
