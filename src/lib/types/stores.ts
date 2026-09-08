@@ -11,10 +11,11 @@ export type OrgnrStatus = 'normal' | 'deleted' | 'bankrupt' | 'liquidation';
 export interface Store {
   id: string;
   slug: string;
-  orgnr: string;
+  // NULL for personal stores (profile pages) not tied to a registered business.
+  orgnr: string | null;
 
-  // Canonical (locked) data from Brønnøysund
-  legal_name: string;
+  // Canonical (locked) data from Brønnøysund. NULL for personal stores.
+  legal_name: string | null;
   legal_address: string | null;
   legal_business_type: string | null;
   legal_industry_code: string | null;

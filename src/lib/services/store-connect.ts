@@ -51,7 +51,8 @@ export async function startStoreOnboarding(
         company: {
           name: store.legal_name ?? store.name,
           // Norwegian organisasjonsnummer — Stripe's tax_id for NO companies.
-          tax_id: store.orgnr,
+          // Null for a personal store (no registered business).
+          tax_id: store.orgnr ?? undefined,
           address: store.legal_address
             ? { line1: store.legal_address, city: store.location_city ?? undefined, country: 'NO' }
             : undefined,

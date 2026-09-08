@@ -186,18 +186,28 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
         </div>
       </div>
 
-      <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6">
-        <h2 class="font-serif text-lg mb-3">Registrert i Brønnøysundregistrene</h2>
-        <dl class="text-sm space-y-1">
-          <div class="flex gap-2"><dt class="text-charcoal/55">Navn:</dt><dd>{store.legal_name}</dd></div>
-          <div class="flex gap-2"><dt class="text-charcoal/55">Orgnr:</dt><dd class="font-mono">{store.orgnr}</dd></div>
-          {store.legal_address && (<div class="flex gap-2"><dt class="text-charcoal/55">Adresse:</dt><dd>{store.legal_address}</dd></div>)}
-          {store.legal_business_type && (<div class="flex gap-2"><dt class="text-charcoal/55">Type:</dt><dd>{store.legal_business_type}</dd></div>)}
-        </dl>
-        <p class="text-xs text-charcoal/45 mt-3">
-          Disse feltene er låst og synkronisert med Brønnøysund.
-        </p>
-      </div>
+      {store.orgnr ? (
+        <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6">
+          <h2 class="font-serif text-lg mb-3">Registrert i Brønnøysundregistrene</h2>
+          <dl class="text-sm space-y-1">
+            <div class="flex gap-2"><dt class="text-charcoal/55">Navn:</dt><dd>{store.legal_name}</dd></div>
+            <div class="flex gap-2"><dt class="text-charcoal/55">Orgnr:</dt><dd class="font-mono">{store.orgnr}</dd></div>
+            {store.legal_address && (<div class="flex gap-2"><dt class="text-charcoal/55">Adresse:</dt><dd>{store.legal_address}</dd></div>)}
+            {store.legal_business_type && (<div class="flex gap-2"><dt class="text-charcoal/55">Type:</dt><dd>{store.legal_business_type}</dd></div>)}
+          </dl>
+          <p class="text-xs text-charcoal/45 mt-3">
+            Disse feltene er låst og synkronisert med Brønnøysund.
+          </p>
+        </div>
+      ) : (
+        <div class="bg-surface rounded-3xl border border-sage-500/10 p-5 sm:p-6">
+          <h2 class="font-serif text-lg mb-1">Personlig butikk</h2>
+          <p class="text-sm text-charcoal/55">
+            Denne butikken er ikke knyttet til et organisasjonsnummer. Legg til
+            et orgnr senere for å få «Verifisert»-merket.
+          </p>
+        </div>
+      )}
 
       <div class="flex justify-end">
         <button type="submit" class="bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">

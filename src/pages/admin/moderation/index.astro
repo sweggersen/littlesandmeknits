@@ -84,7 +84,7 @@ const [listingsRes, requestsRes, storesRes, submittersRes] = await Promise.all([
 const itemMetaById = new Map<string, { title: string; subtitle?: string }>();
 for (const l of listingsRes.data ?? []) itemMetaById.set(l.id, { title: l.title });
 for (const r of requestsRes.data ?? []) itemMetaById.set(r.id, { title: r.title });
-for (const s of storesRes.data ?? []) itemMetaById.set(s.id, { title: s.name, subtitle: `${s.legal_name} · ${s.orgnr}` });
+for (const s of storesRes.data ?? []) itemMetaById.set(s.id, { title: s.name, subtitle: s.orgnr ? `${s.legal_name} · ${s.orgnr}` : 'Personlig butikk' });
 
 const submitterNameById = new Map<string, string>();
 for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_name ?? '');

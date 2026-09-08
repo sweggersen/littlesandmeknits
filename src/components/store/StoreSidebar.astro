@@ -60,11 +60,13 @@ const { store, reviewCount, avgRating } = Astro.props;
     </dl>
   </section>
 
-  <section class="bg-surface rounded-3xl border border-sage-500/10 p-5">
-    <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Registrert virksomhet</h3>
-    <p class="text-sm font-medium">{store.legal_name}</p>
-    {store.legal_address && <p class="text-xs text-charcoal/55">{store.legal_address}</p>}
-  </section>
+  {store.legal_name && (
+    <section class="bg-surface rounded-3xl border border-sage-500/10 p-5">
+      <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Registrert virksomhet</h3>
+      <p class="text-sm font-medium">{store.legal_name}</p>
+      {store.legal_address && <p class="text-xs text-charcoal/55">{store.legal_address}</p>}
+    </section>
+  )}
 
   <section>
     <a href={`/report?type=store&id=${store.id}`} class="block text-center text-xs text-charcoal/45 hover:text-red-700 transition-colors">

@@ -129,6 +129,20 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     })
     .filter((s: any) => !s.deleted_at);
 
+  // Nudge a productive seller toward a storefront: >= 5 ACTIVE listings and no
+  // store yet. (The page additionally suppresses it when a store invitation is
+  // pending — it loads that separately.) Head-only count, active only, so a
+  // seller whose old listings are sold/removed isn't nudged on stale volume.
+  let showStoreNudge = false;
+  if (myStores.length === 0) {
+    const { count: activeListingsCount } = await supabase
+      .from('listings')
+      .select('id', { count: 'exact', head: true })
+      .eq('seller_id', user.id)
+      .eq('status', 'active');
+    showStoreNudge = (activeListingsCount ?? 0) >= 5;
+  }
+
   const userRole = profile?.role as string | null;
   const isAdmin = userRole === 'admin';
   const isModerator = userRole === 'moderator';
@@ -212,7 +226,7 @@ export async function loadProfileDashboard(supabase: SupabaseClient, user: DashU
     profile, avatarUrl, displayName,
     isAdmin, isModerator, isStaff, pendingQueueCount,
     allListings, allProjects, allRequests, allOffers,
-    allPurchases, allBibliotek, myStores,
+    allPurchases, allBibliotek, myStores, showStoreNudge,
     listingsCount: listingsCount ?? 0,
     purchasesCount: purchasesCount ?? 0,
     loadError,

@@ -144,12 +144,19 @@ const {
         </div>
       </div>
 
-      <div class="bg-sage-100/50 rounded-lg p-3 mb-3">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Brønnøysund-registrert</p>
-        <p class="text-sm font-medium">{itemData.legal_name}</p>
-        <p class="text-xs text-charcoal/65 font-mono">{itemData.orgnr} {itemData.legal_business_type && `· ${itemData.legal_business_type}`}</p>
-        {itemData.legal_address && <p class="text-xs text-charcoal/55 mt-1">{itemData.legal_address}</p>}
-      </div>
+      {itemData.orgnr ? (
+        <div class="bg-sage-100/50 rounded-lg p-3 mb-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Brønnøysund-registrert</p>
+          <p class="text-sm font-medium">{itemData.legal_name}</p>
+          <p class="text-xs text-charcoal/65 font-mono">{itemData.orgnr} {itemData.legal_business_type && `· ${itemData.legal_business_type}`}</p>
+          {itemData.legal_address && <p class="text-xs text-charcoal/55 mt-1">{itemData.legal_address}</p>}
+        </div>
+      ) : (
+        <div class="bg-linen rounded-lg p-3 mb-3">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Personlig butikk</p>
+          <p class="text-xs text-charcoal/65">Ingen organisasjonsnummer (ikke verifisert).</p>
+        </div>
+      )}
 
       {itemData.tagline && (
         <p class="text-sm text-charcoal/75 italic mb-2">"{itemData.tagline}"</p>
@@ -185,6 +192,7 @@ const {
         </div>
       )}
 
+      {itemData.orgnr && (
       <div class="mt-5 pt-5 border-t border-sage-500/15">
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-sm font-medium">Registrerte representanter</h3>
@@ -221,6 +229,7 @@ const {
           </ul>
         )}
       </div>
+      )}
 
       <div class="mt-5 pt-5 border-t border-sage-500/15">
         <h3 class="text-sm font-medium mb-2">Verifisering</h3>

@@ -2422,13 +2422,13 @@ export type Database = {
           legal_business_type: string | null
           legal_founded_date: string | null
           legal_industry_code: string | null
-          legal_name: string
+          legal_name: string | null
           legal_status: string | null
           location_city: string | null
           logo_path: string | null
           name: string
           opening_hours: Json | null
-          orgnr: string
+          orgnr: string | null
           page_config: Json | null
           page_config_draft: Json | null
           pinterest_url: string | null
@@ -2470,13 +2470,13 @@ export type Database = {
           legal_business_type?: string | null
           legal_founded_date?: string | null
           legal_industry_code?: string | null
-          legal_name: string
+          legal_name?: string | null
           legal_status?: string | null
           location_city?: string | null
           logo_path?: string | null
           name: string
           opening_hours?: Json | null
-          orgnr: string
+          orgnr?: string | null
           page_config?: Json | null
           page_config_draft?: Json | null
           pinterest_url?: string | null
@@ -2518,13 +2518,13 @@ export type Database = {
           legal_business_type?: string | null
           legal_founded_date?: string | null
           legal_industry_code?: string | null
-          legal_name?: string
+          legal_name?: string | null
           legal_status?: string | null
           location_city?: string | null
           logo_path?: string | null
           name?: string
           opening_hours?: Json | null
-          orgnr?: string
+          orgnr?: string | null
           page_config?: Json | null
           page_config_draft?: Json | null
           pinterest_url?: string | null
