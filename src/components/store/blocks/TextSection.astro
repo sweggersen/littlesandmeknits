@@ -11,6 +11,6 @@ const body = typeof props.body === 'string' ? props.body.trim() : '';
 {(heading || body) && (
   <section class="rounded-3xl p-6" style="background-color: var(--color-surface); border: 1px solid var(--store-border);">
     {heading && <h2 class="font-serif mb-3" style="font-family: var(--font-display); font-size: calc(1.25rem * var(--store-heading-scale));">{heading}</h2>}
-    {body && <p class="whitespace-pre-wrap leading-relaxed" style="color: var(--color-charcoal);">{body}</p>}
+    {body && <p class="store-body whitespace-pre-wrap leading-relaxed" style="color: var(--color-charcoal);">{body}</p>}
   </section>
 )}

@@ -28,6 +28,7 @@ import {
 import { isValidHex } from '../../lib/store-theme';
 import { STORE_COLOR_ROLE_LABEL, STORE_EDITOR_LABELS as L } from '../../lib/labels';
 import HeadingControls from './HeadingControls';
+import TypographyControls from './TypographyControls';
 import ColorRow from './ColorRow';
 
 export type ElementEditKind = 'heading' | 'text' | 'tag' | 'header' | 'logo';
@@ -50,9 +51,25 @@ export default function ElementControls({
     return <HeadingControls theme={theme} onChange={onThemeChange} />;
   }
 
-  // The three single-colour theme roles share one row; only the bound role differs.
-  if (kind === 'text' || kind === 'tag' || kind === 'header') {
-    const role = kind === 'header' ? 'headerBg' : kind === 'tag' ? 'tag' : 'text';
+  // Body text: full typography (theme.body) + its content colour, so clicking
+  // body text on the canvas gives the same controls as the "Brødtekst" panel row.
+  if (kind === 'text') {
+    return (
+      <TypographyControls
+        value={theme.body}
+        onChange={(body) => onThemeChange({ ...theme, body })}
+        showColor
+        colorRole="text"
+        colorValue={theme.colors.text}
+        onColorChange={(v) => onThemeChange({ ...theme, colors: { ...theme.colors, text: v } })}
+        hook="body"
+      />
+    );
+  }
+
+  // tag / header are single-colour theme roles sharing one row.
+  if (kind === 'tag' || kind === 'header') {
+    const role = kind === 'header' ? 'headerBg' : 'tag';
     return (
       <ColorRow
         value={theme.colors[role]}

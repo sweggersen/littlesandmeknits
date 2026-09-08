@@ -27,19 +27,19 @@ const email = typeof store.contact_email === 'string' && store.contact_email.inc
     {store.location_city && (
       <div>
         <dt class="label-eyebrow mb-0.5">Sted</dt>
-        <dd style="color: var(--color-charcoal);">{store.location_city}</dd>
+        <dd class="store-body" style="color: var(--color-charcoal);">{store.location_city}</dd>
       </div>
     )}
     {email && (
       <div>
         <dt class="label-eyebrow mb-0.5">E-post</dt>
-        <dd><a href={`mailto:${email}`} class="hover:underline" style="color: var(--color-primary);">{email}</a></dd>
+        <dd class="store-body"><a href={`mailto:${email}`} class="hover:underline" style="color: var(--color-primary);">{email}</a></dd>
       </div>
     )}
     {store.contact_phone && (
       <div>
         <dt class="label-eyebrow mb-0.5">Telefon</dt>
-        <dd style="color: var(--color-charcoal);">{store.contact_phone}</dd>
+        <dd class="store-body" style="color: var(--color-charcoal);">{store.contact_phone}</dd>
       </div>
     )}
   </dl>

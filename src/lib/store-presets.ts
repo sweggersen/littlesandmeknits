@@ -69,6 +69,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       fontDisplay: 'fraunces',
       fontBody: 'inter',
       heading: { weight: 'semibold', italic: false, underline: false, scale: 'base' },
+      body: { weight: 'normal', italic: false, underline: false, scale: 'base' },
     },
     page_config: baseBlocks({
       tagline: 'Håndlagde plagg, strikket med omtanke.',
@@ -99,6 +100,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       fontDisplay: 'space-grotesk',
       fontBody: 'dm-sans',
       heading: { weight: 'medium', italic: false, underline: false, scale: 'base' },
+      body: { weight: 'normal', italic: false, underline: false, scale: 'base' },
     },
     page_config: baseBlocks({
       tagline: 'Enkelt, ærlig håndverk.',
@@ -129,6 +131,7 @@ export const STORE_PRESETS: Record<string, StorePreset> = {
       fontDisplay: 'playfair',
       fontBody: 'inter',
       heading: { weight: 'bold', italic: false, underline: false, scale: 'lg' },
+      body: { weight: 'normal', italic: false, underline: false, scale: 'base' },
     },
     page_config: baseBlocks({
       tagline: 'Strikk med karakter.',

@@ -127,6 +127,12 @@ export const STORE_EDITOR_LABELS = {
   headingUnderline: 'Understrek',
   headingScale: 'Størrelse',
   headingEditHint: 'Endrer alle overskrifter i butikken.',
+  // Text styles section: an L1 list of text elements that drills into an L2
+  // controls view per element.
+  textStyles: 'Tekststiler',
+  body: 'Brødtekst',
+  bodyEditHint: 'Endrer all brødtekst i butikken.',
+  textStylesBack: 'Tekststiler',
   presets: 'Forhåndsvalg',
   properties: 'Egenskaper',
   noSelection: 'Velg en blokk for å redigere den.',
@@ -161,7 +167,7 @@ export const STORE_EDITOR_LABELS = {
   editTag: 'Merkelapp',
   editHeader: 'Toppseksjon',
   editLogo: 'Logo',
-  editTextHint: 'Endrer fargen på brødteksten i hele butikken.',
+  editTextHint: 'Endrer brødteksten i hele butikken.',
   editTagHint: 'Teksten justeres automatisk til svart eller hvit for lesbarhet.',
   editHeaderHint: 'Endrer bakgrunnsfargen på toppseksjonen.',
   editLogoHint: 'Endre størrelse, gråtone og farge på logoen.',

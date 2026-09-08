@@ -90,10 +90,21 @@ export interface StoreTheme {
   fontBody: string;
   /** Global, theme-level typography applied to ALL headings. */
   heading: StoreHeadingStyle;
+  /** Global, theme-level typography applied to ALL body/content text. */
+  body: StoreHeadingStyle;
 }
 
 export const DEFAULT_HEADING_STYLE: StoreHeadingStyle = {
   weight: 'semibold',
+  italic: false,
+  underline: false,
+  scale: 'base',
+};
+
+// Body defaults match today's plain body look (normal weight, base size, no
+// italic/underline), so a theme that predates the split renders identically.
+export const DEFAULT_BODY_STYLE: StoreHeadingStyle = {
+  weight: 'normal',
   italic: false,
   underline: false,
   scale: 'base',
@@ -118,6 +129,7 @@ export const DEFAULT_STORE_THEME: StoreTheme = {
   fontDisplay: 'fraunces',
   fontBody: 'inter',
   heading: { ...DEFAULT_HEADING_STYLE },
+  body: { ...DEFAULT_BODY_STYLE },
 };
 
 // Strict: `#rgb` or `#rrggbb` only. No `rgb()`, no named colours, no url(),
@@ -159,16 +171,27 @@ function sanitizeBool(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
-/** Whitelist + validate the heading typography block into a safe shape. */
-export function sanitizeHeadingStyle(input: unknown): StoreHeadingStyle {
+/**
+ * Whitelist + validate a per-element typography block into a safe shape. Used
+ * for both headings and body text; the caller passes the element's own default
+ * so a missing/partial block fills from the right base look.
+ */
+export function sanitizeTypography(
+  input: unknown,
+  fallback: StoreHeadingStyle = DEFAULT_HEADING_STYLE,
+): StoreHeadingStyle {
   const obj = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
   return {
-    weight: sanitizeEnum(obj.weight, HEADING_WEIGHTS, DEFAULT_HEADING_STYLE.weight),
-    italic: sanitizeBool(obj.italic, DEFAULT_HEADING_STYLE.italic),
-    underline: sanitizeBool(obj.underline, DEFAULT_HEADING_STYLE.underline),
-    scale: sanitizeEnum(obj.scale, HEADING_SCALES, DEFAULT_HEADING_STYLE.scale),
+    weight: sanitizeEnum(obj.weight, HEADING_WEIGHTS, fallback.weight),
+    italic: sanitizeBool(obj.italic, fallback.italic),
+    underline: sanitizeBool(obj.underline, fallback.underline),
+    scale: sanitizeEnum(obj.scale, HEADING_SCALES, fallback.scale),
   };
 }
+
+/** Back-compat alias: the heading-specific name some call sites/tests still use. */
+export const sanitizeHeadingStyle = (input: unknown): StoreHeadingStyle =>
+  sanitizeTypography(input, DEFAULT_HEADING_STYLE);
 
 /**
  * Whitelist + validate arbitrary input into a safe StoreTheme. Unknown keys are
@@ -190,7 +213,8 @@ export function sanitizeStoreTheme(input: unknown): StoreTheme {
     colors,
     fontDisplay: sanitizeFontId(obj.fontDisplay, DEFAULT_STORE_THEME.fontDisplay),
     fontBody: sanitizeFontId(obj.fontBody, DEFAULT_STORE_THEME.fontBody),
-    heading: sanitizeHeadingStyle(obj.heading),
+    heading: sanitizeTypography(obj.heading, DEFAULT_HEADING_STYLE),
+    body: sanitizeTypography(obj.body, DEFAULT_BODY_STYLE),
   };
 }
 
@@ -267,5 +291,11 @@ export function storeThemeToCssVars(theme: unknown): string {
   parts.push(`--store-heading-style:${t.heading.italic ? 'italic' : 'normal'}`);
   parts.push(`--store-heading-decoration:${t.heading.underline ? 'underline' : 'none'}`);
   parts.push(`--store-heading-scale:${HEADING_SCALE_CSS[t.heading.scale]}`);
+  // Body typography: same hard-coded enum maps as headings, so a hostile theme
+  // can only select one of these known literals — nothing user-typed reaches CSS.
+  parts.push(`--store-body-weight:${HEADING_WEIGHT_CSS[t.body.weight]}`);
+  parts.push(`--store-body-style:${t.body.italic ? 'italic' : 'normal'}`);
+  parts.push(`--store-body-decoration:${t.body.underline ? 'underline' : 'none'}`);
+  parts.push(`--store-body-scale:${HEADING_SCALE_CSS[t.body.scale]}`);
   return parts.join(';') + ';';
 }
