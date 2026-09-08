@@ -44,6 +44,36 @@ CREATE POLICY "stores_insert_self"
     AND status = 'draft'
   );
 
+-- 3b. Harden UPDATEs the same way. `stores_update_admin` (0047) is USING-only,
+--     so an owner/admin/manager could, via a direct PostgREST UPDATE, flip
+--     their OWN store to verified=true / status='active', bypassing moderation.
+--     RLS WITH CHECK can't compare NEW vs OLD, so pin the two moderation-
+--     controlled columns with a BEFORE UPDATE trigger: any non-service caller
+--     has verified + status forced back to their stored values. Every real
+--     status/verified write (moderation approve, soft-delete, restore) goes
+--     through the service-role (admin) client, which reports role
+--     'service_role' and is exempt, so nothing legitimate breaks.
+CREATE OR REPLACE FUNCTION public.stores_pin_moderation_columns()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF auth.role() IS DISTINCT FROM 'service_role' THEN
+    NEW.verified := OLD.verified;
+    NEW.status := OLD.status;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS stores_pin_moderation_columns ON public.stores;
+CREATE TRIGGER stores_pin_moderation_columns
+  BEFORE UPDATE ON public.stores
+  FOR EACH ROW
+  EXECUTE FUNCTION public.stores_pin_moderation_columns();
+
 -- 4. Refresh the now-stale COMMENTs.
 COMMENT ON TABLE public.stores IS 'Stores that own listings. A store with a Brønnøysund org number is a verified business; one without is a personal store/profile page. Open to all sellers.';
 COMMENT ON COLUMN public.stores.orgnr IS 'Norwegian 9-digit organisasjonsnummer from Brønnøysundregistrene. NULL for personal stores that are not tied to a registered business.';

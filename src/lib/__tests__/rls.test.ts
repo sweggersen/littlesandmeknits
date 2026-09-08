@@ -369,11 +369,16 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
   describe('stores insert policy (0108 hardening)', () => {
     it('a direct caller CAN insert an unverified draft store they own', async () => {
       const slug = `rls-ins-ok-${Date.now()}`;
-      const { data, error } = await aliceClient.from('stores').insert({
+      // NB: insert WITHOUT .select() — a returning-select would trip the SELECT
+      // policy (a brand-new draft store isn't active and the inserter isn't a
+      // member yet), which is a select-back artifact, not an insert failure.
+      // We confirm the row landed via the admin client instead.
+      const { error } = await aliceClient.from('stores').insert({
         slug, name: 'RLS Personal', created_by: aliceId,
         verified: false, status: 'draft',
-      }).select('id').single();
+      });
       expect(error).toBeNull();
+      const { data } = await admin.from('stores').select('id').eq('slug', slug).maybeSingle();
       expect(data?.id).toBeTruthy();
       if (data?.id) await admin.from('stores').delete().eq('id', data.id);
     });
@@ -409,6 +414,63 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       expect(error).not.toBeNull(); // created_by must equal auth.uid()
       const { data } = await admin.from('stores').select('id').eq('slug', slug);
       expect(data ?? []).toHaveLength(0);
+    });
+  });
+
+  // Migration 0108: stores_update_admin is USING-only, so an owner/manager COULD
+  // pass RLS on a direct UPDATE. The stores_pin_moderation_columns BEFORE UPDATE
+  // trigger forces verified + status back to their stored values for any non-
+  // service caller, so a user can never self-verify or self-activate. Legit
+  // branding edits (name etc.) still land; the service (service-role) is exempt.
+  describe('stores update pin trigger (0108 hardening)', () => {
+    let storeId: string;
+    beforeAll(async () => {
+      const slug = `rls-updpin-${Date.now()}`;
+      const { data: store, error } = await admin.from('stores').insert({
+        slug, orgnr: String(920000000 + (Date.now() % 79999999)),
+        created_by: bobId, legal_name: 'RLS UPDPIN AS', legal_address: 'Storgata 3',
+        legal_business_type: 'AS', legal_status: 'aktiv', name: 'RLS UpdPin-butikk',
+        contact_email: 'rls-updpin@test.no', status: 'active', verified: false,
+      }).select('id').single();
+      if (error) throw new Error(`store insert failed: ${error.message}`);
+      storeId = store!.id;
+      await admin.from('store_members').insert([
+        { store_id: storeId, user_id: bobId, role: 'owner', visible_on_storefront: true },
+      ]);
+    });
+
+    it('a store owner CANNOT self-verify via a direct UPDATE (trigger pins it)', async () => {
+      const { error } = await bobClient.from('stores').update({ verified: true }).eq('id', storeId);
+      expect(error).toBeNull(); // the UPDATE passes RLS, but...
+      const { data } = await admin.from('stores').select('verified').eq('id', storeId).single();
+      expect(data?.verified).toBe(false); // ...the trigger forced it back
+    });
+
+    it('a store owner CANNOT self-activate/suspend via a direct UPDATE', async () => {
+      await bobClient.from('stores').update({ status: 'suspended' }).eq('id', storeId);
+      const { data } = await admin.from('stores').select('status').eq('id', storeId).single();
+      expect(data?.status).toBe('active'); // pinned
+    });
+
+    it('a legit branding edit (name) by the owner still lands', async () => {
+      const { error } = await bobClient.from('stores').update({ name: 'Nytt navn' }).eq('id', storeId);
+      expect(error).toBeNull();
+      const { data } = await admin.from('stores').select('name, verified, status').eq('id', storeId).single();
+      expect(data?.name).toBe('Nytt navn');
+      expect(data?.verified).toBe(false); // still pinned
+      expect(data?.status).toBe('active');
+    });
+
+    it('the service (service-role) CAN change verified + status', async () => {
+      await admin.from('stores').update({ verified: true, status: 'suspended' }).eq('id', storeId);
+      const { data } = await admin.from('stores').select('verified, status').eq('id', storeId).single();
+      expect(data?.verified).toBe(true);
+      expect(data?.status).toBe('suspended');
+    });
+
+    afterAll(async () => {
+      await admin.from('store_members').delete().eq('store_id', storeId);
+      await admin.from('stores').delete().eq('id', storeId);
     });
   });
 
