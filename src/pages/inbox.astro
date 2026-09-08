@@ -154,11 +154,13 @@ for (const n of notifications) {
   });
 }
 
-const filtered = filter === 'messages'
-  ? items.filter(i => i.kind === 'message' || i.kind === 'moderation')
-  : filter === 'notifications'
-    ? items.filter(i => i.kind === 'notification')
-    : items;
+const filtered = filter === 'unread'
+  ? items.filter(i => i.unread)
+  : filter === 'messages'
+    ? items.filter(i => i.kind === 'message' || i.kind === 'moderation')
+    : filter === 'notifications'
+      ? items.filter(i => i.kind === 'notification')
+      : items;
 
 filtered.sort((a, b) => b.when.localeCompare(a.when));
 
@@ -201,6 +203,7 @@ function timeAgo(dateStr: string): string {
     </div>
 
     <div class="flex gap-1 mb-4">
+      <a href="/inbox?filter=unread" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'unread' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Ulest{totalUnread > 0 ? ` (${totalUnread})` : ''}</a>
       <a href="/inbox" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'all' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Alle</a>
       <a href="/inbox?filter=messages" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'messages' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Meldinger</a>
       <a href="/inbox?filter=notifications" class:list={['px-3 py-1.5 text-xs font-medium rounded-full transition-colors', filter === 'notifications' ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:bg-sage-100/50']}>Varsler</a>
