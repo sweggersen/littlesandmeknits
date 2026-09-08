@@ -18,7 +18,12 @@ import {
   HERO_LOGO_TINT_MIN,
   HERO_LOGO_TINT_MAX,
   HERO_LOGO_TINT_DEFAULT,
+  HERO_LOGO_COLOR_DEFAULT,
+  HERO_LOGO_COLOR_AMOUNT_MIN,
+  HERO_LOGO_COLOR_AMOUNT_MAX,
+  HERO_LOGO_COLOR_AMOUNT_DEFAULT,
 } from '../../lib/store-blocks';
+import { isValidHex } from '../../lib/store-theme';
 import { projectPhotoUrl } from '../../lib/storage';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
 import type { EditorAsset } from './types';
@@ -288,6 +293,29 @@ function HeroPreview({
   // the storefront (StoreHero.astro). Never concatenates a raw prop into CSS.
   const logoTint = clampInt(p.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
   const logoFilter = logoTint > 0 ? `grayscale(${logoTint}%)` : undefined;
+  // Logo colour tint, mirroring the storefront: a masked solid-colour silhouette
+  // of the logo, blended over the original at `logoColorAmount`%. The colour is
+  // strict-hex validated (else default black); the amount is a clamped int.
+  const logoColor = isValidHex(p.logoColor) ? String(p.logoColor).toUpperCase() : HERO_LOGO_COLOR_DEFAULT;
+  const logoColorAmount = clampInt(p.logoColorAmount, HERO_LOGO_COLOR_AMOUNT_MIN, HERO_LOGO_COLOR_AMOUNT_MAX, HERO_LOGO_COLOR_AMOUNT_DEFAULT);
+  // SECURITY: `logoUrl` is the same resolved, trusted store asset URL used in the
+  // <img src> below — reusing it in a mask url() is safe; only the validated hex
+  // + clamped amount are user-influenced.
+  const logoColorOverlayStyle: CSSProperties | undefined =
+    logoColorAmount > 0 && logoUrl
+      ? {
+          WebkitMaskImage: `url("${logoUrl}")`,
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskPosition: 'center',
+          WebkitMaskSize: 'contain',
+          maskImage: `url("${logoUrl}")`,
+          maskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          maskSize: 'contain',
+          backgroundColor: logoColor,
+          opacity: logoColorAmount / 100,
+        }
+      : undefined;
   const title = p.title === undefined ? storeName : String(p.title).trim();
   const tagline = str(p.tagline);
   const ctaText = str(p.ctaText);
@@ -324,6 +352,19 @@ function HeroPreview({
     if (!interactive || e.button !== 0) return;
     const box = boxRef.current?.getBoundingClientRect();
     if (!box) return;
+    // Measure the dragged element up front so we can keep its whole box inside
+    // the hero. Half its width/height as a percent of the hero box gives the
+    // margins the CENTRE (x/y) must stay within; an element larger than the box
+    // on an axis is centred there (clamp that axis to 50). Rounded up so a 1px
+    // rounding error can never let an edge poke outside.
+    const elRect = e.currentTarget.getBoundingClientRect();
+    const halfW = box.width > 0 ? Math.min(50, Math.ceil((elRect.width / 2 / box.width) * 100)) : 0;
+    const halfH = box.height > 0 ? Math.min(50, Math.ceil((elRect.height / 2 / box.height) * 100)) : 0;
+    const clampInside = (pos: HeroElementPos): HeroElementPos => ({
+      ...pos,
+      x: clampInt(pos.x, halfW, 100 - halfW, pos.x),
+      y: clampInt(pos.y, halfH, 100 - halfH, pos.y),
+    });
     const orig = posOf(key);
     const startX = e.clientX;
     const startY = e.clientY;
@@ -334,7 +375,7 @@ function HeroPreview({
       ev.preventDefault();
       setShowGrid(true);
       // Snap live so the element visibly locks to the grid / centre while dragging.
-      setActive({ key, pos: { ...orig, ...snapPos(ev.clientX, ev.clientY, box, orig) } });
+      setActive({ key, pos: clampInside({ ...orig, ...snapPos(ev.clientX, ev.clientY, box, orig) }) });
     };
     const onUp = (ev: PointerEvent) => {
       window.removeEventListener('pointermove', onMove);
@@ -344,7 +385,7 @@ function HeroPreview({
       if (!moved) return;
       // Suppress the trailing click so it doesn't open the heading popover.
       if (suppressElementClickRef) suppressElementClickRef.current = true;
-      commit(key, { ...orig, ...snapPos(ev.clientX, ev.clientY, box, orig) });
+      commit(key, clampInside({ ...orig, ...snapPos(ev.clientX, ev.clientY, box, orig) }));
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -395,12 +436,15 @@ function HeroPreview({
       left: `${pos.x}%`,
       top: `${pos.y}%`,
       transform: 'translate(-50%, -50%)',
-      maxWidth: '90%',
       cursor: interactive ? 'grab' : undefined,
       touchAction: 'none',
       ...extra,
     };
+    // Text elements take their natural single-line width so they never wrap into
+    // a column near the right edge (mirrors the storefront). The startMove drag
+    // clamps the element's box fully inside the hero. The logo is sized by scale.
     if (key === 'logo') base.width = `${pos.scale ?? HERO_LOGO_SCALE_DEFAULT}%`;
+    else base.width = 'max-content';
     return base;
   }
 
@@ -441,6 +485,9 @@ function HeroPreview({
           {...elemEdit('logo')}
         >
           <img src={logoUrl} alt="" style={logoFilter ? { filter: logoFilter } : undefined} className="w-full h-auto object-contain drop-shadow pointer-events-none select-none" draggable={false} />
+          {logoColorOverlayStyle && (
+            <div className="absolute inset-0 pointer-events-none" style={logoColorOverlayStyle} aria-hidden="true" />
+          )}
           {interactive && (
             <span
               onPointerDown={startResize}

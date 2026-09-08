@@ -22,8 +22,13 @@ import {
   HERO_LOGO_TINT_MIN,
   HERO_LOGO_TINT_MAX,
   HERO_LOGO_TINT_DEFAULT,
+  HERO_LOGO_COLOR_DEFAULT,
+  HERO_LOGO_COLOR_AMOUNT_MIN,
+  HERO_LOGO_COLOR_AMOUNT_MAX,
+  HERO_LOGO_COLOR_AMOUNT_DEFAULT,
   type HeroElementKey,
 } from '../../../lib/store-blocks';
+import { isValidHex } from '../../../lib/store-theme';
 import type { StoreBlockProps } from './types';
 
 const { store, props = {}, assets = [] } = Astro.props as StoreBlockProps;
@@ -63,6 +68,22 @@ const logoUrl = logoPath ? projectPhotoUrl(logoPath) : null;
 // user string is ever concatenated into the logo's inline style. 0 = no filter.
 const logoTint = clampInt(props.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
 const logoFilter = logoTint > 0 ? `grayscale(${logoTint}%)` : '';
+
+// Logo colour tint: a chosen colour painted as a masked silhouette over the
+// logo at `logoColorAmount`% strength (0 = off). The colour is the trust
+// boundary: it only reaches CSS after passing the strict hex check, so a junk /
+// injection value falls back to the default black. The amount is a clamped int.
+const logoColor = isValidHex(props.logoColor) ? String(props.logoColor).trim().toUpperCase() : HERO_LOGO_COLOR_DEFAULT;
+const logoColorAmount = clampInt(props.logoColorAmount, HERO_LOGO_COLOR_AMOUNT_MIN, HERO_LOGO_COLOR_AMOUNT_MAX, HERO_LOGO_COLOR_AMOUNT_DEFAULT);
+// The overlay recolours the logo shape. SECURITY: `logoUrl` here is the SAME
+// resolved, trusted store-owned asset URL used in the <img src> below (via
+// projectPhotoUrl) — reusing it in a double-quoted mask: url("…") is safe. The
+// file's "never CSS url()" note is about arbitrary paths, not this resolved URL.
+// The only user-influenced values are the validated hex + the clamped amount.
+const logoColorOverlayCss =
+  logoColorAmount > 0 && logoUrl
+    ? `-webkit-mask: url("${logoUrl}") center / contain no-repeat; mask: url("${logoUrl}") center / contain no-repeat; background-color: ${logoColor}; opacity: ${(logoColorAmount / 100).toFixed(3)}; pointer-events: none;`
+    : '';
 
 // Overlay: validated rgba/gradient built only from the clamped strength + style.
 const overlayStyle = coerceOverlayStyle(props.overlayStyle);
@@ -105,9 +126,18 @@ function elStyle(key: HeroElementKey): string | undefined {
   >
     {logoUrl && (
       /* A store logo can be any shape (wide, tall, square) — show it in full
-         (object-contain, natural aspect) capped in size, never circle-cropped. */
-      <img src={logoUrl} alt={store.name} style={`${elStyle('logo') ?? ''}${logoFilter ? `filter: ${logoFilter};` : ''}` || undefined}
-        class="hero-el hero-el-logo max-h-20 sm:max-h-28 max-w-[min(100%,24rem)] w-auto object-contain mb-5 drop-shadow" data-hero-logo />
+         (object-contain, natural aspect) capped in size, never circle-cropped.
+         The wrapper carries the free-layout positioning + size (.hero-el-logo)
+         and shrink-wraps the <img>; the base <img> keeps the grayscale logoTint
+         filter. When a colour tint is active, a masked sibling paints a solid
+         colour silhouette of the SAME logo over it. */
+      <div class="hero-el hero-el-logo relative inline-block max-w-[min(100%,24rem)] mb-5" style={elStyle('logo')} data-hero-logo>
+        <img src={logoUrl} alt={store.name} style={logoFilter ? `filter: ${logoFilter};` : undefined}
+          class="block max-h-20 sm:max-h-28 w-auto object-contain drop-shadow" />
+        {logoColorOverlayCss && (
+          <div class="absolute inset-0" style={logoColorOverlayCss} aria-hidden="true"></div>
+        )}
+      </div>
     )}
     {title && (
       <h1 class="hero-el hero-el-title font-serif leading-tight" style={`font-family: var(--font-display); font-size: calc(clamp(1.875rem, 4vw + 0.5rem, 3rem) * var(--store-heading-scale));${elStyle('title') ?? ''}`}>{title}</h1>
@@ -135,10 +165,22 @@ function elStyle(key: HeroElementKey): string | undefined {
       top: var(--hy);
       transform: translate(-50%, -50%);
       margin: 0;
-      max-width: 90%;
+      /* Text elements take their natural single-line width so a dragged label
+         never wraps into a narrow column near the right edge, and is never
+         clipped past the left edge. The editor drag clamps the element's box
+         fully inside the hero, so max-content can't overflow in practice. */
+      width: max-content;
+      max-width: none;
     }
     .hero-inner[data-hero-free] .hero-el-logo {
+      /* The logo is sized by its own scale percent, not by content. */
       width: var(--hw);
+      max-width: none;
+      max-height: none;
+    }
+    .hero-inner[data-hero-free] .hero-el-logo > img {
+      width: 100%;
+      height: auto;
       max-width: none;
       max-height: none;
     }

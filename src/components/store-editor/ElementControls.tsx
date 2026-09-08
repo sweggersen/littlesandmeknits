@@ -20,7 +20,12 @@ import {
   HERO_LOGO_TINT_MIN,
   HERO_LOGO_TINT_MAX,
   HERO_LOGO_TINT_DEFAULT,
+  HERO_LOGO_COLOR_DEFAULT,
+  HERO_LOGO_COLOR_AMOUNT_MIN,
+  HERO_LOGO_COLOR_AMOUNT_MAX,
+  HERO_LOGO_COLOR_AMOUNT_DEFAULT,
 } from '../../lib/store-blocks';
+import { isValidHex } from '../../lib/store-theme';
 import { STORE_COLOR_ROLE_LABEL, STORE_EDITOR_LABELS as L } from '../../lib/labels';
 import HeadingControls from './HeadingControls';
 import ColorRow from './ColorRow';
@@ -75,6 +80,10 @@ function LogoControls({
   const logo = stored.logo ?? HERO_DEFAULT_ELEMENTS.logo;
   const scale = clampInt(logo.scale, HERO_LOGO_SCALE_MIN, HERO_LOGO_SCALE_MAX, HERO_LOGO_SCALE_DEFAULT);
   const tint = clampInt(p.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
+  // Untrusted UI values; the server re-validates the hex and re-clamps the
+  // amount on save. Show the stored colour when it's a valid hex, else default.
+  const logoColor = isValidHex(p.logoColor) ? String(p.logoColor).toUpperCase() : HERO_LOGO_COLOR_DEFAULT;
+  const colorAmount = clampInt(p.logoColorAmount, HERO_LOGO_COLOR_AMOUNT_MIN, HERO_LOGO_COLOR_AMOUNT_MAX, HERO_LOGO_COLOR_AMOUNT_DEFAULT);
 
   // Size lives in the hero's free-layout map; merge so untouched elements keep
   // their positions. Value is clamped to the bounded percent range.
@@ -89,6 +98,13 @@ function LogoControls({
   const setTint = (value: number) =>
     onUpdateProps(block.id, {
       logoTint: clampInt(value, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT),
+    });
+  // Colour + strength are their own bounded hero props; the server re-validates
+  // the hex and re-clamps the amount on save.
+  const setColor = (value: string) => onUpdateProps(block.id, { logoColor: value });
+  const setColorAmount = (value: number) =>
+    onUpdateProps(block.id, {
+      logoColorAmount: clampInt(value, HERO_LOGO_COLOR_AMOUNT_MIN, HERO_LOGO_COLOR_AMOUNT_MAX, HERO_LOGO_COLOR_AMOUNT_DEFAULT),
     });
 
   return (
@@ -122,6 +138,24 @@ function LogoControls({
           onChange={(e) => setTint(Number(e.target.value))}
           className="w-full accent-[var(--color-primary)]"
           data-logo-tint
+        />
+      </label>
+
+      <ColorRow value={logoColor} label={L.logoColor} onChange={setColor} role="logoColor" />
+
+      <label className="block">
+        <span className="flex items-center justify-between text-xs font-medium text-charcoal/60 mb-1">
+          <span>{L.logoColorAmount}</span>
+          <span className="font-mono text-charcoal/45">{colorAmount}%</span>
+        </span>
+        <input
+          type="range"
+          min={HERO_LOGO_COLOR_AMOUNT_MIN}
+          max={HERO_LOGO_COLOR_AMOUNT_MAX}
+          value={colorAmount}
+          onChange={(e) => setColorAmount(Number(e.target.value))}
+          className="w-full accent-[var(--color-primary)]"
+          data-logo-color-amount
         />
       </label>
     </div>

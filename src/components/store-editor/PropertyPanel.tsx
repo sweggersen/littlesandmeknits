@@ -210,6 +210,20 @@ function Field({
         </label>
       );
 
+    case 'color':
+      return (
+        <label className="block">
+          {labelEl}
+          <input
+            type="color"
+            value={typeof value === 'string' && value ? value : '#000000'}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+            className="w-full h-9 bg-surface rounded-lg border border-sage-500/20 px-1 py-0.5 cursor-pointer"
+            data-prop={field.key}
+          />
+        </label>
+      );
+
     case 'url':
     case 'text':
     default:

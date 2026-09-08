@@ -10,6 +10,8 @@
 // set:html) by the block components. Unknown block types are dropped on
 // sanitise so a forged config can't invoke an arbitrary component.
 
+import { isValidHex } from './store-theme';
+
 /** The 12-column grid width. */
 export const GRID_COLUMNS = 12;
 
@@ -50,6 +52,15 @@ export const HERO_LOGO_SCALE_DEFAULT = 40;
 export const HERO_LOGO_TINT_MIN = 0;
 export const HERO_LOGO_TINT_MAX = 100;
 export const HERO_LOGO_TINT_DEFAULT = 0;
+
+/** Logo colour tint: a hex colour painted (as a masked silhouette) over the
+ *  logo at `logoColorAmount`% strength. The colour is validated against the
+ *  strict hex check so only an inert `#rgb`/`#rrggbb` value ever reaches CSS,
+ *  and the amount is a clamped 0-100 int. 0 = off (no overlay rendered). */
+export const HERO_LOGO_COLOR_DEFAULT = '#000000';
+export const HERO_LOGO_COLOR_AMOUNT_MIN = 0;
+export const HERO_LOGO_COLOR_AMOUNT_MAX = 100;
+export const HERO_LOGO_COLOR_AMOUNT_DEFAULT = 0;
 
 /** A positioned hero sub-element: x/y are the element's CENTRE as a percent
  *  (0-100) of the hero box; the logo additionally carries a `scale` percent. */
@@ -119,6 +130,7 @@ export interface PropField {
     | 'assetIds'
     | 'listingIds'
     | 'url'
+    | 'color'
     | 'select';
   label: string;
   /** For the 'select' kind: the bounded set of choices the editor offers. The
@@ -170,6 +182,8 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       ctaHref: '',
       logo: '',
       logoTint: 0,
+      logoColor: HERO_LOGO_COLOR_DEFAULT,
+      logoColorAmount: HERO_LOGO_COLOR_AMOUNT_DEFAULT,
       bgImage: '',
       overlay: 45,
       overlayStyle: 'bottom',
@@ -179,6 +193,8 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
       { key: 'logo', kind: 'assetId', label: 'Logo' },
       { key: 'logoTint', kind: 'number', label: 'Logo-gråtone (0–100)' },
+      { key: 'logoColor', kind: 'color', label: 'Logofarge' },
+      { key: 'logoColorAmount', kind: 'number', label: 'Fargestyrke (0–100)' },
       { key: 'bgImage', kind: 'assetId', label: 'Bakgrunnsbilde' },
       { key: 'overlay', kind: 'number', label: 'Mørkt overlegg (0–100)' },
       {
@@ -420,6 +436,13 @@ function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>
     // Logo tint: a bounded grayscale percent. Always present as a clamped int so
     // the storefront never concatenates a raw value into the logo's inline filter.
     out.logoTint = clampInt(out.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
+    // Logo colour tint: THE trust boundary for the masked-colour overlay. The
+    // colour is only ever emitted into CSS after passing the strict hex check
+    // (`#rgb`/`#rrggbb`), so a junk/injection value (`red;}body{}`, `url(x)`)
+    // can never reach the inline style — it falls back to the default black.
+    out.logoColor = isValidHex(out.logoColor) ? String(out.logoColor).trim().toUpperCase() : HERO_LOGO_COLOR_DEFAULT;
+    // Overlay strength: a clamped 0-100 int (0 = overlay off).
+    out.logoColorAmount = clampInt(out.logoColorAmount, HERO_LOGO_COLOR_AMOUNT_MIN, HERO_LOGO_COLOR_AMOUNT_MAX, HERO_LOGO_COLOR_AMOUNT_DEFAULT);
     // Defensive cap: the title renders as a large H1, never a paragraph.
     if (typeof out.title === 'string') out.title = out.title.slice(0, 80);
     // Free-layout positions: keep only a fully-validated bounded-int map, else
