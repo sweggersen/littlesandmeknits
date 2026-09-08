@@ -1,10 +1,11 @@
 // Left-rail theme controls: display/body font pickers, a colour picker per
 // theme role, the preset picker, and reset. Emits whole-theme updates upward;
 // the server re-sanitises on save.
-import { STORE_FONTS, STORE_COLOR_ROLES, isValidHex, type StoreTheme, type StoreColorRole } from '../../lib/store-theme';
+import { STORE_FONTS, STORE_COLOR_ROLES, type StoreTheme, type StoreColorRole } from '../../lib/store-theme';
 import { STORE_PRESETS, STORE_PRESET_IDS } from '../../lib/store-presets';
 import { STORE_COLOR_ROLE_LABEL, STORE_EDITOR_LABELS as L } from '../../lib/labels';
 import HeadingControls from './HeadingControls';
+import ColorRow from './ColorRow';
 
 const DISPLAY_FONTS = STORE_FONTS.filter((f) => f.role === 'display' || f.role === 'both');
 const BODY_FONTS = STORE_FONTS.filter((f) => f.role === 'body' || f.role === 'both');
@@ -59,29 +60,13 @@ export default function ThemePanel({
         <span className="block text-xs font-medium text-charcoal/60 mb-1.5">{L.colors}</span>
         <div className="space-y-1.5">
           {STORE_COLOR_ROLES.map((role) => (
-            <div key={role} className="flex items-center gap-2">
-              <input
-                type="color"
-                value={theme.colors[role]}
-                onChange={(e) => setColor(role, e.target.value.toUpperCase())}
-                className="w-7 h-7 rounded border border-sage-500/20 bg-surface shrink-0 cursor-pointer"
-                aria-label={STORE_COLOR_ROLE_LABEL[role]}
-                data-color={role}
-              />
-              <span className="text-xs text-charcoal/70 flex-1 truncate">{STORE_COLOR_ROLE_LABEL[role]}</span>
-              <input
-                type="text"
-                value={theme.colors[role]}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (isValidHex(v)) setColor(role, v.toUpperCase());
-                  else setColor(role, v); // keep typing; sanitised server-side
-                }}
-                className="w-20 bg-surface rounded border border-sage-500/20 px-1.5 py-1 text-[11px] font-mono"
-                spellCheck={false}
-                data-color-hex={role}
-              />
-            </div>
+            <ColorRow
+              key={role}
+              value={theme.colors[role]}
+              label={STORE_COLOR_ROLE_LABEL[role]}
+              onChange={(v) => setColor(role, v)}
+              role={role}
+            />
           ))}
         </div>
       </div>

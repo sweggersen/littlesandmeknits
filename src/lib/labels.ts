@@ -124,4 +124,16 @@ export const STORE_EDITOR_LABELS = {
   heroLayoutHint: 'Dra logo, tittel, undertittel og knapp for å plassere dem i toppseksjonen. Dra hjørnet på logoen for å endre størrelsen. På mobil vises alt sentrert.',
   heroResetLayout: 'Nullstill plassering',
   resizeLogo: 'Endre logostørrelse',
+  // Click-to-edit popover: title + short hint per element kind.
+  editHeading: 'Overskrifter',
+  editText: 'Tekst',
+  editTag: 'Merkelapp',
+  editHeader: 'Toppseksjon',
+  editLogo: 'Logo',
+  editTextHint: 'Endrer fargen på brødteksten i hele butikken.',
+  editTagHint: 'Teksten justeres automatisk til svart eller hvit for lesbarhet.',
+  editHeaderHint: 'Endrer bakgrunnsfargen på toppseksjonen.',
+  editLogoHint: 'Endre størrelse og gråtone på logoen.',
+  logoSize: 'Størrelse',
+  logoTint: 'Gråtone',
 } as const;

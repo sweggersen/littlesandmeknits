@@ -12,6 +12,7 @@ import {
   HERO_ELEMENT_KEYS,
   HERO_LOGO_SCALE_MIN,
   HERO_LOGO_SCALE_MAX,
+  HERO_LOGO_TINT_MAX,
   MAX_GALLERY_IMAGES,
   BLOCK_REGISTRY,
   GRID_COLUMNS,
@@ -219,6 +220,47 @@ describe('sanitizePageConfig semantic clamping', () => {
     const kept = (cfg.blocks[0].props as Record<string, unknown>).images as string[];
     expect(kept).toHaveLength(MAX_GALLERY_IMAGES);
     expect(new Set(kept).size).toBe(kept.length); // no dupes
+  });
+});
+
+describe('hero logoTint', () => {
+  const tintOf = (props: Record<string, unknown>) => {
+    const cfg = sanitizePageConfig({ blocks: [{ id: 'h', type: 'hero', layout: {}, props }] });
+    return (cfg.blocks[0].props as Record<string, unknown>).logoTint;
+  };
+
+  it('keeps a valid in-range integer', () => {
+    expect(tintOf({ logoTint: 60 })).toBe(60);
+    expect(tintOf({ logoTint: 0 })).toBe(0);
+    expect(tintOf({ logoTint: HERO_LOGO_TINT_MAX })).toBe(HERO_LOGO_TINT_MAX);
+  });
+
+  it('clamps out-of-range values to 0..100 and rounds to an int', () => {
+    expect(tintOf({ logoTint: 250 })).toBe(HERO_LOGO_TINT_MAX);
+    expect(tintOf({ logoTint: -40 })).toBe(0);
+    expect(tintOf({ logoTint: 42.7 })).toBe(43);
+  });
+
+  it('falls back to the default 0 for junk / NaN / non-numeric', () => {
+    expect(tintOf({ logoTint: 'lots' })).toBe(0);
+    expect(tintOf({ logoTint: NaN })).toBe(0);
+    expect(tintOf({ logoTint: null })).toBe(0);
+    expect(tintOf({ logoTint: {} })).toBe(0);
+  });
+
+  it('defaults to 0 when the prop is missing entirely', () => {
+    expect(tintOf({})).toBe(0);
+    // The registry default seeds it too, so the key is always present.
+    expect(BLOCK_REGISTRY.hero.defaultProps.logoTint).toBe(0);
+  });
+
+  it('is a bounded int for every value across the range (sweep)', () => {
+    for (let v = -20; v <= 140; v += 7) {
+      const t = tintOf({ logoTint: v }) as number;
+      expect(Number.isInteger(t)).toBe(true);
+      expect(t).toBeGreaterThanOrEqual(0);
+      expect(t).toBeLessThanOrEqual(HERO_LOGO_TINT_MAX);
+    }
   });
 });
 
