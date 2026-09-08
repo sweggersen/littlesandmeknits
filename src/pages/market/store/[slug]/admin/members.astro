@@ -136,13 +136,19 @@ const roleOptions: StoreRole[] = role === 'owner'
             )}
 
             {can.manageMembers(role) && (
-              <form method="post" action={`/api/stores/${store.slug}/members`} class="shrink-0">
+              <form method="post" action={`/api/stores/${store.slug}/members`} class="shrink-0 self-stretch flex">
                 <input type="hidden" name="action" value="set-visibility" />
                 <input type="hidden" name="user_id" value={m.user_id} />
-                <label class="flex items-center gap-1.5 text-xs text-charcoal/60 cursor-pointer whitespace-nowrap" title="Vis dette medlemmet i butikkens team-seksjon">
-                  <input type="checkbox" name="visible" value="true" checked={m.visible_on_storefront} class="rounded" onchange="this.form.requestSubmit()" />
-                  Vis i team
-                </label>
+                <input type="hidden" name="visible" value={m.visible_on_storefront ? 'false' : 'true'} />
+                <button type="submit" aria-label="Vis i team-seksjonen"
+                  class:list={['px-2 flex items-center rounded-lg transition-colors', m.visible_on_storefront ? 'text-sage-700 hover:bg-sage-100/50' : 'text-charcoal/30 hover:bg-oatmeal/40']}
+                  title={m.visible_on_storefront ? 'Vises i team-seksjonen (klikk for å skjule)' : 'Skjult fra team-seksjonen (klikk for å vise)'}>
+                  {m.visible_on_storefront ? (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                  ) : (
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+                  )}
+                </button>
               </form>
             )}
           </li>
