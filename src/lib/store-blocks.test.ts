@@ -294,6 +294,51 @@ describe('hero logoTint', () => {
   });
 });
 
+describe('hero logoColor', () => {
+  const heroProps = (props: Record<string, unknown>) => {
+    const cfg = sanitizePageConfig({ blocks: [{ id: 'h', type: 'hero', layout: {}, props }] });
+    return cfg.blocks[0].props as Record<string, unknown>;
+  };
+  const colorOf = (props: Record<string, unknown>) => heroProps(props).logoColor;
+  const amountOf = (props: Record<string, unknown>) => heroProps(props).logoColorAmount;
+
+  it('keeps a valid hex (upper-cased) and supports #rgb + #rrggbb', () => {
+    expect(colorOf({ logoColor: '#ff8800' })).toBe('#FF8800');
+    expect(colorOf({ logoColor: '#FFF' })).toBe('#FFF');
+    expect(colorOf({ logoColor: '  #abc123  ' })).toBe('#ABC123');
+  });
+
+  it('defaults junk / injection attempts to #000000 (never reaches CSS)', () => {
+    expect(colorOf({ logoColor: 'red;}body{}' })).toBe('#000000');
+    expect(colorOf({ logoColor: 'url(x)' })).toBe('#000000');
+    expect(colorOf({ logoColor: 'rgb(0,0,0)' })).toBe('#000000');
+    expect(colorOf({ logoColor: '#12' })).toBe('#000000');
+    expect(colorOf({ logoColor: '#gggggg' })).toBe('#000000');
+    expect(colorOf({ logoColor: 42 })).toBe('#000000');
+    expect(colorOf({ logoColor: null })).toBe('#000000');
+    expect(colorOf({ logoColor: {} })).toBe('#000000');
+  });
+
+  it('defaults to #000000 when missing (registry seeds it)', () => {
+    expect(colorOf({})).toBe('#000000');
+    expect(BLOCK_REGISTRY.hero.defaultProps.logoColor).toBe('#000000');
+  });
+
+  it('clamps logoColorAmount to a 0..100 int, junk -> 0', () => {
+    expect(amountOf({ logoColorAmount: 60 })).toBe(60);
+    expect(amountOf({ logoColorAmount: 0 })).toBe(0);
+    expect(amountOf({ logoColorAmount: 100 })).toBe(100);
+    expect(amountOf({ logoColorAmount: 250 })).toBe(100);
+    expect(amountOf({ logoColorAmount: -40 })).toBe(0);
+    expect(amountOf({ logoColorAmount: 42.7 })).toBe(43);
+    expect(amountOf({ logoColorAmount: 'lots' })).toBe(0);
+    expect(amountOf({ logoColorAmount: NaN })).toBe(0);
+    expect(amountOf({ logoColorAmount: null })).toBe(0);
+    expect(amountOf({})).toBe(0);
+    expect(BLOCK_REGISTRY.hero.defaultProps.logoColorAmount).toBe(0);
+  });
+});
+
 describe('sanitizeHeroElements', () => {
   const int = (v: unknown) => typeof v === 'number' && Number.isInteger(v);
 

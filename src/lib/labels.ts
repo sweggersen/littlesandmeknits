@@ -164,7 +164,9 @@ export const STORE_EDITOR_LABELS = {
   editTextHint: 'Endrer fargen på brødteksten i hele butikken.',
   editTagHint: 'Teksten justeres automatisk til svart eller hvit for lesbarhet.',
   editHeaderHint: 'Endrer bakgrunnsfargen på toppseksjonen.',
-  editLogoHint: 'Endre størrelse og gråtone på logoen.',
+  editLogoHint: 'Endre størrelse, gråtone og farge på logoen.',
   logoSize: 'Størrelse',
   logoTint: 'Gråtone',
+  logoColor: 'Logofarge',
+  logoColorAmount: 'Fargestyrke',
 } as const;
