@@ -38,7 +38,7 @@ const uid = `gal-${Math.random().toString(36).slice(2, 10)}`;
 ---
 
 {images.length > 0 && (
-  <section class="store-gallery" data-gallery={uid}>
+  <section class="store-gallery rounded-3xl p-6" data-gallery={uid} style="background-color: var(--color-surface); border: 1px solid var(--store-border);">
     {heading && (
       <h2 class="font-serif mb-4" style="font-family: var(--font-display); font-size: calc(1.25rem * var(--store-heading-scale));">{heading}</h2>
     )}

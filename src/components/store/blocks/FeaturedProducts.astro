@@ -16,7 +16,7 @@ const picked = ids.map((id) => byId.get(id)).filter((l): l is NonNullable<typeof
 ---
 
 {picked.length > 0 && (
-  <section>
+  <section class="rounded-3xl p-6" style="background-color: var(--color-surface); border: 1px solid var(--store-border);">
     <h2 class="font-serif mb-4" style="font-family: var(--font-display); font-size: calc(1.5rem * var(--store-heading-scale));">{heading}</h2>
     <ul class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 list-none p-0 m-0">
       {picked.map((l) => (
