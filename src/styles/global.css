@@ -367,10 +367,13 @@
   --store-heading-scale: 1;
   /* Full-bleed: break out of MarketplaceShell's max-w-5xl container + eat its
      vertical padding so the store's theme fills the whole page (edge to edge,
-     up to the nav) instead of reading as a light box inside the dark site. */
+     up to the nav) instead of reading as a light box inside the dark site.
+     Use a margin-based bleed (NOT transform): a transformed ancestor becomes
+     the containing block for position:fixed descendants, which would break the
+     gallery lightbox (it would size/centre within the tall store content rather
+     than the viewport). */
   width: 100vw;
-  margin-left: 50%;
-  transform: translateX(-50%);
+  margin-left: calc(50% - 50vw);
   margin-top: -0.5rem;
   padding: 2.5rem 1.25rem 5rem;
   min-height: calc(100vh - 5rem);
