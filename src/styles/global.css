@@ -412,6 +412,28 @@
   background: var(--store-tag);
   color: var(--store-tag-fg);
 }
+/* Flexible-block resize handle (react-grid-layout's se corner): draw a small
+   corner caret that sits symmetrically INSIDE the card's bottom-right corner.
+   The card ends 12px above the grid cell (the uniform GAP spacer the editor
+   adds below every block), so the handle is lifted by that gap plus an equal
+   4px inset on both axes — so the caret hugs the corner with the same overlap
+   in x and y. NOTE: the 12px must track EditorCanvas's GAP constant. */
+.store-editor-canvas .react-resizable-handle-se {
+  width: 11px;
+  height: 11px;
+  right: 4px;
+  bottom: 16px; /* GAP (12) + 4px inset */
+  padding: 0;
+  margin: 0;
+  background: none;
+  border-right: 2px solid var(--store-muted);
+  border-bottom: 2px solid var(--store-muted);
+  border-bottom-right-radius: 3px;
+  opacity: 0.55;
+}
+.store-editor-canvas .react-resizable-handle-se:hover {
+  opacity: 0.9;
+}
 .store-grid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
