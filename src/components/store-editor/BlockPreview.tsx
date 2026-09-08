@@ -15,6 +15,9 @@ import {
   HERO_LOGO_SCALE_MIN,
   HERO_LOGO_SCALE_MAX,
   HERO_LOGO_SCALE_DEFAULT,
+  HERO_LOGO_TINT_MIN,
+  HERO_LOGO_TINT_MAX,
+  HERO_LOGO_TINT_DEFAULT,
 } from '../../lib/store-blocks';
 import { projectPhotoUrl } from '../../lib/storage';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
@@ -39,15 +42,17 @@ function headingStyle(baseRem: string, contrast = false): CSSProperties {
   } as CSSProperties;
 }
 
-// data-hook the canvas listens on to open the click-to-edit heading popover.
-const HEAD_EDIT = { 'data-heading-edit': '' } as const;
+// data-hook the canvas listens on to open the click-to-edit popover. The value
+// is the element KIND, so one handler routes every element to the right controls.
+const HEAD_EDIT = { 'data-elem-edit': 'heading' } as const;
+const elemEdit = (kind: 'text' | 'tag' | 'header' | 'logo') => ({ 'data-elem-edit': kind });
 
 export default function BlockPreview({
   block,
   storeName,
   assets,
   onUpdateProps,
-  suppressHeadingClickRef,
+  suppressElementClickRef,
 }: {
   block: StoreBlock;
   storeName: string;
@@ -57,7 +62,7 @@ export default function BlockPreview({
   onUpdateProps?: (id: string, patch: Record<string, unknown>) => void;
   /** Shared flag the canvas checks so a drag doesn't also open the heading
    *  popover on the trailing click. */
-  suppressHeadingClickRef?: MutableRefObject<boolean>;
+  suppressElementClickRef?: MutableRefObject<boolean>;
 }) {
   const p = block.props as Record<string, unknown>;
 
@@ -69,7 +74,7 @@ export default function BlockPreview({
           storeName={storeName}
           assets={assets}
           onUpdateProps={onUpdateProps}
-          suppressHeadingClickRef={suppressHeadingClickRef}
+          suppressElementClickRef={suppressElementClickRef}
         />
       );
 
@@ -79,7 +84,7 @@ export default function BlockPreview({
           <div {...HEAD_EDIT} style={headingStyle('0.875rem')}>
             {str(p.heading, 'Tekstseksjon')}
           </div>
-          <p className="text-xs mt-1 line-clamp-3" style={{ color: 'var(--color-charcoal)' }}>
+          <p {...elemEdit('text')} className="text-xs mt-1 line-clamp-3" style={{ color: 'var(--color-charcoal)' }}>
             {str(p.body, 'Tekstinnhold vises her.')}
           </p>
         </div>
@@ -104,6 +109,7 @@ export default function BlockPreview({
                 {/* Mini preview of the themeable "Merkelapp" (tag) colour with its
                     auto-contrasted text, so the owner sees it in context. */}
                 <span
+                  {...elemEdit('tag')}
                   className="text-[8px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full"
                   style={{ background: 'var(--store-tag)', color: 'var(--store-tag-fg)' }}
                 >
@@ -192,7 +198,7 @@ export default function BlockPreview({
           <div {...HEAD_EDIT} className="mb-1" style={headingStyle('0.875rem')}>
             {str(p.heading, 'Kontakt')}
           </div>
-          <div className="text-xs opacity-65 space-y-0.5">
+          <div {...elemEdit('text')} className="text-xs opacity-65 space-y-0.5">
             <div>Sted, e-post</div>
             <div>Sosiale medier</div>
           </div>
@@ -220,13 +226,13 @@ function HeroPreview({
   storeName,
   assets,
   onUpdateProps,
-  suppressHeadingClickRef,
+  suppressElementClickRef,
 }: {
   block: StoreBlock;
   storeName: string;
   assets: EditorAsset[];
   onUpdateProps?: (id: string, patch: Record<string, unknown>) => void;
-  suppressHeadingClickRef?: MutableRefObject<boolean>;
+  suppressElementClickRef?: MutableRefObject<boolean>;
 }) {
   const p = block.props as Record<string, unknown>;
   const bgAsset = assets.find((a) => a.id === str(p.bgImage));
@@ -234,6 +240,10 @@ function HeroPreview({
   const logoAsset = assets.find((a) => a.id === str(p.logo));
   const logoUrl = logoAsset ? projectPhotoUrl(logoAsset.path) : null;
   const overlay = heroOverlayCss(p.overlay, coerceOverlayStyle(p.overlayStyle));
+  // Logo tint: a grayscale filter built ONLY from a clamped integer, mirroring
+  // the storefront (StoreHero.astro). Never concatenates a raw prop into CSS.
+  const logoTint = clampInt(p.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
+  const logoFilter = logoTint > 0 ? `grayscale(${logoTint}%)` : undefined;
   const title = p.title === undefined ? storeName : String(p.title).trim();
   const tagline = str(p.tagline);
   const ctaText = str(p.ctaText);
@@ -288,7 +298,7 @@ function HeroPreview({
       setActive(null);
       if (!moved) return;
       // Suppress the trailing click so it doesn't open the heading popover.
-      if (suppressHeadingClickRef) suppressHeadingClickRef.current = true;
+      if (suppressElementClickRef) suppressElementClickRef.current = true;
       commit(key, {
         ...orig,
         x: clampInt(snap(pctX(ev.clientX, box, orig.x)), 0, 100, orig.x),
@@ -329,7 +339,7 @@ function HeroPreview({
       setShowGrid(false);
       setActive(null);
       if (!moved) return;
-      if (suppressHeadingClickRef) suppressHeadingClickRef.current = true;
+      if (suppressElementClickRef) suppressElementClickRef.current = true;
       const snapped = clampInt(snap(scaleFrom(ev.clientX)), HERO_LOGO_SCALE_MIN, HERO_LOGO_SCALE_MAX, logo.scale ?? HERO_LOGO_SCALE_DEFAULT);
       commit('logo', { ...logo, scale: snapped });
     };
@@ -359,6 +369,7 @@ function HeroPreview({
       className="relative overflow-hidden rounded-xl text-white"
       style={{ background: 'var(--store-header-bg)', minHeight: 190 }}
       data-hero-layout
+      {...elemEdit('header')}
     >
       {bgUrl && <img src={bgUrl} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover" />}
       {overlay !== 'transparent' && <div className="absolute inset-0" style={{ background: overlay }} />}
@@ -381,8 +392,9 @@ function HeroPreview({
           style={elStyle('logo')}
           onPointerDown={(e) => startMove('logo', e)}
           data-hero-el="logo"
+          {...elemEdit('logo')}
         >
-          <img src={logoUrl} alt="" className="w-full h-auto object-contain drop-shadow pointer-events-none select-none" draggable={false} />
+          <img src={logoUrl} alt="" style={logoFilter ? { filter: logoFilter } : undefined} className="w-full h-auto object-contain drop-shadow pointer-events-none select-none" draggable={false} />
           {interactive && (
             <span
               onPointerDown={startResize}

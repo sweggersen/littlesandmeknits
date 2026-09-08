@@ -16,8 +16,12 @@ import {
   heroOverlayCss,
   coerceOverlayStyle,
   sanitizeHeroElements,
+  clampInt,
   HERO_DEFAULT_ELEMENTS,
   HERO_LOGO_SCALE_DEFAULT,
+  HERO_LOGO_TINT_MIN,
+  HERO_LOGO_TINT_MAX,
+  HERO_LOGO_TINT_DEFAULT,
   type HeroElementKey,
 } from '../../../lib/store-blocks';
 import type { StoreBlockProps } from './types';
@@ -54,6 +58,11 @@ const logoAsset =
     : null;
 const logoPath = logoAsset?.path ?? store.logo_path;
 const logoUrl = logoPath ? projectPhotoUrl(logoPath) : null;
+
+// Logo tint: a grayscale filter built ONLY from a clamped integer (0-100), so no
+// user string is ever concatenated into the logo's inline style. 0 = no filter.
+const logoTint = clampInt(props.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
+const logoFilter = logoTint > 0 ? `grayscale(${logoTint}%)` : '';
 
 // Overlay: validated rgba/gradient built only from the clamped strength + style.
 const overlayStyle = coerceOverlayStyle(props.overlayStyle);
@@ -97,7 +106,7 @@ function elStyle(key: HeroElementKey): string | undefined {
     {logoUrl && (
       /* A store logo can be any shape (wide, tall, square) — show it in full
          (object-contain, natural aspect) capped in size, never circle-cropped. */
-      <img src={logoUrl} alt={store.name} style={elStyle('logo')}
+      <img src={logoUrl} alt={store.name} style={`${elStyle('logo') ?? ''}${logoFilter ? `filter: ${logoFilter};` : ''}` || undefined}
         class="hero-el hero-el-logo max-h-20 sm:max-h-28 max-w-[min(100%,24rem)] w-auto object-contain mb-5 drop-shadow" data-hero-logo />
     )}
     {title && (

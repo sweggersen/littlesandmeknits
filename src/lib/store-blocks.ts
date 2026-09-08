@@ -43,6 +43,13 @@ export const HERO_LOGO_SCALE_MIN = 10;
 export const HERO_LOGO_SCALE_MAX = 100;
 export const HERO_LOGO_SCALE_DEFAULT = 40;
 
+/** Logo tint, as a grayscale/desaturation percent (0 = full colour, 100 =
+ *  fully grayscale). Bounded so the storefront only ever builds an inline
+ *  `filter: grayscale(N%)` from a clamped integer, never a raw user string. */
+export const HERO_LOGO_TINT_MIN = 0;
+export const HERO_LOGO_TINT_MAX = 100;
+export const HERO_LOGO_TINT_DEFAULT = 0;
+
 /** A positioned hero sub-element: x/y are the element's CENTRE as a percent
  *  (0-100) of the hero box; the logo additionally carries a `scale` percent. */
 export interface HeroElementPos {
@@ -161,6 +168,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       ctaText: '',
       ctaHref: '',
       logo: '',
+      logoTint: 0,
       bgImage: '',
       overlay: 45,
       overlayStyle: 'bottom',
@@ -169,6 +177,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
       { key: 'title', kind: 'text', label: 'Butikknavn' },
       { key: 'tagline', kind: 'text', label: 'Undertittel' },
       { key: 'logo', kind: 'assetId', label: 'Logo' },
+      { key: 'logoTint', kind: 'number', label: 'Logo-gråtone (0–100)' },
       { key: 'bgImage', kind: 'assetId', label: 'Bakgrunnsbilde' },
       { key: 'overlay', kind: 'number', label: 'Mørkt overlegg (0–100)' },
       {
@@ -397,6 +406,9 @@ function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>
   if (type === 'hero') {
     out.overlay = clampInt(out.overlay, 0, 100, 45);
     out.overlayStyle = coerceOverlayStyle(out.overlayStyle);
+    // Logo tint: a bounded grayscale percent. Always present as a clamped int so
+    // the storefront never concatenates a raw value into the logo's inline filter.
+    out.logoTint = clampInt(out.logoTint, HERO_LOGO_TINT_MIN, HERO_LOGO_TINT_MAX, HERO_LOGO_TINT_DEFAULT);
     // Defensive cap: the title renders as a large H1, never a paragraph.
     if (typeof out.title === 'string') out.title = out.title.slice(0, 80);
     // Free-layout positions: keep only a fully-validated bounded-int map, else

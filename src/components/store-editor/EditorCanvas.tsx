@@ -14,10 +14,26 @@ import { storeThemeToCssVars, type StoreTheme } from '../../lib/store-theme';
 import { blocksToGrid } from './editor-state';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
 import BlockPreview from './BlockPreview';
-import HeadingControls from './HeadingControls';
+import ElementControls, { type ElementEditKind } from './ElementControls';
 import type { EditorAsset } from './types';
 
 const Grid = WidthProvider(GridLayout);
+
+// Per-kind popover chrome: title + a short hint, keyed by the clicked element.
+const ELEM_TITLE: Record<ElementEditKind, string> = {
+  heading: L.editHeading,
+  text: L.editText,
+  tag: L.editTag,
+  header: L.editHeader,
+  logo: L.editLogo,
+};
+const ELEM_HINT: Record<ElementEditKind, string> = {
+  heading: L.headingEditHint,
+  text: L.editTextHint,
+  tag: L.editTagHint,
+  header: L.editHeaderHint,
+  logo: L.editLogoHint,
+};
 // A 1px row unit with ZERO vertical margin means a block's grid height equals
 // its pixel height exactly — no row-snapping overshoot, so every block fits its
 // content with no dead space. The uniform vertical gap between blocks is added
@@ -58,26 +74,30 @@ export default function EditorCanvas({
   onApplyPreset: (id: string) => void;
 }) {
   const cssVars = storeThemeToCssVars(theme);
-  // Click-to-edit: clicking a heading in a preview opens this popover, anchored
-  // near the click, exposing the SAME theme-level heading controls as the rail.
-  const [headEditor, setHeadEditor] = useState<{ x: number; y: number } | null>(null);
+  // Click-to-edit: clicking an element in a preview opens this popover, anchored
+  // near the click, exposing the controls relevant to that element KIND (heading
+  // typography, a body/tag/header colour, or the hero logo's size + tint).
+  const [editor, setEditor] = useState<{ x: number; y: number; kind: ElementEditKind } | null>(null);
   // Set true by a hero element drag on pointer-up so the trailing click doesn't
-  // ALSO open the heading popover. Checked (and cleared) first thing here.
-  const suppressHeadingClickRef = useRef(false);
-  const openHeadingEditor = useCallback((e: ReactMouseEvent) => {
-    if (suppressHeadingClickRef.current) {
-      suppressHeadingClickRef.current = false;
+  // ALSO open the popover. Checked (and cleared) first thing here.
+  const suppressElementClickRef = useRef(false);
+  const openElementEditor = useCallback((e: ReactMouseEvent) => {
+    if (suppressElementClickRef.current) {
+      suppressElementClickRef.current = false;
       return;
     }
     const target = e.target as HTMLElement | null;
-    if (!target?.closest('[data-heading-edit]')) return;
-    // A heading isn't a drag handle (headings live outside .rgl-drag), but stop
+    const hit = target?.closest('[data-elem-edit]') as HTMLElement | null;
+    if (!hit) return;
+    const kind = hit.dataset.elemEdit as ElementEditKind | undefined;
+    if (!kind) return;
+    // These elements aren't drag handles (they live outside .rgl-drag), but stop
     // propagation so nothing treats this as a canvas/background interaction.
     e.stopPropagation();
     const PANEL_W = 240;
     const x = Math.min(e.clientX, window.innerWidth - PANEL_W - 12);
     const y = Math.min(e.clientY + 8, window.innerHeight - 320);
-    setHeadEditor({ x: Math.max(12, x), y: Math.max(12, y) });
+    setEditor({ x: Math.max(12, x), y: Math.max(12, y), kind });
   }, []);
   const typeById: Record<string, StoreBlock['type']> = {};
   for (const b of blocks) typeById[b.id] = b.type;
@@ -159,7 +179,7 @@ export default function EditorCanvas({
       className="store-editor-canvas rounded-2xl p-3 sm:p-4 min-h-[50vh]"
       style={styleFromVars(cssVars)}
       data-editor-canvas
-      onClickCapture={openHeadingEditor}
+      onClickCapture={openElementEditor}
     >
       <Grid
         className="layout"
@@ -208,7 +228,7 @@ export default function EditorCanvas({
                   storeName={storeName}
                   assets={assets}
                   onUpdateProps={onUpdateProps}
-                  suppressHeadingClickRef={suppressHeadingClickRef}
+                  suppressElementClickRef={suppressElementClickRef}
                 />
               </div>
             </>
@@ -242,33 +262,40 @@ export default function EditorCanvas({
 
       {/* Portalled to <body> so the popover escapes the store-theme CSS vars on
           the canvas and renders in the editor's own (neutral) chrome. */}
-      {headEditor && typeof document !== 'undefined' && createPortal(
+      {editor && typeof document !== 'undefined' && createPortal(
         <>
           {/* Click-away backdrop closes the popover. */}
           <div
             className="fixed inset-0 z-40"
-            onMouseDown={() => setHeadEditor(null)}
-            data-heading-popover-backdrop
+            onMouseDown={() => setEditor(null)}
+            data-elem-popover-backdrop
           />
           <div
             className="fixed z-50 w-60 bg-surface rounded-xl border border-sage-500/20 shadow-xl p-3 text-charcoal"
-            style={{ left: headEditor.x, top: headEditor.y }}
+            style={{ left: editor.x, top: editor.y }}
             onMouseDown={(e) => e.stopPropagation()}
-            data-heading-popover
+            data-elem-popover
+            data-elem-popover-kind={editor.kind}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{L.headings}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{ELEM_TITLE[editor.kind]}</span>
               <button
                 type="button"
                 className="px-1.5 rounded hover:opacity-70 text-charcoal/60"
                 aria-label={L.remove}
-                onClick={() => setHeadEditor(null)}
+                onClick={() => setEditor(null)}
               >
                 ✕
               </button>
             </div>
-            <p className="text-[11px] text-charcoal/45 mb-2">{L.headingEditHint}</p>
-            <HeadingControls theme={theme} onChange={onThemeChange} />
+            <p className="text-[11px] text-charcoal/45 mb-2">{ELEM_HINT[editor.kind]}</p>
+            <ElementControls
+              kind={editor.kind}
+              theme={theme}
+              onThemeChange={onThemeChange}
+              block={blocks.find((b) => b.type === 'hero')}
+              onUpdateProps={onUpdateProps}
+            />
           </div>
         </>,
         document.body,

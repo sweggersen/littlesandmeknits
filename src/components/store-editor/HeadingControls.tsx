@@ -7,7 +7,6 @@
 import {
   HEADING_WEIGHTS,
   HEADING_SCALES,
-  isValidHex,
   type StoreTheme,
   type HeadingWeight,
   type HeadingScale,
@@ -18,6 +17,7 @@ import {
   STORE_HEADING_SCALE_LABEL,
   STORE_EDITOR_LABELS as L,
 } from '../../lib/labels';
+import ColorRow from './ColorRow';
 
 export default function HeadingControls({
   theme,
@@ -40,28 +40,12 @@ export default function HeadingControls({
     <div className="space-y-2.5" data-heading-controls>
       {/* Heading colour — same row pattern as the colour list. */}
       {showColor && (
-      <div className="flex items-center gap-2">
-        <input
-          type="color"
+        <ColorRow
           value={theme.colors.heading}
-          onChange={(e) => setColor(e.target.value.toUpperCase())}
-          className="w-7 h-7 rounded border border-sage-500/20 bg-surface shrink-0 cursor-pointer"
-          aria-label={L.headingColor}
-          data-color="heading"
+          label={STORE_COLOR_ROLE_LABEL.heading}
+          onChange={setColor}
+          role="heading"
         />
-        <span className="text-xs text-charcoal/70 flex-1 truncate">{STORE_COLOR_ROLE_LABEL.heading}</span>
-        <input
-          type="text"
-          value={theme.colors.heading}
-          onChange={(e) => {
-            const v = e.target.value;
-            setColor(isValidHex(v) ? v.toUpperCase() : v); // sanitised server-side
-          }}
-          className="w-20 bg-surface rounded border border-sage-500/20 px-1.5 py-1 text-[11px] font-mono"
-          spellCheck={false}
-          data-color-hex="heading"
-        />
-      </div>
       )}
 
       <label className="block">
