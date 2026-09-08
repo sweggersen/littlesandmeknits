@@ -12,10 +12,16 @@ import type { PublicStorefront } from '../../lib/types/stores';
 interface Props {
   members: PublicStorefront['publicMembers'];
   themed?: boolean;
+  /** Optional heading override (from the builder `team` block). Empty/blank
+   *  falls back to the auto label "Eier" (1 member) / "Teamet" (2+). */
+  heading?: string;
 }
 
-const { members, themed = false } = Astro.props as Props;
-const heading = members.length === 1 ? 'Eier' : 'Teamet';
+const { members, themed = false, heading: headingOverride } = Astro.props as Props;
+const heading =
+  typeof headingOverride === 'string' && headingOverride.trim()
+    ? headingOverride.trim()
+    : members.length === 1 ? 'Eier' : 'Teamet';
 
 const panelClass = themed ? 'rounded-3xl p-6' : 'bg-surface rounded-3xl border border-sage-500/10 p-6';
 const panelStyle = themed

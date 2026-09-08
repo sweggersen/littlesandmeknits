@@ -11,7 +11,6 @@ import { storeThemeToCssVars } from '../../lib/store-theme';
 import { sanitizePageConfig, BLOCK_REGISTRY } from '../../lib/store-blocks';
 import type { StorefrontListing, StorefrontAsset, StoreBlockType } from '../../lib/store-blocks';
 import type { Store, PublicStorefront } from '../../lib/types/stores';
-import StoreOwnerPanel from './StoreOwnerPanel.astro';
 import StoreHero from './blocks/StoreHero.astro';
 import ProductGrid from './blocks/ProductGrid.astro';
 import FeaturedProducts from './blocks/FeaturedProducts.astro';
@@ -19,6 +18,7 @@ import TextSection from './blocks/TextSection.astro';
 import ImageBanner from './blocks/ImageBanner.astro';
 import ImageGallery from './blocks/ImageGallery.astro';
 import ContactInfo from './blocks/ContactInfo.astro';
+import StoreTeam from './blocks/StoreTeam.astro';
 
 interface Props {
   store: Store;
@@ -44,6 +44,7 @@ const COMPONENTS: Record<StoreBlockType, any> = {
   imageBanner: ImageBanner,
   imageGallery: ImageGallery,
   contactInfo: ContactInfo,
+  team: StoreTeam,
 };
 ---
 
@@ -60,24 +61,9 @@ const COMPONENTS: Record<StoreBlockType, any> = {
       const style = minH ? `--col-span:${block.layout.w};min-height:${minH}px` : `--col-span:${block.layout.w}`;
       return (
         <div class="store-block" style={style} data-block-type={block.type}>
-          <Comp store={store} props={block.props} listings={listings} assets={assets} />
+          <Comp store={store} props={block.props} listings={listings} assets={assets} members={members} />
         </div>
       );
     })}
   </div>
-  {members.length > 0 && (
-    <div class="store-owner mt-6">
-      <StoreOwnerPanel members={members} themed />
-    </div>
-  )}
 </div>
-
-<style>
-  /* Match the centered, readable width the block grid uses, so the owner panel
-     lines up with the blocks above it inside the full-bleed store scope. */
-  .store-owner {
-    max-width: 64rem;
-    margin-left: auto;
-    margin-right: auto;
-  }
-</style>
