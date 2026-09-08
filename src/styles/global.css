@@ -447,6 +447,13 @@
     grid-column: span var(--col-span, 12);
   }
 }
+/* Each block's card fills its grid cell. Flexible blocks carry a min-height from
+   the editor y-resize, so the card grows to that height and the extra space is
+   WHITESPACE INSIDE the bordered panel (matching the editor), never an empty gap
+   below it. Cards align to the top, so their content stays put. */
+.store-block > * {
+  min-height: 100%;
+}
 
 @layer base {
   html {

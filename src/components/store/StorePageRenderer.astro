@@ -51,13 +51,17 @@ const COMPONENTS: Record<StoreBlockType, any> = {
 <div class="store-scope" style={cssVars} data-store-scope>
   <div class="store-grid">
     {blocks.map((block) => {
+      const def = BLOCK_REGISTRY[block.type];
       const Comp = COMPONENTS[block.type];
-      if (!Comp || !BLOCK_REGISTRY[block.type]) return null; // defensive: skip unknown
-      // Every block sizes to its content on the storefront. (A flexible block's
-      // editor y-resize is an editor-layout aid; reserving that height here left
-      // an empty gap below the content-height card, so we don't apply it.)
+      if (!Comp || !def) return null; // defensive: skip unknown
+      // Content-driven blocks size to their content. Flexible blocks honour the
+      // editor y-resize as a min-height; the block's card fills it (see
+      // `.store-block > *` in global.css) so the extra height is WHITESPACE
+      // INSIDE the bordered panel (matching the editor), not an empty gap below.
+      const minH = def.contentHeight ? null : Math.max(0, block.layout.h - 12);
+      const style = minH ? `--col-span:${block.layout.w};min-height:${minH}px` : `--col-span:${block.layout.w}`;
       return (
-        <div class="store-block" style={`--col-span:${block.layout.w}`} data-block-type={block.type}>
+        <div class="store-block" style={style} data-block-type={block.type}>
           <Comp store={store} props={block.props} listings={listings} assets={assets} members={members} />
         </div>
       );
