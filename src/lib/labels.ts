@@ -66,7 +66,7 @@ export const STORE_WIZARD = {
   businessTitle: 'Bedrift',
   businessDesc: 'Registrert virksomhet med organisasjonsnummer. Får et «Verifisert»-merke.',
   nameLabel: 'Navn på butikken',
-  namePlaceholder: 'Slik vises navnet i butikken',
+  namePlaceholder: 'F.eks. Karis strikk',
   reviewNote: 'Butikken sendes til moderering før den publiseres. Det gjelder både personlige butikker og bedrifter. Når den er godkjent kan du redigere alt, laste opp logo og banner, og invitere medlemmer.',
   personalConsent: 'Jeg samtykker til at navn og e-postadresse kan deles med moderatorer for å behandle registreringen.',
   submitPersonal: 'Opprett personlig butikk',

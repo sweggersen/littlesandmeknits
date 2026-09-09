@@ -141,6 +141,24 @@ begin
 end;
 $$;
 
+-- The trigger only pins featured on UPDATE. The 0108 insert policy pins
+-- verified + status at INSERT but predates featured/featured_rank, so a direct
+-- PostgREST caller could self-insert a DRAFT store with featured=true; once that
+-- store is approved to 'active' the (never-reset) flag would surface it in the
+-- Anbefalte strip as a fake partner. Re-create the policy to also require both
+-- unset at insert. The real createStore service uses the service-role client
+-- (bypasses RLS), so nothing legitimate breaks.
+drop policy if exists "stores_insert_self" on public.stores;
+create policy "stores_insert_self"
+  on public.stores for insert
+  with check (
+    created_by = auth.uid()
+    and verified = false
+    and status = 'draft'
+    and featured = false
+    and featured_rank = 0
+  );
+
 -- ════════════════════════════════════════════════════════════════════
 -- 1c. Location: coarse public coords + REQUIRED private address
 -- ════════════════════════════════════════════════════════════════════

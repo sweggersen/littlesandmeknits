@@ -250,6 +250,19 @@ describe.skipIf(!HAS_LOCAL)('store directory (integration)', () => {
       await admin.from('stores').update({ featured_rank: 10 }).eq('id', storeA); // restore
     });
 
+    it('featured cannot be self-set at INSERT (stores_insert_self pins it)', async () => {
+      const { error } = await buyerClient.from('stores').insert({
+        slug: `sd-test-hack-${buyerId.slice(0, 8)}`,
+        name: 'hack', created_by: buyerId,
+        status: 'draft', verified: false, featured: true, featured_rank: 99,
+      } as never);
+      // WITH CHECK requires featured=false / featured_rank=0 → RLS rejects.
+      expect(error).not.toBeNull();
+      // Nothing landed.
+      const { data } = await admin.from('stores').select('id').eq('slug', `sd-test-hack-${buyerId.slice(0, 8)}`);
+      expect(data ?? []).toHaveLength(0);
+    });
+
     it('store_private_details: only members/staff read it, never a stranger', async () => {
       const { data: memberSees } = await ownerClient
         .from('store_private_details').select('precise_address').eq('store_id', storeA).maybeSingle();
