@@ -1,5 +1,9 @@
 ---
-export const prerender = true;
+// SSR while Oppskrifter is UNLAUNCHED so the middleware section gate can redirect
+// /oppskrifter/* to /kommer-snart (a prerendered page bypasses middleware). The
+// gate short-circuits before this body renders. Set back to `true` on launch
+// (restores getStaticPaths prerendering) + remove from UNLAUNCHED in sections.ts.
+export const prerender = false;
 import { getCollection } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import PatternDetail from '../../components/PatternDetail.astro';
