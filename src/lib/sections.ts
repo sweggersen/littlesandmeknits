@@ -22,6 +22,19 @@ export const SECTIONS: Section[] = [
 type EnvSource = Record<string, string | undefined> | null | undefined;
 
 const OFF_VALUES = new Set(['off', '0', 'false', 'no']);
+const ON_VALUES = new Set(['on', '1', 'true', 'yes']);
+
+// Sections not launched yet: OFF by default (routes redirect to /kommer-snart,
+// nav pill hidden) until a flag EXPLICITLY turns them on — the opposite of the
+// default-on below, chosen deliberately so an unlaunched section can never leak
+// just because a flag wasn't set. Remove a section here (or set
+// FLAG_SECTION_<NAME>=on) to launch it.
+//
+// NB: the prod deploy runs `wrangler deploy --config dist/server/wrangler.json`
+// (the Astro-adapter-generated config), so root wrangler.jsonc `vars` do NOT
+// reach runtime. To flip one on without a code change, set the runtime var in
+// the Cloudflare dashboard (read via `cloudflare:workers` env here).
+const UNLAUNCHED: ReadonlySet<Section> = new Set<Section>(['oppskrifter']);
 
 function flagKey(section: Section): string {
   return `FLAG_SECTION_${section.toUpperCase()}`;
@@ -43,13 +56,22 @@ function isExplicitlyOff(v: unknown): boolean {
   return typeof v === 'string' && OFF_VALUES.has(v.trim().toLowerCase());
 }
 
-/** True unless `FLAG_SECTION_<NAME>` is explicitly off (in the passed source
- *  or the live runtime binding). Default-on. */
+function isExplicitlyOn(v: unknown): boolean {
+  return typeof v === 'string' && ON_VALUES.has(v.trim().toLowerCase());
+}
+
+/** Whether a section is live. Default-on, EXCEPT sections in `UNLAUNCHED`, which
+ *  are default-off until `FLAG_SECTION_<NAME>` is explicitly on. An explicit off
+ *  always wins. Reads the passed source (import.meta.env) + the live runtime
+ *  binding (Cloudflare env). */
 export async function sectionEnabled(section: Section, source?: EnvSource): Promise<boolean> {
   const key = flagKey(section);
-  if (isExplicitlyOff(source?.[key])) return false;
   const rt = await runtimeEnv();
-  if (isExplicitlyOff(rt[key])) return false;
+  const srcVal = source?.[key];
+  const rtVal = rt[key];
+
+  if (isExplicitlyOff(srcVal) || isExplicitlyOff(rtVal)) return false;
+  if (UNLAUNCHED.has(section)) return isExplicitlyOn(srcVal) || isExplicitlyOn(rtVal);
   return true;
 }
 

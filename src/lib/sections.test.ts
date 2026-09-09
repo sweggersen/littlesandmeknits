@@ -29,6 +29,20 @@ describe('sectionEnabled (default-on)', () => {
   });
 });
 
+describe('unlaunched sections (default-off)', () => {
+  it('oppskrifter is off by default (not launched)', async () => {
+    expect(await sectionEnabled('oppskrifter', {})).toBe(false);
+  });
+
+  it('oppskrifter turns on only with an EXPLICIT on flag', async () => {
+    expect(await sectionEnabled('oppskrifter', { FLAG_SECTION_OPPSKRIFTER: 'on' })).toBe(true);
+    expect(await sectionEnabled('oppskrifter', { FLAG_SECTION_OPPSKRIFTER: '1' })).toBe(true);
+    expect(await sectionEnabled('oppskrifter', { FLAG_SECTION_OPPSKRIFTER: 'off' })).toBe(false);
+    // Garbage is not "on" for an unlaunched section (unlike default-on sections).
+    expect(await sectionEnabled('oppskrifter', { FLAG_SECTION_OPPSKRIFTER: 'wibble' })).toBe(false);
+  });
+});
+
 describe('enabledSections', () => {
   it('returns a verdict for every known section', async () => {
     const map = await enabledSections({ FLAG_SECTION_BUTIKKER: 'off', FLAG_SECTION_OPPDRAG: 'off' });
