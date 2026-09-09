@@ -14,6 +14,7 @@ import { MoneyBreakdown } from '../../../lib/money';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds, reconcileStuckCommissionPayments } from '../../../lib/services/commissions';
+import { backfillSellerGeocode } from '../../../lib/services/geo-backfill';
 import { log } from '../../../lib/log';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -99,6 +100,14 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
   }
+
+  // Self-healing geocode backfill: geocode a small batch of sellers who predate
+  // geocoding (and propagate to their listings) so the "Nærmest" sort fills in
+  // over a few ticks, then no-ops. Best-effort, idempotent (only null-lat rows).
+  await runSection('geocode_backfill', async () => {
+    const r = await backfillSellerGeocode(admin, { limit: 25 });
+    results.sellersGeocoded = r.sellersGeocoded;
+  });
 
   // Refresh the user_preferences materialized view powering the
   // promoted-pool ranker. Cheap (CONCURRENTLY) and safe to call every tick.
