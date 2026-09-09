@@ -65,7 +65,7 @@ test.describe('Strikketorget — butikk-bygger', () => {
     await expect(page.getByRole('button', { name: 'Rapporter denne butikken' })).toBeVisible();
   });
 
-  test('a store WITHOUT a page_config renders the original storefront (fallback)', async ({ page, request }) => {
+  test('a store WITHOUT a page_config renders the platform default (themed pipeline)', async ({ page, request }) => {
     const slug = `plain-e2e-${Date.now().toString(36)}`;
     await exec(request, 'seed-store', {
       actor: OWNER,
@@ -74,9 +74,11 @@ test.describe('Strikketorget — butikk-bygger', () => {
 
     await page.goto(`/market/store/${slug}`);
 
-    // No builder scope, and the default storefront chrome is present.
-    await expect(page.locator('[data-store-scope]')).toHaveCount(0);
-    await expect(page.getByRole('heading', { name: 'Uten Tema' })).toBeVisible();
+    // Every store renders through the ONE themed pipeline: an empty config falls
+    // back to the platform default (hero with the store name + a product grid),
+    // so the builder scope IS present.
+    await expect(page.locator('[data-store-scope]')).toBeVisible();
+    await expect(page.locator('[data-block-type="hero"] h1')).toHaveText('Uten Tema');
     await expect(page.getByRole('heading', { name: 'Annonser' })).toBeVisible();
   });
 });

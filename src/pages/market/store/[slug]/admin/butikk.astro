@@ -10,7 +10,6 @@ import { can } from '../../../../../lib/services/store-permissions';
 import { listStoreAssets } from '../../../../../lib/services/store-page';
 import { sanitizeStoreTheme, DEFAULT_STORE_THEME } from '../../../../../lib/store-theme';
 import { sanitizePageConfig } from '../../../../../lib/store-blocks';
-import { buildDefaultStorePage } from '../../../../../lib/store-presets';
 import { createServerSupabase } from '../../../../../lib/supabase';
 import { projectPhotoUrl } from '../../../../../lib/storage';
 import { STORE_EDITOR_LABELS } from '../../../../../lib/labels';
@@ -26,13 +25,13 @@ if (!can.editBranding(role)) {
   return Astro.redirect(`/market/store/${slug}/admin`);
 }
 
-// Draft starting point: draft, else the published live config, else the
-// platform default page (same one the public storefront falls back to), so a
-// never-configured store opens the editor showing exactly what visitors see.
+// Draft starting point: draft, else the published live config, else EMPTY. The
+// editor starts blank (the owner builds from scratch or applies a preset); the
+// public storefront still renders the platform default for an empty config, so
+// visitors never see a blank page. (Seeding the default into the editor would
+// pre-place the singleton hero and disable "add hero".)
 const initialTheme = sanitizeStoreTheme(store.theme_draft ?? store.theme ?? DEFAULT_STORE_THEME);
-const initialBlocks = sanitizePageConfig(
-  store.page_config_draft ?? store.page_config ?? buildDefaultStorePage(store).page_config,
-).blocks;
+const initialBlocks = sanitizePageConfig(store.page_config_draft ?? store.page_config).blocks;
 
 // Store assets (member-gated service) for the asset picker.
 const assetsRes = await listStoreAssets(ctx, store.id);

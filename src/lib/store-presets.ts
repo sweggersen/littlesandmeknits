@@ -44,6 +44,13 @@ function baseBlocks(opts: { tagline: string; aboutHeading: string; aboutBody: st
         layout: { x: 0, y: 2, w: 12, h: 5 },
         props: { heading: 'Annonser', limit: 24 },
       },
+      // Team panel (owner/members). Empty heading => auto "Eier" / "Teamet".
+      {
+        id: 'team',
+        type: 'team',
+        layout: { x: 0, y: 3, w: 12, h: 2 },
+        props: {},
+      },
     ],
   };
 }
@@ -180,5 +187,7 @@ export function buildDefaultStorePage(
     );
   }
   blocks.push({ id: 'products', type: 'productGrid', layout: { x: 0, y: 2, w: 12, h: 5 }, props: { heading: 'Annonser', limit: 24 } });
+  // Team panel — empty heading => auto "Eier" / "Teamet".
+  blocks.push({ id: 'team', type: 'team', layout: { x: 0, y: 3, w: 12, h: 2 }, props: {} });
   return { theme: DEFAULT_STORE_THEME, page_config: { blocks } };
 }

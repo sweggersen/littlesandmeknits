@@ -59,12 +59,12 @@ test.describe('Strikketorget — butikk-editor', () => {
     await page.locator('[data-save]').click();
     await expect(page.locator('[data-save]')).toHaveText('Lagret');
 
-    // Before publish: a fresh visitor still sees the default storefront (no
-    // builder scope), proving the draft doesn't leak.
+    // Before publish: a fresh visitor sees the platform default storefront, NOT
+    // the unpublished draft — the draft's block heading must not leak.
     const visitor = await page.context().browser()!.newContext();
     const visitorPage = await visitor.newPage();
     await visitorPage.goto(`/market/store/${slug}`);
-    await expect(visitorPage.locator('[data-store-scope]')).toHaveCount(0);
+    await expect(visitorPage.getByText(heading)).toHaveCount(0);
     await visitor.close();
 
     await page.locator('[data-publish]').click();
@@ -95,12 +95,12 @@ test.describe('Strikketorget — butikk-editor', () => {
     await page.locator('[data-add-block="textSection"]').click();
     await page.locator('[data-prop="heading"]').fill(heading);
 
-    // The "Overskrifter" section drives the theme-level heading style. Scope to
-    // the section so we hit its controls (the colour also appears in the list).
-    const section = page.locator('[data-heading-section]');
-    await section.locator('[data-color-hex="heading"]').fill(HEAD_COLOR);
-    await section.locator('[data-heading-weight]').selectOption('bold');
-    await section.locator('[data-heading-underline]').check();
+    // Theme-level heading style. Colour lives in the Farger list (top level);
+    // weight + underline live in the "Tekststiler" → heading L2 detail.
+    await page.locator('[data-color-hex="heading"]').fill(HEAD_COLOR);
+    await page.locator('[data-text-style-row="heading"]').click();
+    await page.locator('[data-heading-weight]').selectOption('bold');
+    await page.locator('[data-heading-underline]').check();
 
     await page.locator('[data-save]').click();
     await expect(page.locator('[data-save]')).toHaveText('Lagret');
@@ -134,8 +134,9 @@ test.describe('Strikketorget — butikk-editor', () => {
     await expect(page.locator('[data-store-scope]')).toBeVisible();
     await expect(page.locator('[data-block-type="hero"]')).toBeVisible();
 
-    // But the live storefront is still the default (nothing published).
+    // But the live storefront is still the platform default (nothing published):
+    // it shows the default product block, not the hero-only draft.
     await page.goto(`/market/store/${slug}`);
-    await expect(page.locator('[data-store-scope]')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Annonser' })).toBeVisible();
   });
 });
