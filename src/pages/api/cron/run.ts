@@ -251,7 +251,11 @@ export const POST: APIRoute = async ({ request }) => {
       .from('commission_requests')
       .select('id, buyer_id, title, awarded_offer_id, stripe_payment_intent_id')
       .eq('status', 'completed')
-      .lt('auto_release_at', now);
+      .lt('auto_release_at', now)
+      // Bounded per tick: each row does 1-3 Stripe calls; a backlog (e.g. after
+      // the payouts kill-switch is lifted) must not exceed the cron timeout.
+      // Rows stay past-due and are picked up on the next tick.
+      .limit(50);
 
     if (releasable?.length) {
       for (const req of releasable) {
@@ -326,7 +330,8 @@ export const POST: APIRoute = async ({ request }) => {
       .from('orders')
       .select('id, listing_id, seller_id, stripe_payment_intent_id')
       .eq('status', 'shipped')
-      .lt('auto_release_at', now);
+      .lt('auto_release_at', now)
+      .limit(50); // bounded per tick (Stripe capture per row); rest next tick
 
     if (releasableOrders?.length) {
       const stripe = createStripe(env.STRIPE_SECRET_KEY);
@@ -373,7 +378,8 @@ export const POST: APIRoute = async ({ request }) => {
       .from('orders')
       .select('listing_id')
       .eq('status', 'reserved')
-      .lt('ship_deadline_at', now);
+      .lt('ship_deadline_at', now)
+      .limit(50); // bounded per tick (reservation release per row); rest next tick
 
     const releaseEnv = {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY,

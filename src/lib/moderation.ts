@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { orEither } from './db/assert';
+import { recordDeadLetter } from './services/dead-letter';
 
 const PRICE_RANGES: Record<string, [number, number]> = {
   genser: [200, 3000],
@@ -526,7 +527,17 @@ export async function applyRejection(
             });
           }
         } catch (e) {
-          console.error('Refund failed', e);
+          // Commerce path — never swallow. The rejection still succeeds; the
+          // failed fee-refund lands in dead_letter_events for support to action
+          // so a seller isn't silently left charged for a rejected listing.
+          await recordDeadLetter(
+            { admin, user: qi.submitter_id ? { id: qi.submitter_id } : undefined },
+            {
+              service: 'moderation.reject:listing_fee_refund',
+              context: { listing_id: qi.item_id, session_id: listing.listing_fee_session_id },
+              error: e,
+            },
+          );
         }
       }
     }

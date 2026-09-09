@@ -12,6 +12,10 @@ export interface GeoPoint {
 }
 
 const KARTVERKET_SOK = 'https://ws.geonorge.no/adresser/v1/sok';
+// Every Kartverket call is bounded: a hung Geonorge must never stall a request
+// (the cron backfill does up to 25 sequential calls per tick — an unbounded one
+// is the classic request-timeout → cron auto-disable vector).
+const GEOCODE_TIMEOUT_MS = 5000;
 
 /** Resolve a Norwegian postal code to a coarse area centroid. Returns null on
  *  an empty/invalid postnummer, no hit, or any network/parse failure — the
@@ -36,7 +40,7 @@ export async function geocodePostnummer(
   try {
     const res = await doFetch(`${KARTVERKET_SOK}?${params.toString()}`, {
       headers: { accept: 'application/json' },
-      signal: opts?.signal,
+      signal: opts?.signal ?? AbortSignal.timeout(GEOCODE_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     json = await res.json();
@@ -132,7 +136,7 @@ export async function searchAddresses(
   try {
     const res = await doFetch(`${KARTVERKET_SOK}?${params.toString()}`, {
       headers: { accept: 'application/json' },
-      signal: opts?.signal,
+      signal: opts?.signal ?? AbortSignal.timeout(GEOCODE_TIMEOUT_MS),
     });
     if (!res.ok) return [];
     return parseAddressHits(await res.json());
