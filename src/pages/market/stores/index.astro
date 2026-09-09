@@ -68,13 +68,16 @@ const nextPageParams = (() => {
 <Layout title="Butikker — Strikketorget" lang="nb">
   <MarketplaceShell>
     <DirectoryToolbar
+      eyebrow="Strikketorget"
+      eyebrowClass="text-sage-700"
       title="Butikker"
-      titleClass="text-3xl sm:text-4xl"
-      subtitle="Utforsk butikker og strikkere på Strikketorget."
+      subtitle="Utforsk butikker og strikkere i fellesskapet."
       sortOptions={visibleSorts}
       sortValue={sort}
       hasFilters={hasFilters}
       filterCount={filterCount}
+      ctaHref="/profile/stores/new"
+      ctaLabel="+ Ny butikk"
     >
       <div data-directory-filter-panel
         class:list={['bg-surface rounded-2xl border border-sage-500/10 p-3 sm:p-4 mb-6 flex flex-wrap items-end gap-3', !hasFilters && 'hidden']}>

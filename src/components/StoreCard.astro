@@ -15,7 +15,7 @@ interface Props {
 
 const { store, showFav = false } = Astro.props;
 const {
-  slug, name, tagline, logo_path, location_city, postnummer, verified, featured,
+  slug, name, tagline, logo_path, location_city, postnummer, verified,
   rating_avg, rating_count, active_listing_count, isFavorite, hasNewSinceSeen, distanceKm,
 } = store;
 
@@ -46,15 +46,12 @@ const distanceLabel =
     </div>
 
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-1.5">
+      <div class:list={['flex items-center gap-1.5', showFav && 'pr-8']}>
         <h2 class="font-serif text-base truncate">{name}</h2>
         {verified && (
           <span title="Verifisert butikk" class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sage-500/20 text-sage-700 shrink-0">
             <VerifiedBadge size={13} />
           </span>
-        )}
-        {featured && (
-          <span title="Partner" class="text-[9px] font-bold uppercase tracking-widest bg-terracotta-500/15 text-terracotta-600 px-1.5 py-0.5 rounded-full shrink-0">Partner</span>
         )}
       </div>
 
