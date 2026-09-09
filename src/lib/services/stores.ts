@@ -278,7 +278,10 @@ export async function updateStore(
 
   // Whitelist allowed fields (don't trust the client). precise_address is NOT
   // here — it's private and goes to store_private_details, never `stores`.
-  const allowed: (keyof UpdateStoreInput)[] = [
+  // precise_address is excluded — it's a store_private_details column, never a
+  // `stores` column, so it must not appear in the typed stores update payload.
+  type StoreColumnPatch = Omit<UpdateStoreInput, 'precise_address'>;
+  const allowed: (keyof StoreColumnPatch)[] = [
     'name', 'tagline', 'description',
     'contact_email', 'contact_phone', 'website_url',
     'instagram_url', 'etsy_url', 'pinterest_url', 'tiktok_url',
@@ -286,11 +289,13 @@ export async function updateStore(
     'banner_path', 'logo_path',
   ];
 
-  // Validate postnummer when the client sent one.
-  let postnummer: string | null | undefined;
+  // Validate postnummer when the client sent one. Narrowed to string|undefined
+  // (an invalid value returns above) so the geocode call below type-checks.
+  let postnummer: string | undefined;
   if (patch.postnummer !== undefined) {
-    postnummer = cleanPostnummer(patch.postnummer);
-    if (!postnummer) return fail('bad_input', 'Gyldig postnummer (4 siffer) er påkrevd');
+    const cleaned = cleanPostnummer(patch.postnummer);
+    if (!cleaned) return fail('bad_input', 'Gyldig postnummer (4 siffer) er påkrevd');
+    postnummer = cleaned;
   }
 
   // Address is required: reject an explicit empty value. Omitting the key
@@ -302,7 +307,7 @@ export async function updateStore(
     preciseAddress = trimmed;
   }
 
-  const update: Partial<UpdateStoreInput> = {};
+  const update: Partial<StoreColumnPatch> = {};
   for (const key of allowed) {
     if (patch[key] !== undefined) (update[key] as unknown) = patch[key];
   }

@@ -104,7 +104,7 @@ describe.skipIf(!HAS_LOCAL)('store directory (integration)', () => {
   }, 60_000);
 
   const ctxFor = (client: SupabaseClient, uid: string | null) => ({ supabase: client as any, user: uid ? { id: uid } : null });
-  const onlyTest = (rows: Array<{ slug: string }>) => rows.filter((r) => [SLUG_A, SLUG_B, SLUG_C].includes(r.slug));
+  const onlyTest = <T extends { slug: string }>(rows: T[]): T[] => rows.filter((r) => [SLUG_A, SLUG_B, SLUG_C].includes(r.slug));
 
   describe('triggers', () => {
     it('recomputes rating_avg/rating_count from reviews', async () => {

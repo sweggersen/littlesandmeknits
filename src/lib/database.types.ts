@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -237,10 +232,10 @@ export type Database = {
           size_age_months_min: number | null
           size_label: string
           status: Database["public"]["Enums"]["commission_request_status"]
+          stripe_checkout_session_id: string | null
           stripe_dispute_id: string | null
           stripe_payment_intent_id: string | null
           stripe_transfer_id: string | null
-          stripe_checkout_session_id: string | null
           target_knitter_id: string | null
           title: string
           updated_at: string
@@ -291,10 +286,10 @@ export type Database = {
           size_age_months_min?: number | null
           size_label: string
           status?: Database["public"]["Enums"]["commission_request_status"]
+          stripe_checkout_session_id?: string | null
           stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
-          stripe_checkout_session_id?: string | null
           target_knitter_id?: string | null
           title: string
           updated_at?: string
@@ -345,10 +340,10 @@ export type Database = {
           size_age_months_min?: number | null
           size_label?: string
           status?: Database["public"]["Enums"]["commission_request_status"]
+          stripe_checkout_session_id?: string | null
           stripe_dispute_id?: string | null
           stripe_payment_intent_id?: string | null
           stripe_transfer_id?: string | null
-          stripe_checkout_session_id?: string | null
           target_knitter_id?: string | null
           title?: string
           updated_at?: string
@@ -1514,6 +1509,7 @@ export type Database = {
       orders: {
         Row: {
           auto_release_at: string | null
+          bring_shipment_number: string | null
           buyer_id: string
           cancel_reason: string | null
           cancelled_at: string | null
@@ -1525,6 +1521,7 @@ export type Database = {
           disputed_at: string | null
           id: string
           item_price_nok: number
+          label_free_code: string | null
           listing_id: string
           platform_fee_nok: number
           refund_description: string | null
@@ -1548,11 +1545,10 @@ export type Database = {
           stripe_payment_intent_id: string | null
           tb_fee_nok: number
           tracking_code: string | null
-          bring_shipment_number: string | null
-          label_free_code: string | null
         }
         Insert: {
           auto_release_at?: string | null
+          bring_shipment_number?: string | null
           buyer_id: string
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -1564,6 +1560,7 @@ export type Database = {
           disputed_at?: string | null
           id?: string
           item_price_nok: number
+          label_free_code?: string | null
           listing_id: string
           platform_fee_nok?: number
           refund_description?: string | null
@@ -1587,11 +1584,10 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           tb_fee_nok?: number
           tracking_code?: string | null
-          bring_shipment_number?: string | null
-          label_free_code?: string | null
         }
         Update: {
           auto_release_at?: string | null
+          bring_shipment_number?: string | null
           buyer_id?: string
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -1603,6 +1599,7 @@ export type Database = {
           disputed_at?: string | null
           id?: string
           item_price_nok?: number
+          label_free_code?: string | null
           listing_id?: string
           platform_fee_nok?: number
           refund_description?: string | null
@@ -1626,8 +1623,6 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           tb_fee_nok?: number
           tracking_code?: string | null
-          bring_shipment_number?: string | null
-          label_free_code?: string | null
         }
         Relationships: [
           {
@@ -2132,9 +2127,12 @@ export type Database = {
           birthdate: string | null
           city: string | null
           created_at: string
+          geocoded_at: string | null
           id: string
           kontonummer: string | null
+          lat: number | null
           legal_name: string | null
+          lng: number | null
           postal_code: string | null
           seller_terms_accepted_at: string | null
           seller_verified_at: string | null
@@ -2149,9 +2147,12 @@ export type Database = {
           birthdate?: string | null
           city?: string | null
           created_at?: string
+          geocoded_at?: string | null
           id: string
           kontonummer?: string | null
+          lat?: number | null
           legal_name?: string | null
+          lng?: number | null
           postal_code?: string | null
           seller_terms_accepted_at?: string | null
           seller_verified_at?: string | null
@@ -2166,9 +2167,12 @@ export type Database = {
           birthdate?: string | null
           city?: string | null
           created_at?: string
+          geocoded_at?: string | null
           id?: string
           kontonummer?: string | null
+          lat?: number | null
           legal_name?: string | null
+          lng?: number | null
           postal_code?: string | null
           seller_terms_accepted_at?: string | null
           seller_verified_at?: string | null
@@ -2284,6 +2288,42 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_favorites: {
+        Row: {
+          created_at: string
+          last_seen_at: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen_at?: string
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          last_seen_at?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_favorites_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2404,9 +2444,36 @@ export type Database = {
           },
         ]
       }
+      store_private_details: {
+        Row: {
+          precise_address: string | null
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          precise_address?: string | null
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          precise_address?: string | null
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_private_details_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stores: {
         Row: {
           accent_color: string | null
+          active_listing_count: number
           approved_at: string | null
           banner_path: string | null
           contact_email: string | null
@@ -2416,14 +2483,21 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           etsy_url: string | null
+          favorite_count: number
+          featured: boolean
+          featured_rank: number
+          geocoded_at: string | null
           id: string
           instagram_url: string | null
+          last_listing_at: string | null
+          lat: number | null
           legal_address: string | null
           legal_business_type: string | null
           legal_founded_date: string | null
           legal_industry_code: string | null
           legal_name: string | null
           legal_status: string | null
+          lng: number | null
           location_city: string | null
           logo_path: string | null
           name: string
@@ -2432,13 +2506,14 @@ export type Database = {
           page_config: Json | null
           page_config_draft: Json | null
           pinterest_url: string | null
+          postnummer: string | null
           promo_year_one_free: boolean | null
+          rating_avg: number
+          rating_count: number
           reviewed_at: string | null
           reviewed_by: string | null
           slug: string
           status: Database["public"]["Enums"]["store_status"]
-          theme: Json | null
-          theme_draft: Json | null
           stripe_account_id: string | null
           stripe_connect_requirements: Json | null
           stripe_connect_status: string | null
@@ -2447,6 +2522,8 @@ export type Database = {
           stripe_subscription_id: string | null
           subscription_status: string | null
           tagline: string | null
+          theme: Json | null
+          theme_draft: Json | null
           tier: Database["public"]["Enums"]["store_tier"]
           tiktok_url: string | null
           vat_registered: boolean
@@ -2455,6 +2532,7 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          active_listing_count?: number
           approved_at?: string | null
           banner_path?: string | null
           contact_email?: string | null
@@ -2464,14 +2542,21 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           etsy_url?: string | null
+          favorite_count?: number
+          featured?: boolean
+          featured_rank?: number
+          geocoded_at?: string | null
           id?: string
           instagram_url?: string | null
+          last_listing_at?: string | null
+          lat?: number | null
           legal_address?: string | null
           legal_business_type?: string | null
           legal_founded_date?: string | null
           legal_industry_code?: string | null
           legal_name?: string | null
           legal_status?: string | null
+          lng?: number | null
           location_city?: string | null
           logo_path?: string | null
           name: string
@@ -2480,13 +2565,14 @@ export type Database = {
           page_config?: Json | null
           page_config_draft?: Json | null
           pinterest_url?: string | null
+          postnummer?: string | null
           promo_year_one_free?: boolean | null
+          rating_avg?: number
+          rating_count?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           slug: string
           status?: Database["public"]["Enums"]["store_status"]
-          theme?: Json | null
-          theme_draft?: Json | null
           stripe_account_id?: string | null
           stripe_connect_requirements?: Json | null
           stripe_connect_status?: string | null
@@ -2495,6 +2581,8 @@ export type Database = {
           stripe_subscription_id?: string | null
           subscription_status?: string | null
           tagline?: string | null
+          theme?: Json | null
+          theme_draft?: Json | null
           tier?: Database["public"]["Enums"]["store_tier"]
           tiktok_url?: string | null
           vat_registered?: boolean
@@ -2503,6 +2591,7 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          active_listing_count?: number
           approved_at?: string | null
           banner_path?: string | null
           contact_email?: string | null
@@ -2512,14 +2601,21 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           etsy_url?: string | null
+          favorite_count?: number
+          featured?: boolean
+          featured_rank?: number
+          geocoded_at?: string | null
           id?: string
           instagram_url?: string | null
+          last_listing_at?: string | null
+          lat?: number | null
           legal_address?: string | null
           legal_business_type?: string | null
           legal_founded_date?: string | null
           legal_industry_code?: string | null
           legal_name?: string | null
           legal_status?: string | null
+          lng?: number | null
           location_city?: string | null
           logo_path?: string | null
           name?: string
@@ -2528,13 +2624,14 @@ export type Database = {
           page_config?: Json | null
           page_config_draft?: Json | null
           pinterest_url?: string | null
+          postnummer?: string | null
           promo_year_one_free?: boolean | null
+          rating_avg?: number
+          rating_count?: number
           reviewed_at?: string | null
           reviewed_by?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["store_status"]
-          theme?: Json | null
-          theme_draft?: Json | null
           stripe_account_id?: string | null
           stripe_connect_requirements?: Json | null
           stripe_connect_status?: string | null
@@ -2543,6 +2640,8 @@ export type Database = {
           stripe_subscription_id?: string | null
           subscription_status?: string | null
           tagline?: string | null
+          theme?: Json | null
+          theme_draft?: Json | null
           tier?: Database["public"]["Enums"]["store_tier"]
           tiktok_url?: string | null
           vat_registered?: boolean
@@ -2876,6 +2975,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      store_recompute_listings: { Args: { sid: string }; Returns: undefined }
+      store_recompute_reviews: { Args: { sid: string }; Returns: undefined }
       upsert_moderator_review: {
         Args: { p_decision: string; p_rate: number; p_user_id: string }
         Returns: undefined
@@ -2951,9 +3052,9 @@ export type Database = {
         | "payment_failed"
         | "seller_activated"
         | "listing_reservation_released"
+        | "system_alert"
         | "store_invite"
         | "pattern_purchased"
-        | "system_alert"
       order_status:
         | "reserved"
         | "shipped"
@@ -3187,9 +3288,9 @@ export const Constants = {
         "payment_failed",
         "seller_activated",
         "listing_reservation_released",
+        "system_alert",
         "store_invite",
         "pattern_purchased",
-        "system_alert",
       ],
       order_status: [
         "reserved",
@@ -3229,3 +3330,4 @@ export const Constants = {
     },
   },
 } as const
+
