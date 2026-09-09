@@ -49,6 +49,13 @@ returns void language sql security definer set search_path = public as $$
   where s.id = sid;
 $$;
 
+-- Defense in depth: these helpers are only meant to run from the triggers below
+-- (as the function owner). CREATE FUNCTION grants EXECUTE to PUBLIC by default,
+-- which would expose them as PostgREST RPCs; revoke it. The triggers are
+-- unaffected — they invoke the helpers as the owner, not as the caller.
+revoke execute on function public.store_recompute_reviews(uuid) from public;
+revoke execute on function public.store_recompute_listings(uuid) from public;
+
 -- Trigger fns: recompute the affected store(s). On UPDATE where store_id moved,
 -- both old and new stores are recomputed.
 create or replace function public.trg_store_reviews_stats()
