@@ -65,6 +65,9 @@ export interface CreateStoreInput {
   description?: string;
   website_url?: string;
   contact_email?: string;
+  /** Public city (poststed), from the address autocomplete. Falls back to the
+   *  Brønnøysund city for business stores. */
+  location_city?: string;
   /** Public 4-digit postal code. Required — the geocode key + public location. */
   postnummer?: string;
   /** Required exact address. PRIVATE (store_private_details) — fraud/verification
@@ -161,7 +164,8 @@ export async function createStore(
       description: input.description?.trim() || null,
       website_url: input.website_url?.trim() || null,
       contact_email: contactEmail,
-      location_city: org?.city ?? null,
+      // Prefer the entered address city; fall back to the Brønnøysund city.
+      location_city: input.location_city?.trim() || org?.city || null,
       postnummer,
       // Server-controlled: both personal and business stores go through
       // moderation; only a valid org number earns the verified badge.

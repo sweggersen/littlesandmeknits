@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseKartverketPoint, haversineKm, geocodePostnummer } from './geocode';
+import { parseKartverketPoint, haversineKm, geocodePostnummer, parseAddressHits, searchAddresses } from './geocode';
 
 describe('parseKartverketPoint', () => {
   it('pulls the first representasjonspunkt', () => {
@@ -57,5 +57,53 @@ describe('geocodePostnummer', () => {
   it('returns null on a non-ok response', async () => {
     const fetchMock = vi.fn(async () => new Response('nope', { status: 500 }));
     expect(await geocodePostnummer('0123', 'Oslo', { fetch: fetchMock as unknown as typeof fetch })).toBeNull();
+  });
+});
+
+describe('parseAddressHits', () => {
+  it('maps hits and title-cases the uppercase poststed', () => {
+    const json = { adresser: [
+      { adressetekst: 'Karl Johans gate 1', postnummer: '0154', poststed: 'OSLO' },
+      { adressetekst: 'Storgata 2', postnummer: '2003', poststed: 'NORDRE LILLESTRØM' },
+    ] };
+    expect(parseAddressHits(json)).toEqual([
+      { text: 'Karl Johans gate 1', postnummer: '0154', poststed: 'Oslo' },
+      { text: 'Storgata 2', postnummer: '2003', poststed: 'Nordre Lillestrøm' },
+    ]);
+  });
+
+  it('drops hits without a 4-digit postnummer or text', () => {
+    const json = { adresser: [
+      { adressetekst: '', postnummer: '0154', poststed: 'OSLO' },
+      { adressetekst: 'Gate 1', postnummer: '12', poststed: 'X' },
+      { adressetekst: 'Gate 2', poststed: 'X' },
+    ] };
+    expect(parseAddressHits(json)).toEqual([]);
+  });
+
+  it('returns [] on a malformed response', () => {
+    expect(parseAddressHits({})).toEqual([]);
+    expect(parseAddressHits(null)).toEqual([]);
+  });
+});
+
+describe('searchAddresses', () => {
+  it('skips the network for queries under 3 chars', async () => {
+    const fetchMock = vi.fn();
+    expect(await searchAddresses('ka', { fetch: fetchMock as unknown as typeof fetch })).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('queries and parses hits', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      adresser: [{ adressetekst: 'Storgata 1', postnummer: '0155', poststed: 'OSLO' }],
+    }), { status: 200 }));
+    const hits = await searchAddresses('Storgata 1 Oslo', { fetch: fetchMock as unknown as typeof fetch });
+    expect(hits).toEqual([{ text: 'Storgata 1', postnummer: '0155', poststed: 'Oslo' }]);
+  });
+
+  it('returns [] (never throws) on failure', async () => {
+    const fetchMock = vi.fn(async () => { throw new Error('offline'); });
+    expect(await searchAddresses('Storgata 1', { fetch: fetchMock as unknown as typeof fetch })).toEqual([]);
   });
 });
