@@ -1,6 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
-import StudioBackLink from '../../../components/StudioBackLink.astro';
+import ComposePage from '../../../components/ComposePage.astro';
 
 const sizes = [
   '2.0', '2.25', '2.5', '2.75', '3.0', '3.25', '3.5', '3.75',
@@ -10,10 +10,7 @@ const sizes = [
 ---
 
 <StudioLayout title="Ny pinne · Littles and Me" lang="nb">
-  <div class="max-w-2xl">
-    <StudioBackLink href="/studio/needles">Pinner</StudioBackLink>
-    <h1 class="font-serif text-3xl sm:text-4xl mb-8">Ny pinne</h1>
-
+  <ComposePage title="Ny pinne" backHref="/studio/needles" backLabel="Pinner">
     <form method="post" action="/api/needles/create" class="bg-surface rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -127,5 +124,5 @@ const sizes = [
         </button>
       </div>
     </form>
-  </div>
+  </ComposePage>
 </StudioLayout>

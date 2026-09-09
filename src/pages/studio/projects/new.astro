@@ -1,6 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
-import StudioBackLink from '../../../components/StudioBackLink.astro';
+import ComposePage from '../../../components/ComposePage.astro';
 import { getCollection } from 'astro:content';
 
 const allPatterns = await getCollection('patterns', (p) => !p.data.draft);
@@ -14,10 +14,7 @@ const prefilledTitle = fromTitle ? `${fromTitle}` : '';
 ---
 
 <StudioLayout title="Nytt prosjekt · Littles and Me" lang="nb">
-  <div class="max-w-2xl">
-    <StudioBackLink href="/studio/projects">Prosjekter</StudioBackLink>
-    <h1 class="font-serif text-3xl sm:text-4xl mb-8">Nytt prosjekt</h1>
-
+  <ComposePage title="Nytt prosjekt" backHref="/studio/projects" backLabel="Prosjekter">
     <form method="post" action="/api/projects/create" enctype="multipart/form-data" class="bg-surface rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
       <div>
         <label for="title" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">
@@ -184,5 +181,5 @@ const prefilledTitle = fromTitle ? `${fromTitle}` : '';
         </button>
       </div>
     </form>
-  </div>
+  </ComposePage>
 </StudioLayout>

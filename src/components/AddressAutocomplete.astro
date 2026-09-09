@@ -1,0 +1,52 @@
+---
+// Single "Adresse" field with Kartverket typeahead. Picking a suggestion fills
+// the hidden precise_address / postnummer / location_city inputs the store
+// service reads. Public display stays city + postnummer; the street text is
+// private (store_private_details). Coarse coords derive from the postnummer on
+// save. Reused by the store create wizard + settings.
+interface Props {
+  /** Prefill (edit): current values. */
+  address?: string | null;
+  postnummer?: string | null;
+  city?: string | null;
+  required?: boolean;
+  label?: string;
+}
+const { address, postnummer, city, required = true, label = 'Adresse' } = Astro.props;
+const displayValue = address
+  ? `${address}${postnummer ? `, ${postnummer}` : ''}${city ? ` ${city}` : ''}`.trim()
+  : '';
+---
+
+<div data-address-field class="relative">
+  <label for="address-search" class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">{label}</label>
+  <input
+    id="address-search"
+    type="text"
+    data-address-input
+    value={displayValue}
+    required={required}
+    autocomplete="off"
+    placeholder="Begynn å skrive adressen..."
+    class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none"
+  />
+  <!-- Filled from the chosen suggestion; the store service reads these names. -->
+  <input type="hidden" name="precise_address" data-address-precise value={address ?? ''} />
+  <input type="hidden" name="postnummer" data-address-postnummer value={postnummer ?? ''} />
+  <input type="hidden" name="location_city" data-address-city value={city ?? ''} />
+
+  <ul
+    data-address-suggestions
+    class="hidden absolute z-20 left-0 right-0 mt-1 bg-surface border border-sage-500/20 rounded-xl shadow-lg overflow-hidden max-h-64 overflow-y-auto list-none p-0 m-0"
+  ></ul>
+
+  <p class="text-[11px] text-charcoal/45 mt-1.5">
+    Vi bruker adressen kun til verifisering. Offentlig viser vi bare by og postnummer.
+  </p>
+</div>
+
+<script>
+  import { init } from '../lib/client/controllers/address-autocomplete';
+  import { registerController } from '../lib/client/dom';
+  registerController(init);
+</script>

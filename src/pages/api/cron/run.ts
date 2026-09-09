@@ -14,6 +14,7 @@ import { MoneyBreakdown } from '../../../lib/money';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds, reconcileStuckCommissionPayments } from '../../../lib/services/commissions';
+import { backfillSellerGeocode } from '../../../lib/services/geo-backfill';
 import { log } from '../../../lib/log';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -99,6 +100,14 @@ export const POST: APIRoute = async ({ request }) => {
       }
     }
   }
+
+  // Self-healing geocode backfill: geocode a small batch of sellers who predate
+  // geocoding (and propagate to their listings) so the "Nærmest" sort fills in
+  // over a few ticks, then no-ops. Best-effort, idempotent (only null-lat rows).
+  await runSection('geocode_backfill', async () => {
+    const r = await backfillSellerGeocode(admin, { limit: 25 });
+    results.sellersGeocoded = r.sellersGeocoded;
+  });
 
   // Refresh the user_preferences materialized view powering the
   // promoted-pool ranker. Cheap (CONCURRENTLY) and safe to call every tick.
@@ -242,7 +251,11 @@ export const POST: APIRoute = async ({ request }) => {
       .from('commission_requests')
       .select('id, buyer_id, title, awarded_offer_id, stripe_payment_intent_id')
       .eq('status', 'completed')
-      .lt('auto_release_at', now);
+      .lt('auto_release_at', now)
+      // Bounded per tick: each row does 1-3 Stripe calls; a backlog (e.g. after
+      // the payouts kill-switch is lifted) must not exceed the cron timeout.
+      // Rows stay past-due and are picked up on the next tick.
+      .limit(50);
 
     if (releasable?.length) {
       for (const req of releasable) {
@@ -317,7 +330,8 @@ export const POST: APIRoute = async ({ request }) => {
       .from('orders')
       .select('id, listing_id, seller_id, stripe_payment_intent_id')
       .eq('status', 'shipped')
-      .lt('auto_release_at', now);
+      .lt('auto_release_at', now)
+      .limit(50); // bounded per tick (Stripe capture per row); rest next tick
 
     if (releasableOrders?.length) {
       const stripe = createStripe(env.STRIPE_SECRET_KEY);
@@ -364,7 +378,8 @@ export const POST: APIRoute = async ({ request }) => {
       .from('orders')
       .select('listing_id')
       .eq('status', 'reserved')
-      .lt('ship_deadline_at', now);
+      .lt('ship_deadline_at', now)
+      .limit(50); // bounded per tick (reservation release per row); rest next tick
 
     const releaseEnv = {
       STRIPE_SECRET_KEY: env.STRIPE_SECRET_KEY,

@@ -596,6 +596,9 @@ export async function payCommission(
   // post-payment side-effects (status, project activation, notify) run in the
   // stripe webhook (type=commission_payment) once Stripe confirms payment —
   // NOT here, so an abandoned checkout leaves the request untouched.
+  // Rate-limit fresh-session creation (reused sessions above don't reach here).
+  const quotaFail = await assertWithinQuota(ctx, 'purchase_checkout');
+  if (quotaFail) return quotaFail;
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: money

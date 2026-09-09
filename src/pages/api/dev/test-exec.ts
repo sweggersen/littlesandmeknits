@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { env } from '../../../lib/env';
 import { getCurrentUser } from '../../../lib/auth';
 import { createAdminSupabase } from '../../../lib/supabase';
+import { backfillSellerGeocode } from '../../../lib/services/geo-backfill';
 import { devToolsBlocked } from '../../../lib/dev-guard';
 import type { ServiceContext } from '../../../lib/services/types';
 import {
@@ -267,6 +268,13 @@ async function handle(
     case 'seed-full': {
       const summary = await seedFull({ db, handle, emailToId });
       return { data: { seeded: summary } };
+    }
+
+    // One-shot geocode backfill for existing sellers (+ their listings). The
+    // cron trickles this too; this runs a bigger batch on demand.
+    case 'backfill-geo': {
+      const r = await backfillSellerGeocode(db, { limit: p.limit ?? 500 });
+      return { data: r };
     }
 
     case 'seed-profile': {

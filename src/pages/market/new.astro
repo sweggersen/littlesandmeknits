@@ -2,16 +2,17 @@
 import Layout from '../../layouts/Layout.astro';
 import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import ListingCard from '../../components/ListingCard.astro';
-import ListingToolbar from '../../components/ListingToolbar.astro';
+import DirectoryToolbar from '../../components/DirectoryToolbar.astro';
 import FilterPanel from '../../components/FilterPanel.astro';
 import LoadMore from '../../components/LoadMore.astro';
 import FavScript from '../../components/FavScript.astro';
 import EmptyState from '../../components/EmptyState.astro';
-import Alert from '../../components/Alert.astro';
 import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { CATEGORY_LABEL } from '../../lib/labels';
+import { LISTING_SORT_OPTIONS } from '../../lib/listing-sort';
+import { runListingDirectory } from '../../lib/services/listing-directory';
 
 const PAGE_SIZE = 24;
 const url = Astro.url;
@@ -19,30 +20,31 @@ const category = url.searchParams.get('kategori');
 const search = url.searchParams.get('q')?.trim();
 const prisMin = parseInt(url.searchParams.get('pris_min') ?? '', 10);
 const prisMax = parseInt(url.searchParams.get('pris_max') ?? '', 10);
-const cursor = url.searchParams.get('cursor');
-const hasFilters = !!(search || category || Number.isFinite(prisMin) || Number.isFinite(prisMax));
+const sortParam = url.searchParams.get('sort') ?? 'nyeste';
+const offsetRaw = parseInt(url.searchParams.get('cursor') ?? '', 10);
+const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
 
-let q = supabase
-  .from('listings')
-  .select('id, title, price_nok, size_label, hero_photo_path, category, escrow_enabled, can_meet, published_at, promoted_until, promotion_tier')
-  .eq('status', 'active')
-  .eq('kind', 'ready_made')
-  .order('promoted_until', { ascending: false, nullsFirst: false })
-  .order('published_at', { ascending: false });
+const { listings, hasMore, located } = await runListingDirectory(
+  { supabase, user: user ? { id: user.id } : null },
+  {
+    kind: 'ready_made',
+    sort: sortParam,
+    offset,
+    pageSize: PAGE_SIZE,
+    filters: {
+      search, category,
+      prisMin: Number.isFinite(prisMin) ? prisMin : null,
+      prisMax: Number.isFinite(prisMax) ? prisMax : null,
+    },
+  },
+);
 
-if (search) q = q.ilike('title', `%${search}%`);
-if (category) q = q.eq('category', category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet');
-if (Number.isFinite(prisMin)) q = q.gte('price_nok', prisMin);
-if (Number.isFinite(prisMax)) q = q.lte('price_nok', prisMax);
-if (cursor) q = q.lt('published_at', cursor);
-
-const { data: listings, error: listErr } = await q.limit(PAGE_SIZE);
-if (listErr) console.error('new.astro listings query failed', listErr);
-const hasMore = (listings ?? []).length === PAGE_SIZE;
-const lastCursor = listings?.length ? listings[listings.length - 1].published_at : null;
+const sortOptions = located ? [...LISTING_SORT_OPTIONS, { value: 'naer', label: 'Nærmest' }] : LISTING_SORT_OPTIONS;
+const validSort = new Set(sortOptions.map((o) => o.value));
+const sort = validSort.has(sortParam) ? sortParam : 'nyeste';
 
 let favIds: string[] = [];
 if (user) {
@@ -52,43 +54,47 @@ if (user) {
   } catch {}
 }
 
+const hasFilters = !!(search || category || Number.isFinite(prisMin) || Number.isFinite(prisMax));
+const filterCount = [search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax].filter(Boolean).length;
+
 const nextPageParams = (() => {
-  if (!hasMore || !lastCursor) return null;
+  if (!hasMore) return null;
   const p = new URLSearchParams(url.searchParams);
-  p.set('cursor', lastCursor);
+  p.set('cursor', String(offset + PAGE_SIZE));
   return p.toString();
 })();
-
 ---
 
 <Layout title="Ferdigstrikket — Strikketorget" lang="nb">
   <MarketplaceShell current="nytt">
-    <div class="flex items-start justify-between mb-2">
-      <div>
-        <p class="text-[10px] font-bold uppercase tracking-widest text-new-500 mb-1">Nytt</p>
-        <h1 class="font-serif text-4xl sm:text-5xl">Ferdigstrikket</h1>
-      </div>
-      <a href="/market/listing/new?kind=ready_made" class="shrink-0 bg-primary text-primary-fg px-5 py-2.5 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">+ Ny annonse</a>
-    </div>
-    <p class="text-charcoal/65 mb-8">Nystrikkede plagg fra strikkere, klare til bruk.</p>
+    <DirectoryToolbar
+      eyebrow="Nytt"
+      eyebrowClass="text-new-500"
+      title="Ferdigstrikket"
+      subtitle="Nystrikkede plagg fra strikkere, klare til bruk."
+      sortOptions={sortOptions}
+      sortValue={sort}
+      hasFilters={hasFilters}
+      filterCount={filterCount}
+      ctaHref="/market/listing/new?kind=ready_made"
+      ctaLabel="+ Ny"
+    >
+      <FilterPanel search={search} category={category} hasFilters={hasFilters} params={url.searchParams} resetHref="/market/new" />
+    </DirectoryToolbar>
 
-    <ListingToolbar search={search} hasFilters={hasFilters} filterCount={[search, category, Number.isFinite(prisMin) && prisMin, Number.isFinite(prisMax) && prisMax].filter(Boolean).length} />
-    <FilterPanel category={category} hasFilters={hasFilters} params={url.searchParams} />
-
-    {listErr ? (
-      <Alert type="error" class="my-4">Vi klarte ikke å hente annonsene akkurat nå. Prøv igjen om litt.</Alert>
-    ) : (listings ?? []).length === 0 ? (
-      <EmptyState message="Ingen ferdigstrikkede plagg ennå. Kom tilbake snart." />
+    {listings.length === 0 ? (
+      <EmptyState message={hasFilters ? 'Ingen treff. Prøv et annet filter.' : 'Ingen ferdigstrikkede plagg ennå. Kom tilbake snart.'} />
     ) : (
       <Fragment>
       <ul data-listing-grid class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-        {(listings ?? []).map((l) => (
+        {listings.map((l) => (
           <ListingCard
             id={l.id}
             title={l.title}
             price={l.price_nok}
             imgUrl={projectPhotoUrl(l.hero_photo_path)}
             meta={`${CATEGORY_LABEL[l.category] ?? l.category} · str. ${l.size_label}`}
+            distanceKm={l.distanceKm}
             showFav={!!user}
             isFav={favIds.includes(l.id)}
             escrowEnabled={l.escrow_enabled ?? false}

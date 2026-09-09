@@ -2,61 +2,141 @@
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import EmptyState from '../../../components/EmptyState.astro';
-import { projectPhotoUrl } from '../../../lib/storage';
+import LoadMore from '../../../components/LoadMore.astro';
+import StoreCard from '../../../components/StoreCard.astro';
+import DirectoryToolbar from '../../../components/DirectoryToolbar.astro';
 import { createServerSupabase } from '../../../lib/supabase';
+import { listStores, listStoreCities, type StoreSort } from '../../../lib/services/store-directory';
 
+const url = Astro.url;
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
+const user = Astro.locals.user;
 
-const { data: stores } = await supabase
-  .from('stores')
-  .select('id, slug, name, tagline, banner_path, logo_path, location_city, verified')
-  .eq('status', 'active')
-  .is('deleted_at', null)
-  .order('verified', { ascending: false })
-  .order('created_at', { ascending: false })
-  .limit(48);
+const sortParam = (url.searchParams.get('sort') ?? 'nyeste') as StoreSort;
+const city = url.searchParams.get('by')?.trim() || null;
+const minRating = parseInt(url.searchParams.get('vurdering') ?? '', 10);
+const hasActiveListings = url.searchParams.get('aktive') === '1';
+const maxDistanceKm = parseInt(url.searchParams.get('avstand') ?? '', 10);
+const cursor = url.searchParams.get('cursor');
+
+const hasFilters = !!(city || (Number.isFinite(minRating) && minRating > 0) || hasActiveListings);
+const filterCount = [city, Number.isFinite(minRating) && minRating > 0, hasActiveListings].filter(Boolean).length;
+
+// "Anbefalt" isn't a sort — it's the curated "Anbefalte butikker" strip on top.
+// Normalise any legacy ?sort=anbefalt link to the default grid sort.
+const requestedSort: StoreSort = sortParam === 'anbefalt' ? 'nyeste' : sortParam;
+
+const result = await listStores(
+  { supabase, user: user ? { id: user.id } : null },
+  {
+    sort: requestedSort,
+    cursor,
+    filters: {
+      city,
+      minRating: Number.isFinite(minRating) ? minRating : null,
+      hasActiveListings,
+      maxDistanceKm: Number.isFinite(maxDistanceKm) ? maxDistanceKm : null,
+    },
+  },
+);
+
+const cities = await listStoreCities({ supabase, user: user ? { id: user.id } : null });
+
+const { recommended, results, nextCursor, located, sort } = result.ok
+  ? result.data
+  : { recommended: [], results: [], nextCursor: null, located: false, sort: 'anbefalt' as StoreSort };
+
+// Recommended strip only when browsing (not while filtering).
+const showRecommended = !hasFilters && recommended.length > 0;
+
+const SORT_OPTIONS: Array<{ value: StoreSort; label: string; locatedOnly?: boolean }> = [
+  { value: 'nyeste', label: 'Nyeste' },
+  { value: 'rating', label: 'Høyest vurdert' },
+  { value: 'aktive', label: 'Mest aktive' },
+  { value: 'naer', label: 'Nærmest', locatedOnly: true },
+];
+const visibleSorts = SORT_OPTIONS.filter((o) => !o.locatedOnly || located);
+
+const nextPageParams = (() => {
+  if (!nextCursor) return null;
+  const p = new URLSearchParams(url.searchParams);
+  p.set('cursor', nextCursor);
+  return p.toString();
+})();
 ---
 
 <Layout title="Butikker — Strikketorget" lang="nb">
   <MarketplaceShell>
-    <div class="mb-8">
-      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Butikker</h1>
-      <p class="text-charcoal/55">Registrerte virksomheter som selger på Strikketorget</p>
-    </div>
+    <DirectoryToolbar
+      eyebrow="Strikketorget"
+      eyebrowClass="text-sage-700"
+      title="Butikker"
+      subtitle="Utforsk butikker og strikkere i fellesskapet."
+      sortOptions={visibleSorts}
+      sortValue={sort}
+      hasFilters={hasFilters}
+      filterCount={filterCount}
+      ctaHref="/profile/stores/new"
+      ctaLabel="+ Ny butikk"
+    >
+      <div data-directory-filter-panel
+        class:list={['bg-surface rounded-2xl border border-sage-500/10 p-3 sm:p-4 mb-6 flex flex-wrap items-end gap-3', !hasFilters && 'hidden']}>
+        <div class="flex-1 min-w-[8rem]">
+          <label for="by" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">By</label>
+          <input id="by" type="text" name="by" value={city ?? ''} maxlength="60" placeholder="Alle byer"
+            list="store-cities" autocomplete="off"
+            class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+          <datalist id="store-cities">
+            {cities.map((c) => <option value={c} />)}
+          </datalist>
+        </div>
 
-    {(!stores || stores.length === 0) ? (
-      <EmptyState message="Ingen butikker registrert ennå. Vi venter på den første!" />
+        <div class="min-w-[7rem]">
+          <label for="vurdering" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Vurdering</label>
+          <select id="vurdering" name="vurdering" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
+            <option value="" selected={!Number.isFinite(minRating) || minRating <= 0}>Alle</option>
+            <option value="3" selected={minRating === 3}>3+ stjerner</option>
+            <option value="4" selected={minRating === 4}>4+ stjerner</option>
+          </select>
+        </div>
+
+        <label class="flex items-center gap-2 text-sm text-charcoal/70 pb-2">
+          <input type="checkbox" name="aktive" value="1" checked={hasActiveListings} class="rounded" />
+          Har aktive annonser
+        </label>
+
+        <button type="submit" class="btn-primary px-4 py-2 rounded-full text-sm font-medium">Oppdater</button>
+        {hasFilters && (
+          <a href="/market/stores" class="text-sm text-charcoal/55 hover:text-charcoal pb-2">Nullstill</a>
+        )}
+      </div>
+    </DirectoryToolbar>
+
+    {showRecommended && (
+      <section class="mb-8">
+        <h2 class="font-serif text-lg mb-3">Anbefalte butikker</h2>
+        <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {recommended.map((s) => <StoreCard store={s} showFav={!!user} />)}
+        </ul>
+      </section>
+    )}
+
+    {results.length === 0 ? (
+      <EmptyState message={hasFilters ? 'Ingen butikker matcher filteret.' : 'Ingen butikker registrert ennå. Vi venter på den første!'} />
     ) : (
-      <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stores.map((s) => (
-          <li>
-            <a
-              href={`/market/store/${s.slug}`}
-              class="flex items-center gap-3 bg-surface rounded-2xl border border-sage-500/10 hover:border-sage-500/30 transition-colors p-3"
-            >
-              <div class="w-14 h-14 rounded-xl bg-oatmeal/60 border border-sage-500/15 overflow-hidden shrink-0">
-                {s.logo_path ? (
-                  <img src={projectPhotoUrl(s.logo_path)} alt="" class="w-full h-full object-cover" />
-                ) : (
-                  <div class="w-full h-full flex items-center justify-center font-serif text-lg text-charcoal/40">
-                    {s.name?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-                )}
-              </div>
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-1.5">
-                  <h2 class="font-serif text-base truncate">{s.name}</h2>
-                  {s.verified && (
-                    <span title="Verifisert" class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full shrink-0">✓</span>
-                  )}
-                </div>
-                {s.tagline && <p class="text-xs text-charcoal/55 truncate">{s.tagline}</p>}
-                {s.location_city && <p class="text-[10px] uppercase tracking-widest text-charcoal/40 mt-0.5">{s.location_city}</p>}
-              </div>
-            </a>
-          </li>
-        ))}
-      </ul>
+      <section>
+        {showRecommended && <h2 class="font-serif text-lg mb-3">Alle butikker</h2>}
+        <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {results.map((s) => <StoreCard store={s} showFav={!!user} />)}
+        </ul>
+        <LoadMore params={nextPageParams} label="Vis flere" />
+      </section>
     )}
   </MarketplaceShell>
+
+  <script>
+    import { init } from '../../../lib/client/controllers/store-fav';
+    import { registerController } from '../../../lib/client/dom';
+    registerController(init);
+  </script>
 </Layout>

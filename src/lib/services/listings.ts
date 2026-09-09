@@ -90,10 +90,20 @@ export async function createListing(
   // Shipping implies escrow; stores keep it on too (covered by subscription).
   const escrowEnabled = canShip || !!storeId;
 
+  // Copy the seller's coarse coords onto the (public) listing so it can appear
+  // in the "Nærmest" sort. seller_profiles is owner-readable, so the seller
+  // reads their own; null until they've completed geocoded seller onboarding.
+  const { data: sellerGeo } = await ctx.supabase
+    .from('seller_profiles').select('lat, lng').eq('id', ctx.user.id).maybeSingle();
+  const geoLat = (sellerGeo as { lat?: number | null } | null)?.lat ?? null;
+  const geoLng = (sellerGeo as { lng?: number | null } | null)?.lng ?? null;
+
   const { data, error } = await ctx.supabase
     .from('listings')
     .insert({
       seller_id: ctx.user.id, store_id: storeId,
+      lat: geoLat, lng: geoLng,
+      geocoded_at: geoLat != null ? new Date().toISOString() : null,
       escrow_enabled: escrowEnabled,
       can_meet: canMeet,
       shipping_option: shippingOptionId as 'free' | 'small_letter' | 'small_parcel' | 'parcel' | null,

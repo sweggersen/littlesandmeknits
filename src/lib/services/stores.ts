@@ -8,9 +8,49 @@ import { ensureUniqueSlug, isReserved, isValidSlugSyntax, slugify } from './stor
 import { can } from './store-permissions';
 import { getMyRole } from './store-members';
 import { assertWithinQuota } from './quota';
+import { recordDeadLetter } from './dead-letter';
+import { geocodePostnummer } from '../geocode';
 import type { Store, StoreStatus, PublicStorefront } from '../types/stores';
 
 const STORE_SELECT = '*';
+
+/** Validate a Norwegian 4-digit postal code. Returns the cleaned value or null. */
+function cleanPostnummer(raw: string | null | undefined): string | null {
+  const pn = (raw ?? '').replace(/\D/g, '');
+  return pn.length === 4 ? pn : null;
+}
+
+/** Geocode a store's postnummer to a COARSE area centroid and persist
+ *  lat/lng/geocoded_at. Best-effort: on any failure it dead-letters and leaves
+ *  the coords null (the store just won't appear in the "Nærmest" sort), never
+ *  blocking the caller. Never geocodes the exact address. */
+async function geocodeStoreCoords(
+  ctx: ServiceContext,
+  storeId: string,
+  postnummer: string,
+  city: string | null,
+): Promise<void> {
+  const point = await geocodePostnummer(postnummer, city);
+  if (!point) {
+    await recordDeadLetter(ctx, {
+      service: 'stores.geocode',
+      context: { storeId, postnummer },
+      error: 'Kartverket returned no coordinate for postnummer',
+    });
+    return;
+  }
+  const { error } = await ctx.admin
+    .from('stores')
+    .update({ lat: point.lat, lng: point.lng, geocoded_at: new Date().toISOString() } as never)
+    .eq('id', storeId);
+  if (error) {
+    await recordDeadLetter(ctx, {
+      service: 'stores.geocode',
+      context: { storeId, postnummer },
+      error,
+    });
+  }
+}
 
 export interface CreateStoreInput {
   /** Optional. When present + valid, the store is a verified business. When
@@ -25,6 +65,14 @@ export interface CreateStoreInput {
   description?: string;
   website_url?: string;
   contact_email?: string;
+  /** Public city (poststed), from the address autocomplete. Falls back to the
+   *  Brønnøysund city for business stores. */
+  location_city?: string;
+  /** Public 4-digit postal code. Required — the geocode key + public location. */
+  postnummer?: string;
+  /** Required exact address. PRIVATE (store_private_details) — fraud/verification
+   *  only, never public, never geocoded. */
+  precise_address?: string;
 }
 
 export async function createStore(
@@ -40,6 +88,13 @@ export async function createStore(
   const contactEmail = input.contact_email?.trim().toLowerCase();
   if (!contactEmail) return fail('bad_input', 'Kontakt-e-post er påkrevd');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) return fail('bad_input', 'Ugyldig e-postadresse');
+
+  // Address is required (fraud/verification signal). The postnummer is public
+  // (city + postnummer); the exact address stays private.
+  const postnummer = cleanPostnummer(input.postnummer);
+  if (!postnummer) return fail('bad_input', 'Gyldig postnummer (4 siffer) er påkrevd');
+  const preciseAddress = input.precise_address?.trim();
+  if (!preciseAddress || preciseAddress.length < 5) return fail('bad_input', 'Adresse er påkrevd');
 
   // Back-pressure BEFORE the Brønnøysund lookup + writes (spam-store flooding).
   const quotaFail = await assertWithinQuota(ctx, 'store_create');
@@ -109,7 +164,9 @@ export async function createStore(
       description: input.description?.trim() || null,
       website_url: input.website_url?.trim() || null,
       contact_email: contactEmail,
-      location_city: org?.city ?? null,
+      // Prefer the entered address city; fall back to the Brønnøysund city.
+      location_city: input.location_city?.trim() || org?.city || null,
+      postnummer,
       // Server-controlled: both personal and business stores go through
       // moderation; only a valid org number earns the verified badge.
       status: 'pending_review' as StoreStatus,
@@ -130,6 +187,21 @@ export async function createStore(
     }
     return fail('server_error', 'Kunne ikke opprette butikk');
   }
+
+  // Persist the required PRIVATE address (fraud/verification). Separate table,
+  // members+staff RLS only — never public. Roll the store back if this fails so
+  // a store can't exist without its address on record.
+  const { error: pdErr } = await ctx.admin
+    .from('store_private_details')
+    .insert({ store_id: store.id, precise_address: preciseAddress } as never);
+  if (pdErr) {
+    console.error('store_private_details insert failed', pdErr);
+    await ctx.admin.from('stores').delete().eq('id', store.id);
+    return fail('server_error', 'Kunne ikke lagre adresse');
+  }
+
+  // Coarse geocode from the postnummer (best-effort, dead-letters on failure).
+  await geocodeStoreCoords(ctx, store.id, postnummer, org?.city ?? null);
 
   // Creator becomes Owner
   const { error: memberErr } = await ctx.admin.from('store_members').insert({
@@ -191,6 +263,9 @@ export interface UpdateStoreInput {
   pinterest_url?: string | null;
   tiktok_url?: string | null;
   location_city?: string | null;
+  postnummer?: string | null;
+  /** PRIVATE exact address — written to store_private_details, never `stores`. */
+  precise_address?: string | null;
   accent_color?: string | null;
   opening_hours?: Record<string, string> | null;
   banner_path?: string | null;
@@ -205,27 +280,77 @@ export async function updateStore(
   const role = await getMyRole(ctx, storeId);
   if (!can.editStoreSettings(role)) return fail('forbidden', 'Ikke tilgang til å redigere butikk');
 
-  // Whitelist allowed fields (don't trust the client)
-  const allowed: (keyof UpdateStoreInput)[] = [
+  // Whitelist allowed fields (don't trust the client). precise_address is NOT
+  // here — it's private and goes to store_private_details, never `stores`.
+  // precise_address is excluded — it's a store_private_details column, never a
+  // `stores` column, so it must not appear in the typed stores update payload.
+  type StoreColumnPatch = Omit<UpdateStoreInput, 'precise_address'>;
+  const allowed: (keyof StoreColumnPatch)[] = [
     'name', 'tagline', 'description',
     'contact_email', 'contact_phone', 'website_url',
     'instagram_url', 'etsy_url', 'pinterest_url', 'tiktok_url',
-    'location_city', 'accent_color', 'opening_hours',
+    'location_city', 'postnummer', 'accent_color', 'opening_hours',
     'banner_path', 'logo_path',
   ];
-  const update: Partial<UpdateStoreInput> = {};
+
+  // Validate postnummer when the client sent one. Narrowed to string|undefined
+  // (an invalid value returns above) so the geocode call below type-checks.
+  let postnummer: string | undefined;
+  if (patch.postnummer !== undefined) {
+    const cleaned = cleanPostnummer(patch.postnummer);
+    if (!cleaned) return fail('bad_input', 'Gyldig postnummer (4 siffer) er påkrevd');
+    postnummer = cleaned;
+  }
+
+  // Address is required: reject an explicit empty value. Omitting the key
+  // leaves the stored address untouched, so edits to other fields still work.
+  let preciseAddress: string | undefined;
+  if (patch.precise_address !== undefined) {
+    const trimmed = (patch.precise_address ?? '').trim();
+    if (trimmed.length < 5) return fail('bad_input', 'Adresse er påkrevd');
+    preciseAddress = trimmed;
+  }
+
+  const update: Partial<StoreColumnPatch> = {};
   for (const key of allowed) {
     if (patch[key] !== undefined) (update[key] as unknown) = patch[key];
   }
+  if (postnummer !== undefined) update.postnummer = postnummer;
   if (typeof update.name === 'string' && update.name.trim().length < 2) {
     return fail('bad_input', 'Navn er for kort');
   }
+
+  // Current row: detect a real postnummer change + get the city for geocoding.
+  const { data: current } = await ctx.admin
+    .from('stores').select('postnummer, location_city').eq('id', storeId).maybeSingle();
+  const currentPostnummer = (current as { postnummer?: string | null } | null)?.postnummer ?? null;
+  const city =
+    (typeof update.location_city === 'string'
+      ? update.location_city
+      : (current as { location_city?: string | null } | null)?.location_city) ?? null;
 
   const { error } = await ctx.admin.from('stores').update(update).eq('id', storeId);
   if (error) {
     console.error('Store update failed', error);
     return fail('server_error', 'Kunne ikke oppdatere butikk');
   }
+
+  // Persist the private address (upsert; legacy stores have no row yet).
+  if (preciseAddress !== undefined) {
+    const { error: pdErr } = await ctx.admin
+      .from('store_private_details')
+      .upsert({ store_id: storeId, precise_address: preciseAddress, updated_at: new Date().toISOString() } as never);
+    if (pdErr) {
+      console.error('store_private_details upsert failed', pdErr);
+      return fail('server_error', 'Kunne ikke lagre adresse');
+    }
+  }
+
+  // Re-geocode only when the postnummer actually changed (coarse, best-effort).
+  if (postnummer !== undefined && postnummer !== currentPostnummer) {
+    await geocodeStoreCoords(ctx, storeId, postnummer, city);
+  }
+
   return ok({ ok: true });
 }
 
@@ -373,6 +498,7 @@ export async function getPublicStorefront(
       logo_path: store.logo_path,
       accent_color: store.accent_color,
       location_city: store.location_city,
+      postnummer: store.postnummer,
       contact_email: store.contact_email,
       contact_phone: store.contact_phone,
       website_url: store.website_url,

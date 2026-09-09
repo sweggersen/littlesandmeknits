@@ -15,6 +15,7 @@ export type QuotaAction =
   | 'support_request_create'
   | 'report_create'
   | 'pattern_checkout'
+  | 'purchase_checkout'
   | 'listing_create'
   | 'store_create'
   | 'store_invite';
@@ -30,6 +31,10 @@ const DAILY_LIMITS: Record<QuotaAction, number> = {
   // Each pattern checkout creates a Stripe Checkout Session (API cost). A buyer
   // comparing patterns clicks a few times; this caps session-creation spam.
   pattern_checkout: 30,
+  // Buying a listing / paying a commission each mints a Stripe Checkout Session
+  // (API cost). A real buyer completes a few a day; this caps session-creation
+  // spam without biting genuine retries.
+  purchase_checkout: 30,
   // A busy seller lists a lot in one session; this only bites a bot flooding
   // drafts. (Publishing is separate and requires a photo.)
   listing_create: 50,

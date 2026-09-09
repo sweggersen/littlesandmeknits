@@ -29,6 +29,7 @@ import {
   type HeroElementKey,
 } from '../../../lib/store-blocks';
 import { isValidHex } from '../../../lib/store-theme';
+import VerifiedBadge from '../../VerifiedBadge.astro';
 import type { StoreBlockProps } from './types';
 
 const { store, props = {}, assets = [] } = Astro.props as StoreBlockProps;
@@ -140,7 +141,9 @@ function elStyle(key: HeroElementKey): string | undefined {
       </div>
     )}
     {title && (
-      <h1 class="hero-el hero-el-title font-serif leading-tight" style={`font-family: var(--font-display); font-size: calc(clamp(1.875rem, 4vw + 0.5rem, 3rem) * var(--store-heading-scale));${elStyle('title') ?? ''}`}>{title}</h1>
+      <h1 class="hero-el hero-el-title font-serif leading-tight" style={`font-family: var(--font-display); font-size: calc(clamp(1.875rem, 4vw + 0.5rem, 3rem) * var(--store-heading-scale));${elStyle('title') ?? ''}`}>{title}{store.verified && (
+        <VerifiedBadge size={22} title="Verifisert butikk" class="inline-block align-middle ml-2 opacity-90" />
+      )}</h1>
     )}
     {tagline && <p class="hero-el hero-el-subtitle mt-3 max-w-xl text-white/85 text-base sm:text-lg" style={elStyle('subtitle')}>{tagline}</p>}
     {cta && (

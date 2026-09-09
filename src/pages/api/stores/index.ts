@@ -29,6 +29,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     description: body.description,
     website_url: body.website_url,
     contact_email: body.contact_email,
+    location_city: body.location_city,
+    postnummer: body.postnummer,
+    precise_address: body.precise_address,
   });
 
   // Honor redirects for HTML form submissions only

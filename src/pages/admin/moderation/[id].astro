@@ -64,6 +64,15 @@ if (queueItem.item_type === 'listing') {
   itemData = data;
 }
 
+// Store items carry a private exact address (fraud/verification signal). Staff
+// can read store_private_details via RLS; cross-check it against Brønnøysund.
+let storePrivateAddress: string | null = null;
+if ((queueItem.item_type === 'store' || queueItem.item_type === 'store_image') && itemData?.id) {
+  const { data: pd } = await supabase
+    .from('store_private_details').select('precise_address').eq('store_id', itemData.id).maybeSingle();
+  storePrivateAddress = (pd as { precise_address?: string | null } | null)?.precise_address ?? null;
+}
+
 // Confidence score is computed in two places: here for stores (after
 // roles + email are fetched) and further below for listings/commissions.
 // Declare it up here so the store branch can assign safely.
@@ -404,6 +413,25 @@ function scoreColor(s: number) {
             <span>{(submitter as any).stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
             <span class="text-charcoal/40">Avvisninger</span>
             <span class:list={[submitter.total_rejections > 0 ? 'text-red-600 font-medium' : '']}>{submitter.total_rejections}</span>
+          </div>
+        </div>
+      )}
+
+      <!-- Store address (private — fraud/verification) -->
+      {(queueItem.item_type === 'store' || queueItem.item_type === 'store_image') && (
+        <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Adresse (privat)</p>
+          <div class="grid grid-cols-3 gap-1 text-[11px]">
+            <span class="text-charcoal/40">Gateadresse</span>
+            <span class="col-span-2">{storePrivateAddress ?? '— mangler —'}</span>
+            <span class="text-charcoal/40">Poststed</span>
+            <span class="col-span-2">{[itemData?.postnummer, itemData?.location_city].filter(Boolean).join(' ') || '—'}</span>
+            {itemData?.legal_address && (
+              <>
+                <span class="text-charcoal/40">Brønnøysund</span>
+                <span class="col-span-2">{itemData.legal_address}</span>
+              </>
+            )}
           </div>
         </div>
       )}

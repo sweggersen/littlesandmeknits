@@ -74,6 +74,21 @@ export interface Store {
   reviewed_by: string | null;
   approved_at: string | null;
   deleted_at: string | null;
+
+  // Directory (0109). Trigger-maintained stats + admin-only featured flag +
+  // coarse public geocoords (from the postnummer only). precise_address is NOT
+  // here — it lives in store_private_details behind its own RLS.
+  rating_avg: number;
+  rating_count: number;
+  active_listing_count: number;
+  last_listing_at: string | null;
+  featured: boolean;
+  featured_rank: number;
+  favorite_count: number;
+  postnummer: string | null;
+  lat: number | null;
+  lng: number | null;
+  geocoded_at: string | null;
 }
 
 export interface StoreMember {
@@ -112,7 +127,7 @@ export interface PublicStorefront {
   store: Pick<
     Store,
     'id' | 'slug' | 'name' | 'tagline' | 'description' | 'banner_path' | 'logo_path'
-    | 'accent_color' | 'location_city' | 'contact_email' | 'contact_phone'
+    | 'accent_color' | 'location_city' | 'postnummer' | 'contact_email' | 'contact_phone'
     | 'website_url' | 'instagram_url' | 'etsy_url' | 'pinterest_url' | 'tiktok_url'
     | 'opening_hours' | 'verified' | 'legal_name' | 'legal_address' | 'created_at'
   >;

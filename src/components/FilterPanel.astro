@@ -1,18 +1,27 @@
 ---
 import { CATEGORY_LABEL } from '../lib/labels';
 
+// Collapsible filter fields for the listing directories. NOT a <form> itself —
+// it renders inside the page's single directory form (so the Sorter select and
+// these filters submit together). The Filter button toggles the `hidden` class.
 interface Props {
+  search?: string | null;
   category?: string | null;
   hasFilters?: boolean;
   showAge?: boolean;
   showBudget?: boolean;
   params: URLSearchParams;
+  resetHref?: string;
 }
-const { category, hasFilters = false, showAge = false, showBudget = false, params } = Astro.props;
+const { search, category, hasFilters = false, showAge = false, showBudget = false, params, resetHref } = Astro.props;
 ---
 
-<form method="get" data-filter-panel class:list={['bg-surface rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
-  <input type="hidden" name="q" data-sync-q />
+<div data-directory-filter-panel class:list={['bg-surface rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
+  <div class="flex-1 min-w-[180px]">
+    <label for="q" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Søk</label>
+    <input id="q" name="q" type="text" value={search ?? ''} maxlength="80" placeholder="Søk i tittel..."
+      class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
+  </div>
   <div class="flex-1 min-w-[140px]">
     <label for="kategori" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Kategori</label>
     <select id="kategori" name="kategori" class="w-full bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15">
@@ -58,6 +67,9 @@ const { category, hasFilters = false, showAge = false, showBudget = false, param
     </>
   )}
   <button type="submit" class="bg-primary text-primary-fg px-5 py-2 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
-    Filtrer
+    Bruk filter
   </button>
-</form>
+  {hasFilters && resetHref && (
+    <a href={resetHref} class="text-sm text-charcoal/55 hover:text-charcoal pb-2">Nullstill</a>
+  )}
+</div>

@@ -1,6 +1,6 @@
 ---
 import StudioLayout from '../../../layouts/StudioLayout.astro';
-import StudioBackLink from '../../../components/StudioBackLink.astro';
+import ComposePage from '../../../components/ComposePage.astro';
 
 const weights = [
   'Lace (Tråd)',
@@ -15,10 +15,7 @@ const weights = [
 ---
 
 <StudioLayout title="Nytt garn · Littles and Me" lang="nb">
-  <div class="max-w-2xl">
-    <StudioBackLink href="/studio/yarn">Garnlager</StudioBackLink>
-    <h1 class="font-serif text-3xl sm:text-4xl mb-8">Nytt garn</h1>
-
+  <ComposePage title="Nytt garn" backHref="/studio/yarn" backLabel="Garnlager">
     <form method="post" action="/api/yarns/create" enctype="multipart/form-data" class="bg-surface rounded-3xl p-6 sm:p-8 border border-sage-500/10 space-y-6">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -169,5 +166,5 @@ const weights = [
         </button>
       </div>
     </form>
-  </div>
+  </ComposePage>
 </StudioLayout>

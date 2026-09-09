@@ -14,6 +14,7 @@ import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
 import { legacyListingFeeNokFromTotalOre } from '../money';
 import { recordDeadLetter } from './dead-letter';
+import { assertWithinQuota } from './quota';
 import { killGuard, isKilled } from '../flags';
 import { createReservedOrder, updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
@@ -220,6 +221,10 @@ export async function purchaseListing(
 
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(input.stripeSecretKey);
+
+  // Rate-limit checkout-session creation (Stripe API cost / abuse).
+  const quotaFail = await assertWithinQuota(ctx, 'purchase_checkout');
+  if (quotaFail) return quotaFail;
 
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
