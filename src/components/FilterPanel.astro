@@ -16,7 +16,7 @@ interface Props {
 const { search, category, hasFilters = false, showAge = false, showBudget = false, params, resetHref } = Astro.props;
 ---
 
-<div data-filter-panel class:list={['bg-surface rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
+<div data-directory-filter-panel class:list={['bg-surface rounded-2xl p-4 border border-sage-500/10 mb-6 flex flex-wrap gap-3 items-end', !hasFilters && 'hidden']}>
   <div class="flex-1 min-w-[180px]">
     <label for="q" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-1">Søk</label>
     <input id="q" name="q" type="text" value={search ?? ''} maxlength="80" placeholder="Søk i tittel..."

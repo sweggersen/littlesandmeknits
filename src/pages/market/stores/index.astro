@@ -4,6 +4,7 @@ import MarketplaceShell from '../../../components/MarketplaceShell.astro';
 import EmptyState from '../../../components/EmptyState.astro';
 import LoadMore from '../../../components/LoadMore.astro';
 import StoreCard from '../../../components/StoreCard.astro';
+import DirectoryToolbar from '../../../components/DirectoryToolbar.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import { listStores, listStoreCities, type StoreSort } from '../../../lib/services/store-directory';
 
@@ -66,33 +67,17 @@ const nextPageParams = (() => {
 
 <Layout title="Butikker — Strikketorget" lang="nb">
   <MarketplaceShell>
-    <form method="get" class="mb-8">
-      <div class="flex items-center justify-between gap-4 flex-wrap mb-4">
-        <div>
-          <h1 class="font-serif text-3xl sm:text-4xl mb-2">Butikker</h1>
-          <p class="text-charcoal/55">Utforsk butikker og strikkere på Strikketorget.</p>
-        </div>
-
-        <div class="flex items-center gap-2 shrink-0">
-          <label for="sort" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Sorter</label>
-          <select id="sort" name="sort" data-store-sort
-            class="bg-surface rounded-full px-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
-            {visibleSorts.map((o) => (
-              <option value={o.value} selected={sort === o.value}>{o.label}</option>
-            ))}
-          </select>
-
-          <button type="button" data-toggle-store-filter
-            class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
-              hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-surface text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-            Filter{hasFilters ? ` (${filterCount})` : ''}
-          </button>
-        </div>
-      </div>
-
-      <div data-store-filter-panel
-        class:list={['bg-surface rounded-2xl border border-sage-500/10 p-3 sm:p-4 mt-3 flex flex-wrap items-end gap-3', !hasFilters && 'hidden']}>
+    <DirectoryToolbar
+      title="Butikker"
+      titleClass="text-3xl sm:text-4xl"
+      subtitle="Utforsk butikker og strikkere på Strikketorget."
+      sortOptions={visibleSorts}
+      sortValue={sort}
+      hasFilters={hasFilters}
+      filterCount={filterCount}
+    >
+      <div data-directory-filter-panel
+        class:list={['bg-surface rounded-2xl border border-sage-500/10 p-3 sm:p-4 mb-6 flex flex-wrap items-end gap-3', !hasFilters && 'hidden']}>
         <div class="flex-1 min-w-[8rem]">
           <label for="by" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">By</label>
           <input id="by" type="text" name="by" value={city ?? ''} maxlength="60" placeholder="Alle byer"
@@ -122,7 +107,7 @@ const nextPageParams = (() => {
           <a href="/market/stores" class="text-sm text-charcoal/55 hover:text-charcoal pb-2">Nullstill</a>
         )}
       </div>
-    </form>
+    </DirectoryToolbar>
 
     {showRecommended && (
       <section class="mb-8">
@@ -147,10 +132,8 @@ const nextPageParams = (() => {
   </MarketplaceShell>
 
   <script>
-    import { init as favInit } from '../../../lib/client/controllers/store-fav';
-    import { init as toolbarInit } from '../../../lib/client/controllers/store-toolbar';
+    import { init } from '../../../lib/client/controllers/store-fav';
     import { registerController } from '../../../lib/client/dom';
-    registerController(favInit);
-    registerController(toolbarInit);
+    registerController(init);
   </script>
 </Layout>

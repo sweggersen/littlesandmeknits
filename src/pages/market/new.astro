@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import ListingCard from '../../components/ListingCard.astro';
+import DirectoryToolbar from '../../components/DirectoryToolbar.astro';
 import FilterPanel from '../../components/FilterPanel.astro';
 import LoadMore from '../../components/LoadMore.astro';
 import FavScript from '../../components/FavScript.astro';
@@ -64,31 +65,20 @@ const nextPageParams = (() => {
 
 <Layout title="Ferdigstrikket — Strikketorget" lang="nb">
   <MarketplaceShell current="nytt">
-    <form method="get">
-      <div class="flex items-center justify-between gap-4 flex-wrap mb-2">
-        <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-new-500 mb-1">Nytt</p>
-          <h1 class="font-serif text-4xl sm:text-5xl">Ferdigstrikket</h1>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <label for="sort" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Sorter</label>
-          <select id="sort" name="sort" data-listing-sort
-            class="bg-surface rounded-full px-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
-            {LISTING_SORT_OPTIONS.map((o) => <option value={o.value} selected={sort === o.value}>{o.label}</option>)}
-          </select>
-          <button type="button" data-toggle-filter
-            class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
-              hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-surface text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
-            Filter{hasFilters ? ` (${filterCount})` : ''}
-          </button>
-          <a href="/market/listing/new?kind=ready_made" class="btn-primary px-4 py-2 rounded-full text-sm font-medium">+ Ny</a>
-        </div>
-      </div>
-      <p class="text-charcoal/65 mb-6">Nystrikkede plagg fra strikkere, klare til bruk.</p>
-
+    <DirectoryToolbar
+      eyebrow="Nytt"
+      eyebrowClass="text-new-500"
+      title="Ferdigstrikket"
+      subtitle="Nystrikkede plagg fra strikkere, klare til bruk."
+      sortOptions={LISTING_SORT_OPTIONS}
+      sortValue={sort}
+      hasFilters={hasFilters}
+      filterCount={filterCount}
+      ctaHref="/market/listing/new?kind=ready_made"
+      ctaLabel="+ Ny"
+    >
       <FilterPanel search={search} category={category} hasFilters={hasFilters} params={url.searchParams} resetHref="/market/new" />
-    </form>
+    </DirectoryToolbar>
 
     {listErr ? (
       <Alert type="error" class="my-4">Vi klarte ikke å hente annonsene akkurat nå. Prøv igjen om litt.</Alert>
@@ -118,9 +108,4 @@ const nextPageParams = (() => {
   </MarketplaceShell>
   <FavScript />
   <ImpressionTracker source="category" />
-  <script>
-    import { init } from '../../lib/client/controllers/listing-directory';
-    import { registerController } from '../../lib/client/dom';
-    registerController(init);
-  </script>
 </Layout>

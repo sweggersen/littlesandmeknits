@@ -1,0 +1,69 @@
+---
+// Shared header + toolbar for the marketplace directory grids (butikker, brukt,
+// nytt, oppdrag). Renders ONE GET form: title on the left; a Sorter dropdown +
+// Filter button (+ optional CTA) on the right, vertically centred with the
+// title; the page's filter fields go in the default slot (a
+// `data-directory-filter-panel` element that starts hidden unless filters are
+// active). The directory-toolbar controller wires the toggle + sort auto-submit.
+interface Props {
+  title: string;
+  eyebrow?: string;
+  eyebrowClass?: string;
+  subtitle?: string;
+  titleClass?: string;
+  sortOptions?: ReadonlyArray<{ value: string; label: string }>;
+  sortValue?: string;
+  hasFilters?: boolean;
+  filterCount?: number;
+  ctaHref?: string;
+  ctaLabel?: string;
+}
+const {
+  title, eyebrow, eyebrowClass = 'text-charcoal/45', subtitle,
+  titleClass = 'text-4xl sm:text-5xl',
+  sortOptions = [], sortValue, hasFilters = false, filterCount = 0,
+  ctaHref, ctaLabel,
+} = Astro.props;
+---
+
+<form method="get">
+  <div class="flex items-center justify-between gap-4 flex-wrap mb-2">
+    <div>
+      {eyebrow && <p class:list={['text-[10px] font-bold uppercase tracking-widest mb-1', eyebrowClass]}>{eyebrow}</p>}
+      <h1 class:list={['font-serif', titleClass]}>{title}</h1>
+    </div>
+
+    <div class="flex items-center gap-2 shrink-0">
+      {sortOptions.length > 0 && (
+        <>
+          <label for="dir-sort" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Sorter</label>
+          <select id="dir-sort" name="sort" data-directory-sort
+            class="bg-surface rounded-full px-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
+            {sortOptions.map((o) => <option value={o.value} selected={sortValue === o.value}>{o.label}</option>)}
+          </select>
+        </>
+      )}
+
+      <button type="button" data-toggle-directory-filter
+        class:list={['flex items-center gap-1.5 px-3 py-2 rounded-full text-sm border transition-colors',
+          hasFilters ? 'bg-primary text-primary-fg border-charcoal' : 'bg-surface text-charcoal/65 border-sage-500/15 hover:border-sage-500/30']}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>
+        Filter{hasFilters ? ` (${filterCount})` : ''}
+      </button>
+
+      {ctaHref && (
+        <a href={ctaHref} class="btn-primary px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap">{ctaLabel}</a>
+      )}
+    </div>
+  </div>
+
+  {subtitle && <p class="text-charcoal/65 mb-6">{subtitle}</p>}
+
+  <slot />
+</form>
+
+<script>
+  import { init } from '../lib/client/controllers/directory-toolbar';
+  import { registerController } from '../lib/client/dom';
+  registerController(init);
+</script>
