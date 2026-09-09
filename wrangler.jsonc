@@ -6,6 +6,14 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    // Section gates (src/lib/sections.ts). A section is default-ON; set its flag
+    // to "off" to redirect its routes to /kommer-snart and hide its nav pill.
+    // Oppskrifter (pattern shop) isn't launched yet — flip to "on" (or remove)
+    // + redeploy to launch. Can also be toggled instantly in the Cloudflare
+    // dashboard (Workers → Settings → Variables) without a redeploy.
+    "FLAG_SECTION_OPPSKRIFTER": "off"
+  },
   "build": {
     // assert-prod-bake refuses to deploy a bundle that baked a localhost (or
     // no) Supabase URL — .dev.vars wins the build-time env bake, so a naive
