@@ -715,12 +715,15 @@ export type Database = {
           frozen_at: string | null
           frozen_by: string | null
           frozen_reason: string | null
+          geocoded_at: string | null
           hero_photo_path: string | null
           id: string
           kind: Database["public"]["Enums"]["listing_kind"]
           knitted_by: string | null
+          lat: number | null
           listing_fee_nok: number | null
           listing_fee_session_id: string | null
+          lng: number | null
           location: string | null
           moderation_notes: string | null
           pattern_external_title: string | null
@@ -769,12 +772,15 @@ export type Database = {
           frozen_at?: string | null
           frozen_by?: string | null
           frozen_reason?: string | null
+          geocoded_at?: string | null
           hero_photo_path?: string | null
           id?: string
           kind: Database["public"]["Enums"]["listing_kind"]
           knitted_by?: string | null
+          lat?: number | null
           listing_fee_nok?: number | null
           listing_fee_session_id?: string | null
+          lng?: number | null
           location?: string | null
           moderation_notes?: string | null
           pattern_external_title?: string | null
@@ -823,12 +829,15 @@ export type Database = {
           frozen_at?: string | null
           frozen_by?: string | null
           frozen_reason?: string | null
+          geocoded_at?: string | null
           hero_photo_path?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["listing_kind"]
           knitted_by?: string | null
+          lat?: number | null
           listing_fee_nok?: number | null
           listing_fee_session_id?: string | null
+          lng?: number | null
           location?: string | null
           moderation_notes?: string | null
           pattern_external_title?: string | null

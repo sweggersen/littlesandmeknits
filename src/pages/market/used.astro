@@ -7,12 +7,12 @@ import FilterPanel from '../../components/FilterPanel.astro';
 import LoadMore from '../../components/LoadMore.astro';
 import FavScript from '../../components/FavScript.astro';
 import EmptyState from '../../components/EmptyState.astro';
-import Alert from '../../components/Alert.astro';
 import ImpressionTracker from '../../components/ImpressionTracker.astro';
 import { createServerSupabase } from '../../lib/supabase';
 import { projectPhotoUrl } from '../../lib/storage';
 import { CATEGORY_LABEL, CONDITION_LABEL } from '../../lib/labels';
-import { LISTING_SORT_OPTIONS, normalizeListingSort, listingSortOrders } from '../../lib/listing-sort';
+import { LISTING_SORT_OPTIONS } from '../../lib/listing-sort';
+import { runListingDirectory } from '../../lib/services/listing-directory';
 
 const PAGE_SIZE = 24;
 const url = Astro.url;
@@ -22,31 +22,34 @@ const prisMin = parseInt(url.searchParams.get('pris_min') ?? '', 10);
 const prisMax = parseInt(url.searchParams.get('pris_max') ?? '', 10);
 const ageMin = parseInt(url.searchParams.get('alder_min') ?? '', 10);
 const ageMax = parseInt(url.searchParams.get('alder_max') ?? '', 10);
-const sort = normalizeListingSort(url.searchParams.get('sort'));
+const sortParam = url.searchParams.get('sort') ?? 'nyeste';
 const offsetRaw = parseInt(url.searchParams.get('cursor') ?? '', 10);
 const offset = Number.isFinite(offsetRaw) && offsetRaw > 0 ? offsetRaw : 0;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
 
-let q = supabase
-  .from('listings')
-  .select('id, title, price_nok, size_label, hero_photo_path, category, condition, escrow_enabled, can_meet, published_at, promoted_until, promotion_tier')
-  .eq('status', 'active')
-  .eq('kind', 'pre_loved');
-for (const [col, opts] of listingSortOrders(sort)) q = q.order(col, opts);
+const { listings, hasMore, located } = await runListingDirectory(
+  { supabase, user: user ? { id: user.id } : null },
+  {
+    kind: 'pre_loved',
+    sort: sortParam,
+    offset,
+    pageSize: PAGE_SIZE,
+    filters: {
+      search, category,
+      prisMin: Number.isFinite(prisMin) ? prisMin : null,
+      prisMax: Number.isFinite(prisMax) ? prisMax : null,
+      ageMin: Number.isFinite(ageMin) ? ageMin : null,
+      ageMax: Number.isFinite(ageMax) ? ageMax : null,
+    },
+  },
+);
 
-if (search) q = q.ilike('title', `%${search}%`);
-if (category) q = q.eq('category', category as 'cardigan' | 'lue' | 'bukser' | 'sokker' | 'genser' | 'teppe' | 'votter' | 'kjole' | 'annet');
-if (Number.isFinite(prisMin)) q = q.gte('price_nok', prisMin);
-if (Number.isFinite(prisMax)) q = q.lte('price_nok', prisMax);
-if (Number.isFinite(ageMin)) q = q.gte('size_age_months_max', ageMin);
-if (Number.isFinite(ageMax)) q = q.lte('size_age_months_min', ageMax);
-
-const { data: rows, error: listErr } = await q.range(offset, offset + PAGE_SIZE);
-if (listErr) console.error('used.astro listings query failed', listErr);
-const hasMore = (rows ?? []).length > PAGE_SIZE;
-const listings = (rows ?? []).slice(0, PAGE_SIZE);
+// "Nærmest" only when the buyer is located.
+const sortOptions = located ? [...LISTING_SORT_OPTIONS, { value: 'naer', label: 'Nærmest' }] : LISTING_SORT_OPTIONS;
+const validSort = new Set(sortOptions.map((o) => o.value));
+const sort = validSort.has(sortParam) ? sortParam : 'nyeste';
 
 let favIds: string[] = [];
 if (user) {
@@ -74,7 +77,7 @@ const nextPageParams = (() => {
       eyebrowClass="text-used-500"
       title="Gjenbruk"
       subtitle="Strikketøy søker nytt hjem."
-      sortOptions={LISTING_SORT_OPTIONS}
+      sortOptions={sortOptions}
       sortValue={sort}
       hasFilters={hasFilters}
       filterCount={filterCount}
@@ -84,9 +87,7 @@ const nextPageParams = (() => {
       <FilterPanel search={search} category={category} hasFilters={hasFilters} showAge params={url.searchParams} resetHref="/market/used" />
     </DirectoryToolbar>
 
-    {listErr ? (
-      <Alert type="error" class="my-4">Vi klarte ikke å hente annonsene akkurat nå. Prøv igjen om litt.</Alert>
-    ) : listings.length === 0 ? (
+    {listings.length === 0 ? (
       <EmptyState message="Ingen treff. Prøv et annet filter." />
     ) : (
       <Fragment>
@@ -101,6 +102,7 @@ const nextPageParams = (() => {
               price={l.price_nok}
               imgUrl={projectPhotoUrl(l.hero_photo_path)}
               meta={meta}
+              distanceKm={l.distanceKm}
               showFav={!!user}
               isFav={favIds.includes(l.id)}
               escrowEnabled={l.escrow_enabled ?? false}

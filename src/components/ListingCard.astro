@@ -19,6 +19,8 @@ interface Props {
   storeSlug?: string | null;
   escrowEnabled?: boolean;
   canMeet?: boolean;
+  /** Coarse km to the buyer; shown as a chip when present ("Nærmest" sort). */
+  distanceKm?: number | null;
 }
 const {
   id,
@@ -37,7 +39,10 @@ const {
   storeSlug,
   escrowEnabled = false,
   canMeet = false,
+  distanceKm = null,
 } = Astro.props;
+
+const distanceLabel = distanceKm == null ? null : distanceKm < 1 ? '< 1 km' : `~${Math.round(distanceKm)} km`;
 ---
 
 <li class:list={['relative', inactive && 'opacity-50']} data-listing-item data-listing-item-id={id} data-promoted={promoted ? 'true' : undefined} data-promotion-tier={promotionTier ?? undefined}>
@@ -62,8 +67,8 @@ const {
       {promoted && (
         <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Fremhevet</p>
       )}
-      {meta && (
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">{meta}</p>
+      {(meta || distanceLabel) && (
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">{meta}{meta && distanceLabel ? ' · ' : ''}{distanceLabel}</p>
       )}
       <p data-card-title class="text-sm font-medium line-clamp-2">{title}</p>
       {inactiveLabel ? (

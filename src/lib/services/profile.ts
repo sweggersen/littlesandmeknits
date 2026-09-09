@@ -7,6 +7,7 @@ import { recordDeadLetter } from './dead-letter';
 import { safeInternalPath } from '../auth';
 import { createSellerConnectAccount } from './stripe-connect';
 import { SIMULATE_STRIPE_KEY } from '../stripe-sim';
+import { geocodePostnummer } from '../geocode';
 
 const VALID_LANGS = new Set(['nb', 'en']);
 const VALID_TAGS = new Set(['knitter', 'sells_pre_loved', 'sells_ready_made', 'open_for_requests', 'dyer']);
@@ -413,6 +414,21 @@ export async function becomeSeller(
   if (updateError) {
     console.error('Become-seller seller_profile upsert failed', updateError);
     return fail('server_error', 'Could not save seller profile');
+  }
+
+  // Coarse-geocode the seller's postnummer for the "Nærmest" sort (best-effort,
+  // never blocks onboarding). The point is the postnummer-area centroid — never
+  // a precise location — cached on the seller profile AND propagated to their
+  // listings' public coords so distance sorting has data.
+  const sellerPoint = await geocodePostnummer(input.postalCode, input.city);
+  if (sellerPoint) {
+    const geoAt = new Date().toISOString();
+    await ctx.admin.from('seller_profiles')
+      .update({ lat: sellerPoint.lat, lng: sellerPoint.lng, geocoded_at: geoAt } as never)
+      .eq('id', ctx.user.id);
+    await ctx.admin.from('listings')
+      .update({ lat: sellerPoint.lat, lng: sellerPoint.lng, geocoded_at: geoAt } as never)
+      .eq('seller_id', ctx.user.id);
   }
 
   // Item location = the seller's location, so every seller must have one. Seed
