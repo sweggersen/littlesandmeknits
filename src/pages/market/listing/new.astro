@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
+import ComposePage from '../../../components/ComposePage.astro';
 import WizardStep1Details from '../../../components/listing/new/WizardStep1Details.astro';
 import WizardStep2Shipping from '../../../components/listing/new/WizardStep2Shipping.astro';
 import Alert from '../../../components/Alert.astro';
@@ -47,11 +48,12 @@ const STEPS = [
 
 <Layout title="Ny annonse — Strikketorget" lang="nb">
   <MarketplaceShell current="ny">
-    <div class="max-w-5xl mx-auto">
-      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny annonse</h1>
-      <p class="text-sm text-charcoal/55 mb-6">
-        Detaljer, pris og bilder. Tre korte steg, lagres som utkast underveis.
-      </p>
+    <ComposePage
+      title="Ny annonse"
+      subtitle="Detaljer, pris og bilder. Tre korte steg, lagres som utkast underveis."
+      backHref="/market/my-listings"
+      backLabel="Mine annonser"
+    >
 
       {!canGetPaid && (
         <div class="mb-6">
@@ -105,7 +107,7 @@ const STEPS = [
           </button>
         </div>
       </form>
-    </div>
+    </ComposePage>
   </MarketplaceShell>
 
   <script>

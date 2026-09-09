@@ -1,17 +1,13 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
+import ComposePage from '../../../components/ComposePage.astro';
 import { STORE_WIZARD } from '../../../lib/labels';
 const user = Astro.locals.user!;  // middleware-gated route
 ---
 
 <Layout title="Opprett butikk · Strikketorget" lang="nb">
-  <div class="bg-linen min-h-[80vh]">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-      <a href="/profile/stores" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-flex items-center gap-1">
-        ← Mine butikker
-      </a>
-      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Opprett butikk</h1>
-      <p class="text-charcoal/55 mb-8">{STORE_WIZARD.intro}</p>
+  <div class="bg-linen min-h-[80vh] px-4 sm:px-6 py-10 sm:py-14">
+    <ComposePage title="Opprett butikk" subtitle={STORE_WIZARD.intro} backHref="/profile/stores" backLabel="Mine butikker">
 
       <form id="store-form" method="post" action="/api/stores" class="space-y-6">
         <!-- Step 1: choose store type -->
@@ -245,7 +241,7 @@ const user = Astro.locals.user!;  // middleware-gated route
           </button>
         </div>
       </form>
-    </div>
+    </ComposePage>
   </div>
 
   <script

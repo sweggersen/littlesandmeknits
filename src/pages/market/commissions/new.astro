@@ -1,6 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
+import ComposePage from '../../../components/ComposePage.astro';
 import { requireUser } from '../../../lib/auth';
 import { createServerSupabase } from '../../../lib/supabase';
 
@@ -35,9 +36,12 @@ const CATEGORIES = [
 
 <Layout title="Nytt oppdrag · Strikketorget" lang="nb">
   <MarketplaceShell current="oppdrag">
-      <div class="max-w-5xl mx-auto">
-      <h1 class="font-serif text-3xl sm:text-4xl mb-2">Ny forespørsel</h1>
-      <p class="text-sm text-charcoal/55 mb-6">Beskriv hva du ønsker strikket, så kan strikkere gi tilbud på pris og leveringstid.</p>
+      <ComposePage
+        title="Ny forespørsel"
+        subtitle="Beskriv hva du ønsker strikket, så kan strikkere gi tilbud på pris og leveringstid."
+        backHref="/market/commissions"
+        backLabel="Oppdrag"
+      >
 
       {targetKnitterName && (
         <div class="bg-sage-100/50 rounded-2xl p-4 border border-sage-500/15 mb-6">
@@ -147,6 +151,6 @@ const CATEGORIES = [
         </div>
       </form>
       <p class="text-[11px] text-charcoal/45 text-center mt-4">Forespørselen er åpen i 30 dager. Du kan avbryte når som helst.</p>
-      </div>
+      </ComposePage>
   </MarketplaceShell>
 </Layout>
