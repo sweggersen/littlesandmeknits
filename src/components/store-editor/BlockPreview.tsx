@@ -56,7 +56,9 @@ function bodyStyle(extra?: CSSProperties): CSSProperties {
     fontWeight: 'var(--store-body-weight)',
     fontStyle: 'var(--store-body-style)',
     textDecoration: 'var(--store-body-decoration)',
-    fontSize: 'calc(1em * var(--store-body-scale))',
+    // rem (not em) so body text is the SAME size in every panel, regardless of
+    // any wrapper's font-size (e.g. ContactInfo's text-sm dl).
+    fontSize: 'calc(0.875rem * var(--store-body-scale))',
     ...extra,
   } as CSSProperties;
 }

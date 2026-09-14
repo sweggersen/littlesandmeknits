@@ -309,7 +309,7 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     description: 'Knapper der kundene kan favorittmerke og følge butikken.',
     defaultProps: {},
     propSchema: [],
-    minW: 6, minH: 48, defaultW: 12, defaultH: 56,
+    minW: 4, minH: 48, defaultW: 12, defaultH: 56,
   },
 };
 
