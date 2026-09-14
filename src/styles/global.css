@@ -455,6 +455,10 @@
   /* Keep content at a readable width, centered within the full-bleed page. */
   max-width: 64rem;
   margin: 0 auto;
+  /* Each block takes its own (content/min) height instead of stretching to the
+     tallest sibling in its row — so a short Kontakt beside a tall Om butikken
+     stays short (matches the editor). */
+  align-items: start;
 }
 .store-block {
   grid-column: span 12;
