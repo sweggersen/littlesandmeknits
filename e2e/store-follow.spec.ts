@@ -7,7 +7,8 @@ import { test, expect, type APIRequestContext, type Page } from '@playwright/tes
 
 const OWNER = 'sf-e2e-owner@test.strikketorget.no';
 const BUYER = 'sf-e2e-buyer@test.strikketorget.no';
-const SLUG = 'sf-e2e-butikk';
+// Unique per run so a rerun doesn't collide on the slug (seed-store has no cleanup).
+const SLUG = `sf-e2e-butikk-${Date.now().toString(36)}`;
 
 let adminToken: string;
 

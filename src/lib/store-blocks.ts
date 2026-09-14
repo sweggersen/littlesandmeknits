@@ -297,14 +297,15 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     minW: 4, minH: 60, defaultW: 12, defaultH: 160,
   },
   storeActions: {
+    // Flexible (not contentHeight) so the owner can corner-resize it; the
+    // buttons stay centred and the extra height is whitespace inside the panel.
     type: 'storeActions',
-    contentHeight: true,
     singleton: true,
     label: 'Følg og favoritt',
     description: 'Knapper der kundene kan favorittmerke og følge butikken.',
     defaultProps: {},
     propSchema: [],
-    minW: 4, minH: 40, defaultW: 12, defaultH: 56,
+    minW: 4, minH: 56, defaultW: 12, defaultH: 72,
   },
 };
 
