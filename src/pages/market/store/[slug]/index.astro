@@ -30,6 +30,22 @@ const rawStore = ctx ? await getStoreBySlugAdmin(ctx, slug) : null;
 // has favourited this store. No-op (0 rows) when it isn't favourited.
 if (ctx && rawStore) await markStoreSeen(ctx, rawStore.id);
 
+// Follow / favourite state for the action bar. Only shown to a logged-in
+// non-member viewer (a member manages the store, they don't follow it).
+let isFollowing = false;
+let isFavorite = false;
+let showActionBar = false;
+if (ctx && rawStore) {
+  const [{ data: mem }, { data: fol }, { data: fav }] = await Promise.all([
+    supabase.from('store_members').select('user_id').eq('store_id', rawStore.id).eq('user_id', ctx.user.id).maybeSingle(),
+    supabase.from('store_follows').select('store_id').eq('store_id', rawStore.id).eq('follower_id', ctx.user.id).maybeSingle(),
+    supabase.from('store_favorites').select('store_id').eq('store_id', rawStore.id).eq('user_id', ctx.user.id).maybeSingle(),
+  ]);
+  showActionBar = !mem;
+  isFollowing = !!fol;
+  isFavorite = !!fav;
+}
+
 // For anonymous viewers: only active stores are visible.
 let storefront;
 let previewBanner: 'pending_review' | 'suspended' | 'archived' | null = null;
@@ -189,6 +205,32 @@ const storeShare = storeShareMeta({
       </div>
     )}
 
+    {showActionBar && (
+      <div class="mb-4 flex items-center justify-end gap-2">
+        <button
+          type="button"
+          data-store-fav={store.id}
+          aria-label={isFavorite ? 'Fjern butikk fra favoritter' : 'Lagre butikk som favoritt'}
+          aria-pressed={isFavorite ? 'true' : 'false'}
+          style={isFavorite ? 'color: var(--color-primary);' : ''}
+          class:list={['inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm border border-sage-500/20 bg-surface transition-colors hover:border-sage-500/40', !isFavorite && 'text-charcoal/60']}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+          Favoritt
+        </button>
+        <button
+          type="button"
+          data-store-follow={store.id}
+          aria-label="Følg butikken"
+          aria-pressed={isFollowing ? 'true' : 'false'}
+          class:list={['inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors',
+            isFollowing ? 'bg-primary text-primary-fg border-charcoal' : 'bg-surface text-charcoal/70 border-sage-500/20 hover:border-sage-500/40']}
+        >
+          <span data-follow-label>{isFollowing ? 'Følger' : '+ Følg butikk'}</span>
+        </button>
+      </div>
+    )}
+
     <StorePageRenderer
       store={store}
       theme={renderTheme}
@@ -204,4 +246,12 @@ const storeShare = storeShareMeta({
       <ReportButton targetType="store" targetId={store.id} label={REPORT_TARGET_LABEL.store} />
     </div>
   </MarketplaceShell>
+
+  <script>
+    import { init as favInit } from '../../../../lib/client/controllers/store-fav';
+    import { init as followInit } from '../../../../lib/client/controllers/store-follow';
+    import { registerController } from '../../../../lib/client/dom';
+    registerController(favInit);
+    registerController(followInit);
+  </script>
 </Layout>

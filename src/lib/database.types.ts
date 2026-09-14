@@ -2337,6 +2337,39 @@ export type Database = {
           },
         ]
       }
+      store_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          store_id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          store_id: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_follows_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       store_invitations: {
         Row: {
           accepted_at: string | null
@@ -2495,6 +2528,7 @@ export type Database = {
           favorite_count: number
           featured: boolean
           featured_rank: number
+          follower_count: number
           geocoded_at: string | null
           id: string
           instagram_url: string | null
@@ -2554,6 +2588,7 @@ export type Database = {
           favorite_count?: number
           featured?: boolean
           featured_rank?: number
+          follower_count?: number
           geocoded_at?: string | null
           id?: string
           instagram_url?: string | null
@@ -2613,6 +2648,7 @@ export type Database = {
           favorite_count?: number
           featured?: boolean
           featured_rank?: number
+          follower_count?: number
           geocoded_at?: string | null
           id?: string
           instagram_url?: string | null
@@ -3064,6 +3100,7 @@ export type Database = {
         | "system_alert"
         | "store_invite"
         | "pattern_purchased"
+        | "store_new_listing"
       order_status:
         | "reserved"
         | "shipped"
@@ -3300,6 +3337,7 @@ export const Constants = {
         "system_alert",
         "store_invite",
         "pattern_purchased",
+        "store_new_listing",
       ],
       order_status: [
         "reserved",

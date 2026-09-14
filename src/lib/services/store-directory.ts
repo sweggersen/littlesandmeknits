@@ -74,6 +74,45 @@ const CARD_COLUMNS =
 
 type RawRow = Record<string, unknown>;
 
+export interface FollowedListing {
+  id: string;
+  title: string;
+  price_nok: number;
+  size_label: string;
+  hero_photo_path: string | null;
+  storeName: string;
+}
+
+/** Active listings from stores the current user follows, newest first — powers
+ *  the "Nye fra butikker du følger" strip. Empty for anon / no follows. */
+export async function listFollowedStoreListings(
+  ctx: DirectoryContext,
+  limit = 12,
+): Promise<FollowedListing[]> {
+  if (!ctx.user) return [];
+  const { data: follows } = await ctx.supabase
+    .from('store_follows').select('store_id').eq('follower_id', ctx.user.id);
+  const storeIds = (follows ?? []).map((f) => (f as { store_id: string }).store_id);
+  if (storeIds.length === 0) return [];
+
+  const { data } = await ctx.supabase
+    .from('listings')
+    .select('id, title, price_nok, size_label, hero_photo_path, store_id, stores:stores!listings_store_id_fkey(name)')
+    .eq('status', 'active')
+    .in('store_id', storeIds)
+    .order('published_at', { ascending: false })
+    .limit(limit);
+
+  return ((data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    id: r.id as string,
+    title: r.title as string,
+    price_nok: r.price_nok as number,
+    size_label: r.size_label as string,
+    hero_photo_path: (r.hero_photo_path as string | null) ?? null,
+    storeName: ((r.stores as { name?: string } | null)?.name) ?? 'Butikk',
+  }));
+}
+
 /** Base query: publicly visible stores, card columns, filters applied. */
 function baseQuery(ctx: DirectoryContext, filters: StoreFilters) {
   let q = ctx.supabase

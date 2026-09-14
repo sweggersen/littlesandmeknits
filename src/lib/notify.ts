@@ -31,6 +31,7 @@ export type NotificationType =
   | 'achievement_unlocked'
   | 'moderation_message'
   | 'seller_new_listing'
+  | 'store_new_listing'
   | 'payout_failed'
   | 'payment_failed'
   | 'seller_activated'
@@ -69,6 +70,7 @@ const EMAIL_PREF_COL: Record<NotificationType, string> = {
   achievement_unlocked: 'email_item_approved',
   moderation_message: 'email_item_approved',
   seller_new_listing: 'email_item_approved',
+  store_new_listing: 'email_item_approved',
   payout_failed: 'email_payment_received',
   payment_failed: 'email_payment_received',
   seller_activated: 'email_item_approved',
@@ -216,6 +218,46 @@ export async function notifyFollowersOfNewListing(
       sent++;
     } catch (err) {
       console.error('seller_new_listing notify failed for', f.follower_id, err);
+    }
+  }
+  return sent;
+}
+
+/** Notify a store's followers that it published a new listing (Butikker Phase 2).
+ *  Excludes the store's own members. Mirrors notifyFollowersOfNewListing but
+ *  keyed on the store. Returns how many notifications were sent. */
+export async function notifyStoreFollowersOfNewListing(
+  admin: SupabaseClient,
+  opts: { storeId: string; slug: string; listingId: string; listingTitle: string; storeName?: string | null },
+  env?: NotifyEnv,
+): Promise<number> {
+  const [{ data: follows }, { data: members }] = await Promise.all([
+    admin.from('store_follows').select('follower_id').eq('store_id', opts.storeId),
+    admin.from('store_members').select('user_id').eq('store_id', opts.storeId),
+  ]);
+  if (!follows?.length) return 0;
+
+  // A store member following their own store shouldn't get "new listing" pings.
+  const memberIds = new Set((members ?? []).map((m) => m.user_id));
+
+  const who = opts.storeName?.trim() || 'En butikk du følger';
+  const title = `${who} la ut en ny annonse`;
+  const body = `«${opts.listingTitle}» er nå tilgjengelig.`;
+  const url = `/market/listing/${opts.listingId}`;
+
+  let sent = 0;
+  for (const f of follows) {
+    if (memberIds.has(f.follower_id)) continue;
+    try {
+      await createNotification(admin, {
+        userId: f.follower_id,
+        type: 'store_new_listing',
+        title, body, url,
+        referenceId: opts.listingId,
+      }, env);
+      sent++;
+    } catch (err) {
+      console.error('store_new_listing notify failed for', f.follower_id, err);
     }
   }
   return sent;
