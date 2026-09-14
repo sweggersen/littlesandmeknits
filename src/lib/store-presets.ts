@@ -26,25 +26,36 @@ function baseBlocks(opts: { tagline: string; aboutHeading: string; aboutBody: st
         layout: { x: 0, y: 0, w: 12, h: 3 },
         props: { showBanner: true, tagline: opts.tagline, ctaText: '', ctaHref: '' },
       },
-      // Two-column section: About (main) + a right rail with Contact + the
-      // favourite/follow controls, stacked independently of a tall About.
+      // Favourite + follow controls (functional for customers, preview for owner).
       {
-        id: 'info',
-        type: 'infoColumns',
-        layout: { x: 0, y: 1, w: 12, h: 5 },
+        id: 'actions',
+        type: 'storeActions',
+        layout: { x: 0, y: 1, w: 12, h: 1 },
+        props: {},
+      },
+      {
+        id: 'about',
+        type: 'textSection',
+        layout: { x: 0, y: 2, w: 8, h: 3 },
         props: { heading: opts.aboutHeading, body: opts.aboutBody },
+      },
+      {
+        id: 'contact',
+        type: 'contactInfo',
+        layout: { x: 8, y: 2, w: 4, h: 3 },
+        props: { heading: 'Kontakt' },
       },
       {
         id: 'products',
         type: 'productGrid',
-        layout: { x: 0, y: 2, w: 12, h: 5 },
+        layout: { x: 0, y: 3, w: 12, h: 5 },
         props: { heading: 'Annonser', limit: 24 },
       },
       // Team panel (owner/members). Empty heading => auto "Eier" / "Teamet".
       {
         id: 'team',
         type: 'team',
-        layout: { x: 0, y: 3, w: 12, h: 2 },
+        layout: { x: 0, y: 4, w: 12, h: 2 },
         props: {},
       },
     ],
@@ -171,12 +182,21 @@ export function buildDefaultStorePage(
     // props omit title/tagline so the hero falls back to the store's own name +
     // tagline; showBanner uses the store's banner_path when present.
     { id: 'hero', type: 'hero', layout: { x: 0, y: 0, w: 12, h: 3 }, props: { showBanner: true } },
-    // Two-column section: About + a right rail (Contact + favourite/follow) that
-    // stacks independently. Part of every store's default design.
-    { id: 'info', type: 'infoColumns', layout: { x: 0, y: 1, w: 12, h: 5 }, props: { heading: 'Om butikken', body: about } },
-    { id: 'products', type: 'productGrid', layout: { x: 0, y: 2, w: 12, h: 5 }, props: { heading: 'Annonser', limit: 24 } },
-    // Team panel — empty heading => auto "Eier" / "Teamet".
-    { id: 'team', type: 'team', layout: { x: 0, y: 3, w: 12, h: 2 }, props: {} },
+    // Favourite + follow controls — part of every store's default design.
+    { id: 'actions', type: 'storeActions', layout: { x: 0, y: 1, w: 12, h: 1 }, props: {} },
   ];
+  if (about) {
+    blocks.push(
+      { id: 'about', type: 'textSection', layout: { x: 0, y: 2, w: 8, h: 3 }, props: { heading: 'Om butikken', body: about } },
+      { id: 'contact', type: 'contactInfo', layout: { x: 8, y: 2, w: 4, h: 3 }, props: { heading: 'Kontakt' } },
+    );
+  } else {
+    blocks.push(
+      { id: 'contact', type: 'contactInfo', layout: { x: 0, y: 2, w: 12, h: 2 }, props: { heading: 'Kontakt' } },
+    );
+  }
+  blocks.push({ id: 'products', type: 'productGrid', layout: { x: 0, y: 3, w: 12, h: 5 }, props: { heading: 'Annonser', limit: 24 } });
+  // Team panel — empty heading => auto "Eier" / "Teamet".
+  blocks.push({ id: 'team', type: 'team', layout: { x: 0, y: 3, w: 12, h: 2 }, props: {} });
   return { theme: DEFAULT_STORE_THEME, page_config: { blocks } };
 }

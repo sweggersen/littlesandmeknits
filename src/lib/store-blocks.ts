@@ -24,8 +24,7 @@ export type StoreBlockType =
   | 'imageGallery'
   | 'contactInfo'
   | 'team'
-  | 'storeActions'
-  | 'infoColumns';
+  | 'storeActions';
 
 /** The bounded set of hero background-overlay styles. The overlay CSS is built
  *  ONLY from a clamped 0-100 number + one of these keys, never from a raw user
@@ -311,22 +310,6 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     defaultProps: {},
     propSchema: [],
     minW: 6, minH: 48, defaultW: 12, defaultH: 56,
-  },
-  infoColumns: {
-    // Two-column section: About (main) + a right rail (Contact + follow) that
-    // stacks independently of a tall About. Full width; internal flex handles
-    // the columns, so it's content-height and not grid-resized.
-    type: 'infoColumns',
-    contentHeight: true,
-    singleton: true,
-    label: 'Om + sidefelt',
-    description: 'Om butikken til venstre, med kontakt og følg-knapper i et sidefelt til høyre.',
-    defaultProps: { heading: 'Om butikken', body: '' },
-    propSchema: [
-      { key: 'heading', kind: 'text', label: 'Overskrift' },
-      { key: 'body', kind: 'textarea', label: 'Tekst' },
-    ],
-    minW: 12, minH: 120, defaultW: 12, defaultH: 200,
   },
 };
 

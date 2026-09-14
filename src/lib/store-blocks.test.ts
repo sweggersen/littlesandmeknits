@@ -66,15 +66,6 @@ describe('sanitizePageConfig', () => {
     expect((cfg.blocks[0].props.body as string).length).toBe(1500);
   });
 
-  it('accepts the infoColumns section block with its heading + body', () => {
-    const cfg = sanitizePageConfig({
-      blocks: [{ id: 'i', type: 'infoColumns', layout: { x: 0, y: 1, w: 12, h: 5 }, props: { heading: 'Om', body: 'Tekst' } }],
-    });
-    expect(cfg.blocks[0].type).toBe('infoColumns');
-    expect(cfg.blocks[0].props.heading).toBe('Om');
-    expect(cfg.blocks[0].props.body).toBe('Tekst');
-  });
-
   it('respects the block x-position + width in the sanitised layout', () => {
     const cfg = sanitizePageConfig({
       blocks: [{ id: 'a', type: 'storeActions', layout: { x: 6, y: 3, w: 6, h: 1 }, props: {} }],
