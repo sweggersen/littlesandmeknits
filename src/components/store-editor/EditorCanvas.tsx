@@ -47,6 +47,12 @@ const GAP = 12;
 // (no handles). Flexible blocks are user-sized via the bottom-right corner,
 // which adjusts width and height together.
 const FLEX_HANDLES: Layout['resizeHandles'] = ['se'];
+// The storeActions block resizes in WIDTH only (east handle), snapped to half or
+// full width; its height is content-driven.
+const WIDTH_HANDLES: Layout['resizeHandles'] = ['e'];
+const HALF_COLS = GRID_COLUMNS / 2;
+/** Snap a column width to half or full (nothing in between). */
+const snapWidth = (w: number): number => (w < GRID_COLUMNS * 0.75 ? HALF_COLS : GRID_COLUMNS);
 
 export default function EditorCanvas({
   blocks,
@@ -166,15 +172,27 @@ export default function EditorCanvas({
   }
 
   const layout = blocksToGrid(blocks).map((item) => {
-    const content = BLOCK_REGISTRY[typeById[item.i]]?.contentHeight;
+    const type = typeById[item.i];
     // Cell height = natural content + the uniform bottom spacer.
     const floor = (rowSpans[item.i] ?? item.h) + GAP;
+    // storeActions: content height, but width-resizable (east handle) snapped to
+    // half/full. minW is 6 so it can't drag narrower than half.
+    if (type === 'storeActions') {
+      return { ...item, h: floor, w: snapWidth(item.w), resizeHandles: WIDTH_HANDLES, isResizable: true };
+    }
+    const content = BLOCK_REGISTRY[type]?.contentHeight;
     return content
       ? { ...item, h: floor, resizeHandles: [], isResizable: false }
       // Never shorter than the content, so flexible blocks can't clip their
       // text; the user's corner-drag only adds space beyond that floor.
       : { ...item, h: Math.max(floor, item.h), resizeHandles: FLEX_HANDLES };
   });
+
+  // Snap the storeActions block to half/full width whenever the grid changes,
+  // so a width drag only ever lands on 6 or 12 columns.
+  const handleLayoutChange = (next: Layout[]) => {
+    onLayoutChange(next.map((l) => (typeById[l.i] === 'storeActions' ? { ...l, w: snapWidth(l.w) } : l)));
+  };
 
   return (
     <div
@@ -192,7 +210,7 @@ export default function EditorCanvas({
         isBounded
         isResizable
         draggableHandle=".rgl-drag"
-        onLayoutChange={onLayoutChange}
+        onLayoutChange={handleLayoutChange}
         compactType="vertical"
       >
         {blocks.map((block) => {
