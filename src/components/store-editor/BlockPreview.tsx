@@ -256,7 +256,7 @@ export default function BlockPreview({
       // The live block renders functional favourite/follow buttons; the editor
       // draws a static sketch of them so the owner can place/size the block.
       return (
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 flex-wrap py-1">
           <div
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm"
             style={{ border: '1px solid var(--store-border)', background: 'var(--color-surface)', color: 'var(--store-muted)' }}
