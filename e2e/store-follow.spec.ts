@@ -57,10 +57,39 @@ test.describe('Strikketorget — storeActions block (favoritt + følg)', () => {
     await loginAs(page, OWNER);
     await page.goto(`/market/store/${SLUG}`);
 
-    // The block renders (part of the design) with the label, but carries no
-    // functional follow hook for the owner.
-    await expect(page.locator('[data-block-type="storeActions"]')).toBeVisible();
+    // The follow controls render (part of the design, inside the infoColumns
+    // section) with the label, but carry no functional follow hook for the owner.
     await expect(page.getByText('+ Følg butikk')).toBeVisible();
     await expect(page.locator('[data-store-follow]')).toHaveCount(0);
+  });
+});
+
+test.describe('Strikketorget — infoColumns (om + sidefelt)', () => {
+  let token: string;
+  const O = 'ic-e2e-owner@test.strikketorget.no';
+  const V = 'ic-e2e-viewer@test.strikketorget.no';
+  const S = `ic-e2e-${Date.now().toString(36)}`;
+
+  test.beforeAll(async ({ request }) => {
+    token = (await (await request.get('/api/dev/test-token')).json()).token;
+    await request.post('/api/dev/test-login', { data: { email: V } });
+    // seed-store applies the default page (which now uses the infoColumns section).
+    const res = await request.post('/api/dev/test-exec', {
+      headers: { 'X-Admin-Token': token, 'Content-Type': 'application/json' },
+      data: { action: 'seed-store', actor: O, params: { slug: S, name: 'Info E2E' } },
+    });
+    expect((await res.json()).ok).toBeTruthy();
+  });
+
+  test('renders the two-column section: about + contact + follow', async ({ page }) => {
+    await page.context().clearCookies();
+    await page.request.post('/api/dev/test-login', { data: { email: V } });
+    await page.goto(`/market/store/${S}`);
+    const section = page.locator('[data-block-type="infoColumns"]');
+    await expect(section).toBeVisible();
+    // Main column heading + the right-rail contact + follow.
+    await expect(section.getByText('Kontakt')).toBeVisible();
+    await expect(section.locator('[data-store-follow]')).toBeVisible();
+    await expect(section.locator('[data-store-fav]')).toBeVisible();
   });
 });

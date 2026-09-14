@@ -272,6 +272,32 @@ export default function BlockPreview({
         </div>
       );
 
+    case 'infoColumns':
+      // Two-column sketch: About (main) on the left, a Contact + follow rail on
+      // the right — the live block composes the real components.
+      return (
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <div {...HEAD_EDIT} className="font-serif mb-1.5" style={headingStyle('0.95rem')}>
+              {str(p.heading, 'Om butikken')}
+            </div>
+            <div className="text-[11px] leading-relaxed" style={{ color: 'var(--store-muted)' }}>
+              {str(p.body, 'Fortell om butikken din …')}
+            </div>
+          </div>
+          <div className="w-32 shrink-0 flex flex-col gap-2">
+            <div className="rounded-lg p-2" style={{ border: '1px solid var(--store-border)', background: 'var(--color-surface)' }}>
+              <div className="text-[11px] font-medium" style={{ color: 'var(--color-charcoal)' }}>Kontakt</div>
+              <div className="text-[10px]" style={{ color: 'var(--store-muted)' }}>Sted, e-post</div>
+            </div>
+            <div className="flex gap-1.5">
+              <div className="flex-1 text-center text-[10px] rounded-full py-1" style={{ border: '1px solid var(--store-border)', color: 'var(--store-muted)' }}>♡ Fav</div>
+              <div className="flex-1 text-center text-[10px] rounded-full py-1" style={{ border: '1px solid var(--store-border)', color: 'var(--store-heading)' }}>+ Følg</div>
+            </div>
+          </div>
+        </div>
+      );
+
     default:
       return <div className="text-xs opacity-60">{block.type}</div>;
   }

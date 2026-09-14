@@ -20,6 +20,7 @@ import ImageGallery from './blocks/ImageGallery.astro';
 import ContactInfo from './blocks/ContactInfo.astro';
 import StoreTeam from './blocks/StoreTeam.astro';
 import StoreActions from './blocks/StoreActions.astro';
+import StoreInfoColumns from './blocks/StoreInfoColumns.astro';
 import type { StoreViewer } from './blocks/types';
 
 interface Props {
@@ -44,7 +45,9 @@ const page = sanitizePageConfig(pageConfig);
 // without it. Owners reposition it by adding the block in the editor.
 const sortedBlocks = [...page.blocks].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
 let blocks = sortedBlocks;
-if (!sortedBlocks.some((b) => b.type === 'storeActions')) {
+// infoColumns already contains the follow controls, so don't double-inject.
+const hasFollow = sortedBlocks.some((b) => b.type === 'storeActions' || b.type === 'infoColumns');
+if (!hasFollow) {
   const heroIdx = sortedBlocks.findIndex((b) => b.type === 'hero');
   const injected = { id: 'actions-auto', type: 'storeActions' as StoreBlockType, layout: { x: 0, y: 0, w: 12, h: 1 }, props: {} };
   blocks = [...sortedBlocks];
@@ -61,6 +64,7 @@ const COMPONENTS: Record<StoreBlockType, any> = {
   contactInfo: ContactInfo,
   team: StoreTeam,
   storeActions: StoreActions,
+  infoColumns: StoreInfoColumns,
 };
 ---
 

@@ -1,0 +1,30 @@
+---
+// Two-column "section with sidebar" block: the About text as the main column,
+// and a right rail that stacks Contact + the favourite/follow controls. Uses
+// flexbox with align-items:flex-start so the rail's height is INDEPENDENT of the
+// (possibly tall) main column — something the flat storefront grid can't do.
+// Composes the existing block components so their markup lives in one place.
+import type { StoreBlockProps } from './types';
+import ContactInfo from './ContactInfo.astro';
+import StoreActions from './StoreActions.astro';
+
+const { store, props = {}, viewer } = Astro.props as StoreBlockProps;
+const heading = typeof props.heading === 'string' ? props.heading.trim() : '';
+const body = typeof props.body === 'string' ? props.body.trim() : '';
+---
+
+<div class="flex flex-col sm:flex-row items-start gap-6">
+  <!-- Main column (About) -->
+  {(heading || body) && (
+    <section class="flex-1 min-w-0 rounded-3xl p-6" style="background-color: var(--color-surface); border: 1px solid var(--store-border);">
+      {heading && <h2 class="font-serif mb-3" style="font-family: var(--font-display); font-size: calc(1.25rem * var(--store-heading-scale));">{heading}</h2>}
+      {body && <p class="store-body whitespace-pre-wrap leading-relaxed" style="color: var(--color-charcoal);">{body}</p>}
+    </section>
+  )}
+
+  <!-- Right rail: Contact + follow, stacked independently of the main column. -->
+  <div class="w-full sm:w-80 sm:shrink-0 flex flex-col gap-4">
+    <ContactInfo store={store} props={{ heading: 'Kontakt' }} />
+    <StoreActions store={store} viewer={viewer} />
+  </div>
+</div>
