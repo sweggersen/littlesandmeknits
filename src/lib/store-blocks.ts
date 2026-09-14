@@ -23,7 +23,8 @@ export type StoreBlockType =
   | 'imageBanner'
   | 'imageGallery'
   | 'contactInfo'
-  | 'team';
+  | 'team'
+  | 'storeActions';
 
 /** The bounded set of hero background-overlay styles. The overlay CSS is built
  *  ONLY from a clamped 0-100 number + one of these keys, never from a raw user
@@ -294,6 +295,16 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     defaultProps: { heading: '' },
     propSchema: [{ key: 'heading', kind: 'text', label: 'Overskrift (tomt = Eier/Teamet)' }],
     minW: 4, minH: 60, defaultW: 12, defaultH: 160,
+  },
+  storeActions: {
+    type: 'storeActions',
+    contentHeight: true,
+    singleton: true,
+    label: 'Følg og favoritt',
+    description: 'Knapper der kundene kan favorittmerke og følge butikken.',
+    defaultProps: {},
+    propSchema: [],
+    minW: 4, minH: 40, defaultW: 12, defaultH: 56,
   },
 };
 

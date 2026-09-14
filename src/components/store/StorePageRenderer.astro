@@ -19,6 +19,8 @@ import ImageBanner from './blocks/ImageBanner.astro';
 import ImageGallery from './blocks/ImageGallery.astro';
 import ContactInfo from './blocks/ContactInfo.astro';
 import StoreTeam from './blocks/StoreTeam.astro';
+import StoreActions from './blocks/StoreActions.astro';
+import type { StoreViewer } from './blocks/types';
 
 interface Props {
   store: Store;
@@ -27,14 +29,27 @@ interface Props {
   listings?: StorefrontListing[];
   assets?: StorefrontAsset[];
   members?: PublicStorefront['publicMembers'];
+  viewer?: StoreViewer;
 }
 
-const { store, theme, pageConfig, listings = [], assets = [], members = [] } = Astro.props as Props;
+const { store, theme, pageConfig, listings = [], assets = [], members = [], viewer } = Astro.props as Props;
 
 const cssVars = storeThemeToCssVars(theme);
 const page = sanitizePageConfig(pageConfig);
-// Flow top-to-bottom by y, then left-to-right by x.
-const blocks = [...page.blocks].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+
+// Favourite + follow is a platform-level control, so EVERY storefront shows it,
+// including stores whose custom page_config predates the block. If the owner
+// placed a storeActions block we honour their position; otherwise we inject one
+// right after the hero (or at the top when there's no hero) so no store is left
+// without it. Owners reposition it by adding the block in the editor.
+const sortedBlocks = [...page.blocks].sort((a, b) => a.layout.y - b.layout.y || a.layout.x - b.layout.x);
+let blocks = sortedBlocks;
+if (!sortedBlocks.some((b) => b.type === 'storeActions')) {
+  const heroIdx = sortedBlocks.findIndex((b) => b.type === 'hero');
+  const injected = { id: 'actions-auto', type: 'storeActions' as StoreBlockType, layout: { x: 0, y: 0, w: 12, h: 1 }, props: {} };
+  blocks = [...sortedBlocks];
+  blocks.splice(heroIdx + 1, 0, injected); // after the hero, or at index 0 when none
+}
 
 const COMPONENTS: Record<StoreBlockType, any> = {
   hero: StoreHero,
@@ -45,6 +60,7 @@ const COMPONENTS: Record<StoreBlockType, any> = {
   imageGallery: ImageGallery,
   contactInfo: ContactInfo,
   team: StoreTeam,
+  storeActions: StoreActions,
 };
 ---
 
@@ -62,7 +78,7 @@ const COMPONENTS: Record<StoreBlockType, any> = {
       const style = minH ? `--col-span:${block.layout.w};min-height:${minH}px` : `--col-span:${block.layout.w}`;
       return (
         <div class="store-block" style={style} data-block-type={block.type}>
-          <Comp store={store} props={block.props} listings={listings} assets={assets} members={members} />
+          <Comp store={store} props={block.props} listings={listings} assets={assets} members={members} viewer={viewer} />
         </div>
       );
     })}

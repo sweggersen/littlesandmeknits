@@ -10,4 +10,14 @@ export interface StoreBlockProps {
   assets?: StorefrontAsset[];
   /** Storefront-visible members, used by the `team` block. Other blocks ignore it. */
   members?: PublicStorefront['publicMembers'];
+  /** Current viewer's relationship to the store, used by the `storeActions`
+   *  block (favourite/follow). Other blocks ignore it. */
+  viewer?: StoreViewer;
+}
+
+export interface StoreViewer {
+  loggedIn: boolean;
+  isMember: boolean;
+  isFollowing: boolean;
+  isFavorite: boolean;
 }

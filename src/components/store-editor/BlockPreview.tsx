@@ -252,6 +252,26 @@ export default function BlockPreview({
         </div>
       );
 
+    case 'storeActions':
+      // The live block renders functional favourite/follow buttons; the editor
+      // draws a static sketch of them so the owner can place/size the block.
+      return (
+        <div className="flex items-center justify-center gap-2">
+          <div
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm"
+            style={{ border: '1px solid var(--store-border)', background: 'var(--color-surface)', color: 'var(--store-muted)' }}
+          >
+            <span aria-hidden>♡</span> Favoritt
+          </div>
+          <div
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium"
+            style={{ border: '1px solid var(--store-border)', background: 'var(--color-surface)', color: 'var(--store-heading)' }}
+          >
+            + Følg butikk
+          </div>
+        </div>
+      );
+
     default:
       return <div className="text-xs opacity-60">{block.type}</div>;
   }

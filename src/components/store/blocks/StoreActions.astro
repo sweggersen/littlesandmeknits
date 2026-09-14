@@ -1,0 +1,52 @@
+---
+// Favourite + follow controls as a first-class builder block, so every store
+// carries them in its design (placeable/positionable in the editor) rather than
+// as page chrome. Renders functional buttons for a logged-in non-member; anon
+// buttons redirect to login on click (handled by the controllers); a store's
+// own member sees them as a non-interactive preview ("this is how customers see
+// it") since following your own store is meaningless.
+import type { StoreBlockProps } from './types';
+
+const { store, viewer } = Astro.props as StoreBlockProps;
+const v = viewer ?? { loggedIn: false, isMember: false, isFollowing: false, isFavorite: false };
+
+// A member previews the block but can't act on their own store.
+const interactive = !v.isMember;
+const favActive = v.isFavorite;
+const followActive = v.isFollowing;
+---
+
+<div class="flex items-center justify-center gap-2 flex-wrap">
+  <button
+    type="button"
+    data-store-fav={interactive ? store.id : undefined}
+    aria-label={favActive ? 'Fjern butikk fra favoritter' : 'Lagre butikk som favoritt'}
+    aria-pressed={favActive ? 'true' : 'false'}
+    aria-disabled={interactive ? undefined : 'true'}
+    title={interactive ? undefined : 'Dette er butikken din'}
+    style={favActive ? 'color: var(--color-primary);' : ''}
+    class:list={['inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm border transition-colors',
+      'border-[var(--store-border)] bg-[var(--color-surface)]',
+      !favActive && 'text-[var(--store-muted)]',
+      interactive ? 'hover:border-[var(--color-primary)]' : 'cursor-default opacity-70']}
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={favActive ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    Favoritt
+  </button>
+
+  <button
+    type="button"
+    data-store-follow={interactive ? store.id : undefined}
+    aria-label="Følg butikken"
+    aria-pressed={followActive ? 'true' : 'false'}
+    aria-disabled={interactive ? undefined : 'true'}
+    title={interactive ? undefined : 'Dette er butikken din'}
+    class:list={['inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors',
+      followActive
+        ? 'bg-[var(--color-primary)] text-[var(--color-primary-fg)] border-[var(--color-primary)]'
+        : 'bg-[var(--color-surface)] text-[var(--store-heading)] border-[var(--store-border)]',
+      interactive ? 'hover:border-[var(--color-primary)]' : 'cursor-default opacity-70']}
+  >
+    <span data-follow-label>{followActive ? 'Følger' : '+ Følg butikk'}</span>
+  </button>
+</div>

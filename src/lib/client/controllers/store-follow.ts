@@ -24,6 +24,11 @@ export function init(): void {
       } finally {
         delete el.dataset.followBusy;
       }
+      // Anonymous visitor → send them to log in, then back to the store.
+      if (res.status === 401) {
+        window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
       if (!res.ok) return;
       const { following } = await res.json();
       el.setAttribute('aria-pressed', following ? 'true' : 'false');
