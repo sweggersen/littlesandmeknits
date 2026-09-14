@@ -75,7 +75,11 @@ const COMPONENTS: Record<StoreBlockType, any> = {
       // `.store-block > *` in global.css) so the extra height is WHITESPACE
       // INSIDE the bordered panel (matching the editor), not an empty gap below.
       const minH = def.contentHeight ? null : Math.max(0, block.layout.h - 12);
-      const style = minH ? `--col-span:${block.layout.w};min-height:${minH}px` : `--col-span:${block.layout.w}`;
+      // Pin each block to its designed column (x) + width (w) so the storefront
+      // matches the editor (WYSIWYG). CSS collapses to full-width on mobile.
+      const colStart = block.layout.x + 1;
+      const base = `--col-span:${block.layout.w};--col-start:${colStart}`;
+      const style = minH ? `${base};min-height:${minH}px` : base;
       return (
         <div class="store-block" style={style} data-block-type={block.type}>
           <Comp store={store} props={block.props} listings={listings} assets={assets} members={members} viewer={viewer} />

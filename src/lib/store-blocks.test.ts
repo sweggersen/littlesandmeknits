@@ -55,6 +55,25 @@ describe('sanitizePageConfig', () => {
     expect(cfg.blocks.map((b) => b.type)).toEqual(['hero', 'productGrid']);
   });
 
+  it('caps runaway heading + body text so a paste cannot blow out the layout', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [{
+        id: 't', type: 'textSection', layout: { x: 0, y: 0, w: 8, h: 3 },
+        props: { heading: 'H'.repeat(500), body: 'B'.repeat(9000) },
+      }],
+    });
+    expect((cfg.blocks[0].props.heading as string).length).toBe(120);
+    expect((cfg.blocks[0].props.body as string).length).toBe(1500);
+  });
+
+  it('respects the block x-position + width in the sanitised layout', () => {
+    const cfg = sanitizePageConfig({
+      blocks: [{ id: 'a', type: 'storeActions', layout: { x: 6, y: 3, w: 6, h: 1 }, props: {} }],
+    });
+    expect(cfg.blocks[0].layout.x).toBe(6);
+    expect(cfg.blocks[0].layout.w).toBe(6);
+  });
+
   it('merges block defaults under provided props', () => {
     const cfg = sanitizePageConfig({
       blocks: [{ id: 'h', type: 'hero', layout: {}, props: { tagline: 'Hei' } }],

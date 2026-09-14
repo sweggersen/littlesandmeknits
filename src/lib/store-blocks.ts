@@ -35,6 +35,9 @@ export type HeroOverlayStyle = (typeof HERO_OVERLAY_STYLES)[number];
 /** Hard cap on images in an imageGallery block. Enforced in the editor, again in
  *  sanitizePageConfig, and a third time at render in ImageGallery.astro. */
 export const MAX_GALLERY_IMAGES = 10;
+// Free-text caps so a pasted wall of text can't blow out the storefront layout.
+export const MAX_HEADING_LEN = 120;
+export const MAX_BODY_LEN = 1500;
 
 /** The hero's free-layout sub-elements. The owner can position each one inside
  *  the hero box; an absent key uses the default centred-stack position below. */
@@ -466,6 +469,10 @@ function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>
   } else if (type === 'imageGallery') {
     out.images = capAssetIds(out.images);
   }
+  // Length caps on any free-text prop, so a pasted wall of text can't blow out
+  // the storefront layout. Headings render as a line; body as a paragraph.
+  if (typeof out.heading === 'string') out.heading = out.heading.slice(0, MAX_HEADING_LEN);
+  if (typeof out.body === 'string') out.body = out.body.slice(0, MAX_BODY_LEN);
   return out;
 }
 

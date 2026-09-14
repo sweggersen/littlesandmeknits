@@ -1,7 +1,7 @@
 // Right-rail property panel: renders a form for the selected block, generated
 // from BLOCK_REGISTRY[type].propSchema. One input per PropField kind.
 import { useState } from 'react';
-import { BLOCK_REGISTRY, MAX_GALLERY_IMAGES } from '../../lib/store-blocks';
+import { BLOCK_REGISTRY, MAX_GALLERY_IMAGES, MAX_HEADING_LEN, MAX_BODY_LEN } from '../../lib/store-blocks';
 import type { StoreBlock, PropField } from '../../lib/store-blocks';
 import { projectPhotoUrl } from '../../lib/storage';
 import { STORE_EDITOR_LABELS as L } from '../../lib/labels';
@@ -146,6 +146,7 @@ function Field({
             value={typeof value === 'string' ? value : ''}
             onChange={(e) => onChange(e.target.value)}
             rows={4}
+            maxLength={MAX_BODY_LEN}
             className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm resize-y"
             data-prop={field.key}
           />
@@ -234,6 +235,7 @@ function Field({
             type={field.kind === 'url' ? 'url' : 'text'}
             value={typeof value === 'string' ? value : ''}
             placeholder={placeholder}
+            maxLength={field.kind === 'url' ? 300 : MAX_HEADING_LEN}
             onChange={(e) => onChange(e.target.value)}
             className="w-full bg-surface rounded-lg border border-sage-500/20 px-2.5 py-1.5 text-sm"
             data-prop={field.key}
