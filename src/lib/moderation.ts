@@ -476,17 +476,28 @@ export async function applyApproval(
     try {
       const { data: l } = await admin
         .from('listings')
-        .select('title, seller_id')
+        .select('title, seller_id, store_id')
         .eq('id', qi.item_id)
         .maybeSingle();
+      const { notifyFollowersOfNewListing, notifyStoreFollowersOfNewListing } = await import('./notify');
       if (l?.seller_id) {
         const { data: p } = await admin.from('profiles').select('display_name').eq('id', l.seller_id).maybeSingle();
-        const { notifyFollowersOfNewListing } = await import('./notify');
         await notifyFollowersOfNewListing(admin, {
           sellerId: l.seller_id,
           listingId: qi.item_id,
           listingTitle: l.title ?? 'Ny annonse',
           sellerName: p?.display_name,
+        }, runtimeEnv);
+      }
+      // Store-owned listing → also fan out to the store's followers.
+      if (l?.store_id) {
+        const { data: store } = await admin.from('stores').select('slug, name').eq('id', l.store_id).maybeSingle();
+        await notifyStoreFollowersOfNewListing(admin, {
+          storeId: l.store_id,
+          slug: store?.slug ?? '',
+          listingId: qi.item_id,
+          listingTitle: l.title ?? 'Ny annonse',
+          storeName: store?.name,
         }, runtimeEnv);
       }
     } catch (err) {

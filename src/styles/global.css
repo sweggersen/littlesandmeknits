@@ -413,14 +413,14 @@
 }
 /* Theme-level, per-element-TYPE body typography. Applied ONLY to block body
    text tagged with `.store-body` (paragraphs / value text) so headings are
-   untouched. Weight/style/decoration apply uniformly; font-size scales relative
-   to the element's inherited size (`1em`) so a `text-sm` value and a base
-   paragraph both scale by the same global factor while keeping their own base. */
+   untouched. Uses a FIXED rem base (not `1em`) so body text is the SAME size in
+   every panel — e.g. Kontakt's `text-sm` dl no longer shrinks its values below
+   the About paragraph. --store-body-scale still applies the theme's body scale. */
 .store-scope .store-body {
   font-weight: var(--store-body-weight);
   font-style: var(--store-body-style);
   text-decoration: var(--store-body-decoration);
-  font-size: calc(1em * var(--store-body-scale));
+  font-size: calc(1rem * var(--store-body-scale));
 }
 /* Delivery/status pills on store-scoped listing cards use the themeable tag
    colour, with text auto-contrasted to black or white (--store-tag-fg) so it is
@@ -448,22 +448,40 @@
 .store-editor-canvas .react-grid-item > .react-resizable-handle.react-resizable-handle-se::after {
   border-color: var(--store-muted);
 }
-.store-grid {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  gap: 1.5rem 1.5rem;
-  /* Keep content at a readable width, centered within the full-bleed page. */
+/* Storefront layout: a vertical flow of sections. Full-width blocks are their
+   own row; a multi-column section (.store-cols) lays its columns side by side,
+   each column (.store-col) an independent vertical stack — so a short rail sits
+   beside a tall main column (which a CSS grid row can't do). */
+.store-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
   max-width: 64rem;
   margin: 0 auto;
 }
-.store-block {
-  grid-column: span 12;
+.store-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.store-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
   min-width: 0;
 }
 @media (min-width: 768px) {
-  .store-block {
-    grid-column: span var(--col-span, 12);
+  .store-cols {
+    flex-direction: row;
+    align-items: flex-start; /* columns keep their own height */
   }
+  .store-col {
+    /* Width proportional to the designed column span (w/12). */
+    flex: var(--col-grow, 12) 1 0%;
+  }
+}
+.store-block {
+  min-width: 0;
 }
 /* Each block's card fills its grid cell. Flexible blocks carry a min-height from
    the editor y-resize, so the card grows to that height and the extra space is

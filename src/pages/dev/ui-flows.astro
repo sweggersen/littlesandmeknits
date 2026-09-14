@@ -264,6 +264,28 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         ],
       },
 
+      // ─────────── E2E: Følg butikk + feed (Butikker Phase 2) ──────────
+      {
+        id: 'e2e-store-follow',
+        title: 'E2E — Liv følger en butikk og ser feeden',
+        persona: 'liv',
+        steps: [
+          {
+            action: 'apiCall', exec: 'seed-store', actor: 'eline@test.strikketorget.no',
+            params: { slug: 'e2e-folg-butikk', name: 'E2E demo: Følgbar butikk' },
+            label: 'Seed butikk (Eline eier)',
+          },
+          // Liv (kjøper, ikke medlem) ser handlingslinjen med Favoritt + Følg.
+          { action: 'goto', url: '/market/store/e2e-folg-butikk', label: 'Storefront (Liv)' },
+          { action: 'expectText', text: '+ Følg butikk' },
+          { action: 'click', selector: '[data-store-follow]', label: 'Følg butikken' },
+          { action: 'expectText', text: 'Følger' },
+          // Butikker-oversikten viser «Nye fra butikker du følger» når butikken
+          // har aktive annonser.
+          { action: 'goto', url: '/market/stores', label: 'Butikker-oversikt' },
+        ],
+      },
+
       // ─────────── E2E: Oppdrag — opprett, tilbud, aksept ──────────────
       // Real UI clicks throughout (form fills + real submits). Only the
       // payment step is faked since Stripe Checkout opens outside the iframe.

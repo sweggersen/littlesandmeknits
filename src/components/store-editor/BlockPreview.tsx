@@ -56,7 +56,9 @@ function bodyStyle(extra?: CSSProperties): CSSProperties {
     fontWeight: 'var(--store-body-weight)',
     fontStyle: 'var(--store-body-style)',
     textDecoration: 'var(--store-body-decoration)',
-    fontSize: 'calc(1em * var(--store-body-scale))',
+    // rem (not em) so body text is the SAME size in every panel, regardless of
+    // any wrapper's font-size (e.g. ContactInfo's text-sm dl).
+    fontSize: 'calc(0.875rem * var(--store-body-scale))',
     ...extra,
   } as CSSProperties;
 }
@@ -248,6 +250,26 @@ export default function BlockPreview({
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      );
+
+    case 'storeActions':
+      // The live block renders functional favourite/follow buttons; the editor
+      // draws a static sketch of them so the owner can place/size the block.
+      return (
+        <div className="flex items-center justify-center gap-2 flex-wrap py-1">
+          <div
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm"
+            style={{ border: '1px solid var(--store-border)', background: 'var(--color-surface)', color: 'var(--store-muted)' }}
+          >
+            <span aria-hidden>♡</span> Favoritt
+          </div>
+          <div
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium"
+            style={{ border: '1px solid var(--store-border)', background: 'var(--color-surface)', color: 'var(--store-heading)' }}
+          >
+            + Følg butikk
           </div>
         </div>
       );

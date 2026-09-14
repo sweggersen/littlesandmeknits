@@ -47,6 +47,10 @@ const GAP = 12;
 // (no handles). Flexible blocks are user-sized via the bottom-right corner,
 // which adjusts width and height together.
 const FLEX_HANDLES: Layout['resizeHandles'] = ['se'];
+// The storeActions block resizes in WIDTH only (east handle); its height is
+// content-driven. Free width (down to minW) so it can match the column it sits
+// in — e.g. a narrow rail beside a wide Om butikken.
+const WIDTH_HANDLES: Layout['resizeHandles'] = ['e'];
 
 export default function EditorCanvas({
   blocks,
@@ -166,15 +170,21 @@ export default function EditorCanvas({
   }
 
   const layout = blocksToGrid(blocks).map((item) => {
-    const content = BLOCK_REGISTRY[typeById[item.i]]?.contentHeight;
+    const type = typeById[item.i];
     // Cell height = natural content + the uniform bottom spacer.
     const floor = (rowSpans[item.i] ?? item.h) + GAP;
+    // storeActions: content height, but width-resizable via the east handle.
+    if (type === 'storeActions') {
+      return { ...item, h: floor, resizeHandles: WIDTH_HANDLES, isResizable: true };
+    }
+    const content = BLOCK_REGISTRY[type]?.contentHeight;
     return content
       ? { ...item, h: floor, resizeHandles: [], isResizable: false }
       // Never shorter than the content, so flexible blocks can't clip their
       // text; the user's corner-drag only adds space beyond that floor.
       : { ...item, h: Math.max(floor, item.h), resizeHandles: FLEX_HANDLES };
   });
+
 
   return (
     <div

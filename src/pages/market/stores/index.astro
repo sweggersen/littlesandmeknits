@@ -6,7 +6,9 @@ import LoadMore from '../../../components/LoadMore.astro';
 import StoreCard from '../../../components/StoreCard.astro';
 import DirectoryToolbar from '../../../components/DirectoryToolbar.astro';
 import { createServerSupabase } from '../../../lib/supabase';
-import { listStores, listStoreCities, type StoreSort } from '../../../lib/services/store-directory';
+import ListingCard from '../../../components/ListingCard.astro';
+import { projectPhotoUrl } from '../../../lib/storage';
+import { listStores, listStoreCities, listFollowedStoreListings, type StoreSort } from '../../../lib/services/store-directory';
 
 const url = Astro.url;
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
@@ -41,6 +43,12 @@ const result = await listStores(
 );
 
 const cities = await listStoreCities({ supabase, user: user ? { id: user.id } : null });
+
+// "Nye fra butikker du følger" strip — only when browsing (not filtering) and
+// the user follows stores that have active listings.
+const followedListings = (!hasFilters && user)
+  ? await listFollowedStoreListings({ supabase, user: { id: user.id } }, 8)
+  : [];
 
 const { recommended, results, nextCursor, located, sort } = result.ok
   ? result.data
@@ -111,6 +119,25 @@ const nextPageParams = (() => {
         )}
       </div>
     </DirectoryToolbar>
+
+    {followedListings.length > 0 && (
+      <section class="mb-8">
+        <div class="flex items-baseline justify-between mb-3">
+          <h2 class="font-serif text-lg">Nye fra butikker du følger</h2>
+        </div>
+        <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+          {followedListings.map((l) => (
+            <ListingCard
+              id={l.id}
+              title={l.title}
+              price={l.price_nok}
+              imgUrl={projectPhotoUrl(l.hero_photo_path)}
+              meta={l.storeName}
+            />
+          ))}
+        </ul>
+      </section>
+    )}
 
     {showRecommended && (
       <section class="mb-8">

@@ -1,0 +1,52 @@
+---
+// One storefront block: picks the right block component and wraps it so a
+// flexible block honours the editor y-resize as a min-height (the card fills it,
+// see `.store-block > *` in global.css). Used by StorePageRenderer for both
+// full-width rows and the blocks inside a multi-column section.
+import { BLOCK_REGISTRY } from '../../lib/store-blocks';
+import type { StorefrontListing, StorefrontAsset, StoreBlock, StoreBlockType } from '../../lib/store-blocks';
+import type { Store, PublicStorefront } from '../../lib/types/stores';
+import StoreHero from './blocks/StoreHero.astro';
+import ProductGrid from './blocks/ProductGrid.astro';
+import FeaturedProducts from './blocks/FeaturedProducts.astro';
+import TextSection from './blocks/TextSection.astro';
+import ImageBanner from './blocks/ImageBanner.astro';
+import ImageGallery from './blocks/ImageGallery.astro';
+import ContactInfo from './blocks/ContactInfo.astro';
+import StoreTeam from './blocks/StoreTeam.astro';
+import StoreActions from './blocks/StoreActions.astro';
+import type { StoreViewer } from './blocks/types';
+
+interface Props {
+  block: StoreBlock;
+  store: Store;
+  listings?: StorefrontListing[];
+  assets?: StorefrontAsset[];
+  members?: PublicStorefront['publicMembers'];
+  viewer?: StoreViewer;
+}
+
+const COMPONENTS: Record<StoreBlockType, any> = {
+  hero: StoreHero,
+  productGrid: ProductGrid,
+  featuredProducts: FeaturedProducts,
+  textSection: TextSection,
+  imageBanner: ImageBanner,
+  imageGallery: ImageGallery,
+  contactInfo: ContactInfo,
+  team: StoreTeam,
+  storeActions: StoreActions,
+};
+
+const { block, store, listings = [], assets = [], members = [], viewer } = Astro.props as Props;
+const def = BLOCK_REGISTRY[block.type];
+const Comp = COMPONENTS[block.type];
+// Flexible (non-contentHeight) blocks honour the editor y-resize as a min-height.
+const minH = def && !def.contentHeight ? Math.max(0, block.layout.h - 12) : 0;
+---
+
+{Comp && def && (
+  <div class="store-block" style={minH ? `min-height:${minH}px` : undefined} data-block-type={block.type}>
+    <Comp store={store} props={block.props} listings={listings} assets={assets} members={members} viewer={viewer} />
+  </div>
+)}

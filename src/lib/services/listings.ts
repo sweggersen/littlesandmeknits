@@ -199,16 +199,28 @@ export async function publishListing(
     // Trusted seller publishes straight to active — notify followers now.
     try {
       const [{ data: l }, { data: profile }] = await Promise.all([
-        ctx.admin.from('listings').select('title').eq('id', input.listingId).maybeSingle(),
+        ctx.admin.from('listings').select('title, store_id').eq('id', input.listingId).maybeSingle(),
         ctx.admin.from('profiles').select('display_name').eq('id', ctx.user.id).maybeSingle(),
       ]);
-      const { notifyFollowersOfNewListing } = await import('../notify');
+      const { notifyFollowersOfNewListing, notifyStoreFollowersOfNewListing } = await import('../notify');
       await notifyFollowersOfNewListing(ctx.admin, {
         sellerId: ctx.user.id,
         listingId: input.listingId,
         listingTitle: l?.title ?? 'Ny annonse',
         sellerName: profile?.display_name,
       }, ctx.env);
+      // Store-owned listing → also fan out to the store's followers.
+      if (l?.store_id) {
+        const { data: store } = await ctx.admin
+          .from('stores').select('slug, name').eq('id', l.store_id).maybeSingle();
+        await notifyStoreFollowersOfNewListing(ctx.admin, {
+          storeId: l.store_id,
+          slug: store?.slug ?? '',
+          listingId: input.listingId,
+          listingTitle: l?.title ?? 'Ny annonse',
+          storeName: store?.name,
+        }, ctx.env);
+      }
     } catch (err) {
       await recordDeadLetter(ctx, {
         service: 'listings.publishListing:follower-fanout',

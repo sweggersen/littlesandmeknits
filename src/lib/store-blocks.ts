@@ -23,7 +23,8 @@ export type StoreBlockType =
   | 'imageBanner'
   | 'imageGallery'
   | 'contactInfo'
-  | 'team';
+  | 'team'
+  | 'storeActions';
 
 /** The bounded set of hero background-overlay styles. The overlay CSS is built
  *  ONLY from a clamped 0-100 number + one of these keys, never from a raw user
@@ -34,6 +35,9 @@ export type HeroOverlayStyle = (typeof HERO_OVERLAY_STYLES)[number];
 /** Hard cap on images in an imageGallery block. Enforced in the editor, again in
  *  sanitizePageConfig, and a third time at render in ImageGallery.astro. */
 export const MAX_GALLERY_IMAGES = 10;
+// Free-text caps so a pasted wall of text can't blow out the storefront layout.
+export const MAX_HEADING_LEN = 120;
+export const MAX_BODY_LEN = 1500;
 
 /** The hero's free-layout sub-elements. The owner can position each one inside
  *  the hero box; an absent key uses the default centred-stack position below. */
@@ -295,6 +299,18 @@ export const BLOCK_REGISTRY: Record<StoreBlockType, BlockDef> = {
     propSchema: [{ key: 'heading', kind: 'text', label: 'Overskrift (tomt = Eier/Teamet)' }],
     minW: 4, minH: 60, defaultW: 12, defaultH: 160,
   },
+  storeActions: {
+    // Content height (buttons only, no vertical resize), but WIDTH-resizable via
+    // the east handle, snapped to half (6) or full (12) columns — see EditorCanvas.
+    type: 'storeActions',
+    contentHeight: true,
+    singleton: true,
+    label: 'Følg og favoritt',
+    description: 'Knapper der kundene kan favorittmerke og følge butikken.',
+    defaultProps: {},
+    propSchema: [],
+    minW: 4, minH: 48, defaultW: 12, defaultH: 56,
+  },
 };
 
 export const STORE_BLOCK_TYPES = Object.keys(BLOCK_REGISTRY) as StoreBlockType[];
@@ -453,6 +469,10 @@ function sanitizeBlockProps(type: StoreBlockType, props: Record<string, unknown>
   } else if (type === 'imageGallery') {
     out.images = capAssetIds(out.images);
   }
+  // Length caps on any free-text prop, so a pasted wall of text can't blow out
+  // the storefront layout. Headings render as a line; body as a paragraph.
+  if (typeof out.heading === 'string') out.heading = out.heading.slice(0, MAX_HEADING_LEN);
+  if (typeof out.body === 'string') out.body = out.body.slice(0, MAX_BODY_LEN);
   return out;
 }
 

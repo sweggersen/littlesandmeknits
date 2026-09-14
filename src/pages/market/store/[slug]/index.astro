@@ -30,6 +30,18 @@ const rawStore = ctx ? await getStoreBySlugAdmin(ctx, slug) : null;
 // has favourited this store. No-op (0 rows) when it isn't favourited.
 if (ctx && rawStore) await markStoreSeen(ctx, rawStore.id);
 
+// Viewer's relationship to the store, for the storeActions block (favourite +
+// follow). Computed once here (blocks do no I/O) and passed to the renderer.
+let viewer = { loggedIn: false, isMember: false, isFollowing: false, isFavorite: false };
+if (ctx && rawStore) {
+  const [{ data: mem }, { data: fol }, { data: fav }] = await Promise.all([
+    supabase.from('store_members').select('user_id').eq('store_id', rawStore.id).eq('user_id', ctx.user.id).maybeSingle(),
+    supabase.from('store_follows').select('store_id').eq('store_id', rawStore.id).eq('follower_id', ctx.user.id).maybeSingle(),
+    supabase.from('store_favorites').select('store_id').eq('store_id', rawStore.id).eq('user_id', ctx.user.id).maybeSingle(),
+  ]);
+  viewer = { loggedIn: true, isMember: !!mem, isFollowing: !!fol, isFavorite: !!fav };
+}
+
 // For anonymous viewers: only active stores are visible.
 let storefront;
 let previewBanner: 'pending_review' | 'suspended' | 'archived' | null = null;
@@ -196,6 +208,7 @@ const storeShare = storeShareMeta({
       listings={listings ?? []}
       assets={storeAssets}
       members={publicMembers}
+      viewer={viewer}
     />
 
     <!-- Report control: sits at the very bottom for both storefront paths.
@@ -204,4 +217,12 @@ const storeShare = storeShareMeta({
       <ReportButton targetType="store" targetId={store.id} label={REPORT_TARGET_LABEL.store} />
     </div>
   </MarketplaceShell>
+
+  <script>
+    import { init as favInit } from '../../../../lib/client/controllers/store-fav';
+    import { init as followInit } from '../../../../lib/client/controllers/store-follow';
+    import { registerController } from '../../../../lib/client/dom';
+    registerController(favInit);
+    registerController(followInit);
+  </script>
 </Layout>
