@@ -37,5 +37,12 @@ export default defineConfig({
     resolve: {
       dedupe: ['react', 'react-dom'],
     },
+    // Pre-bundle Leaflet at server start. Without this it optimizes lazily on
+    // first import of the Butikker "Kart" view, forcing a mid-session dep
+    // re-optimization + reload that can duplicate React and break island
+    // hydration ("Invalid hook call" — see CLAUDE.md's Vite-cache note).
+    optimizeDeps: {
+      include: ['leaflet', 'leaflet.markercluster'],
+    },
   },
 });

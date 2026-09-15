@@ -9,7 +9,7 @@ import { can } from './store-permissions';
 import { getMyRole } from './store-members';
 import { assertWithinQuota } from './quota';
 import { recordDeadLetter } from './dead-letter';
-import { geocodePostnummer } from '../geocode';
+import { geocodeAddress, geocodePostnummer } from '../geocode';
 import type { Store, StoreStatus, PublicStorefront } from '../types/stores';
 
 const STORE_SELECT = '*';
@@ -20,22 +20,31 @@ function cleanPostnummer(raw: string | null | undefined): string | null {
   return pn.length === 4 ? pn : null;
 }
 
-/** Geocode a store's postnummer to a COARSE area centroid and persist
- *  lat/lng/geocoded_at. Best-effort: on any failure it dead-letters and leaves
- *  the coords null (the store just won't appear in the "Nærmest" sort), never
- *  blocking the caller. Never geocodes the exact address. */
+/** Compose the Kartverket free-text query for a store's exact address. */
+function storeAddressQuery(address: string, postnummer: string, city: string | null): string {
+  return [address, [postnummer, city].filter(Boolean).join(' ')].filter(Boolean).join(', ').trim();
+}
+
+/** Geocode a store's location and persist lat/lng/geocoded_at. Unlike an
+ *  individual seller (coarse postnummer centroid, for privacy), a store is a
+ *  business whose location is public, so we resolve its EXACT address first and
+ *  only fall back to the postnummer centroid if the address doesn't resolve.
+ *  Best-effort: on total failure it dead-letters and leaves the coords null
+ *  (the store just won't appear on the map / "Nærmest"), never blocking the
+ *  caller. */
 async function geocodeStoreCoords(
   ctx: ServiceContext,
   storeId: string,
-  postnummer: string,
-  city: string | null,
+  opts: { addressQuery?: string | null; postnummer: string; city: string | null },
 ): Promise<void> {
-  const point = await geocodePostnummer(postnummer, city);
+  const point =
+    (opts.addressQuery ? await geocodeAddress(opts.addressQuery) : null) ??
+    (await geocodePostnummer(opts.postnummer, opts.city));
   if (!point) {
     await recordDeadLetter(ctx, {
       service: 'stores.geocode',
-      context: { storeId, postnummer },
-      error: 'Kartverket returned no coordinate for postnummer',
+      context: { storeId, postnummer: opts.postnummer },
+      error: 'Kartverket returned no coordinate for store address or postnummer',
     });
     return;
   }
@@ -46,7 +55,7 @@ async function geocodeStoreCoords(
   if (error) {
     await recordDeadLetter(ctx, {
       service: 'stores.geocode',
-      context: { storeId, postnummer },
+      context: { storeId, postnummer: opts.postnummer },
       error,
     });
   }
@@ -200,8 +209,14 @@ export async function createStore(
     return fail('server_error', 'Kunne ikke lagre adresse');
   }
 
-  // Coarse geocode from the postnummer (best-effort, dead-letters on failure).
-  await geocodeStoreCoords(ctx, store.id, postnummer, org?.city ?? null);
+  // Exact geocode from the store's street address (best-effort; falls back to
+  // the postnummer centroid, dead-letters only on total failure).
+  const geoCity = input.location_city?.trim() || org?.city || null;
+  await geocodeStoreCoords(ctx, store.id, {
+    addressQuery: storeAddressQuery(preciseAddress, postnummer, geoCity),
+    postnummer,
+    city: geoCity,
+  });
 
   // Creator becomes Owner
   const { error: memberErr } = await ctx.admin.from('store_members').insert({
@@ -346,9 +361,22 @@ export async function updateStore(
     }
   }
 
-  // Re-geocode only when the postnummer actually changed (coarse, best-effort).
-  if (postnummer !== undefined && postnummer !== currentPostnummer) {
-    await geocodeStoreCoords(ctx, storeId, postnummer, city);
+  // Re-geocode when the postnummer OR the exact address changed (exact-first,
+  // best-effort). Fetch the current address when the caller didn't send one.
+  const postnummerChanged = postnummer !== undefined && postnummer !== currentPostnummer;
+  if (postnummerChanged || preciseAddress !== undefined) {
+    let address = preciseAddress;
+    if (address === undefined) {
+      const { data: pd } = await ctx.admin
+        .from('store_private_details').select('precise_address').eq('store_id', storeId).maybeSingle();
+      address = (pd as { precise_address?: string } | null)?.precise_address;
+    }
+    const pn = postnummer ?? currentPostnummer ?? '';
+    await geocodeStoreCoords(ctx, storeId, {
+      addressQuery: address ? storeAddressQuery(address, pn, city) : null,
+      postnummer: pn,
+      city,
+    });
   }
 
   return ok({ ok: true });

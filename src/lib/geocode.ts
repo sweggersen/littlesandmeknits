@@ -1,10 +1,12 @@
-// Coarse geocoding via Kartverket (Geonorge) — free, official, no API key.
+// Geocoding via Kartverket (Geonorge) — free, official, no API key.
 //
-// We deliberately resolve the POSTNUMMER area centroid ONLY, never a street
-// address. The resulting coordinate is coarse by design: good enough for a
-// distance sort and a city-level map marker, but it cannot reveal a home. The
-// store's exact address (store_private_details.precise_address) is never passed
-// here — it exists purely as a private fraud/verification signal.
+// Two granularities, chosen by WHO is being located:
+//  - geocodePostnummer(): a POSTNUMMER area centroid — coarse by design. Used
+//    for individual SELLERS so a distance sort / city-level marker can never
+//    reveal a home address.
+//  - geocodeAddress(): a full STREET address's exact point. Used for STORES
+//    only — a store is a business whose location is public (its pin sits on the
+//    shop). Never call this for an individual seller.
 
 export interface GeoPoint {
   lat: number;
@@ -48,6 +50,36 @@ export async function geocodePostnummer(
     return null;
   }
   return parseKartverketPoint(json);
+}
+
+/** Resolve a full STREET address to its exact point. Used for STORES only —
+ *  they're businesses whose location is public (unlike an individual seller,
+ *  who is geocoded to a coarse postnummer centroid via geocodePostnummer). The
+ *  top /sok hit's representasjonspunkt is the address's exact coordinate.
+ *  Returns null on a short query, no hit, or any network/parse failure; never
+ *  throws, so the caller can fall back to the coarse postnummer centroid. */
+export async function geocodeAddress(
+  query: string | null | undefined,
+  opts?: { fetch?: typeof fetch; signal?: AbortSignal },
+): Promise<GeoPoint | null> {
+  const q = (query ?? '').trim();
+  if (q.length < 5) return null;
+  const doFetch = opts?.fetch ?? fetch;
+  const params = new URLSearchParams({
+    sok: q,
+    treffPerSide: '1',
+    asciiKompatibel: 'true',
+  });
+  try {
+    const res = await doFetch(`${KARTVERKET_SOK}?${params.toString()}`, {
+      headers: { accept: 'application/json' },
+      signal: opts?.signal ?? AbortSignal.timeout(GEOCODE_TIMEOUT_MS),
+    });
+    if (!res.ok) return null;
+    return parseKartverketPoint(await res.json());
+  } catch {
+    return null;
+  }
 }
 
 /** Pull the first representasjonspunkt out of a Kartverket /sok response.
