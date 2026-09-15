@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { parseKartverketPoint, haversineKm, geocodePostnummer, parseAddressHits, searchAddresses } from './geocode';
+import { parseKartverketPoint, haversineKm, geocodePostnummer, geocodeAddress, parseAddressHits, searchAddresses } from './geocode';
 
 describe('parseKartverketPoint', () => {
   it('pulls the first representasjonspunkt', () => {
@@ -57,6 +57,36 @@ describe('geocodePostnummer', () => {
   it('returns null on a non-ok response', async () => {
     const fetchMock = vi.fn(async () => new Response('nope', { status: 500 }));
     expect(await geocodePostnummer('0123', 'Oslo', { fetch: fetchMock as unknown as typeof fetch })).toBeNull();
+  });
+});
+
+describe('geocodeAddress', () => {
+  it('skips the network for a too-short query', async () => {
+    const fetchMock = vi.fn();
+    expect(await geocodeAddress('a', { fetch: fetchMock as unknown as typeof fetch })).toBeNull();
+    expect(await geocodeAddress('', { fetch: fetchMock as unknown as typeof fetch })).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('resolves the exact address point from the top hit', async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      // Free-text address search (sok=), not a postnummer= lookup.
+      expect(url).toContain('sok=');
+      return new Response(JSON.stringify({
+        adresser: [{ representasjonspunkt: { lat: 59.9139, lon: 10.7522 } }],
+      }), { status: 200 });
+    });
+    const point = await geocodeAddress('Karl Johans gate 1, 0154 Oslo', { fetch: fetchMock as unknown as typeof fetch });
+    expect(point).toEqual({ lat: 59.9139, lng: 10.7522 });
+  });
+
+  it('returns null (never throws) on failure or no hit', async () => {
+    expect(await geocodeAddress('Karl Johans gate 1', {
+      fetch: (async () => { throw new Error('offline'); }) as unknown as typeof fetch,
+    })).toBeNull();
+    expect(await geocodeAddress('Nowhere 999', {
+      fetch: (async () => new Response(JSON.stringify({ adresser: [] }), { status: 200 })) as unknown as typeof fetch,
+    })).toBeNull();
   });
 });
 

@@ -709,3 +709,76 @@ html.pwa-preview [data-public-only] { display: none; }
 html.pwa-preview body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 html.pwa-preview [data-studio-tabbar] { display: flex !important; }
 
+
+/* ── Butikker "Kart" view (Leaflet) ─────────────────────────────────────
+   The map is a client island (src/lib/client/controllers/store-map.ts) that
+   dynamically imports Leaflet + its CSS. These rules style the container,
+   the custom brand pins (divIcon), and the popup so the map reads as part of
+   the linen/sage palette rather than stock Leaflet blue. Leaflet's own panes
+   sit at z-index 400+, so keep the container below the site nav (z-50). */
+[data-store-map] {
+  height: clamp(24rem, 62vh, 40rem);
+  width: 100%;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid rgb(from var(--color-sage-500) r g b / 0.15);
+  background: var(--color-linen);
+  z-index: 0;
+}
+.leaflet-container { font: inherit; }
+.store-map-error {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; padding: 2rem; text-align: center;
+  color: rgb(from var(--color-charcoal) r g b / 0.6); font-size: 0.9rem;
+}
+/* Brand pin: a terracotta teardrop with an optional listing count. The dot is
+   purely decorative — pointer-events:none so clicks land on the interactive
+   Leaflet marker div itself (a rotated child would otherwise intercept). */
+.store-map-pin__dot {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  background: var(--color-terracotta-500);
+  border: 2px solid #fff;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+  pointer-events: none;
+}
+.store-map-pin__dot.is-verified { background: var(--color-sage-600, var(--color-sage-500)); }
+/* Cluster badge: a terracotta disc with the store count, matching the pins.
+   The circle + centering live on the nested badge (not the .leaflet-marker-icon
+   wrapper, whose Leaflet rule would win on source order and off-centre it). */
+.store-map-cluster__badge {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  background: var(--color-terracotta-500);
+  color: #fff; font-weight: 700; font-size: 13px; line-height: 1;
+  border: 2px solid #fff; border-radius: 50%;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.store-map-pin__count {
+  transform: rotate(45deg);
+  color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+}
+.store-map-popup .leaflet-popup-content,
+.leaflet-popup-content .store-map-popup { margin: 0; }
+/* Scope under .leaflet-popup-content so these out-rank Leaflet's own
+   .leaflet-container a (colours links blue) and .leaflet-popup-content-wrapper
+   (colours text #333), which are injected AFTER global.css at runtime. Solid
+   colours (no relative-color syntax) so nothing silently drops to inherited. */
+.leaflet-popup-content .store-map-popup__name {
+  font-family: var(--font-serif, serif);
+  font-size: 0.95rem; font-weight: 600;
+  color: var(--color-terracotta-700, #9c4a2f);
+  text-decoration: none;
+}
+.leaflet-popup-content .store-map-popup__name:hover { text-decoration: underline; }
+.leaflet-popup-content .store-map-popup__place {
+  font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: rgb(44 42 38 / 0.75);
+  margin-top: 3px;
+}
+.leaflet-popup-content .store-map-popup__meta {
+  font-size: 0.8rem; color: #2C2A26;
+  margin-top: 4px;
+}

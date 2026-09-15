@@ -8,9 +8,14 @@ import { createFakeDb } from './__test_helpers__/fake-db';
 const lookupOrgnr = vi.fn();
 vi.mock('../brreg', () => ({ lookupOrgnr: (...a: unknown[]) => lookupOrgnr(...a) }));
 vi.mock('../notify', () => ({ notifyModeratorsNewItem: vi.fn(async () => {}) }));
-// Stub the Kartverket geocoder so createStore's coarse-geocode step doesn't hit
-// the network. The geocoder itself is covered by geocode.test.ts.
-vi.mock('../geocode', () => ({ geocodePostnummer: vi.fn(async () => ({ lat: 59.9, lng: 10.7 })) }));
+// Stub the Kartverket geocoder so createStore's geocode step doesn't hit the
+// network. Stores geocode their EXACT address first (geocodeAddress), falling
+// back to the postnummer centroid. The geocoder itself is covered by
+// geocode.test.ts.
+vi.mock('../geocode', () => ({
+  geocodeAddress: vi.fn(async () => ({ lat: 59.9, lng: 10.7 })),
+  geocodePostnummer: vi.fn(async () => ({ lat: 59.9, lng: 10.7 })),
+}));
 
 import { createStore } from './stores';
 

@@ -217,6 +217,51 @@ export async function listStoreCities(ctx: DirectoryContext): Promise<string[]> 
   return [...set].sort((a, b) => a.localeCompare(b, 'nb'));
 }
 
+export interface StoreMapMarker {
+  id: string;
+  slug: string;
+  name: string;
+  location_city: string | null;
+  postnummer: string | null;
+  verified: boolean;
+  active_listing_count: number;
+  lat: number;
+  lng: number;
+}
+
+const MAP_MARKER_CAP = 500;
+
+/** Located stores for the directory's "Kart" view — every publicly visible
+ *  store with postnummer-centroid coords, respecting the active filters.
+ *  Coords are coarse (postnummer centroid), never a home address. Capped so a
+ *  huge directory can't build an unbounded payload. */
+export async function listStoreMapMarkers(
+  ctx: DirectoryContext,
+  filters: StoreFilters = {},
+): Promise<StoreMapMarker[]> {
+  const { data, error } = await baseQuery(ctx, filters)
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .limit(MAP_MARKER_CAP);
+  if (error) {
+    console.error('listStoreMapMarkers query failed', error);
+    return [];
+  }
+  return ((data ?? []) as RawRow[])
+    .map((r) => ({
+      id: r.id as string,
+      slug: r.slug as string,
+      name: r.name as string,
+      location_city: (r.location_city as string | null) ?? null,
+      postnummer: (r.postnummer as string | null) ?? null,
+      verified: !!r.verified,
+      active_listing_count: Number(r.active_listing_count ?? 0),
+      lat: r.lat as number,
+      lng: r.lng as number,
+    }))
+    .filter((m) => typeof m.lat === 'number' && typeof m.lng === 'number');
+}
+
 export async function listStores(
   ctx: DirectoryContext,
   input: ListStoresInput,

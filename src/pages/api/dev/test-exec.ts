@@ -925,7 +925,12 @@ async function handle(
         legal_status: 'aktiv',
         name,
         tagline: 'Håndlagde plagg, fra norske strikkere.',
-        location_city: 'Oslo',
+        location_city: (p.location_city as string) ?? 'Oslo',
+        postnummer: (p.postnummer as string) ?? null,
+        // Coarse postnummer-centroid coords — lets the Butikker "Kart" view
+        // plot the store without running the Kartverket geocode in tests.
+        lat: typeof p.lat === 'number' ? (p.lat as number) : null,
+        lng: typeof p.lng === 'number' ? (p.lng as number) : null,
         contact_email: 'hei@trad-og-garn.no',
         status: 'active',
       }).select('id, slug').single();

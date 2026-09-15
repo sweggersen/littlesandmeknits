@@ -8,7 +8,7 @@ import DirectoryToolbar from '../../../components/DirectoryToolbar.astro';
 import { createServerSupabase } from '../../../lib/supabase';
 import ListingCard from '../../../components/ListingCard.astro';
 import { projectPhotoUrl } from '../../../lib/storage';
-import { listStores, listStoreCities, listFollowedStoreListings, type StoreSort } from '../../../lib/services/store-directory';
+import { listStores, listStoreCities, listFollowedStoreListings, listStoreMapMarkers, type StoreSort } from '../../../lib/services/store-directory';
 
 const url = Astro.url;
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
@@ -20,6 +20,7 @@ const minRating = parseInt(url.searchParams.get('vurdering') ?? '', 10);
 const hasActiveListings = url.searchParams.get('aktive') === '1';
 const maxDistanceKm = parseInt(url.searchParams.get('avstand') ?? '', 10);
 const cursor = url.searchParams.get('cursor');
+const view: 'liste' | 'kart' = url.searchParams.get('vis') === 'kart' ? 'kart' : 'liste';
 
 const hasFilters = !!(city || (Number.isFinite(minRating) && minRating > 0) || hasActiveListings);
 const filterCount = [city, Number.isFinite(minRating) && minRating > 0, hasActiveListings].filter(Boolean).length;
@@ -43,6 +44,30 @@ const result = await listStores(
 );
 
 const cities = await listStoreCities({ supabase, user: user ? { id: user.id } : null });
+
+// Map view: every located store (all pages, filters applied). Coarse
+// postnummer-centroid coords, handed to the client island as JSON.
+const mapMarkers = view === 'kart'
+  ? await listStoreMapMarkers(
+      { supabase, user: user ? { id: user.id } : null },
+      {
+        city,
+        minRating: Number.isFinite(minRating) ? minRating : null,
+        hasActiveListings,
+      },
+    )
+  : [];
+
+// Query strings for the Liste/Kart toggle — preserve every param but `vis`
+// (and drop the list-only pagination cursor when switching).
+const viewHref = (v: 'liste' | 'kart') => {
+  const p = new URLSearchParams(url.searchParams);
+  p.delete('cursor');
+  if (v === 'liste') p.delete('vis');
+  else p.set('vis', v);
+  const qs = p.toString();
+  return qs ? `/market/stores?${qs}` : '/market/stores';
+};
 
 // "Nye fra butikker du følger" strip — only when browsing (not filtering) and
 // the user follows stores that have active listings.
@@ -120,6 +145,31 @@ const nextPageParams = (() => {
       </div>
     </DirectoryToolbar>
 
+    <div class="flex items-center gap-1 mb-6 -mt-2">
+      <div class="inline-flex rounded-full border border-sage-500/15 bg-surface p-0.5 text-sm">
+        <a href={viewHref('liste')} aria-current={view === 'liste' ? 'page' : undefined}
+          class:list={['px-4 py-1.5 rounded-full transition-colors', view === 'liste' ? 'bg-primary text-primary-fg font-medium' : 'text-charcoal/60 hover:text-charcoal']}>
+          Liste
+        </a>
+        <a href={viewHref('kart')} aria-current={view === 'kart' ? 'page' : undefined}
+          class:list={['px-4 py-1.5 rounded-full transition-colors', view === 'kart' ? 'bg-primary text-primary-fg font-medium' : 'text-charcoal/60 hover:text-charcoal']}>
+          Kart
+        </a>
+      </div>
+    </div>
+
+    {view === 'kart' ? (
+      mapMarkers.length === 0 ? (
+        <EmptyState message={hasFilters ? 'Ingen butikker med kjent plassering matcher filteret.' : 'Ingen butikker med kjent plassering ennå.'} />
+      ) : (
+        <section class="relative">
+          <p class="text-sm text-charcoal/55 mb-3">{mapMarkers.length} {mapMarkers.length === 1 ? 'butikk' : 'butikker'} på kartet. Trykk på en markør for å åpne butikken.</p>
+          <script type="application/json" data-store-map-data set:html={JSON.stringify(mapMarkers).replace(/</g, '\\u003c')} is:inline></script>
+          <div data-store-map role="application" aria-label="Kart over butikker"></div>
+        </section>
+      )
+    ) : (
+    <>
     {followedListings.length > 0 && (
       <section class="mb-8">
         <div class="flex items-baseline justify-between mb-3">
@@ -159,11 +209,15 @@ const nextPageParams = (() => {
         <LoadMore params={nextPageParams} label="Vis flere" />
       </section>
     )}
+    </>
+    )}
   </MarketplaceShell>
 
   <script>
-    import { init } from '../../../lib/client/controllers/store-fav';
+    import { init as favInit } from '../../../lib/client/controllers/store-fav';
+    import { init as mapInit } from '../../../lib/client/controllers/store-map';
     import { registerController } from '../../../lib/client/dom';
-    registerController(init);
+    registerController(favInit);
+    registerController(mapInit);
   </script>
 </Layout>
