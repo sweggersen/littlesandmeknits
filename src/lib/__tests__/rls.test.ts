@@ -461,6 +461,45 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       expect(data?.status).toBe('active');
     });
 
+    // 0114: the trigger also pins every OTHER server-controlled column, so a
+    // manager can't fake stats/ratings, spoof the verified-business legal
+    // identity, or move their map pin via a direct PostgREST UPDATE.
+    it('a store owner CANNOT fake ratings / social proof (pinned stats)', async () => {
+      // Seed real stats via the service, then attempt to tamper as the owner.
+      await admin.from('stores')
+        .update({ rating_avg: 3.5, rating_count: 4, follower_count: 2, favorite_count: 1, active_listing_count: 3 })
+        .eq('id', storeId);
+      await bobClient.from('stores')
+        .update({ rating_avg: 5, rating_count: 999, follower_count: 5000, favorite_count: 5000, active_listing_count: 999 })
+        .eq('id', storeId);
+      const { data } = await admin.from('stores')
+        .select('rating_avg, rating_count, follower_count, favorite_count, active_listing_count').eq('id', storeId).single();
+      expect(data?.rating_avg).toBe(3.5);
+      expect(data?.rating_count).toBe(4);
+      expect(data?.follower_count).toBe(2);
+      expect(data?.favorite_count).toBe(1);
+      expect(data?.active_listing_count).toBe(3);
+    });
+
+    it('a store owner CANNOT spoof the verified-business legal identity', async () => {
+      await bobClient.from('stores')
+        .update({ orgnr: '111111111', legal_name: 'FAKE HIJACK AS', legal_address: 'Evil 1', legal_status: 'aktiv' })
+        .eq('id', storeId);
+      const { data } = await admin.from('stores').select('orgnr, legal_name').eq('id', storeId).single();
+      expect(data?.legal_name).toBe('RLS UPDPIN AS'); // pinned to the seeded value
+      expect(data?.orgnr).not.toBe('111111111');
+    });
+
+    it('a store owner CANNOT move their map pin or change slug', async () => {
+      await admin.from('stores').update({ lat: 59.9, lng: 10.7 }).eq('id', storeId);
+      const originalSlug = (await admin.from('stores').select('slug').eq('id', storeId).single()).data?.slug;
+      await bobClient.from('stores').update({ lat: 12.34, lng: 56.78, slug: 'hijacked-slug' }).eq('id', storeId);
+      const { data } = await admin.from('stores').select('lat, lng, slug').eq('id', storeId).single();
+      expect(data?.lat).toBe(59.9);
+      expect(data?.lng).toBe(10.7);
+      expect(data?.slug).toBe(originalSlug);
+    });
+
     it('the service (service-role) CAN change verified + status', async () => {
       await admin.from('stores').update({ verified: true, status: 'suspended' }).eq('id', storeId);
       const { data } = await admin.from('stores').select('verified, status').eq('id', storeId).single();
