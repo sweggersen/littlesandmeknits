@@ -1407,4 +1407,47 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       await admin.from('listings').delete().eq('id', lst!.id);
     });
   });
+
+  // 0116: staff-gated USING-only UPDATE tables. A moderator may resolve a record
+  // but must not be able to rewrite the audit trail itself.
+  describe('staff audit-trail allowlists (0116)', () => {
+    beforeAll(async () => {
+      await admin.from('profiles').update({ role: 'moderator' }).eq('id', bobId);
+    });
+    afterAll(async () => {
+      await admin.from('profiles').update({ role: null }).eq('id', bobId);
+    });
+
+    it('dead_letter_events: a moderator can resolve but CANNOT alter the event', async () => {
+      const { data: dl } = await admin.from('dead_letter_events')
+        .insert({ service: 'orig.svc', error: 'orig error', context: {} }).select('id').single();
+      // Legit resolve (via the RLS client, as resolveDeadLetter does) lands.
+      const legit = await bobClient.from('dead_letter_events')
+        .update({ resolved_at: new Date().toISOString(), resolved_by: bobId, resolution_note: 'handled' }).eq('id', dl!.id);
+      expect(legit.error).toBeNull();
+      // Tampering the original event fields is rejected (columns not granted).
+      const tamper = await bobClient.from('dead_letter_events')
+        .update({ error: 'ERASED', service: 'faked' }).eq('id', dl!.id);
+      expect(tamper.error).not.toBeNull();
+      const { data } = await admin.from('dead_letter_events').select('error, service, resolution_note').eq('id', dl!.id).single();
+      expect(data?.error).toBe('orig error');
+      expect(data?.service).toBe('orig.svc');
+      expect(data?.resolution_note).toBe('handled');
+      await admin.from('dead_letter_events').delete().eq('id', dl!.id);
+    });
+
+    it('support_requests: a moderator CANNOT edit a request via direct PostgREST', async () => {
+      // Resolution goes through the service (service_role); no authenticated
+      // UPDATE is granted, so a direct edit of a user's complaint is rejected.
+      const { data: sr } = await admin.from('support_requests')
+        .insert({ user_id: bobId, email: 'u@u.no', category: 'annet', subject: 'S', body: 'ORIGINAL', status: 'open' })
+        .select('id').single();
+      const { error } = await bobClient.from('support_requests').update({ body: 'ALTERED', status: 'resolved' }).eq('id', sr!.id);
+      expect(error).not.toBeNull();
+      const { data } = await admin.from('support_requests').select('body, status').eq('id', sr!.id).single();
+      expect(data?.body).toBe('ORIGINAL');
+      expect(data?.status).toBe('open');
+      await admin.from('support_requests').delete().eq('id', sr!.id);
+    });
+  });
 });
