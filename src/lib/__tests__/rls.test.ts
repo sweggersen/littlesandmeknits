@@ -1349,4 +1349,62 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       await admin.from('auth_identities').delete().eq('id', identityId);
     });
   });
+
+  // 0115: USING-only UPDATE policies use the USING expr as the implicit WITH
+  // CHECK, which pins only the columns it references. A column allowlist
+  // (revoke table UPDATE + grant only editable columns) blocks a row "owner"
+  // from rewriting the other, server-controlled columns via direct PostgREST.
+  describe('USING-only UPDATE column allowlists (0115)', () => {
+    it('seller_reviews: a reviewer CANNOT move their review to another seller', async () => {
+      // bob reviews alice (as seller); tries to repoint it at charlie.
+      await admin.from('seller_reviews').delete().eq('reviewer_id', bobId);
+      const { data: rev } = await admin.from('seller_reviews')
+        .insert({ reviewer_id: bobId, seller_id: aliceId, rating: 5, comment: 'ok' }).select('id').single();
+      const { error } = await bobClient.from('seller_reviews').update({ seller_id: charlieId }).eq('id', rev!.id);
+      expect(error).not.toBeNull(); // rating column not granted -> rejected
+      const { data } = await admin.from('seller_reviews').select('seller_id').eq('id', rev!.id).single();
+      expect(data?.seller_id).toBe(aliceId); // rating stays with the real seller
+      await admin.from('seller_reviews').delete().eq('id', rev!.id);
+    });
+
+    it('seller_reviews: a reviewer CAN still edit their own rating + comment', async () => {
+      await admin.from('seller_reviews').delete().eq('reviewer_id', bobId);
+      const { data: rev } = await admin.from('seller_reviews')
+        .insert({ reviewer_id: bobId, seller_id: aliceId, rating: 5, comment: 'ok' }).select('id').single();
+      const { error } = await bobClient.from('seller_reviews').update({ rating: 3, comment: 'revised' }).eq('id', rev!.id);
+      expect(error).toBeNull();
+      const { data } = await admin.from('seller_reviews').select('rating, comment').eq('id', rev!.id).single();
+      expect(data?.rating).toBe(3);
+      expect(data?.comment).toBe('revised');
+      await admin.from('seller_reviews').delete().eq('id', rev!.id);
+    });
+
+    it('marketplace_conversations: a participant CANNOT rewrite the counterparty', async () => {
+      const { data: conv } = await admin.from('marketplace_conversations')
+        .insert({ buyer_id: bobId, seller_id: aliceId }).select('id').single();
+      const { error } = await bobClient.from('marketplace_conversations')
+        .update({ seller_id: charlieId }).eq('id', conv!.id);
+      expect(error).not.toBeNull(); // no columns granted -> rejected
+      const { data } = await admin.from('marketplace_conversations').select('seller_id').eq('id', conv!.id).single();
+      expect(data?.seller_id).toBe(aliceId);
+      await admin.from('marketplace_conversations').delete().eq('id', conv!.id);
+    });
+
+    it('listing_photos: a seller CANNOT rewrite path but CAN edit caption/position', async () => {
+      const { data: lst } = await admin.from('listings')
+        .insert({ seller_id: bobId, title: 'T', price_nok: 100, status: 'active', kind: 'ready_made', category: 'genser', size_label: 'M' })
+        .select('id').single();
+      const { data: ph } = await admin.from('listing_photos')
+        .insert({ listing_id: lst!.id, path: 'orig/p.jpg', position: 0 }).select('id').single();
+      const bad = await bobClient.from('listing_photos').update({ path: 'HIJACKED/x.jpg' }).eq('id', ph!.id);
+      expect(bad.error).not.toBeNull();
+      const good = await bobClient.from('listing_photos').update({ caption: 'nice', position: 2 }).eq('id', ph!.id);
+      expect(good.error).toBeNull();
+      const { data } = await admin.from('listing_photos').select('path, caption, position').eq('id', ph!.id).single();
+      expect(data?.path).toBe('orig/p.jpg'); // pinned
+      expect(data?.caption).toBe('nice');
+      expect(data?.position).toBe(2);
+      await admin.from('listings').delete().eq('id', lst!.id);
+    });
+  });
 });
