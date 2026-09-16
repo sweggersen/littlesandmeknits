@@ -1,33 +1,45 @@
--- 0114: close a stores RLS privilege-escalation hole.
+-- 0114: close a stores privilege-escalation hole by replacing the blanket
+-- `authenticated` UPDATE grant with a column allowlist.
 --
--- Background: stores_update_admin (0108) is a USING-only policy
--- (has_store_min_role(id,'manager')) with NO WITH CHECK, and `authenticated`
--- holds column-level UPDATE grants on nearly every stores column. The
--- stores_pin_moderation_columns BEFORE UPDATE trigger was the only thing
--- guarding server-controlled columns — but it pinned ONLY verified/status/
--- featured/featured_rank. Everything else was writable by any store
--- manager via a direct PostgREST call (anon key + their own JWT), bypassing
--- the service layer entirely. Confirmed exploitable: a manager could set
--- rating_avg=5/rating_count=999 (fake perfect ratings), inflate
--- follower_count, rewrite orgnr + legal_name/address (spoof the verified
--- business identity behind the blue check), and move lat/lng anywhere (defeat
--- the exact-address pin that the store map treats as a location signal).
+-- Background: stores_update_admin (0108) is a USING-only manager policy with no
+-- WITH CHECK, and `authenticated` (+ `anon`) held a table-wide UPDATE grant on
+-- stores. So a store manager could — via a direct PostgREST call (anon key +
+-- their own JWT, bypassing the service layer) — write ANY column. The
+-- stores_pin_moderation_columns trigger guarded only verified/status/featured/
+-- featured_rank. Confirmed exploitable: a manager could set rating_avg=5 /
+-- rating_count=999 (fake ratings), inflate follower_count, rewrite orgnr +
+-- legal_name/address (spoof the verified-business identity behind the blue
+-- check), move lat/lng anywhere (defeat the exact-address map pin), and even
+-- flip tier / subscription_status / promo_year_one_free (grant themselves paid
+-- features).
 --
--- Fix: extend the trigger to also pin every server-controlled column —
--- denormalised stats, geocode, Brønnøysund legal identity, ownership/
--- moderation, slug, and the public location that must stay coherent with the
--- geocode. A non-service caller can still edit genuine branding/display fields
--- (name, tagline, description, contact_email, website_url, accent_color,
--- logo/banner, opening_hours, theme, page_config, drafts); the service
--- (service_role) is exempt and remains the only path that changes the pinned
--- columns. In production every store write already goes through the service,
--- so no legitimate flow is affected.
+-- Why not just pin more columns in the trigger: the denormalised stat columns
+-- (rating_*, favorite_count, follower_count, active_listing_count,
+-- last_listing_at) are maintained by SECURITY DEFINER triggers on
+-- store_follows / store_favorites / reviews / listings. SECURITY DEFINER
+-- changes the privilege but NOT auth.role(), so those maintenance UPDATEs run
+-- in the original caller's (authenticated) context — a pin trigger would revert
+-- their legitimate increments too. So stats can't be pinned; they must be
+-- ungrantable instead.
 --
--- NOTE: any NEW server-controlled column added to `stores` later must be added
--- to the pin list below, or it reopens this exact hole.
+-- Fix: revoke the table-wide UPDATE grant and re-grant UPDATE only on genuine
+-- editorial/display columns a store manager may set. Every server-controlled
+-- column (stats, geocode, public location, Brønnøysund legal identity,
+-- billing/tier, ownership, moderation timestamps, slug) becomes ungrantable, so
+-- PostgREST rejects a direct write. verified/status/featured/featured_rank stay
+-- grantable and keep being governed by stores_pin_moderation_columns (existing
+-- behaviour: the write is accepted then silently reverted). service_role and
+-- the SECURITY DEFINER stat triggers own the table's privileges and are
+-- unaffected, so all legitimate writes (the service does every production store
+-- write) and the denormalised counters keep working.
+--
+-- NOTE: a NEW editable store column must be added to the grant list below, and
+-- a NEW server-controlled column must be LEFT OUT of it.
 
 begin;
 
+-- Restore the pin trigger to exactly the four moderation columns (an earlier
+-- draft over-pinned the stat columns and broke their maintenance triggers).
 create or replace function public.stores_pin_moderation_columns()
 returns trigger
 language plpgsql
@@ -36,53 +48,32 @@ set search_path = public
 as $$
 begin
   if auth.role() is distinct from 'service_role' then
-    -- Moderation / verification (existing).
-    new.verified              := old.verified;
-    new.status                := old.status;
-    new.featured              := old.featured;
-    new.featured_rank         := old.featured_rank;
-    -- Denormalised, trigger-maintained stats — must never be self-set.
-    new.rating_avg            := old.rating_avg;
-    new.rating_count          := old.rating_count;
-    new.favorite_count        := old.favorite_count;
-    new.follower_count        := old.follower_count;
-    new.active_listing_count  := old.active_listing_count;
-    new.last_listing_at       := old.last_listing_at;
-    -- Server-geocoded coordinates (the store map's location signal).
-    new.lat                   := old.lat;
-    new.lng                   := old.lng;
-    new.geocoded_at           := old.geocoded_at;
-    -- Public location, kept coherent with the geocode (changed via the service,
-    -- which re-geocodes).
-    new.postnummer            := old.postnummer;
-    new.location_city         := old.location_city;
-    -- Brønnøysund legal identity behind the verified badge — read-only after
-    -- lookup, never editable by a direct caller.
-    new.orgnr                 := old.orgnr;
-    new.legal_name            := old.legal_name;
-    new.legal_address         := old.legal_address;
-    new.legal_business_type   := old.legal_business_type;
-    new.legal_industry_code   := old.legal_industry_code;
-    new.legal_status          := old.legal_status;
-    new.legal_founded_date    := old.legal_founded_date;
-    -- Ownership record + moderation timestamp + URL identity.
-    new.created_by            := old.created_by;
-    new.approved_at           := old.approved_at;
-    new.slug                  := old.slug;
+    new.verified      := old.verified;
+    new.status        := old.status;
+    new.featured      := old.featured;
+    new.featured_rank := old.featured_rank;
   end if;
   return new;
 end;
 $$;
 
--- Trigger definition unchanged (BEFORE UPDATE, per row); recreate defensively so
--- this migration is self-contained.
-drop trigger if exists stores_pin_moderation_columns on public.stores;
-create trigger stores_pin_moderation_columns
-  before update on public.stores
-  for each row
-  execute function public.stores_pin_moderation_columns();
+-- anon must never update a store row (no anon UPDATE policy exists anyway).
+revoke update on public.stores from anon;
 
-comment on function public.stores_pin_moderation_columns() is
-  'Pins every server-controlled stores column (moderation, denormalised stats, geocode, public location, Brønnøysund legal identity, ownership, slug) to its stored value for any non-service-role UPDATE, so a store manager cannot self-verify, fake stats/ratings, spoof legal identity, or move their map pin via direct PostgREST. New server-controlled columns must be added here.';
+-- Replace the blanket grant with a column allowlist of editable fields.
+revoke update on public.stores from authenticated;
+grant update (
+  -- Branding / display
+  name, tagline, description, banner_path, logo_path, accent_color,
+  -- Contact + social
+  contact_email, contact_phone, website_url,
+  instagram_url, etsy_url, pinterest_url, tiktok_url,
+  opening_hours,
+  -- Storefront builder
+  theme, page_config, theme_draft, page_config_draft,
+  -- Moderation columns: grantable but governed by stores_pin_moderation_columns
+  -- (the write is accepted, then the trigger reverts it — preserves behaviour).
+  verified, status, featured, featured_rank
+) on public.stores to authenticated;
 
 commit;
