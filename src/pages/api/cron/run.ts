@@ -14,7 +14,7 @@ import { MoneyBreakdown } from '../../../lib/money';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
 import { releaseCommissionFunds, reconcileStuckCommissionPayments } from '../../../lib/services/commissions';
-import { backfillSellerGeocode } from '../../../lib/services/geo-backfill';
+import { backfillSellerGeocode, backfillStoreGeocode } from '../../../lib/services/geo-backfill';
 import { log } from '../../../lib/log';
 
 export const POST: APIRoute = async ({ request }) => {
@@ -107,6 +107,15 @@ export const POST: APIRoute = async ({ request }) => {
   await runSection('geocode_backfill', async () => {
     const r = await backfillSellerGeocode(admin, { limit: 25 });
     results.sellersGeocoded = r.sellersGeocoded;
+  });
+
+  // Self-healing EXACT geocode backfill for stores (a business location is
+  // public): upgrade a small batch of stores that predate the exact-address
+  // pipeline from their coarse postnummer centroid to the precise address pin,
+  // then no-op. Best-effort, idempotent (only geocode_precision-null rows).
+  await runSection('store_geocode_backfill', async () => {
+    const r = await backfillStoreGeocode(admin, { limit: 25 });
+    results.storesGeocoded = r.storesGeocoded;
   });
 
   // Refresh the user_preferences materialized view powering the

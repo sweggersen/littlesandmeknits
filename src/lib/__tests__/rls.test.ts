@@ -490,14 +490,17 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
       expect(data?.orgnr).not.toBe('111111111');
     });
 
-    it('a store owner CANNOT move their map pin or change slug', async () => {
-      await admin.from('stores').update({ lat: 59.9, lng: 10.7 }).eq('id', storeId);
+    it('a store owner CANNOT move their map pin, change slug, or forge geocode precision', async () => {
+      await admin.from('stores').update({ lat: 59.9, lng: 10.7, geocode_precision: 'coarse' }).eq('id', storeId);
       const originalSlug = (await admin.from('stores').select('slug').eq('id', storeId).single()).data?.slug;
-      await bobClient.from('stores').update({ lat: 12.34, lng: 56.78, slug: 'hijacked-slug' }).eq('id', storeId);
-      const { data } = await admin.from('stores').select('lat, lng, slug').eq('id', storeId).single();
+      // geocode_precision (0117) is server-controlled: not in the 0114 allowlist,
+      // so faking 'exact' to look like a precise business location is rejected.
+      await bobClient.from('stores').update({ lat: 12.34, lng: 56.78, slug: 'hijacked-slug', geocode_precision: 'exact' }).eq('id', storeId);
+      const { data } = await admin.from('stores').select('lat, lng, slug, geocode_precision').eq('id', storeId).single();
       expect(data?.lat).toBe(59.9);
       expect(data?.lng).toBe(10.7);
       expect(data?.slug).toBe(originalSlug);
+      expect(data?.geocode_precision).toBe('coarse');
     });
 
     it('the service (service-role) CAN change verified + status', async () => {

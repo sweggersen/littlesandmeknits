@@ -8,7 +8,7 @@
 // the "Nærmest" sort has data for existing inventory.
 
 import type { TypedSupabaseClient } from '../supabase';
-import { geocodePostnummer, type GeoPoint } from '../geocode';
+import { geocodePostnummer, geocodeAddress, composeStoreAddressQuery, type GeoPoint } from '../geocode';
 
 export async function backfillSellerGeocode(
   admin: TypedSupabaseClient,
@@ -47,4 +47,64 @@ export async function backfillSellerGeocode(
   }
 
   return { sellersGeocoded, scanned: rows.length };
+}
+
+/** Self-healing backfill of EXACT store coordinates. A store is a business, so
+ *  its location is public — we geocode the full street address (unlike a seller,
+ *  who stays coarse). Targets stores that predate the exact-address pipeline (or
+ *  whose exact geocode failed at create time): `geocode_precision is null`.
+ *  Upgrades each to the address point ('exact') or, if the address doesn't
+ *  resolve, records the postnummer centroid ('coarse') so it isn't retried
+ *  forever. Sets a precision on every processed row, so a batch per cron tick
+ *  drains the backlog and then no-ops. Idempotent + best-effort. */
+export async function backfillStoreGeocode(
+  admin: TypedSupabaseClient,
+  opts: { limit?: number } = {},
+): Promise<{ storesGeocoded: number; scanned: number }> {
+  const limit = Math.min(200, Math.max(1, opts.limit ?? 25));
+
+  // Only active, non-deleted stores that haven't been through the exact geocoder
+  // yet. Embed the private street address; fall back to the public legal address.
+  // admin (service_role) bypasses store_private_details' members-only RLS.
+  const { data: stores } = await admin
+    .from('stores')
+    .select('id, postnummer, location_city, legal_address, store_private_details(precise_address)')
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .is('geocode_precision', null)
+    .limit(limit);
+
+  const rows = (stores ?? []) as Array<{
+    id: string;
+    postnummer: string | null;
+    location_city: string | null;
+    legal_address: string | null;
+    store_private_details: { precise_address: string | null } | { precise_address: string | null }[] | null;
+  }>;
+
+  let storesGeocoded = 0;
+  for (const s of rows) {
+    const pn = String(s.postnummer ?? '').replace(/\D/g, '');
+    if (pn.length !== 4) continue; // can't geocode without a postal code; leave for a manual fix
+    // The embed can come back as an object or a single-element array.
+    const pd = Array.isArray(s.store_private_details) ? s.store_private_details[0] : s.store_private_details;
+    const address = (pd?.precise_address ?? s.legal_address ?? '').trim();
+
+    let point: GeoPoint | null = address
+      ? await geocodeAddress(composeStoreAddressQuery(address, pn, s.location_city))
+      : null;
+    let precision: 'exact' | 'coarse' = 'exact';
+    if (!point) {
+      point = await geocodePostnummer(pn, s.location_city);
+      precision = 'coarse';
+    }
+    if (!point) continue; // both failed (bad postnummer) — retry on a later tick
+
+    await admin.from('stores')
+      .update({ lat: point.lat, lng: point.lng, geocoded_at: new Date().toISOString(), geocode_precision: precision } as never)
+      .eq('id', s.id);
+    storesGeocoded++;
+  }
+
+  return { storesGeocoded, scanned: rows.length };
 }
