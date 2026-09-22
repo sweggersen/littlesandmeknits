@@ -1,6 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 
-// E2E for the gap-#9 surface: the "Nye fra sellere du følger" home row
+// E2E for the gap-#9 surface: the "Nye fra selgere du følger" home row
 // and the dedicated /market/following feed page.
 
 const ELINE = 'eline@test.strikketorget.no';
@@ -38,10 +38,10 @@ test.describe('Strikketorget — follow feed surfaces', () => {
     await exec(request, 'cleanup');
   });
 
-  test('Home shows "Nye fra sellere du følger" when Liv follows Eline', async ({ page }) => {
+  test('Home shows "Nye fra selgere du følger" when Liv follows Eline', async ({ page }) => {
     await loginAs(page, LIV);
     await page.goto('/market');
-    await expect(page.getByRole('heading', { name: 'Nye fra sellere du følger' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Nye fra selgere du følger' })).toBeVisible();
     // Eline's seeded active listing should be in the row (also appears in
     // recommendations below — first match is enough).
     await expect(page.getByText('Strikket genser str 2 år (publisert)').first()).toBeVisible();
@@ -50,7 +50,7 @@ test.describe('Strikketorget — follow feed surfaces', () => {
   test('/market/following lists active listings from followed sellers', async ({ page }) => {
     await loginAs(page, LIV);
     await page.goto('/market/following');
-    await expect(page.getByRole('heading', { name: 'Sellere du følger' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Selgere du følger' })).toBeVisible();
     // .first(): the feed can legitimately hold more than one matching listing
     // (e.g. accumulated local seed data), so assert existence, not uniqueness.
     await expect(page.getByText('Strikket genser str 2 år (publisert)').first()).toBeVisible();
@@ -65,6 +65,6 @@ test.describe('Strikketorget — follow feed surfaces', () => {
 
     await loginAs(page, LIV);
     await page.goto('/market/following');
-    await expect(page.getByText(/Du følger ingen sellere ennå/)).toBeVisible();
+    await expect(page.getByText(/Du følger ingen selgere ennå/)).toBeVisible();
   });
 });

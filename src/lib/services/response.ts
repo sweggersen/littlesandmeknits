@@ -1,4 +1,6 @@
 import type { ServiceResult, ServiceErrorCode } from './types';
+import { log } from '../log';
+import { captureException } from '../observability';
 
 const STATUS: Record<ServiceErrorCode, number> = {
   unauthorized: 401,
@@ -17,12 +19,20 @@ const STATUS: Record<ServiceErrorCode, number> = {
 type RedirectFn = (url: string, status?: number) => Response;
 type AstroRedirectFn = (url: string, status?: 300 | 301 | 302 | 303 | 304 | 307 | 308) => Response;
 
-export function toResponse(
+export async function toResponse(
   result: ServiceResult<any>,
   redirect?: RedirectFn | AstroRedirectFn,
   opts?: { saved?: boolean; errorRedirect?: string },
-): Response {
+): Promise<Response> {
   if (!result.ok) {
+    // A service_error/service_unavailable is a real 5xx — but it's RETURNED,
+    // not thrown, so the middleware's captureException never sees it. Surface it
+    // to logs + Sentry here (once, at the single response chokepoint) so prod
+    // 500s aren't invisible. 4xx are expected client errors and stay quiet.
+    if (result.code === 'server_error' || result.code === 'service_unavailable') {
+      log.error('service.error_response', { code: result.code, message: result.message });
+      await captureException(new Error(result.message), { service: 'toResponse', extra: { code: result.code } });
+    }
     // Form routes pass errorRedirect so a failure returns to the form with the
     // message in ?error= (rendered by the toast controller) instead of a bare
     // English error page. JSON/API callers omit it and still get the plain

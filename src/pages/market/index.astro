@@ -33,14 +33,45 @@ const LISTING_COLS = 'id, title, kind, price_nok, size_label, size_age_months_mi
 //    Listings whose promoted_until is still in the future, regardless of
 //    other signals. Boosted, not auto-sorted.
 const nowIso = new Date().toISOString();
-const promotedRes = await supabase
-  .from('listings')
-  .select(LISTING_COLS)
-  .eq('status', 'active')
-  .gt('promoted_until', nowIso)
-  .order('promoted_until', { ascending: false })
-  .limit(20);
+// Independent leading fetches run together (no interdependency): the promoted
+// pool, the viewer's preferences + recent favourites, and the latest commission
+// requests. The dependent queries (pacing, favourite categories, ranked pool,
+// followed-seller row) follow once their inputs are known.
+const [promotedRes, prefRes, favsRes, latestRequestsRes] = await Promise.all([
+  supabase
+    .from('listings')
+    .select(LISTING_COLS)
+    .eq('status', 'active')
+    .gt('promoted_until', nowIso)
+    .order('promoted_until', { ascending: false })
+    .limit(20),
+  user
+    ? supabase
+        .from('user_preferences')
+        .select('favorited_categories, clicked_categories, clicked_sizes, followed_sellers, price_band, age_band')
+        .eq('user_id', user.id)
+        .maybeSingle()
+    : Promise.resolve({ data: null }),
+  user
+    ? supabase
+        .from('favorites')
+        .select('item_id')
+        .eq('user_id', user.id)
+        .eq('item_type', 'listing')
+        .order('created_at', { ascending: false })
+        .limit(40)
+    : Promise.resolve({ data: [] as Array<{ item_id: string }> }),
+  supabase
+    .from('commission_requests')
+    .select('id, title, category, size_label, budget_nok_min, budget_nok_max, offer_count, needed_by')
+    .eq('status', 'open')
+    .order('created_at', { ascending: false })
+    .limit(4),
+]);
 const promotedAll = promotedRes.data ?? [];
+const userPrefs: UserPreferences = (prefRes.data as UserPreferences) ?? null;
+const favIds: string[] = (favsRes.data ?? []).map((f: any) => f.item_id);
+const latestRequests = latestRequestsRes.data;
 
 // Pull pacing data (daily_budget, daily_impressions_served) for the
 // promoted listings so the ranker can de-prioritise exhausted budgets.
@@ -63,52 +94,32 @@ if (promotedAll.length) {
   }
 }
 
-// Personalised ranking of the promoted pool. Reads from the user_preferences
-// materialized view (refreshed by /api/cron/run). Anonymous viewers fall
-// through with prefs=null → ranker uses the conditionBaseline only.
-let userPrefs: UserPreferences = null;
-if (user) {
-  const { data: prefRow } = await supabase
-    .from('user_preferences')
-    .select('favorited_categories, clicked_categories, clicked_sizes, followed_sellers, price_band, age_band')
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (prefRow) userPrefs = prefRow as UserPreferences;
-}
+// Personalised ranking of the promoted pool. userPrefs reads from the
+// user_preferences materialized view (fetched above, refreshed by
+// /api/cron/run). Anonymous viewers have prefs=null → ranker uses the
+// conditionBaseline only.
 // Cast: the DB-typed rows are a strict superset of RankableListing,
 // but TS can't see through the enum-vs-string mismatch on category.
 const promoted = rankPromoted(promotedAll as unknown as Parameters<typeof rankPromoted>[0], userPrefs).slice(0, 3);
 
-// 2) For-you / popular pool.
+// 2) For-you / popular pool. Derive preferred categories from the recent
+//    favourites fetched above (favIds is empty for anon).
 let pool: any[] = [];
-let favIds: string[] = [];
 let preferredCategories: string[] = [];
 
-if (user) {
-  // Pull the user's recent favorites to derive preferred categories.
-  const { data: favs } = await supabase
-    .from('favorites')
-    .select('item_id')
-    .eq('user_id', user.id)
-    .eq('item_type', 'listing')
-    .order('created_at', { ascending: false })
-    .limit(40);
-  favIds = (favs ?? []).map((f: any) => f.item_id);
-
-  if (favIds.length) {
-    const { data: favListings } = await supabase
-      .from('listings')
-      .select('category')
-      .in('id', favIds);
-    const counts = new Map<string, number>();
-    for (const l of favListings ?? []) {
-      if (l.category) counts.set(l.category, (counts.get(l.category) ?? 0) + 1);
-    }
-    preferredCategories = [...counts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([c]) => c);
+if (favIds.length) {
+  const { data: favListings } = await supabase
+    .from('listings')
+    .select('category')
+    .in('id', favIds);
+  const counts = new Map<string, number>();
+  for (const l of favListings ?? []) {
+    if (l.category) counts.set(l.category, (counts.get(l.category) ?? 0) + 1);
   }
+  preferredCategories = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([c]) => c);
 }
 
 // Pool query: if we have preferred categories, prefer them; otherwise fall
@@ -162,15 +173,9 @@ for (let i = 0; i < SLOTS; i++) {
   }
 }
 
-// 3) Commission requests (unchanged).
-const { data: latestRequests } = await supabase
-  .from('commission_requests')
-  .select('id, title, category, size_label, budget_nok_min, budget_nok_max, offer_count, needed_by')
-  .eq('status', 'open')
-  .order('created_at', { ascending: false })
-  .limit(4);
+// 3) Commission requests — fetched above in the leading Promise.all.
 
-// 4) "Nye fra sellere du følger" — only when the viewer follows ≥1 seller.
+// 4) "Nye fra selgere du følger" — only when the viewer follows ≥1 seller.
 let followedListings: any[] = [];
 if (userPrefs?.followed_sellers && userPrefs.followed_sellers.length > 0) {
   const { data } = await supabase
@@ -277,7 +282,7 @@ const orgJsonLd = {
 
       {followedListings.length > 0 && (
         <>
-          <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">Nye fra sellere du følger</h2>
+          <h2 class="font-serif text-xl sm:text-2xl mb-3 sm:mb-4">Nye fra selgere du følger</h2>
           <ul class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-10">
             {followedListings.map((l) => (
               <ListingCard

@@ -146,7 +146,6 @@ const {
             <input type="hidden" name="request_id" value={req.id} />
             <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Betal nå</button>
           </form>
-          <p class="text-[10px] text-charcoal/30 text-center mt-2">Stripe-betaling kommer snart.</p>
         </div>
       ) : isPast('awaiting_payment') ? (
         <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Betalt</p>

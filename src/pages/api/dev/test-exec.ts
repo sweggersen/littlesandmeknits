@@ -1095,7 +1095,7 @@ async function handle(
         actor_id: elineId, reference_id: liveId,
       });
 
-      // The home "Nye fra sellere du følger" row reads from the matview;
+      // The home "Nye fra selgere du følger" row reads from the matview;
       // refresh so the seed is visible immediately.
       await db.rpc('refresh_user_preferences');
 
