@@ -2529,6 +2529,7 @@ export type Database = {
           featured: boolean
           featured_rank: number
           follower_count: number
+          geocode_precision: string | null
           geocoded_at: string | null
           id: string
           instagram_url: string | null
@@ -2589,6 +2590,7 @@ export type Database = {
           featured?: boolean
           featured_rank?: number
           follower_count?: number
+          geocode_precision?: string | null
           geocoded_at?: string | null
           id?: string
           instagram_url?: string | null
@@ -2649,6 +2651,7 @@ export type Database = {
           featured?: boolean
           featured_rank?: number
           follower_count?: number
+          geocode_precision?: string | null
           geocoded_at?: string | null
           id?: string
           instagram_url?: string | null

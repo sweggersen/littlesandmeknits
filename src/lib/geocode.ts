@@ -52,6 +52,17 @@ export async function geocodePostnummer(
   return parseKartverketPoint(json);
 }
 
+/** Compose the Kartverket free-text query for a store's exact address from its
+ *  street address + public postnummer/city. Shared by the create/edit geocode
+ *  and the self-healing backfill so they build the query identically. */
+export function composeStoreAddressQuery(
+  address: string,
+  postnummer: string,
+  city: string | null,
+): string {
+  return [address, [postnummer, city].filter(Boolean).join(' ')].filter(Boolean).join(', ').trim();
+}
+
 /** Resolve a full STREET address to its exact point. Used for STORES only —
  *  they're businesses whose location is public (unlike an individual seller,
  *  who is geocoded to a coarse postnummer centroid via geocodePostnummer). The

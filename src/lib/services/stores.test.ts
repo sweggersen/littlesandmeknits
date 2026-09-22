@@ -15,6 +15,8 @@ vi.mock('../notify', () => ({ notifyModeratorsNewItem: vi.fn(async () => {}) }))
 vi.mock('../geocode', () => ({
   geocodeAddress: vi.fn(async () => ({ lat: 59.9, lng: 10.7 })),
   geocodePostnummer: vi.fn(async () => ({ lat: 59.9, lng: 10.7 })),
+  composeStoreAddressQuery: (address: string, pn: string, city: string | null) =>
+    [address, [pn, city].filter(Boolean).join(' ')].filter(Boolean).join(', '),
 }));
 
 import { createStore } from './stores';
