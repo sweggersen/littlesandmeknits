@@ -46,17 +46,17 @@ if (sellerIds.length > 0) {
 }
 ---
 
-<Layout title="Sellere du følger — Strikketorget" lang="nb">
+<Layout title="Selgere du følger · Strikketorget" lang="nb">
   <MarketplaceShell current="market">
     <a href="/market" class="text-sm text-charcoal/55 hover:text-charcoal mb-4 inline-block">← Tilbake til Strikketorget</a>
-    <h1 class="font-serif text-3xl sm:text-4xl mb-2">Sellere du følger</h1>
+    <h1 class="font-serif text-3xl sm:text-4xl mb-2">Selgere du følger</h1>
     <p class="text-charcoal/55 text-sm mb-8">
-      Nyeste annonser fra sellerne du har valgt å følge. Sortert etter publiseringsdato.
+      Nyeste annonser fra selgerne du har valgt å følge. Sortert etter publiseringsdato.
     </p>
 
     {sellerIds.length === 0 ? (
       <EmptyState
-        message="Du følger ingen sellere ennå. Trykk «+ Følg» på en selger du liker — så får du varsel når de legger ut nye annonser."
+        message="Du følger ingen selgere ennå. Trykk «+ Følg» på en selger du liker, så får du varsel når de legger ut nye annonser."
         ctaText="Utforsk Strikketorget"
         ctaHref="/market"
       />

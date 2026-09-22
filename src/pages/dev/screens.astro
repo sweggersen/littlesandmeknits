@@ -46,7 +46,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
     title: 'Markedet',
     intro: 'Logged-in viewer ser personalisering. Logget ut ser populære annonser.',
     screens: [
-      { title: 'Strikketorget (logget inn)', desc: 'Skal vise «Nye fra sellere du følger» øverst hvis Liv følger Eline', href: '/market', as: 'liv' },
+      { title: 'Strikketorget (logget inn)', desc: 'Skal vise «Nye fra selgere du følger» øverst hvis Liv følger Eline', href: '/market', as: 'liv' },
       { title: 'Strikketorget (anonym)', href: '/market', as: null },
       { title: 'Annonseside — aktiv', desc: 'Bruk seed-data: liveListingId', href: '/market/my-listings', as: 'liv' },
       { title: 'My-listings (selger)', href: '/market/my-listings', as: 'eline' },
@@ -60,7 +60,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
     screens: [
       { title: 'Selgerprofil (med følg-knapp)', desc: 'Klikk Eline fra annonse eller my-listings', href: '/market', as: 'liv' },
       { title: 'Selgerprofil (egen)', desc: 'Ingen følg-knapp', href: '/market', as: 'eline' },
-      { title: 'Sellere du følger (egen feed)', desc: 'Aktive annonser fra fulgte sellere', href: '/market/following', as: 'liv' },
+      { title: 'Selgere du følger (egen feed)', desc: 'Aktive annonser fra fulgte selgere', href: '/market/following', as: 'liv' },
     ],
   },
   {

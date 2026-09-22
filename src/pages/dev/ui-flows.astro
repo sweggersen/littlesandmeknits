@@ -520,7 +520,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         persona: 'liv',
         steps: [
           { action: 'goto', url: '/market' },
-          { action: 'expectText', text: 'Nye fra sellere du følger' },
+          { action: 'expectText', text: 'Nye fra selgere du følger' },
           { action: 'expectText', text: 'Anbefalinger for deg' },
         ],
       },
@@ -566,7 +566,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         persona: 'liv',
         steps: [
           { action: 'goto', url: '/market/following' },
-          { action: 'expectText', text: 'Sellere du følger' },
+          { action: 'expectText', text: 'Selgere du følger' },
           { action: 'expectText', text: 'Strikket genser str 2 år (publisert)' },
         ],
       },

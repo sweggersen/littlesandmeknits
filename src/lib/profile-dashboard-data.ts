@@ -1,7 +1,6 @@
-// Shared data loader for the profile dashboard (/profile — the Command Center
-// layout). Extracted from the original frontmatter so the page (and the kept-
-// but-unlinked /profile/original) have a single source of truth. /profile/index
-// imports this; /profile/original keeps its own inline copy.
+// Shared data loader for the profile dashboard (/profile, the Command Center
+// layout). Extracted from the page frontmatter so /profile/index has a single
+// source of truth for the dashboard data.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { projectPhotoUrl } from './storage';
