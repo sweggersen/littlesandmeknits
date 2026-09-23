@@ -14,11 +14,12 @@ const stripeCapture = vi.fn().mockResolvedValue({});
 const stripeRetrieve = vi.fn(async (): Promise<any> => ({ status: 'succeeded', transfer_data: null, latest_charge: 'ch_1' }));
 const stripeRefundCreate = vi.fn().mockResolvedValue({});
 const stripeTransferCreate = vi.fn(async () => ({ id: 'tr_1' }));
+const stripeTransferReversal = vi.fn(async () => ({ id: 'trr_1' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     paymentIntents: { cancel: stripeCancel, capture: stripeCapture, retrieve: stripeRetrieve },
     refunds: { create: stripeRefundCreate },
-    transfers: { create: stripeTransferCreate },
+    transfers: { create: stripeTransferCreate, createReversal: stripeTransferReversal },
   })),
 }));
 
@@ -278,6 +279,41 @@ describe('resolveDispute — commission', () => {
     const evs = inserts.filter((x: any) => x.table === 'payment_events').map((x: any) => x.row);
     expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'dispute_resolved', commission_request_id: 'r1', context: { decision: 'refund' } }));
     expect(evs).toContainEqual(expect.objectContaining({ kind: 'commission', event_type: 'refunded', commission_request_id: 'r1', amount_nok: 500 }));
+  });
+
+  it('refund AFTER release (transfer already made): reverses the transfer before refunding', async () => {
+    // A chargeback re-froze a delivered commission to disputed; admin refunds.
+    // The knitter was already paid, so a plain buyer refund alone would leave the
+    // platform eating the full price. The transfer must be clawed back first.
+    stripeRefundCreate.mockClear();
+    stripeTransferReversal.mockClear();
+    const releasedReq = { ...disputedReq, stripe_transfer_id: 'tr_paid_1' };
+    const { ctx, updates } = mockCtx({
+      role: 'admin', request: releasedReq, offer: { knitter_id: 'k1', price_nok: 500 },
+    });
+    const r = await resolveDispute(ctx, {
+      itemType: 'commission', itemId: 'r1', decision: 'refund',
+    });
+    expect(r.ok).toBe(true);
+    // The knitter transfer is reversed (full), then the buyer is refunded.
+    expect(stripeTransferReversal).toHaveBeenCalledWith(
+      'tr_paid_1', {}, expect.objectContaining({ idempotencyKey: 'commission-transfer-reversal-tr_paid_1' }),
+    );
+    expect(stripeRefundCreate).toHaveBeenCalledWith({ payment_intent: 'pi_y' }, { idempotencyKey: 'commission-refund-pi_y' });
+    const u = updates.find((x: any) => x.table === 'commission_requests') as any;
+    expect(u.row.status).toBe('cancelled');
+  });
+
+  it('refund WITHOUT a prior transfer: does NOT reverse anything', async () => {
+    stripeTransferReversal.mockClear();
+    const { ctx } = mockCtx({
+      role: 'admin', request: disputedReq, offer: { knitter_id: 'k1', price_nok: 500 },
+    });
+    const r = await resolveDispute(ctx, {
+      itemType: 'commission', itemId: 'r1', decision: 'refund',
+    });
+    expect(r.ok).toBe(true);
+    expect(stripeTransferReversal).not.toHaveBeenCalled();
   });
 
   it('refund (legacy uncaptured auth): cancels the PI instead', async () => {

@@ -1,5 +1,6 @@
 import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
+import { recordDeadLetter } from './dead-letter';
 
 async function requireAdmin(ctx: ServiceContext): Promise<ServiceResult<never> | null> {
   const { data } = await ctx.admin
@@ -39,10 +40,29 @@ export async function createPayoutBatch(
     status: 'pending',
   }));
 
-  await ctx.admin.from('moderator_payouts').insert(payouts);
-  await ctx.admin.from('moderator_stats').update({
+  // Order matters: create the payout rows FIRST, and only zero the counters if
+  // that succeeded. Zeroing before a failed insert would wipe moderators'
+  // accrued earnings with nothing owed to show for it. The period_start guard
+  // above makes a retry after a failed insert safe (no rows were written).
+  const { error: insertErr } = await ctx.admin.from('moderator_payouts').insert(payouts);
+  if (insertErr) {
+    return fail('server_error', 'Kunne ikke opprette utbetalinger. Ingen endringer gjort.');
+  }
+
+  const { error: resetErr } = await ctx.admin.from('moderator_stats').update({
     current_month_reviews: 0, current_month_earned_nok: 0,
   }).gt('current_month_reviews', 0);
+  if (resetErr) {
+    // Payout rows exist (moderators will be paid), but the counters didn't
+    // reset, so they'd keep accruing on top. The period guard blocks a
+    // double-payout, so this is a reconcile-later state, not a double-pay:
+    // dead-letter it rather than failing the whole batch.
+    await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
+      service: 'payouts.createPayoutBatch:stats-reset',
+      context: { period_start: periodStart, payout_count: payouts.length },
+      error: resetErr,
+    });
+  }
 
   return ok({ redirect: '/admin/payouts' });
 }

@@ -2,7 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail, ensureAdmin } from './types';
 import { createStripe } from '../stripe';
 import { createNotification } from '../notify';
-import { releaseCommissionFunds, refundCommissionPayment } from './commissions';
+import { releaseCommissionFunds, refundCommissionPayment, reverseCommissionTransfer } from './commissions';
 import { updateOpenOrder, findOpenOrder } from './orders';
 import { recordPaymentEvent } from './payment-events';
 import { recordDeadLetter } from './dead-letter';
@@ -67,26 +67,52 @@ async function resolveListingDispute(
   // old code blindly cancel()'d / capture()'d, which THROWS on a captured PI,
   // making the primary admin dispute tool 500 for the common case. Branch on
   // the real PI status and use a proper refund when already captured.
-  const pi = await stripe.paymentIntents.retrieve(piId);
+  //
+  // Every Stripe SDK call runs BEFORE the DB writes below, so a Stripe fault
+  // (network, rate limit, capture race) throwing here would surface as a bare,
+  // un-audited 500 for the admin. Wrap them so a fault dead-letters and returns
+  // a clean error the admin can retry; the calls are idempotent (refund keyed,
+  // capture/cancel guarded by the PI status re-read on retry), so nothing
+  // partial is committed since no DB row has changed yet.
+  let pi: Awaited<ReturnType<typeof stripe.paymentIntents.retrieve>>;
+  try {
+    pi = await stripe.paymentIntents.retrieve(piId);
+  } catch (e) {
+    await recordDeadLetter({ admin: ctx.admin }, {
+      service: 'disputes.resolveListingDispute:pi-retrieve',
+      context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, decision },
+      error: e,
+    });
+    return fail('server_error', 'Kunne ikke hente betalingsstatus fra Stripe. Prøv igjen.');
+  }
 
   if (decision === 'refund') {
-    if (pi.status === 'requires_capture') {
-      await stripe.paymentIntents.cancel(piId); // uncaptured hold → void it
-    } else if (pi.status === 'succeeded') {
-      // Captured destination charge → refund buyer, reverse the seller transfer
-      // and return our platform fee, so buyer/seller/platform all net to zero.
-      await stripe.refunds.create({
-        payment_intent: piId,
-        reverse_transfer: true,
-        refund_application_fee: true,
-      }, { idempotencyKey: `listing-refund-${piId}` });
-    } else if (pi.status !== 'canceled') {
+    try {
+      if (pi.status === 'requires_capture') {
+        await stripe.paymentIntents.cancel(piId); // uncaptured hold → void it
+      } else if (pi.status === 'succeeded') {
+        // Captured destination charge → refund buyer, reverse the seller transfer
+        // and return our platform fee, so buyer/seller/platform all net to zero.
+        await stripe.refunds.create({
+          payment_intent: piId,
+          reverse_transfer: true,
+          refund_application_fee: true,
+        }, { idempotencyKey: `listing-refund-${piId}` });
+      } else if (pi.status !== 'canceled') {
+        await recordDeadLetter({ admin: ctx.admin }, {
+          service: 'disputes.resolveListingDispute:refund-bad-state',
+          context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, pi_status: pi.status },
+          error: `Cannot refund a PaymentIntent in status=${pi.status}`,
+        });
+        return fail('conflict', 'Betalingen kan ikke refunderes i sin nåværende tilstand');
+      }
+    } catch (e) {
       await recordDeadLetter({ admin: ctx.admin }, {
-        service: 'disputes.resolveListingDispute:refund-bad-state',
+        service: 'disputes.resolveListingDispute:refund',
         context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, pi_status: pi.status },
-        error: `Cannot refund a PaymentIntent in status=${pi.status}`,
+        error: e,
       });
-      return fail('conflict', 'Betalingen kan ikke refunderes i sin nåværende tilstand');
+      return fail('server_error', 'Refusjonen kunne ikke gjennomføres hos Stripe. Saken er logget, prøv igjen.');
     }
     const resolution = notes?.trim() || 'Refunded by admin';
     await updateOpenOrder(ctx.admin, listingId, {
@@ -95,16 +121,25 @@ async function resolveListingDispute(
     });
     await ctx.admin.from('listings').update({ status: 'active', buyer_id: null, sold_at: null }).eq('id', listingId);
   } else {
-    if (pi.status === 'requires_capture') {
-      await stripe.paymentIntents.capture(piId); // not yet captured → capture to seller now
-    } else if (pi.status !== 'succeeded') {
-      // succeeded = already captured at ship (funds with seller); nothing to do.
+    try {
+      if (pi.status === 'requires_capture') {
+        await stripe.paymentIntents.capture(piId); // not yet captured → capture to seller now
+      } else if (pi.status !== 'succeeded') {
+        // succeeded = already captured at ship (funds with seller); nothing to do.
+        await recordDeadLetter({ admin: ctx.admin }, {
+          service: 'disputes.resolveListingDispute:release-bad-state',
+          context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, pi_status: pi.status },
+          error: `Cannot release a PaymentIntent in status=${pi.status}`,
+        });
+        return fail('conflict', 'Betalingen kan ikke frigis i sin nåværende tilstand');
+      }
+    } catch (e) {
       await recordDeadLetter({ admin: ctx.admin }, {
-        service: 'disputes.resolveListingDispute:release-bad-state',
+        service: 'disputes.resolveListingDispute:release',
         context: { listing_id: listingId, order_id: order.id, payment_intent_id: piId, pi_status: pi.status },
-        error: `Cannot release a PaymentIntent in status=${pi.status}`,
+        error: e,
       });
-      return fail('conflict', 'Betalingen kan ikke frigis i sin nåværende tilstand');
+      return fail('server_error', 'Utbetalingen kunne ikke gjennomføres hos Stripe. Saken er logget, prøv igjen.');
     }
     const resolution = notes?.trim() || 'Released by admin';
     await updateOpenOrder(ctx.admin, listingId, {
@@ -174,7 +209,7 @@ async function resolveCommissionDispute(
 ): Promise<ServiceResult<{ redirect: string }>> {
   const { data: req } = await ctx.admin
     .from('commission_requests')
-    .select('id, buyer_id, title, status, awarded_offer_id, stripe_payment_intent_id')
+    .select('id, buyer_id, title, status, awarded_offer_id, stripe_payment_intent_id, stripe_transfer_id')
     .eq('id', requestId)
     .maybeSingle();
 
@@ -191,11 +226,23 @@ async function resolveCommissionDispute(
       // Money path: on Stripe failure dead-letter so support can finish the
       // refund manually (matches the listing-refund path), not just throw.
       try {
+        // If the knitter was ALREADY paid (a chargeback re-froze a delivered
+        // commission to disputed, and admin refunds), the buyer refund alone
+        // would leave the knitter's transfer in place and the platform eating
+        // the full price. Claw the transfer back FIRST, then refund the buyer.
+        // Both are idempotent per id, so a retry after a partial failure is safe.
+        if (req.stripe_transfer_id) {
+          await reverseCommissionTransfer(ctx.env.STRIPE_SECRET_KEY, req.stripe_transfer_id);
+        }
         await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
       } catch (e) {
         await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
           service: 'disputes.resolve:refund',
-          context: { request_id: requestId, payment_intent_id: req.stripe_payment_intent_id },
+          context: {
+            request_id: requestId,
+            payment_intent_id: req.stripe_payment_intent_id,
+            transfer_id: req.stripe_transfer_id ?? null,
+          },
           error: e,
         });
         return fail('server_error', 'Kunne ikke refundere. Saken er logget for manuell håndtering.');

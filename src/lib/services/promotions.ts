@@ -47,6 +47,35 @@ export async function promoteListing(
   const siteUrl = ctx.env.PUBLIC_SITE_URL ?? 'https://www.littlesandmeknits.com';
   const stripe = createStripe(ctx.env.STRIPE_SECRET_KEY);
 
+  // Double-charge guard: mode:'payment' auto-captures, so a double-click that
+  // mints two sessions would take the seller's money twice (the promoted_until
+  // check above only trips AFTER the webhook activates the first one). Reuse the
+  // most recent still-pending promotion's checkout session instead of minting a
+  // second capturable one. If it's already paid, don't create another — the
+  // webhook will activate it shortly.
+  const { data: pending } = await ctx.admin
+    .from('listing_promotions')
+    .select('id, stripe_session_id')
+    .eq('listing_id', input.listingId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (pending?.stripe_session_id) {
+    const existing = await stripe.checkout.sessions
+      .retrieve(pending.stripe_session_id)
+      .catch(() => null);
+    if (existing) {
+      if (existing.payment_status === 'paid' || existing.status === 'complete') {
+        return ok({ redirect: `${siteUrl}/market/listing/${input.listingId}?promoted=1` });
+      }
+      if (existing.status === 'open' && existing.url) {
+        return ok({ redirect: existing.url });
+      }
+      // expired / canceled → fall through and mint a fresh session
+    }
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
     line_items: [{
@@ -61,6 +90,9 @@ export async function promoteListing(
     cancel_url: `${siteUrl}/market/listing/${input.listingId}`,
     customer_email: ctx.user.email ?? undefined,
     client_reference_id: ctx.user.id,
+    // Bound the session so an abandoned checkout can't be paid days later and
+    // become a duplicate charge (matches payCommission). 2h suits a real buyer.
+    expires_at: Math.floor(Date.now() / 1000) + 2 * 60 * 60,
     metadata: {
       type: 'listing_promotion',
       listing_id: input.listingId,
@@ -72,7 +104,11 @@ export async function promoteListing(
 
   if (!session.url) return fail('server_error', 'Checkout URL missing');
 
-  await ctx.admin.from('listing_promotions').insert({
+  // The webhook activates the promotion by matching this row on stripe_session_id.
+  // If the insert fails we must NOT send the seller to checkout — they'd be
+  // charged with no row for the webhook to flip to 'active' (seller charged, no
+  // promotion). Surface the failure instead.
+  const { error: promoErr } = await ctx.admin.from('listing_promotions').insert({
     listing_id: input.listingId,
     seller_id: ctx.user.id,
     tier,
@@ -82,6 +118,9 @@ export async function promoteListing(
     status: 'pending',
     daily_budget: TIER_DAILY_BUDGET[tier],
   });
+  if (promoErr) {
+    return fail('server_error', 'Kunne ikke starte promotering. Prøv igjen.');
+  }
 
   return ok({ redirect: session.url });
 }
