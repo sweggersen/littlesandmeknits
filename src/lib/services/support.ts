@@ -1,5 +1,5 @@
 import type { ServiceContext, ServiceResult } from './types';
-import { ok, fail } from './types';
+import { ok, fail, ensureStaff } from './types';
 import { assertWithinQuota } from './quota';
 
 // Contact/support requests (june26.md §2.3). Signed-in users file a request;
@@ -49,11 +49,6 @@ export async function submitSupportRequest(
   return ok({ redirect: '/hjelp?sent=1' });
 }
 
-async function ensureStaff(ctx: ServiceContext): Promise<boolean> {
-  const { data } = await ctx.admin.from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
-  return !!data && (data.role === 'admin' || data.role === 'moderator');
-}
-
 export interface SupportRow {
   id: string;
   user_id: string | null;
@@ -70,7 +65,8 @@ export interface SupportRow {
 export async function listSupportRequests(
   ctx: ServiceContext,
 ): Promise<ServiceResult<{ open: SupportRow[]; resolved: SupportRow[] }>> {
-  if (!(await ensureStaff(ctx))) return fail('forbidden', 'Krever moderator- eller admin-tilgang');
+  const denied = await ensureStaff(ctx);
+  if (denied) return denied;
 
   const { data, error } = await ctx.admin
     .from('support_requests')
@@ -91,7 +87,8 @@ export async function resolveSupportRequest(
   input: { id?: string; note?: string },
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.id) return fail('bad_input', 'Mangler id');
-  if (!(await ensureStaff(ctx))) return fail('forbidden', 'Krever moderator- eller admin-tilgang');
+  const denied = await ensureStaff(ctx);
+  if (denied) return denied;
 
   const { error } = await ctx.admin
     .from('support_requests')

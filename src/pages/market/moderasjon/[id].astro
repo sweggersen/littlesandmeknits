@@ -1,9 +1,9 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import MarketplaceShell from '../../../components/MarketplaceShell.astro';
-import { createServerSupabase, createAdminSupabase } from '../../../lib/supabase';
 import { requireUser } from '../../../lib/auth';
-import { env } from '../../../lib/env';
+import { buildServiceContext } from '../../../lib/services/context';
+import { getRecipientThreadView } from '../../../lib/services/moderation-threads';
 
 const guard = await requireUser(Astro);
 if (guard instanceof Response) return guard;
@@ -12,54 +12,23 @@ const user = guard;
 const id = Astro.params.id;
 if (!id) return Astro.redirect('/market');
 
-const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
-const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+const ctx = await buildServiceContext(Astro.request, Astro.cookies);
+if (!ctx) return Astro.redirect('/login');
 
-const { data: thread } = await supabase
-  .from('moderation_threads').select('*').eq('id', id).maybeSingle();
-if (!thread) return Astro.redirect('/market');
-
-const { data: messagesData } = await supabase
-  .from('moderation_messages')
-  .select('id, sender_id, is_moderator, body, created_at')
-  .eq('thread_id', thread.id)
-  .order('created_at', { ascending: true });
-const messages: any[] = messagesData ?? [];
-
-let itemTitle: string | null = null;
-let itemUrl: string | null = null;
-if (thread.target_type === 'listing') {
-  const { data: l } = await admin.from('listings').select('id, title').eq('id', thread.target_id).maybeSingle();
-  if (l) { itemTitle = l.title; itemUrl = `/market/listing/${l.id}`; }
-} else if (thread.target_type === 'store') {
-  const { data: s } = await admin.from('stores').select('slug, name').eq('id', thread.target_id).maybeSingle();
-  if (s) { itemTitle = s.name; itemUrl = `/market/store/${s.slug}`; }
-} else if (thread.target_type === 'commission_request') {
-  const { data: c } = await admin.from('commission_requests').select('id, title').eq('id', thread.target_id).maybeSingle();
-  if (c) { itemTitle = c.title; itemUrl = `/market/commissions/${c.id}`; }
-}
-
-// Mark moderator messages as read for this recipient.
-if (thread.recipient_id === user.id) {
-  await supabase.from('moderation_messages')
-    .update({ read_at: new Date().toISOString() })
-    .eq('thread_id', thread.id)
-    .eq('is_moderator', true)
-    .is('read_at', null);
-}
-
-const isOpen = thread.status === 'open';
+const view = await getRecipientThreadView(ctx, id);
+if (!view) return Astro.redirect('/market');
+const { thread, messages, itemTitle, itemUrl, isOpen } = view;
 ---
 
 <Layout title="Viktig melding fra moderator">
   <MarketplaceShell current="">
     <div class="space-y-4">
       <div class="bg-amber-50 border border-amber-300 rounded-2xl p-4">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-amber-800 mb-1">Viktig — moderator</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-amber-800 mb-1">Viktig · moderator</p>
         <h1 class="font-serif text-2xl text-amber-900">Samtale om {itemTitle ? `«${itemTitle}»` : 'et av elementene dine'}</h1>
         <p class="text-sm text-amber-900/80 mt-2">
           {isOpen
-            ? 'Elementet er midlertidig skjult fra Strikketorget mens vi behandler saken. Svar moderator her — det blir tilgjengelig igjen så snart saken er løst.'
+            ? 'Elementet er midlertidig skjult fra Strikketorget mens vi behandler saken. Svar moderator her, det blir tilgjengelig igjen så snart saken er løst.'
             : 'Denne saken er avsluttet.'}
         </p>
         {itemUrl && (

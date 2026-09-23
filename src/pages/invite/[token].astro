@@ -2,31 +2,23 @@
 import Layout from '../../layouts/Layout.astro';
 import { buildServiceContext } from '../../lib/services/context';
 import { ROLE_LABEL_NB } from '../../lib/services/store-permissions';
-import { createAdminSupabase } from '../../lib/supabase';
-import { env } from '../../lib/env';
+import { getInvitationByToken } from '../../lib/services/store-invitations';
 import type { StoreRole } from '../../lib/types/stores';
 
 const token = Astro.params.token ?? '';
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 
-// Look up invitation so we can show meaningful info even if not logged in
-const admin = createAdminSupabase((env as any).SUPABASE_SERVICE_ROLE_KEY);
-const { data: inv } = await admin
-  .from('store_invitations')
-  .select(`
-    id, email, role, expires_at, accepted_at,
-    stores:stores!inner(id, slug, name, logo_path, tagline)
-  `)
-  .eq('token', token)
-  .maybeSingle();
+// Look up the invitation (via the service; admin read since the invitee may be
+// anonymous) so we can show meaningful info even before login.
+const inv = await getInvitationByToken(token);
 
 const expired = inv && new Date(inv.expires_at).getTime() < Date.now();
 const used = inv?.accepted_at;
 const wrongEmail = ctx && inv && ctx.user.email?.toLowerCase() !== inv.email.toLowerCase();
-const store: any = inv?.stores;
+const store = inv?.store;
 ---
 
-<Layout title="Invitasjon — Strikketorget" lang="nb">
+<Layout title="Invitasjon · Strikketorget" lang="nb">
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-md mx-auto px-4 py-12 sm:py-20 text-center">
       {!inv ? (
