@@ -824,6 +824,29 @@ export async function refundCommissionPayment(
   }
 }
 
+/** Reverse a knitter transfer that was already made, when a released
+ *  commission is later refunded — e.g. a bank chargeback re-freezes a
+ *  `delivered` commission to `disputed` and admin resolves it as a refund.
+ *  Commissions use SEPARATE charges & transfers, so a plain buyer refund does
+ *  NOT claw back the knitter's transfer: without this the platform balance eats
+ *  the full price while the knitter keeps the money. Pulls the transferred funds
+ *  back from the connected account (a full reversal). Idempotent per transfer
+ *  via the key, so a retry can't double-reverse. */
+export async function reverseCommissionTransfer(
+  stripeSecretKey: string,
+  transferId: string,
+): Promise<void> {
+  const stripe = createStripe(stripeSecretKey);
+  // Full reversal (no amount = the whole transfer). No refund_application_fee:
+  // separate transfers carry no application fee (the platform retained its cut
+  // by only ever transferring sellerCredit, never the fee).
+  await stripe.transfers.createReversal(
+    transferId,
+    {},
+    { idempotencyKey: `commission-transfer-reversal-${transferId}` },
+  );
+}
+
 /** Refund a *duplicate* commission charge — a second concurrent checkout that
  *  also captured while the request was already finalized by the first. The
  *  request's real payment stays; only this orphaned PI is returned. Commission
@@ -891,7 +914,7 @@ export async function finalizeCommissionPayment(
     serviceLabel: 'commissions.finalizeCommissionPayment:project-activate',
   });
 
-  await admin
+  const { error: finalizeErr } = await admin
     .from('commission_requests')
     .update({
       status: needsYarn ? 'awaiting_yarn' : 'awarded',
@@ -899,6 +922,16 @@ export async function finalizeCommissionPayment(
       platform_fee_nok: input.platformFeeOre != null ? Math.round(input.platformFeeOre / 100) : null,
     })
     .eq('id', input.requestId);
+  if (finalizeErr) {
+    // The buyer has ALREADY been charged (automatic capture), but we couldn't
+    // record the payment. Returning ok() here would let the webhook mark the
+    // event processed and Stripe stop retrying, leaving the buyer charged with
+    // the request frozen in awaiting_payment forever. Instead surface the
+    // failure so the webhook returns 500 + dead-letters and Stripe retries;
+    // the awaiting_payment guard above makes the retry idempotent. Skip the
+    // ledger + notify below — they must not fire against an un-persisted state.
+    return fail('server_error', `Could not finalize commission payment: ${finalizeErr.message}`);
+  }
 
   // Ledger: commission paid in full into the platform balance (separate
   // charges & transfers — the knitter is paid later, at delivery/release).

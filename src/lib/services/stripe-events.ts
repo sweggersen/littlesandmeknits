@@ -145,7 +145,18 @@ export async function handleChargebackOpened(
       .select('id');
     changed = res.data; freezeErr = res.error;
     if (changed?.length) {
-      await admin.from('listings').update({ status: 'disputed' }).eq('id', escrow.id);
+      // Mirror the freeze onto the catalog row so /admin/disputes (which queries
+      // listings.status='disputed') surfaces it. A later retry short-circuits at
+      // the `changed?.length` guard above (the order now carries the dispute id),
+      // so this mirror can't self-heal on retry — dead-letter a failure here.
+      const { error: mirrorErr } = await admin.from('listings').update({ status: 'disputed' }).eq('id', escrow.id);
+      if (mirrorErr) {
+        await recordDeadLetter(dlCtx(admin, env), {
+          service: 'stripe.webhook:chargeback_listing_mirror',
+          context: { dispute_id: dispute.id, listing_id: escrow.id, order_id: escrow.orderId },
+          error: mirrorErr,
+        });
+      }
     }
   } else {
     const res = await admin
