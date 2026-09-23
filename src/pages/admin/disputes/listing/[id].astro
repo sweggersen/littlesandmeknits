@@ -69,7 +69,7 @@ const itemUrl = `/market/listing/${listing.id}`;
 const isOpen = listing.status === 'disputed';
 
 const buyerMailto = buyerEmail
-  ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget — oppfølging av tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten du åpnet på annonsen «${listing.title}». Kan du gi oss mer informasjon:\n\n- Hva har skjedd?\n- Har du dokumentasjon (skjermbilder, kvitteringer, sporing)?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget · oppfølging av tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten du åpnet på annonsen «${listing.title}». Kan du gi oss mer informasjon:\n\n- Hva har skjedd?\n- Har du dokumentasjon (skjermbilder, kvitteringer, sporing)?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
   : null;
 const sellerMailto = sellerEmail
   ? `mailto:${sellerEmail}?subject=${encodeURIComponent(`Strikketorget · tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${sellerName ? ' ' + sellerName : ''},\n\nKjøperen har åpnet en tvist på annonsen «${listing.title}». Grunnen oppgitt: «${listing.dispute_reason ?? ''}».\n\nKan du gi oss din side av saken?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`

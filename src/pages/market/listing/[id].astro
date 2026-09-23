@@ -191,7 +191,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
 ---
 
 <Layout title={listing.title} description={seoDescription} ogImage={heroImageUrl} lang="nb">
-  <script type="application/ld+json" set:html={JSON.stringify(productJsonLd)} is:inline />
+  <script type="application/ld+json" set:html={JSON.stringify(productJsonLd).replace(/</g, "\\u003c")} is:inline />
   <MarketplaceShell current="listing">
       {isOwner && (
         <OwnerStatusAlerts

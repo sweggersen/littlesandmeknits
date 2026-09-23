@@ -206,7 +206,7 @@ const orgJsonLd = {
 ---
 
 <Layout title="Strikketorget" description="Norges marked for håndstrikkede plagg. Kjøp og selg brukt eller nytt, bestill plagg fra strikkere, betal trygt med Trygg betaling." lang="nb">
-  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd)} is:inline />
+  <script type="application/ld+json" set:html={JSON.stringify(orgJsonLd).replace(/</g, "\\u003c")} is:inline />
   <MarketplaceShell current="home">
       <!-- Hero (desktop): two-column with larger icon + stacked title/tagline/search.
            Mobile keeps the search-first compact layout below. -->

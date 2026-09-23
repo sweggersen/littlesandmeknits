@@ -1,11 +1,14 @@
 ---
 import Layout from '../../layouts/Layout.astro';
+import { devToolsBlocked } from '../../lib/dev-guard';
 
 // Dev-only: one-click "kickstarter" that fills the local database with a full,
 // consistent Strikketorget (users, listings, knitting requests at every stage,
 // reviews, messages, disputes, refunds, moderation, reports, follows, payouts)
-// by driving the real services. Never available in production.
-if (import.meta.env.PROD) return Astro.redirect('/market');
+// by driving the real services. This wipes + refills the DB, so gate it with
+// devToolsBlocked (prod-blocked + preview needs DEV_TOOLS='enabled'), not just
+// the import.meta.env.PROD flag.
+if (devToolsBlocked(Astro.request)) return Astro.redirect('/market');
 ---
 
 <Layout title="Seed testdata · Strikketorget" lang="nb" noindex>
@@ -73,7 +76,7 @@ if (import.meta.env.PROD) return Astro.redirect('/market');
       <p class="font-medium text-charcoal/80 mb-1">Etterpå:</p>
       <ul class="list-disc pl-5 space-y-1">
         <li>Logg inn som en persona via <a href="/dev/screens" class="text-terracotta-500 hover:underline">/dev/screens</a> (eller test-login), f.eks. <code>eline@test.strikketorget.no</code> (selger), <code>liv@test.strikketorget.no</code> (kjøper), <code>ingrid@test.strikketorget.no</code> (strikker), <code>hanne@test.strikketorget.no</code> (moderator), <code>silje@test.strikketorget.no</code> (admin).</li>
-        <li>Bla i <a href="/market" class="text-terracotta-500 hover:underline">Strikketorget</a>, <a href="/market/commissions" class="text-terracotta-500 hover:underline">oppdrag</a> og <a href="/market/butikker" class="text-terracotta-500 hover:underline">butikker</a>.</li>
+        <li>Bla i <a href="/market" class="text-terracotta-500 hover:underline">Strikketorget</a>, <a href="/market/commissions" class="text-terracotta-500 hover:underline">oppdrag</a> og <a href="/market/stores" class="text-terracotta-500 hover:underline">butikker</a>.</li>
       </ul>
     </div>
   </div>
