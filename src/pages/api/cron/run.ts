@@ -274,6 +274,22 @@ export const POST: APIRoute = async ({ request }) => {
           .eq('id', req.awarded_offer_id!)
           .maybeSingle();
 
+        // Claim the row atomically BEFORE moving money: flip completed -> delivered
+        // conditionally. A buyer who disputes or confirms in the same window (e.g.
+        // a dispute on the last day of the 14-day auto-release window) sets the
+        // status away from 'completed' first; then this claim matches 0 rows and
+        // we skip — instead of the old unguarded update that paid the knitter over
+        // an open dispute AND overwrote the dispute back to 'delivered'.
+        const reviewDeadline = new Date();
+        reviewDeadline.setDate(reviewDeadline.getDate() + 14);
+        const { data: claimed } = await admin
+          .from('commission_requests')
+          .update({ status: 'delivered', delivered_at: now, review_deadline_at: reviewDeadline.toISOString() })
+          .eq('id', req.id)
+          .eq('status', 'completed')
+          .select('id');
+        if (!claimed?.length) continue; // disputed/confirmed between the select and now
+
         let commissionReleased = true;
         if (req.stripe_payment_intent_id && offer) {
           try {
@@ -287,9 +303,6 @@ export const POST: APIRoute = async ({ request }) => {
             });
             commissionReleased = r.released; // false already dead-lettered inside
           } catch (e) {
-            // Don't mark delivered if the money didn't move — leave
-            // auto_release_at in the past so the next tick retries, and
-            // dead-letter so the stuck escrow isn't silently dropped.
             commissionReleased = false;
             await recordDeadLetter({ admin, user: req.buyer_id ? { id: req.buyer_id } : undefined }, {
               service: 'cron.auto_release:commission_release',
@@ -298,7 +311,16 @@ export const POST: APIRoute = async ({ request }) => {
             });
           }
         }
-        if (!commissionReleased) continue;
+        if (!commissionReleased) {
+          // We claimed 'delivered' but the money didn't move — revert so the next
+          // tick retries (release is idempotent) rather than leaving a
+          // delivered-but-unpaid commission. auto_release_at stays in the past.
+          await admin
+            .from('commission_requests')
+            .update({ status: 'completed', delivered_at: null, review_deadline_at: null })
+            .eq('id', req.id);
+          continue;
+        }
 
         // Ledger: escrow released to the knitter — same event confirmDelivery
         // records, so the auto-release path has an equivalent audit trail
@@ -311,16 +333,6 @@ export const POST: APIRoute = async ({ request }) => {
             paymentIntentId: req.stripe_payment_intent_id, context: { trigger: 'auto_release' },
           });
         }
-
-        // Match confirmDelivery: set the 14-day review window, otherwise the
-        // reveal_reviews section (which requires review_deadline_at) never
-        // surfaces the reviews for auto-released commissions.
-        const reviewDeadline = new Date();
-        reviewDeadline.setDate(reviewDeadline.getDate() + 14);
-        await admin
-          .from('commission_requests')
-          .update({ status: 'delivered', delivered_at: now, review_deadline_at: reviewDeadline.toISOString() })
-          .eq('id', req.id);
 
         if (offer) {
           await createNotification(admin, {
@@ -353,7 +365,23 @@ export const POST: APIRoute = async ({ request }) => {
         let captured = true;
         if (ord.stripe_payment_intent_id) {
           try {
-            await stripe.paymentIntents.capture(ord.stripe_payment_intent_id);
+            // shipListing already captures at ship time, so the normal path has a
+            // 'succeeded' PI. Blindly calling capture() again THROWS ("already
+            // captured"), which used to leave the order stuck 'shipped' forever,
+            // re-dead-lettered every tick. Retrieve first and only capture the rare
+            // still-authorized case (shipped while payouts were paused).
+            const pi = await stripe.paymentIntents.retrieve(ord.stripe_payment_intent_id);
+            if (pi.status === 'requires_capture') {
+              await stripe.paymentIntents.capture(ord.stripe_payment_intent_id);
+            } else if (pi.status !== 'succeeded') {
+              // canceled / needs-action / etc — don't mark delivered; surface it.
+              captured = false;
+              await recordDeadLetter({ admin, user: ord.seller_id ? { id: ord.seller_id } : undefined }, {
+                service: 'cron.auto_release:listing_capture_bad_state',
+                context: { order_id: ord.id, listing_id: ord.listing_id, payment_intent_id: ord.stripe_payment_intent_id, pi_status: pi.status },
+                error: `PaymentIntent not capturable (status=${pi.status})`,
+              });
+            }
           } catch (e) {
             // Leave the order releasable (auto_release_at untouched) for the
             // next tick and dead-letter so a failed capture isn't dropped.
@@ -366,7 +394,12 @@ export const POST: APIRoute = async ({ request }) => {
           }
         }
         if (!captured) continue;
-        await admin.from('orders').update({ status: 'delivered', delivered_at: now, auto_release_at: null }).eq('id', ord.id);
+        // Guard the transition so a dispute/confirm landing in the same window
+        // isn't overwritten (0 rows = no longer 'shipped' -> skip).
+        const { data: delivered } = await admin.from('orders')
+          .update({ status: 'delivered', delivered_at: now, auto_release_at: null })
+          .eq('id', ord.id).eq('status', 'shipped').select('id');
+        if (!delivered?.length) continue;
         await admin.from('listings').update({ status: 'sold', sold_at: now }).eq('id', ord.listing_id);
 
         const { data: l } = await admin.from('listings').select('title').eq('id', ord.listing_id).maybeSingle();

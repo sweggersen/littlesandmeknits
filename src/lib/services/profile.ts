@@ -57,7 +57,15 @@ export async function exportPersonalData(
   // moderator-only / internal fields (e.g. shadow_status, moderator notes,
   // internal scoring) into a GDPR export. Add columns deliberately.
   const COLS_PROFILE = 'id, display_name, bio, avatar_path, location_city, website, role, created_at, updated_at, deleted_at';
-  const COLS_LISTING = 'id, title, description, price_nok, kind, status, hero_photo_path, location_city, created_at, sold_at, shipping_price_nok, tracking_code';
+  // NB: tracking_code and the purchase money/PII columns were dropped from
+  // listings in 0089 (they live on `orders` now) — selecting a dropped column
+  // makes PostgREST error the whole query, so keep this to live catalog columns.
+  const COLS_LISTING = 'id, title, description, price_nok, kind, status, hero_photo_path, location_city, created_at, sold_at, shipping_price_nok';
+  // Orders are the canonical purchase record (0088). Buyer export includes their
+  // own shipping PII; seller export omits the buyer's shipping PII (not the
+  // seller's personal data).
+  const COLS_ORDER_BUYER = 'id, listing_id, status, item_price_nok, shipping_nok, tb_fee_nok, platform_fee_nok, shipping_name, shipping_address, shipping_postal_code, shipping_city, reserved_at, shipped_at, delivered_at, cancelled_at, created_at';
+  const COLS_ORDER_SELLER = 'id, listing_id, status, item_price_nok, shipping_nok, tb_fee_nok, platform_fee_nok, reserved_at, shipped_at, delivered_at, cancelled_at, created_at';
   const COLS_FAVORITE = 'user_id, listing_id, created_at';
   const COLS_CONVERSATION = 'id, listing_id, commission_request_id, buyer_id, seller_id, created_at, updated_at';
   const COLS_MESSAGE = 'id, conversation_id, sender_id, body, created_at, read_at';
@@ -76,7 +84,7 @@ export async function exportPersonalData(
     listingsRes, purchasesRes, favoritesRes, conversationsRes,
     messagesRes, notificationsRes, reviewsGivenRes, reviewsReceivedRes,
     storeMembersRes, commissionsRes, offersRes, reportsFiledRes, modThreadsRes,
-    authUserRes,
+    authUserRes, ordersBuyerRes, ordersSellerRes,
   ] = await Promise.all([
     ctx.supabase.from('profiles').select(COLS_PROFILE).eq('id', ctx.user.id).maybeSingle(),
     ctx.admin.from('seller_profiles').select('*').eq('id', ctx.user.id).maybeSingle(),
@@ -97,6 +105,11 @@ export async function exportPersonalData(
     ctx.supabase.from('moderation_threads').select(COLS_MOD_THREAD).eq('recipient_id', ctx.user.id).limit(EXPORT_LIMIT),
     // auth.users isn't RLS-readable by end users; admin client is the right tool.
     ctx.admin.auth.admin.getUserById(ctx.user.id),
+    // Orders via admin (scoped to the user) so the export is complete regardless
+    // of the orders RLS shape — this is the canonical purchase history + the
+    // buyer's shipping PII that the listings projection no longer carries.
+    ctx.admin.from('orders').select(COLS_ORDER_BUYER).eq('buyer_id', ctx.user.id).limit(EXPORT_LIMIT),
+    ctx.admin.from('orders').select(COLS_ORDER_SELLER).eq('seller_id', ctx.user.id).limit(EXPORT_LIMIT),
   ]);
 
   // Build a list of categories that hit the cap.
@@ -114,6 +127,8 @@ export async function exportPersonalData(
   checkTrunc('reviewsReceived', reviewsReceivedRes.data);
   checkTrunc('commissions', commissionsRes.data);
   checkTrunc('commissionOffers', offersRes.data);
+  checkTrunc('ordersAsBuyer', ordersBuyerRes.data);
+  checkTrunc('ordersAsSeller', ordersSellerRes.data);
 
   return ok({
     exportedAt: new Date().toISOString(),
@@ -138,6 +153,8 @@ export async function exportPersonalData(
     marketplace: {
       listingsAsSeller: listingsRes.data ?? [],
       listingsAsBuyer: purchasesRes.data ?? [],
+      ordersAsBuyer: ordersBuyerRes.data ?? [],
+      ordersAsSeller: ordersSellerRes.data ?? [],
       favorites: favoritesRes.data ?? [],
       conversations: conversationsRes.data ?? [],
       messagesSent: messagesRes.data ?? [],

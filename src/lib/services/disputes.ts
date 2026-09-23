@@ -248,12 +248,24 @@ async function resolveCommissionDispute(
         return fail('server_error', 'Kunne ikke refundere. Saken er logget for manuell håndtering.');
       }
     } else if (awardedOffer) {
-      const r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
-        requestId,
-        paymentIntentId: req.stripe_payment_intent_id,
-        knitterId: awardedOffer.knitter_id,
-        priceNok: awardedOffer.price_nok,
-      });
+      let r: { released: boolean; reason?: string };
+      try {
+        r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
+          requestId,
+          paymentIntentId: req.stripe_payment_intent_id,
+          knitterId: awardedOffer.knitter_id,
+          priceNok: awardedOffer.price_nok,
+        });
+      } catch (e) {
+        // A thrown Stripe error (rate limit, balance_insufficient) would escape
+        // to a bare, un-audited 500 — dead-letter it (matches the refund branch).
+        await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
+          service: 'disputes.resolve:release',
+          context: { request_id: requestId, payment_intent_id: req.stripe_payment_intent_id },
+          error: e,
+        });
+        return fail('server_error', 'Utbetalingen kunne ikke gjennomføres. Saken er logget for manuell håndtering.');
+      }
       // Don't record "released to knitter" if the money didn't move.
       if (!r.released) return fail('conflict', 'Utbetalingen kunne ikke gjennomføres. Se dead letters.');
     }

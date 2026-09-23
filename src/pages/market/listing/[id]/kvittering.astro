@@ -34,7 +34,7 @@ if (!isBuyer && !isSeller && !isStaff) return Astro.redirect(`/market/listing/${
 // The order is the purchase record (money + shipping). Most recent for the listing.
 const { data: order } = await supabase
   .from('orders')
-  .select('platform_fee_nok, reserved_at, shipped_at, delivered_at, shipping_name, shipping_address, shipping_postal_code, shipping_city')
+  .select('item_price_nok, shipping_nok, tb_fee_nok, platform_fee_nok, reserved_at, shipped_at, delivered_at, shipping_name, shipping_address, shipping_postal_code, shipping_city')
   .eq('listing_id', id)
   .order('created_at', { ascending: false })
   .limit(1)
@@ -68,17 +68,22 @@ if (listing.store_id) {
 const buyerName = order.shipping_name ?? 'Kjøper';
 const buyerAddress = [order.shipping_address, order.shipping_postal_code, order.shipping_city].filter(Boolean).join(', ');
 
-// Numbers. We charge buyer the listed price (gross); platform fee comes
-// out of the seller's payout. Buyer's view shows the price they paid;
-// seller's view also shows the platform fee + net payout.
-const gross = listing.price_nok;
-const fee = order.platform_fee_nok ?? 0;
-const net = gross - fee;
+// Numbers — fee-on-top model (see money.ts MoneyBreakdown.listingPurchase):
+// the buyer pays item + shipping + the trygg-betaling fee; the SELLER receives
+// item + shipping in full (the fee is buyer-borne, NOT deducted from the
+// payout); the platform keeps the fee. Drive everything from the recorded order
+// amounts so the receipt reconciles with the actual Stripe charge (not the live
+// listing price, which can change after the sale).
+const item = order.item_price_nok ?? listing.price_nok;
+const shipping = order.shipping_nok ?? 0;
+const fee = order.tb_fee_nok ?? order.platform_fee_nok ?? 0;
+const buyerTotal = item + shipping + fee; // == Stripe amount_total
+const sellerNet = item + shipping;         // fee is buyer-borne, not deducted
 
-// VAT note: private sellers aren't MVA-registered. Stores may be (boolean
-// on stores.vat_registered). When VAT-registered, the price is shown as
-// "inkl. MVA 25 %"; the MVA-amount is gross * 25 / 125.
-const vatAmount = sellerVatRegistered ? Math.round(gross * 25 / 125) : null;
+// VAT note: private sellers aren't MVA-registered. Stores may be (boolean on
+// stores.vat_registered). When VAT-registered, MVA is 25 % of the seller's
+// consideration (item + shipping); amount = base * 25 / 125.
+const vatAmount = sellerVatRegistered ? Math.round(sellerNet * 25 / 125) : null;
 
 // Kvittering nr: K + listing-id short + reserved date stamp
 const receiptNo = `K-${listing.id.slice(0, 8).toUpperCase()}-${(order.reserved_at ?? new Date().toISOString()).slice(0, 10).replace(/-/g, '')}`;
@@ -140,15 +145,27 @@ function nok(n: number): string {
                 <p>{listing.title}</p>
                 <p class="text-xs text-charcoal/50">{listing.kind === 'pre_loved' ? 'Brukt' : 'Nytt'}</p>
               </td>
-              <td class="py-3 text-right font-mono">{nok(gross)}</td>
+              <td class="py-3 text-right font-mono">{nok(item)}</td>
             </tr>
+            {shipping > 0 && (
+              <tr class="border-b border-sage-500/10">
+                <td class="py-3 text-charcoal/65">Frakt</td>
+                <td class="py-3 text-right font-mono">{nok(shipping)}</td>
+              </tr>
+            )}
+            {fee > 0 && (
+              <tr class="border-b border-sage-500/10">
+                <td class="py-3 text-charcoal/65">Trygg betaling (Strikketorget-gebyr)</td>
+                <td class="py-3 text-right font-mono">{nok(fee)}</td>
+              </tr>
+            )}
             <tr>
-              <td class="py-3 text-right text-charcoal/55" colspan="1">Sum</td>
-              <td class="py-3 text-right font-mono font-bold">{nok(gross)}</td>
+              <td class="py-3 text-right text-charcoal/55" colspan="1">Totalt betalt</td>
+              <td class="py-3 text-right font-mono font-bold">{nok(buyerTotal)}</td>
             </tr>
             {vatAmount !== null && (
               <tr>
-                <td class="py-1 text-right text-xs text-charcoal/55">Hvorav MVA 25 %</td>
+                <td class="py-1 text-right text-xs text-charcoal/55">Hvorav MVA 25 % (vare + frakt)</td>
                 <td class="py-1 text-right text-xs font-mono">{nok(vatAmount)}</td>
               </tr>
             )}
@@ -160,10 +177,13 @@ function nok(n: number): string {
         <section class="mb-8 bg-linen rounded-xl p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Selger · utbetaling</p>
           <table class="w-full text-sm">
-            <tr><td>Brutto salg</td><td class="text-right font-mono">{nok(gross)}</td></tr>
-            <tr><td>Tjenestegebyr Strikketorget</td><td class="text-right font-mono">−{nok(fee)}</td></tr>
-            <tr class="border-t border-sage-500/20"><td class="pt-2 font-medium">Netto utbetaling</td><td class="pt-2 text-right font-mono font-bold">{nok(net)}</td></tr>
+            <tr><td>Vare</td><td class="text-right font-mono">{nok(item)}</td></tr>
+            {shipping > 0 && <tr><td>Frakt</td><td class="text-right font-mono">{nok(shipping)}</td></tr>}
+            <tr class="border-t border-sage-500/20"><td class="pt-2 font-medium">Utbetaling til deg</td><td class="pt-2 text-right font-mono font-bold">{nok(sellerNet)}</td></tr>
           </table>
+          {fee > 0 && (
+            <p class="text-xs text-charcoal/50 mt-2">Trygg betaling-gebyret ({nok(fee)}) betales av kjøper i tillegg og trekkes ikke fra utbetalingen din.</p>
+          )}
         </section>
       )}
 

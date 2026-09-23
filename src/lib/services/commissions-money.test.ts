@@ -613,9 +613,10 @@ describe('cancelLateCommission — buyer cancels an overdue commission (P1.1)', 
     if (!r.ok) expect(r.code).toBe('conflict');
   });
 
-  it('dead-letters (does not lose) a status update that fails AFTER the refund', async () => {
-    // Refund succeeds, then the status flip fails: the buyer is already made
-    // whole but the knitter would still see an active job — must dead-letter.
+  it('dead-letters and does NOT refund when the status claim fails', async () => {
+    // The status flip now runs as a conditional claim BEFORE the refund. If it
+    // fails, we bail without refunding — strictly safer than the old refund-first
+    // flow, which could leave a refunded buyer on a still-active job.
     const db = createFakeDb({
       commission_requests: [{
         id: 'req-1', buyer_id: 'buyer-1', status: 'awarded', title: 'Genser',
@@ -627,11 +628,10 @@ describe('cancelLateCommission — buyer cancels an overdue commission (P1.1)', 
     const r = await cancelLateCommission(ctxFor(db, 'buyer-1'), { requestId: 'req-1', now: NOW });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.code).toBe('server_error');
-    expect(refundCreate).toHaveBeenCalledTimes(1); // buyer WAS refunded
+    expect(refundCreate).not.toHaveBeenCalled(); // claim failed first — money never moved
     expect(vi.mocked(recordDeadLetter)).toHaveBeenCalledTimes(1);
     const [, dl] = vi.mocked(recordDeadLetter).mock.calls[0] as any[];
-    expect(dl.service).toBe('commissions.cancelLateCommission:status-update');
-    expect(dl.context.refunded).toBe(true);
+    expect(dl.service).toBe('commissions.cancelLate:claim');
   });
 
   it('is blocked while payouts are killed — no refund issued', async () => {

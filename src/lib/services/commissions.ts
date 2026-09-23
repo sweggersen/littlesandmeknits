@@ -468,6 +468,30 @@ export async function cancelLateCommission(
   const blocked = await killGuard(['payouts'], ctx.env);
   if (blocked) return blocked;
 
+  // Claim the row atomically BEFORE refunding: flip awarded/awaiting_yarn ->
+  // cancelled conditionally. If the knitter marks it 'completed' in the same
+  // window, this matches 0 rows and we abort WITHOUT refunding — otherwise the
+  // buyer could be refunded while the row stays 'completed' and the cron then
+  // auto-releases to the knitter too (platform eats the price).
+  const { data: claimed, error: claimErr } = await ctx.admin.from('commission_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', input.requestId)
+    .in('status', ['awarded', 'awaiting_yarn'])
+    .select('id');
+  if (claimErr) {
+    // DB error on the claim — nothing has moved yet (refund runs AFTER). Log and
+    // bail so we never refund against a row we couldn't transition.
+    await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
+      service: 'commissions.cancelLate:claim',
+      context: { request_id: input.requestId },
+      error: claimErr,
+    });
+    return fail('server_error', 'Kunne ikke avbestille. Saken er logget for manuell håndtering.');
+  }
+  if (!claimed?.length) {
+    return fail('conflict', 'Oppdraget er allerede levert eller fullført. Ta kontakt med support hvis du vil bestride.');
+  }
+
   // Refund the buyer (money is still in the platform balance / escrow).
   if (req.stripe_payment_intent_id) {
     // Money path: dead-letter a Stripe failure so support can finish it, rather
@@ -475,6 +499,9 @@ export async function cancelLateCommission(
     try {
       await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
     } catch (e) {
+      // Refund failed after we claimed 'cancelled' — revert so the knitter's job
+      // isn't wrongly cancelled, and dead-letter for manual handling.
+      await ctx.admin.from('commission_requests').update({ status: req.status }).eq('id', input.requestId);
       await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
         service: 'commissions.cancelLate:refund',
         context: { request_id: input.requestId, payment_intent_id: req.stripe_payment_intent_id },
@@ -483,29 +510,8 @@ export async function cancelLateCommission(
       return fail('server_error', 'Kunne ikke refundere. Saken er logget for manuell håndtering.');
     }
   }
-  // commission_requests has no cancel_reason column — the reason ('late_knitter')
-  // is captured in the payment_events ledger below.
-  const { error: cancelErr } = await ctx.admin.from('commission_requests')
-    .update({ status: 'cancelled' })
-    .eq('id', input.requestId);
-  if (cancelErr) {
-    // Buyer is already refunded; if we can't flip the status the knitter still
-    // sees an active job. Dead-letter so support reconciles, rather than losing
-    // the failure to the console.
-    await recordDeadLetter(
-      { admin: ctx.admin, user: ctx.user, env: ctx.env },
-      {
-        service: 'commissions.cancelLateCommission:status-update',
-        context: {
-          commission_request_id: input.requestId,
-          payment_intent_id: req.stripe_payment_intent_id ?? null,
-          refunded: !!req.stripe_payment_intent_id,
-        },
-        error: cancelErr,
-      },
-    );
-    return fail('server_error', 'Refundert, men kunne ikke oppdatere status. Vi følger opp.');
-  }
+  // Status already flipped to 'cancelled' by the claim above. The cancel reason
+  // ('late_knitter') is captured in the payment_events ledger below.
 
   await recordPaymentEvent(ctx.admin, {
     kind: 'commission', type: 'refunded', commissionRequestId: input.requestId,
@@ -1100,12 +1106,19 @@ export async function markCompleted(
   const autoRelease = new Date();
   autoRelease.setDate(autoRelease.getDate() + 14);
 
-  await ctx.admin.from('commission_requests').update({
+  // Conditional claim: only awarded -> completed. If the buyer late-cancelled in
+  // the same window (awarded -> cancelled + refund), this matches 0 rows and we
+  // abort — otherwise the row would go back to 'completed' and the cron would
+  // auto-release to the knitter on top of the buyer's refund.
+  const { data: completed } = await ctx.admin.from('commission_requests').update({
     status: 'completed',
     completed_at: new Date().toISOString(),
     auto_release_at: autoRelease.toISOString(),
     finished_item_tracking_code: input.trackingCode?.trim() || null,
-  }).eq('id', input.requestId);
+  }).eq('id', input.requestId).eq('status', 'awarded').select('id');
+  if (!completed?.length) {
+    return fail('conflict', 'Oppdraget kan ikke merkes som ferdig nå (kjøper kan ha avbestilt).');
+  }
 
   await createNotification(ctx.admin, {
     userId: req.buyer_id, type: 'commission_completed',
@@ -1140,12 +1153,25 @@ export async function confirmDelivery(
     .from('commission_offers').select('knitter_id, price_nok').eq('id', req.awarded_offer_id!).single();
 
   if (req.stripe_payment_intent_id && offer) {
-    const r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
-      requestId: input.requestId,
-      paymentIntentId: req.stripe_payment_intent_id,
-      knitterId: offer.knitter_id,
-      priceNok: offer.price_nok,
-    });
+    let r: { released: boolean; reason?: string };
+    try {
+      r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
+        requestId: input.requestId,
+        paymentIntentId: req.stripe_payment_intent_id,
+        knitterId: offer.knitter_id,
+        priceNok: offer.price_nok,
+      });
+    } catch (e) {
+      // releaseCommissionFunds dead-letters its released:false states, but a
+      // thrown Stripe error (rate limit, balance_insufficient on the no-charge
+      // fallback) would otherwise escape to a bare, un-audited 500. Dead-letter it.
+      await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
+        service: 'commissions.confirmDelivery:release',
+        context: { commission_request_id: input.requestId, payment_intent_id: req.stripe_payment_intent_id },
+        error: e,
+      });
+      return fail('server_error', 'Utbetalingen kunne ikke gjennomføres. Saken er logget, prøv igjen.');
+    }
     // Never mark delivered without the money having moved (dead-lettered inside).
     if (!r.released) return fail('conflict', 'Utbetalingen kunne ikke gjennomføres. Ta kontakt med support.');
     // Ledger: escrow released to the knitter (price minus the platform's cut).
