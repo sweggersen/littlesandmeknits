@@ -203,7 +203,7 @@ export async function makeOffer(
   await createNotification(ctx.admin, {
     userId: req.buyer_id, type: 'new_offer',
     title: 'Nytt tilbud!',
-    body: `Noen har gitt tilbud på «${req.title}» — ${priceNok} kr, ${turnaroundWeeks} uker.`,
+    body: `Noen har gitt tilbud på «${req.title}», ${priceNok} kr, ${turnaroundWeeks} uker.`,
     url: `/market/commissions/${input.requestId}`,
     actorId: ctx.user.id, referenceId: input.requestId,
   }, ctx.env);
@@ -947,7 +947,7 @@ export async function finalizeCommissionPayment(
     title: 'Betaling mottatt!',
     body: needsYarn
       ? `Betaling for «${req.title}» er mottatt. Venter på at kjøper sender garnet.`
-      : `Betaling for «${req.title}» er mottatt — du kan begynne å strikke!`,
+      : `Betaling for «${req.title}» er mottatt, du kan begynne å strikke!`,
     url: `/market/commissions/${input.requestId}`,
     referenceId: input.requestId,
   }, env);
@@ -1312,7 +1312,7 @@ export async function disputeCommission(
       userId: a.id,
       type: 'dispute_opened',
       title: 'Ny tvist',
-      body: `Tvist på oppdrag «${req.title}» — krever gjennomgang.`,
+      body: `Tvist på oppdrag «${req.title}», krever gjennomgang.`,
       url: '/admin/disputes',
       referenceId: input.requestId,
     }, ctx.env);

@@ -191,7 +191,7 @@ export async function createStore(
       const detail = (error as any).message ?? '';
       if (detail.includes('slug')) return fail('conflict', 'URL-navnet er allerede tatt');
       if (detail.includes('orgnr')) return fail('conflict', 'Denne organisasjonen har allerede en butikk');
-      return fail('conflict', 'Konflikt — prøv et annet navn eller orgnr');
+      return fail('conflict', 'Konflikt. Prøv et annet navn eller orgnr');
     }
     return fail('server_error', 'Kunne ikke opprette butikk');
   }

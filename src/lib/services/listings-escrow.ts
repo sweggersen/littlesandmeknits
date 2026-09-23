@@ -580,7 +580,7 @@ export async function disputeListing(
       userId: a.id,
       type: 'dispute_opened',
       title: 'Ny tvist',
-      body: `Tvist på «${listing.title}» — krever gjennomgang.`,
+      body: `Tvist på «${listing.title}», krever gjennomgang.`,
       url: '/admin/disputes',
       referenceId: input.listingId,
     }, ctx.env);
