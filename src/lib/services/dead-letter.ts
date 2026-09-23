@@ -52,20 +52,24 @@ export async function recordDeadLetter(
       ? input.error
       : JSON.stringify(input.error);
 
+  // supabase-js resolves insert/update/delete with { error } and does NOT throw
+  // on a DB-level rejection (RLS/constraint/enum/bad column), so a try/catch
+  // would miss those — check the returned error AND guard against a client-level
+  // throw. Best-effort either way: this is the last audit layer, so it logs and
+  // returns (never throws, never rolls back the money op that called it).
   try {
-    await ctx.admin.from('dead_letter_events').insert({
+    const { error } = await ctx.admin.from('dead_letter_events').insert({
       service: input.service,
       user_id: ctx.user?.id ?? null,
       context: (input.context ?? {}) as Record<string, unknown> as never,
       error: message.slice(0, 2000),
       domain: domainFromService(input.service),
     } as never);
+    if (error) {
+      log.error('dead_letter.insert_failed', { service: input.service, original_error: message, error });
+    }
   } catch (e) {
-    log.error('dead_letter.insert_failed', {
-      service: input.service,
-      original_error: message,
-      error: e,
-    });
+    log.error('dead_letter.insert_failed', { service: input.service, original_error: message, error: e });
   }
 
   // Mirror to Sentry (no-op unless SENTRY_DSN is set). Best-effort: every

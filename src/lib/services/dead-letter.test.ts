@@ -90,6 +90,18 @@ describe('recordDeadLetter', () => {
     consoleSpy.mockRestore();
   });
 
+  it('logs when the insert RESOLVES with an error (supabase-js does not throw)', async () => {
+    // Regression: a DB rejection comes back as { error }, not a throw. The old
+    // try/catch missed it, so a failed dead-letter insert was silent. Now logged.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { ctx } = mockCtx(async () => ({ error: { message: 'domain check failed' } }));
+    await expect(
+      recordDeadLetter(ctx, { service: 'svc', error: new Error('original') }),
+    ).resolves.toBeUndefined();
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
   it('null user_id when ctx.user.id is missing', async () => {
     const { ctx, inserts } = mockCtx();
     (ctx as any).user = undefined;

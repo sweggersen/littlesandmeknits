@@ -9,6 +9,7 @@
 
 import type { TypedSupabaseClient } from '../supabase';
 import type { Database } from '../database.types';
+import { log } from '../log';
 
 export type OrderStatus = Database['public']['Enums']['order_status'];
 export type OrderRow = Database['public']['Tables']['orders']['Row'];
@@ -86,13 +87,17 @@ export async function updateOpenOrder(
   listingId: string,
   patch: OrderUpdate,
 ): Promise<string | null> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from('orders')
     .update(patch)
     .eq('listing_id', listingId)
     .in('status', OPEN)
     .select('id')
     .maybeSingle();
+  // A DB error returns null just like "no open order", which would silently
+  // desync the orders shadow from listing state (latent for the Phase-C reader
+  // flip). Log it so the divergence is visible.
+  if (error) log.error('orders.updateOpenOrder.failed', { listingId, error });
   // The affected order's id (for the payment-events ledger), or null when
   // there was no open order to patch.
   return (data as { id: string } | null)?.id ?? null;
@@ -106,8 +111,12 @@ export async function updateOrderByPaymentIntent(
   paymentIntentId: string,
   patch: OrderUpdate,
 ): Promise<void> {
-  await admin
+  const { error } = await admin
     .from('orders')
     .update(patch)
     .eq('stripe_payment_intent_id', paymentIntentId);
+  // Called from chargeback / charge.refunded events — a silent failure lets the
+  // orders row diverge from listing state. Log it (best-effort; the event
+  // handler's own dead-letter covers the money-relevant retry).
+  if (error) log.error('orders.updateOrderByPaymentIntent.failed', { paymentIntentId, error });
 }

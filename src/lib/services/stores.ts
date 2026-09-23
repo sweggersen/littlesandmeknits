@@ -242,7 +242,14 @@ export async function createStore(
     .select('id')
     .maybeSingle();
   if (queueErr) {
-    console.error('Moderation queue insert failed for new store', queueErr);
+    // The store row was created but never enqueued, so it sits in pending_review
+    // invisible to moderators (never published). Dead-letter so support can find
+    // and enqueue it, rather than losing the failure to the console.
+    await recordDeadLetter(ctx, {
+      service: 'stores.createStore:moderation_queue',
+      context: { store_id: store.id, submitter_id: ctx.user.id },
+      error: queueErr,
+    });
   } else if (queued) {
     try {
       const { notifyModeratorsNewItem } = await import('../notify');

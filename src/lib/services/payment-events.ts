@@ -52,8 +52,12 @@ export async function recordPaymentEvent(
   admin: ServiceContext['admin'],
   input: PaymentEventInput,
 ): Promise<void> {
+  // supabase-js returns { error } instead of throwing on a DB-level rejection,
+  // so a bare try/catch would let a failed ledger insert pass silently (and this
+  // writer has no Sentry fallback). Check the returned error AND guard a
+  // client-level throw. Best-effort: log and return, never break the money path.
   try {
-    await admin.from('payment_events').insert({
+    const { error } = await admin.from('payment_events').insert({
       kind: input.kind,
       event_type: input.type,
       order_id: input.orderId ?? null,
@@ -65,6 +69,13 @@ export async function recordPaymentEvent(
       stripe_object_id: input.stripeObjectId ?? null,
       context: (input.context ?? {}) as Record<string, unknown> as never,
     } as never);
+    if (error) {
+      log.error('payment_event.insert_failed', {
+        kind: input.kind, type: input.type,
+        order_id: input.orderId ?? null, commission_request_id: input.commissionRequestId ?? null,
+        error,
+      });
+    }
   } catch (e) {
     log.error('payment_event.insert_failed', {
       kind: input.kind,

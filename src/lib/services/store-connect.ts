@@ -14,6 +14,7 @@ import { ok, fail } from './types';
 import { createStripe } from '../stripe';
 import { can } from './store-permissions';
 import { getMyRole } from './store-members';
+import { recordDeadLetter } from './dead-letter';
 
 /** Create the store's Express Connect account if it doesn't have one yet, and
  *  return a Stripe-hosted onboarding Account Link. Owner-only. */
@@ -77,9 +78,14 @@ export async function startStoreOnboarding(
       .update({ stripe_account_id: accountId, stripe_connect_status: 'pending' })
       .eq('id', storeId);
     if (saveErr) {
-      // The account exists at Stripe but we couldn't persist its id. Fail loudly
-      // rather than orphan it — the next attempt would create a *second* account.
-      console.error('Failed to persist store stripe_account_id', saveErr);
+      // The account exists at Stripe but we couldn't persist its id — it's now
+      // orphaned (the next attempt would create a *second* account). Dead-letter
+      // the id so support can reconcile, not just log to the console.
+      await recordDeadLetter(ctx, {
+        service: 'store-connect.startStoreOnboarding:persist_stripe_account',
+        context: { store_id: storeId, user_id: ctx.user.id, stripe_account_id: accountId },
+        error: saveErr,
+      });
       return fail('server_error', 'Kunne ikke lagre Stripe-konto');
     }
   }
