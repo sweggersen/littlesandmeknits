@@ -24,7 +24,8 @@ const STATIC_ROUTES = [
   '/om',
   '/oppskrifter',
   '/prosjekter',
-  '/login',
+  // '/login' is intentionally omitted — login.astro renders noindex, so listing
+  // it in the sitemap is contradictory signalling.
   '/terms',
   '/privacy',
   '/hjelp',

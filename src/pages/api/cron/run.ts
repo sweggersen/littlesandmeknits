@@ -327,7 +327,7 @@ export const POST: APIRoute = async ({ request }) => {
             userId: offer.knitter_id,
             type: 'commission_delivered',
             title: 'Automatisk levering bekreftet',
-            body: `Kjøper svarte ikke innen 14 dager — «${req.title}» er nå merket som levert.`,
+            body: `Kjøper svarte ikke innen 14 dager, «${req.title}» er nå merket som levert.`,
             url: `/market/commissions/${req.id}`,
             referenceId: req.id,
           }, env);
@@ -375,7 +375,7 @@ export const POST: APIRoute = async ({ request }) => {
             userId: ord.seller_id,
             type: 'listing_delivered',
             title: 'Automatisk levering bekreftet',
-            body: `Kjøper svarte ikke innen 14 dager — «${l?.title ?? 'varen'}» er nå merket som levert.`,
+            body: `Kjøper svarte ikke innen 14 dager, «${l?.title ?? 'varen'}» er nå merket som levert.`,
             url: `/market/listing/${ord.listing_id}`,
             referenceId: ord.listing_id,
           }, env);

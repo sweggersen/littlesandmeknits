@@ -44,7 +44,7 @@ export async function submitReport(
   });
   if (error) {
     console.error('Report insert failed', error);
-    return fail('server_error', 'Kunne ikke sende rapport — prøv igjen.');
+    return fail('server_error', 'Kunne ikke sende rapport. Prøv igjen.');
   }
 
   // Notify moderators. Skip if there's already an open report on this

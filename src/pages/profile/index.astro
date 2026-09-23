@@ -48,7 +48,7 @@ function listVariant(s: string) {
 }
 
 const stats = [
-  { label: 'Uleste meldinger', value: d.unreadCount, icon: 'mail' as const, href: '/market/messages', hot: d.unreadCount > 0 },
+  { label: 'Uleste meldinger', value: d.unreadCount, icon: 'mail' as const, href: '/inbox?filter=messages', hot: d.unreadCount > 0 },
   { label: 'Nye tilbud', value: d.newOffersReceived, icon: 'offer' as const, href: d.newOffersHref, hot: d.newOffersReceived > 0 },
   { label: 'Venter på betaling', value: d.awaitingPayment, icon: 'clock' as const, href: '/market/commissions/my-listings', hot: d.awaitingPayment > 0 },
   { label: 'Aktive prosjekter', value: d.activeProjects, icon: 'project' as const, href: '/studio', hot: false },
@@ -157,7 +157,7 @@ for (const o of d.allOffers.slice(0, 4)) {
                 ))}
                 {d.unreadCount > 0 && (
                   <li>
-                    <a href="/market/messages" class="flex items-center gap-3 px-5 py-3 hover:bg-linen/60 transition-colors">
+                    <a href="/inbox?filter=messages" class="flex items-center gap-3 px-5 py-3 hover:bg-linen/60 transition-colors">
                       <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium">Uleste meldinger</p>
                         <p class="text-[11px] text-charcoal/50">Innboks</p>

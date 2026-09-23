@@ -2,11 +2,15 @@
 // [data-category] cards are visible. Extracted from inline script
 // on oppskrifter/index.
 
+import { bindOnce } from '../dom';
+
 export function init(): void {
   const buttons = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
   const items = document.querySelectorAll<HTMLElement>('[data-category]');
 
   buttons.forEach((btn) => {
+    // init() re-runs on initial load + every navigation; bind each pill once.
+    if (!bindOnce('pattern-filter', btn)) return;
     btn.addEventListener('click', () => {
       const filter = btn.dataset.filter ?? 'all';
 

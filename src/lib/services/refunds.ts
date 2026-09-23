@@ -43,7 +43,7 @@ export async function requestRefund(
     userId: listing.seller_id,
     type: 'dispute_opened',
     title: 'Kjøper ber om refusjon',
-    body: `«${listing.title}» — du kan godta eller avvise i annonsen.`,
+    body: `«${listing.title}». Du kan godta eller avvise i annonsen.`,
     url: `/market/listing/${listing.id}`,
     actorId: ctx.user.id,
     referenceId: listing.id,
@@ -116,7 +116,7 @@ export async function respondToRefund(
               error: e,
             },
           );
-          return fail('server_error', 'Kunne ikke refundere — prøv via admin/tvist');
+          return fail('server_error', 'Kunne ikke refundere. Prøv via admin/tvist');
         }
       }
     }
@@ -166,8 +166,8 @@ export async function respondToRefund(
     await createNotification(ctx.admin, {
       userId: listing.buyer_id,
       type: 'dispute_opened',
-      title: 'Selger avviste refusjon — saken er sendt til mekling',
-      body: `«${listing.title}» — moderator vil ta kontakt.`,
+      title: 'Selger avviste refusjon, saken er sendt til mekling',
+      body: `«${listing.title}». Moderator vil ta kontakt.`,
       url: `/market/listing/${listing.id}`,
       actorId: ctx.user.id,
       referenceId: listing.id,
@@ -182,7 +182,7 @@ export async function respondToRefund(
       userId: m.id,
       type: 'dispute_opened',
       title: `Ny tvist: ${listing.title}`,
-      body: 'Refusjonsforespørsel ble avvist — trenger meglerinnsats.',
+      body: 'Refusjonsforespørsel ble avvist, trenger meglerinnsats.',
       url: `/admin/disputes/listing/${listing.id}`,
       actorId: ctx.user.id,
       referenceId: listing.id,

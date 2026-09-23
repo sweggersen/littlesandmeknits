@@ -265,8 +265,25 @@ export function useTranslations(lang: Lang) {
   };
 }
 
+// The default-locale (nb) content pages physically live at Norwegian paths; the
+// English-named routes (/patterns, /projects, /about) only 308-redirect there
+// (see routing/redirects.ts). Emitting the English alias for nb makes every
+// internal content link take a redirect hop (and points crawlers at
+// non-canonical URLs), so map the aliases to their canonical nb path here.
+const NB_CANONICAL: Record<string, string> = {
+  '/patterns': '/oppskrifter',
+  '/projects': '/prosjekter',
+  '/about': '/om',
+};
+
 export function localizedPath(lang: Lang, path: string): string {
   const clean = path.startsWith('/') ? path : `/${path}`;
-  if (lang === defaultLang) return clean;
+  if (lang === defaultLang) {
+    for (const [alias, canonical] of Object.entries(NB_CANONICAL)) {
+      if (clean === alias) return canonical;
+      if (clean.startsWith(`${alias}/`)) return canonical + clean.slice(alias.length);
+    }
+    return clean;
+  }
   return `/${lang}${clean === '/' ? '' : clean}`;
 }

@@ -168,7 +168,7 @@ async function resolveListingDispute(
     await createNotification(ctx.admin, {
       userId: listing.buyer_id,
       type: 'dispute_resolved',
-      title: refunded ? 'Tvist løst — refundert' : 'Tvist løst — betaling frigitt',
+      title: refunded ? 'Tvist løst, refundert' : 'Tvist løst, betaling frigitt',
       body: refunded
         ? `Betalingen for «${listing.title}» er refundert.`
         : `Betalingen for «${listing.title}» er frigitt til selger.`,
@@ -180,7 +180,7 @@ async function resolveListingDispute(
     await createNotification(ctx.admin, {
       userId: listing.seller_id,
       type: 'dispute_resolved',
-      title: refunded ? 'Tvist løst — refundert til kjøper' : 'Tvist løst — betaling frigitt',
+      title: refunded ? 'Tvist løst, refundert til kjøper' : 'Tvist løst, betaling frigitt',
       body: refunded
         ? `Tvisten på «${listing.title}» er løst. Betalingen er refundert til kjøper.`
         : `Tvisten på «${listing.title}» er løst. Betalingen er frigitt til deg.`,
@@ -292,7 +292,7 @@ async function resolveCommissionDispute(
     await createNotification(ctx.admin, {
       userId: req.buyer_id,
       type: 'dispute_resolved',
-      title: refunded ? 'Tvist løst — refundert' : 'Tvist løst — betaling frigitt',
+      title: refunded ? 'Tvist løst, refundert' : 'Tvist løst, betaling frigitt',
       body: refunded
         ? `Betalingen for «${req.title}» er refundert.`
         : `Betalingen for «${req.title}» er frigitt til strikkeren.`,
@@ -304,7 +304,7 @@ async function resolveCommissionDispute(
     await createNotification(ctx.admin, {
       userId: offer.knitter_id,
       type: 'dispute_resolved',
-      title: refunded ? 'Tvist løst — refundert til kjøper' : 'Tvist løst — betaling frigitt',
+      title: refunded ? 'Tvist løst, refundert til kjøper' : 'Tvist løst, betaling frigitt',
       body: refunded
         ? `Tvisten på «${req.title}» er løst. Betalingen er refundert til kjøper.`
         : `Tvisten på «${req.title}» er løst. Betalingen er frigitt til deg.`,

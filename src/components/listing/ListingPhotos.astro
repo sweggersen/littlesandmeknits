@@ -274,12 +274,19 @@ function initListingGallery() {
     if (e.target === lb) closeLightbox();
   });
 
-  document.addEventListener('keydown', (e) => {
+  function onLightboxKeydown(e) {
     if (lb.classList.contains('hidden')) return;
     if (e.key === 'Escape') closeLightbox();
     if (e.key === 'ArrowLeft') showLightbox(current - 1);
     if (e.key === 'ArrowRight') showLightbox(current + 1);
-  });
+  }
+  document.addEventListener('keydown', onLightboxKeydown);
+  // This is:inline script re-runs on every page load, but `document` survives
+  // ClientRouter swaps — so drop THIS page's keydown before the next page wires
+  // its own, else the handlers (each closing over a stale lightbox) stack up.
+  document.addEventListener('astro:before-swap', () => {
+    document.removeEventListener('keydown', onLightboxKeydown);
+  }, { once: true });
 
   const apiUrl = `/api/marketplace/listings/${listingId}/photo`;
   const manager = document.getElementById('photo-manager');
