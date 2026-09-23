@@ -142,11 +142,21 @@ async function handleEvent(
       }
 
       if (!autoApprove && sellerId) {
-        await supabase.from('moderation_queue').insert({
+        const { error: queueErr } = await supabase.from('moderation_queue').insert({
           item_type: 'listing',
           item_id: listingId,
           submitter_id: sellerId,
         });
+        if (queueErr) {
+          // The listing fee is paid and the row is pending_review, but without a
+          // queue entry it's never surfaced to a moderator (never published,
+          // seller already charged). Dead-letter so support can enqueue it.
+          await recordDeadLetter(dlCtx(supabase, sellerId), {
+            service: 'stripe.webhook:listing_fee_enqueue',
+            context: { listing_id: listingId, session_id: session.id, seller_id: sellerId },
+            error: queueErr,
+          });
+        }
       }
 
       return new Response('ok', { status: 200 });

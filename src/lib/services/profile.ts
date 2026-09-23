@@ -412,7 +412,14 @@ export async function becomeSeller(
       ...(verified ? { seller_verified_at: new Date().toISOString() } : {}),
     });
   if (updateError) {
-    console.error('Become-seller seller_profile upsert failed', updateError);
+    // The Stripe Connect account exists but its id didn't persist — it's now
+    // orphaned (a retry would create a second account). Dead-letter the id so
+    // support can reconcile, not just drop it to the console.
+    await recordDeadLetter(ctx, {
+      service: 'profile.becomeSeller:persist_stripe_account',
+      context: { user_id: ctx.user.id, stripe_account_id: accountId },
+      error: updateError,
+    });
     return fail('server_error', 'Could not save seller profile');
   }
 

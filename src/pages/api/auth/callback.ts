@@ -5,6 +5,8 @@ import { isOwnerEmail } from '../../../lib/owner';
 import { env } from '../../../lib/env';
 import { sendEmail } from '../../../lib/email';
 import { renderWelcomeEmail } from '../../../lib/email-templates';
+import { log } from '../../../lib/log';
+import { captureException } from '../../../lib/observability';
 
 export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
   const code = url.searchParams.get('code');
@@ -43,16 +45,27 @@ export const GET: APIRoute = async ({ request, cookies, redirect, url }) => {
         update.marketing_consent_at = meta.marketing_consent_at;
       }
       if (Object.keys(update).length) {
-        await admin.from('profiles').update(update as never).eq('id', userId);
+        // These include legal/GDPR consent timestamps (age/tos/marketing) — a
+        // silent failure here loses the consent record, so check and log it.
+        const { error: consentErr } = await admin.from('profiles').update(update as never).eq('id', userId);
+        if (consentErr) {
+          log.error('auth.callback.consent_persist_failed', { userId, error: consentErr });
+          await captureException(new Error(consentErr.message), { service: 'auth.callback', extra: { userId, phase: 'consent_persist' } });
+        }
       }
     }
     // The owner always has admin access (bootstraps the first admin; keeps
     // localhost magic-link logins working where signups start role-less).
     if (userId && isOwnerEmail(userEmail)) {
       const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
-      await admin.from('profiles').update({ role: 'admin' } as never).eq('id', userId);
+      const { error: roleErr } = await admin.from('profiles').update({ role: 'admin' } as never).eq('id', userId);
+      if (roleErr) log.error('auth.callback.owner_admin_grant_failed', { userId, error: roleErr });
     }
-  } catch { /* non-fatal */ }
+  } catch (e) {
+    // Never block the login on a metadata-persist failure, but don't swallow it
+    // silently either — the consent write above is legally significant.
+    log.error('auth.callback.metadata_persist_threw', { userId, error: e });
+  }
 
   // First-login welcome email + birthday-prompt redirect. Both are
   // gated on welcomed_at being null (i.e., this is the user's first

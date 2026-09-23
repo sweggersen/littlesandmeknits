@@ -1411,6 +1411,53 @@ describe.skipIf(!HAS_LOCAL)('RLS policies', () => {
     });
   });
 
+  // 0121: the review tables' INSERT policies never gated on a real
+  // purchase/participation, and `authenticated` held a blanket INSERT grant, so
+  // a direct PostgREST caller could fabricate public reviews/ratings. All legit
+  // writes go through the service-role client, so revoking the authenticated
+  // write grant closes the bypass without breaking any real path.
+  describe('review INSERT grants (0121)', () => {
+    it('seller_reviews: an authenticated user CANNOT insert a review directly', async () => {
+      // The direct-PostgREST fabrication path: no purchase, arbitrary seller.
+      const { error } = await bobClient.from('seller_reviews')
+        .insert({ reviewer_id: bobId, seller_id: charlieId, rating: 5, comment: 'fake' });
+      expect(error).not.toBeNull(); // INSERT grant revoked -> permission denied
+      const { count } = await admin.from('seller_reviews')
+        .select('id', { count: 'exact', head: true }).eq('reviewer_id', bobId).eq('seller_id', charlieId);
+      expect(count ?? 0).toBe(0); // nothing landed
+    });
+
+    it('seller_reviews: the service-role (admin) path still writes', async () => {
+      const { error } = await admin.from('seller_reviews')
+        .insert({ reviewer_id: bobId, seller_id: aliceId, rating: 4, comment: 'real' });
+      expect(error).toBeNull();
+      await admin.from('seller_reviews').delete().eq('reviewer_id', bobId).eq('seller_id', aliceId);
+    });
+
+    it('transaction_reviews: an authenticated user CANNOT insert a review directly', async () => {
+      // Revoked at the privilege layer, so it fails before the policy/FK check.
+      const { error } = await bobClient.from('transaction_reviews').insert({
+        commission_request_id: crypto.randomUUID(),
+        reviewer_id: bobId, reviewee_id: charlieId,
+        reviewer_role: 'buyer', rating: 5, comment: 'fake', visible: true,
+      });
+      expect(error).not.toBeNull(); // permission denied for table
+    });
+
+    it('transaction_reviews: the service-role (admin) path still writes', async () => {
+      const { data: req } = await admin.from('commission_requests').insert({
+        buyer_id: aliceId, title: 'RLS commission', category: 'genser',
+        size_label: 'M', budget_nok_min: 100, budget_nok_max: 200, status: 'delivered',
+      }).select('id').single();
+      const { error } = await admin.from('transaction_reviews').insert({
+        commission_request_id: req!.id, reviewer_id: aliceId, reviewee_id: bobId,
+        reviewer_role: 'buyer', rating: 5, comment: 'real',
+      });
+      expect(error).toBeNull();
+      await admin.from('commission_requests').delete().eq('id', req!.id); // cascades the review
+    });
+  });
+
   // 0116: staff-gated USING-only UPDATE tables. A moderator may resolve a record
   // but must not be able to rewrite the audit trail itself.
   describe('staff audit-trail allowlists (0116)', () => {

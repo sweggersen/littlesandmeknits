@@ -40,4 +40,19 @@ describe('recordPaymentEvent', () => {
       recordPaymentEvent(throwing as any, { kind: 'listing', type: 'reserved', orderId: 'o1' }),
     ).resolves.toBeUndefined();
   });
+
+  it('logs when the insert RESOLVES with an error (supabase-js does not throw)', async () => {
+    // Regression: the ledger insert returns { error } rather than throwing on a
+    // DB rejection (RLS/constraint). The old try/catch missed it, silently
+    // losing a ledger row. Now it must be logged.
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const rejecting = {
+      from: () => ({ insert: async () => ({ error: { message: 'check_violation' } }) }),
+    };
+    await expect(
+      recordPaymentEvent(rejecting as any, { kind: 'commission', type: 'captured', commissionRequestId: 'r1' }),
+    ).resolves.toBeUndefined();
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
 });
