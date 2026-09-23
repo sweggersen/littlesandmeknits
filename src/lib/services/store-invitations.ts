@@ -10,6 +10,8 @@ import { sendEmail } from '../email';
 import { renderStoreInviteEmail } from '../email-templates';
 import { findAuthUserByEmail } from '../user-lookup';
 import { assertWithinQuota } from './quota';
+import { createAdminSupabase } from '../supabase';
+import { env } from '../env';
 import type { StoreRole } from '../types/stores';
 
 const INVITE_TTL_DAYS = 14;
@@ -261,4 +263,36 @@ export async function acceptInvitation(
     storeSlug: slug,
     redirect: slug ? `/market/store/${slug}/admin` : '/profile/stores',
   });
+}
+
+export interface InvitationView {
+  id: string;
+  email: string;
+  role: StoreRole;
+  expires_at: string;
+  accepted_at: string | null;
+  store: { id: string; slug: string; name: string; logo_path: string | null; tagline: string | null } | null;
+}
+
+/** Public token lookup for the /invite/[token] landing page. Uses the admin
+ *  client because the invitee may be anonymous (no session), so RLS can't gate
+ *  the read — the unguessable token is the capability. Read-only. */
+export async function getInvitationByToken(token: string): Promise<InvitationView | null> {
+  if (!token) return null;
+  const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
+  const { data } = await admin
+    .from('store_invitations')
+    .select('id, email, role, expires_at, accepted_at, stores:stores!inner(id, slug, name, logo_path, tagline)')
+    .eq('token', token)
+    .maybeSingle();
+  if (!data) return null;
+  const s = (data as unknown as { stores: InvitationView['store'] }).stores;
+  return {
+    id: data.id,
+    email: data.email,
+    role: data.role as StoreRole,
+    expires_at: data.expires_at,
+    accepted_at: data.accepted_at,
+    store: s ?? null,
+  };
 }

@@ -3,13 +3,14 @@ import Layout from '../../layouts/Layout.astro';
 import MarketplaceShell from '../../components/MarketplaceShell.astro';
 import { createAdminSupabase } from '../../lib/supabase';
 import { env } from '../../lib/env';
+import { devToolsBlocked } from '../../lib/dev-guard';
 
-if (import.meta.env.PROD) return Astro.redirect('/market');
+// Dev tooling: blocked in prod, and in previews unless DEV_TOOLS='enabled'
+// (the standard /dev gate, stronger than an import.meta.env.PROD flag).
+if (devToolsBlocked(Astro.request)) return Astro.redirect('/market');
 
 const user = Astro.locals.user;
-if (!user || user.email !== 'ammon.weggersen@gmail.com') {
-  return Astro.redirect('/market');
-}
+if (!user) return Astro.redirect('/market');
 
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
   return new Response('Service role key not configured', { status: 503 });

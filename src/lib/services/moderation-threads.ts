@@ -41,6 +41,52 @@ async function resolveTarget(ctx: ServiceContext, targetType: string, targetId: 
   return null;
 }
 
+export interface RecipientThreadView {
+  thread: Record<string, any>;
+  messages: Array<{ id: string; sender_id: string; is_moderator: boolean; body: string; created_at: string }>;
+  itemTitle: string | null;
+  itemUrl: string | null;
+  isOpen: boolean;
+}
+
+/** The recipient's view of a moderation thread for /market/moderasjon/[id]:
+ *  thread + messages (RLS-gated to the participant via the cookie client), the
+ *  target's title/url (admin read — cross-user), and it marks the moderator
+ *  messages read. Returns null when the thread isn't visible to the caller. */
+export async function getRecipientThreadView(
+  ctx: ServiceContext,
+  threadId: string,
+): Promise<RecipientThreadView | null> {
+  const { data: thread } = await ctx.supabase
+    .from('moderation_threads').select('*').eq('id', threadId).maybeSingle();
+  if (!thread) return null;
+
+  const { data: messagesData } = await ctx.supabase
+    .from('moderation_messages')
+    .select('id, sender_id, is_moderator, body, created_at')
+    .eq('thread_id', thread.id)
+    .order('created_at', { ascending: true });
+
+  const target = await resolveTarget(ctx, thread.target_type, thread.target_id);
+
+  // Mark the moderator messages read for this recipient.
+  if (thread.recipient_id === ctx.user.id) {
+    await ctx.supabase.from('moderation_messages')
+      .update({ read_at: new Date().toISOString() } as never)
+      .eq('thread_id', thread.id)
+      .eq('is_moderator', true)
+      .is('read_at', null);
+  }
+
+  return {
+    thread,
+    messages: (messagesData ?? []) as RecipientThreadView['messages'],
+    itemTitle: target?.itemTitle ?? null,
+    itemUrl: target?.itemUrl ?? null,
+    isOpen: thread.status === 'open',
+  };
+}
+
 /** Step 1 of the new report flow: decide if the report is valid.
  *  - 'freeze': valid → freeze the listing/store/commission AND open an
  *    in-app moderator thread with the owner. The first moderator message
