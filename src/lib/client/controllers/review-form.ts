@@ -47,6 +47,8 @@ export function init(): void {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!ratingInput.value) return;
+      if (submitBtn.disabled) return; // in-flight guard: ignore a double-click
+      submitBtn.disabled = true;
       const body = new FormData(form);
       try {
         const res = await fetch('/api/reviews/submit', { method: 'POST', body, credentials: 'same-origin' });
@@ -55,17 +57,19 @@ export function init(): void {
           status.textContent = 'Vurdering sendt!';
           status.classList.remove('hidden', 'text-red-600');
           status.classList.add('text-sage-700');
-          submitBtn.disabled = true;
+          submitBtn.disabled = true; // stays disabled — reviewed once
           submitBtn.textContent = 'Sendt';
         } else {
           status.textContent = data.error === 'already_reviewed' ? 'Du har allerede gitt en vurdering.' : 'Noe gikk galt.';
           status.classList.remove('hidden');
           status.classList.add('text-red-600');
+          submitBtn.disabled = false; // let them retry
         }
       } catch {
         status.textContent = 'Noe gikk galt. Prøv igjen.';
         status.classList.remove('hidden');
         status.classList.add('text-red-600');
+        submitBtn.disabled = false; // let them retry
       }
     });
   });

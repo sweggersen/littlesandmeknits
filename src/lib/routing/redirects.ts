@@ -47,7 +47,9 @@ export const ROUTE_REDIRECTS: ReadonlyArray<RouteRedirect> = [
   // Shared auth/account
   { from: '/profil',         to: '/profile',         status: 301 },
   { from: '/logg-inn',       to: '/login',           status: 301 },
-  { from: '/varsler',        to: '/notifications',   status: 301 },
+  // Straight to the inbox (the /notifications stub itself only re-redirects
+  // there) so the legacy URL resolves in one hop, not two.
+  { from: '/varsler',        to: '/inbox?filter=notifications', status: 301 },
   { from: '/personvern',     to: '/privacy',         status: 301 },
   { from: '/vilkar',         to: '/terms',           status: 301 },
 

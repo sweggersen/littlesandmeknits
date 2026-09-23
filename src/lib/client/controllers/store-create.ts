@@ -168,17 +168,28 @@ export function init(): void {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!mode) { showError('Velg om butikken er personlig eller en bedrift'); return; }
+    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    // Double-submit guard: without it a double-click fires two POST /api/stores,
+    // which can create duplicate store rows / duplicate Connect onboarding.
+    if (submitBtn?.disabled) return;
+    if (submitBtn) submitBtn.disabled = true;
     showError(null);
-    const formData = new FormData(form);
-    const res = await fetch('/api/stores', { method: 'POST', body: formData });
-    if (res.redirected) { window.location.href = res.url; return; }
-    if (!res.ok) {
-      const text = await res.text();
-      showError(text || 'Kunne ikke opprette butikk');
-      return;
+    try {
+      const formData = new FormData(form);
+      const res = await fetch('/api/stores', { method: 'POST', body: formData });
+      if (res.redirected) { window.location.href = res.url; return; }
+      if (!res.ok) {
+        const text = await res.text();
+        showError(text || 'Kunne ikke opprette butikk');
+        if (submitBtn) submitBtn.disabled = false; // let them retry
+        return;
+      }
+      const data = await res.json();
+      if (data?.redirect) window.location.href = data.redirect;
+      else window.location.href = '/profile/stores';
+    } catch (err) {
+      showError('Kunne ikke opprette butikk. Prøv igjen.');
+      if (submitBtn) submitBtn.disabled = false;
     }
-    const data = await res.json();
-    if (data?.redirect) window.location.href = data.redirect;
-    else window.location.href = '/profile/stores';
   });
 }

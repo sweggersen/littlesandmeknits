@@ -3,9 +3,14 @@
 // which the nav uses to engage scroll-direction hide logic.
 // Extracted from market/index.astro inline script.
 
+import { bindOnce } from '../dom';
+
 export function init(): void {
   const sentinel = document.querySelector<HTMLElement>('[data-sticky-sentinel]');
   if (!sentinel) return;
+  // registerController runs init() on initial load AND every astro:page-load;
+  // without this a hard load wired a second IntersectionObserver on the sentinel.
+  if (!bindOnce('sticky-sentinel', sentinel)) return;
   const obs = new IntersectionObserver(
     ([entry]) => {
       if (entry.isIntersecting) {
