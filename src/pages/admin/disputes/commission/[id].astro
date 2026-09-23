@@ -47,7 +47,7 @@ const itemUrl = `/market/commissions/${req.id}`;
 const isOpen = req.status === 'disputed';
 
 const buyerMailto = buyerEmail
-  ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget — oppfølging av tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten på oppdraget «${req.title}». Kan du gi oss mer info?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget · oppfølging av tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten på oppdraget «${req.title}». Kan du gi oss mer info?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
   : null;
 const knitterMailto = knitterEmail
   ? `mailto:${knitterEmail}?subject=${encodeURIComponent(`Strikketorget · tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${knitterName ? ' ' + knitterName : ''},\n\nKjøperen har åpnet en tvist på oppdraget «${req.title}». Grunn: «${req.dispute_reason ?? ''}».\n\nKan du gi oss din side?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
