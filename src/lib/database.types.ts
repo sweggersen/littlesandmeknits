@@ -2975,6 +2975,7 @@ export type Database = {
       }
     }
     Functions: {
+      distinct_store_cities: { Args: never; Returns: string[] }
       has_store_min_role: {
         Args: {
           p_min_role: Database["public"]["Enums"]["store_member_role"]
