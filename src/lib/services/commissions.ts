@@ -470,7 +470,18 @@ export async function cancelLateCommission(
 
   // Refund the buyer (money is still in the platform balance / escrow).
   if (req.stripe_payment_intent_id) {
-    await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+    // Money path: dead-letter a Stripe failure so support can finish it, rather
+    // than throwing to a bare 500 with no audit trail.
+    try {
+      await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+    } catch (e) {
+      await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
+        service: 'commissions.cancelLate:refund',
+        context: { request_id: input.requestId, payment_intent_id: req.stripe_payment_intent_id },
+        error: e,
+      });
+      return fail('server_error', 'Kunne ikke refundere. Saken er logget for manuell håndtering.');
+    }
   }
   // commission_requests has no cancel_reason column — the reason ('late_knitter')
   // is captured in the payment_events ledger below.

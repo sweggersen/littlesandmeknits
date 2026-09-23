@@ -188,7 +188,18 @@ async function resolveCommissionDispute(
     if (decision === 'refund') {
       // Rail-aware: cancels an uncaptured legacy auth, plain-refunds a
       // platform-balance charge, reverse-transfers a legacy destination charge.
-      await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+      // Money path: on Stripe failure dead-letter so support can finish the
+      // refund manually (matches the listing-refund path), not just throw.
+      try {
+        await refundCommissionPayment(ctx.env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+      } catch (e) {
+        await recordDeadLetter({ admin: ctx.admin, user: ctx.user, env: ctx.env }, {
+          service: 'disputes.resolve:refund',
+          context: { request_id: requestId, payment_intent_id: req.stripe_payment_intent_id },
+          error: e,
+        });
+        return fail('server_error', 'Kunne ikke refundere. Saken er logget for manuell håndtering.');
+      }
     } else if (awardedOffer) {
       const r = await releaseCommissionFunds(ctx.admin, ctx.env.STRIPE_SECRET_KEY, {
         requestId,

@@ -122,15 +122,15 @@ export const POST: APIRoute = async ({ request }) => {
   // promoted-pool ranker. Cheap (CONCURRENTLY) and safe to call every tick.
   await runSection('refresh_user_preferences', async () => {
     const { error } = await admin.rpc('refresh_user_preferences');
-    if (!error) results.userPreferencesRefreshed = 1;
-    else console.error('refresh_user_preferences failed', error);
+    if (error) throw error; // let runSection record + dead-letter the failure
+    results.userPreferencesRefreshed = 1;
   });
 
   // Reset promotion daily impression counters for windows older than 24h.
   await runSection('reset_promotion_daily_windows', async () => {
     const { data, error } = await admin.rpc('reset_promotion_daily_windows');
-    if (!error) results.promotionDailyWindowsReset = (data as number) ?? 0;
-    else console.error('reset_promotion_daily_windows failed', error);
+    if (error) throw error; // let runSection record + dead-letter the failure
+    results.promotionDailyWindowsReset = (data as number) ?? 0;
   });
 
   // Nudge stale photo-less drafts. One-shot per listing.
