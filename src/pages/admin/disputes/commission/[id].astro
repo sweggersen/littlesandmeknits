@@ -50,7 +50,7 @@ const buyerMailto = buyerEmail
   ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget — oppfølging av tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten på oppdraget «${req.title}». Kan du gi oss mer info?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
   : null;
 const knitterMailto = knitterEmail
-  ? `mailto:${knitterEmail}?subject=${encodeURIComponent(`Strikketorget — tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${knitterName ? ' ' + knitterName : ''},\n\nKjøperen har åpnet en tvist på oppdraget «${req.title}». Grunn: «${req.dispute_reason ?? ''}».\n\nKan du gi oss din side?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  ? `mailto:${knitterEmail}?subject=${encodeURIComponent(`Strikketorget · tvist på «${req.title}»`)}&body=${encodeURIComponent(`Hei${knitterName ? ' ' + knitterName : ''},\n\nKjøperen har åpnet en tvist på oppdraget «${req.title}». Grunn: «${req.dispute_reason ?? ''}».\n\nKan du gi oss din side?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
   : null;
 ---
 
@@ -118,7 +118,7 @@ const knitterMailto = knitterEmail
           <input type="hidden" name="item_id" value={req.id} />
           <label class="block">
             <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Avgjørelse og notat</span>
-            <textarea name="notes" rows="3" maxlength="500" placeholder="Begrunn avgjørelsen — synlig for begge parter."
+            <textarea name="notes" rows="3" maxlength="500" placeholder="Begrunn avgjørelsen. Synlig for begge parter."
               class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
           </label>
           <div class="flex gap-2">

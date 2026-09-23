@@ -58,10 +58,10 @@ const disputedCommissions = (commissions ?? []).filter(c => c.status === 'disput
 const hasAny = (purchases?.length ?? 0) + (commissions?.length ?? 0) > 0;
 ---
 
-<Layout title="Mine kjøp — Strikketorget" lang="nb">
+<Layout title="Mine kjøp · Strikketorget" lang="nb">
   <MarketplaceShell current="mine-kjop">
       <h1 class="font-serif text-3xl sm:text-4xl mb-2">Mine kjøp</h1>
-      <p class="text-charcoal/55 mb-8">Alt du har bestilt eller kjøpt — annonser og oppdrag.</p>
+      <p class="text-charcoal/55 mb-8">Alt du har bestilt eller kjøpt, annonser og oppdrag.</p>
 
       {!hasAny ? (
         <EmptyState message="Du har ikke kjøpt noe ennå." ctaText="Utforsk Strikketorget" ctaHref="/market" compact />

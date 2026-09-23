@@ -120,9 +120,9 @@ const { store, publicMembers } = storefront as {
 };
 
 const PREVIEW_LABEL: Record<string, string> = {
-  pending_review: 'Forhåndsvisning — butikken venter på moderering',
-  suspended: 'Forhåndsvisning — butikken er suspendert',
-  archived: 'Forhåndsvisning — butikken er slettet',
+  pending_review: 'Forhåndsvisning · butikken venter på moderering',
+  suspended: 'Forhåndsvisning · butikken er suspendert',
+  archived: 'Forhåndsvisning · butikken er slettet',
 };
 
 // Active listings
@@ -182,7 +182,7 @@ const storeShare = storeShareMeta({
 });
 ---
 
-<Layout title={`${store.name} — Strikketorget`} description={storeShare.description} ogImage={storeShare.ogImage} lang="nb">
+<Layout title={`${store.name} · Strikketorget`} description={storeShare.description} ogImage={storeShare.ogImage} lang="nb">
   <MarketplaceShell>
     {previewDraft && (
       <div class="mb-4 bg-sage-500/10 border border-sage-500/30 text-charcoal rounded-2xl px-4 py-3 text-sm flex items-center gap-2 flex-wrap">

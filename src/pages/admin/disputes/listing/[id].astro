@@ -72,7 +72,7 @@ const buyerMailto = buyerEmail
   ? `mailto:${buyerEmail}?subject=${encodeURIComponent(`Strikketorget — oppfølging av tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${buyerName ? ' ' + buyerName : ''},\n\nVi behandler tvisten du åpnet på annonsen «${listing.title}». Kan du gi oss mer informasjon:\n\n- Hva har skjedd?\n- Har du dokumentasjon (skjermbilder, kvitteringer, sporing)?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
   : null;
 const sellerMailto = sellerEmail
-  ? `mailto:${sellerEmail}?subject=${encodeURIComponent(`Strikketorget — tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${sellerName ? ' ' + sellerName : ''},\n\nKjøperen har åpnet en tvist på annonsen «${listing.title}». Grunnen oppgitt: «${listing.dispute_reason ?? ''}».\n\nKan du gi oss din side av saken?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
+  ? `mailto:${sellerEmail}?subject=${encodeURIComponent(`Strikketorget · tvist på «${listing.title}»`)}&body=${encodeURIComponent(`Hei${sellerName ? ' ' + sellerName : ''},\n\nKjøperen har åpnet en tvist på annonsen «${listing.title}». Grunnen oppgitt: «${listing.dispute_reason ?? ''}».\n\nKan du gi oss din side av saken?\n\nVennlig hilsen\nModeratorteamet i Strikketorget`)}`
   : null;
 ---
 
@@ -154,7 +154,7 @@ const sellerMailto = sellerEmail
           <input type="hidden" name="item_id" value={listing.id} />
           <label class="block">
             <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Avgjørelse og notat</span>
-            <textarea name="notes" rows="3" maxlength="500" placeholder="Begrunn avgjørelsen — synlig for begge parter."
+            <textarea name="notes" rows="3" maxlength="500" placeholder="Begrunn avgjørelsen. Synlig for begge parter."
               class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
           </label>
           <div class="flex gap-2">

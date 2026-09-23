@@ -64,10 +64,10 @@ const {
           : 'Oppdrag'
       }</span>
       {queueItem.submitter_id === auth.user.id && (
-        <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Ditt eget — kan ikke vurdere</span>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Ditt eget · kan ikke vurdere</span>
       )}
       {isStoreMember && queueItem.submitter_id !== auth.user.id && (
-        <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Du er medlem — kan ikke vurdere</span>
+        <span class="text-[10px] font-bold uppercase tracking-widest text-red-600 bg-red-50 rounded-full px-2 py-0.5">Du er medlem · kan ikke vurdere</span>
       )}
     </div>
     <a
@@ -87,7 +87,7 @@ const {
   ) : queueItem.item_type === 'store_image' ? (
     <div>
       <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
-      <p class="text-xs text-charcoal/55 mb-4">Endring i butikkbilder — /market/store/{itemData.slug}</p>
+      <p class="text-xs text-charcoal/55 mb-4">Endring i butikkbilder · /market/store/{itemData.slug}</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Logo</p>

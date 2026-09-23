@@ -9,7 +9,7 @@ const s = (Astro.url.searchParams.get('s') ?? '') as Section;
 const COPY: Partial<Record<Section, { title: string; body: string }>> = {
   brukt: { title: 'Brukt kommer snart', body: 'Kjøp og salg av brukte strikkeplagg åpner om kort tid.' },
   nytt: { title: 'Nytt kommer snart', body: 'Nye, håndlagde strikkeplagg åpner om kort tid.' },
-  oppdrag: { title: 'Oppdrag kommer snart', body: '«Strikk for meg» — bestill et plagg fra en strikker — åpner om kort tid.' },
+  oppdrag: { title: 'Oppdrag kommer snart', body: '«Strikk for meg», bestill et plagg fra en strikker, åpner om kort tid.' },
   butikker: { title: 'Butikker kommer snart', body: 'Butikker for registrerte virksomheter åpner om kort tid.' },
   oppskrifter: { title: 'Oppskrifter kommer snart', body: 'Nedlastbare strikkeoppskrifter åpner om kort tid.' },
 };
@@ -19,7 +19,7 @@ const { title, body } = COPY[s] ?? {
 };
 ---
 
-<Layout title={`${title} — Strikketorget`} lang="nb" noindex>
+<Layout title={`${title} · Strikketorget`} lang="nb" noindex>
   <div class="bg-linen min-h-[70vh] grid place-items-center px-6">
     <div class="max-w-md text-center">
       <div class="mx-auto mb-6 w-14 h-14 rounded-full bg-sage-100 grid place-items-center text-sage-900">

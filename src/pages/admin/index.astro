@@ -76,7 +76,7 @@ const TEMPLATES = [
 ];
 ---
 
-<AdminLayout title="Admin — Oversikt" current="dashboard">
+<AdminLayout title="Admin · Oversikt" current="dashboard">
   <h1 class="font-serif text-2xl mb-6">Oversikt</h1>
 
   {trends && (
@@ -121,7 +121,7 @@ const TEMPLATES = [
           <span
             class:list={[cronHealth.stale ? 'text-red-600 font-medium' : (cronHealth.ok ? 'text-charcoal/55' : 'text-terracotta-600')]}
             title={cronHealth.stale
-              ? 'Cron-jobben ser ut til å ha stoppet — automatiske oppgaver (escrow-frigjøring m.m.) kjører ikke. Sjekk cron-job.org.'
+              ? 'Cron-jobben ser ut til å ha stoppet. Automatiske oppgaver (escrow-frigjøring m.m.) kjører ikke. Sjekk cron-job.org.'
               : 'Siste vellykkede kjøring av den planlagte jobben'}>
             <span class="text-charcoal/40">Cron:</span>{' '}
             {cronHealth.lastRunAt
