@@ -4,8 +4,8 @@ import type { ServiceContext } from './types';
 
 vi.mock('../flags', () => ({ killGuard: vi.fn(async () => null) }));
 
-const sessionsCreate = vi.fn(async () => ({ id: 'cs_new', url: 'https://checkout/new' }));
-const sessionsRetrieve = vi.fn(async () => ({ status: 'open', payment_status: 'unpaid', url: 'https://checkout/existing' }));
+const sessionsCreate = vi.fn(async (_args?: any): Promise<any> => ({ id: 'cs_new', url: 'https://checkout/new' }));
+const sessionsRetrieve = vi.fn(async (): Promise<any> => ({ status: 'open', payment_status: 'unpaid', url: 'https://checkout/existing' }));
 vi.mock('../stripe', () => ({
   createStripe: vi.fn(() => ({
     checkout: { sessions: { create: sessionsCreate, retrieve: sessionsRetrieve } },
