@@ -55,9 +55,13 @@ const [{ data: buyer }, { data: knitter }] = await Promise.all([
     : Promise.resolve({ data: null }),
 ]);
 
-const gross = price;
+// Fee-on-top model (money.ts MoneyBreakdown.commissionPayment): the buyer pays
+// the knit price + the fee on top; the KNITTER receives the FULL price (the fee
+// is buyer-borne, not deducted); the platform keeps the fee.
+const gross = price;                 // knit price
 const fee = req.platform_fee_nok ?? 0;
-const net = gross - fee;
+const buyerTotal = gross + fee;      // == what the buyer was charged
+const knitterNet = gross;            // full price, fee not deducted
 const dato = req.delivered_at ?? req.completed_at ?? req.created_at;
 const dateLabel = new Date(dato).toLocaleDateString('nb-NO', { year: 'numeric', month: 'long', day: 'numeric' });
 const receiptNo = `K-${req.id.slice(0, 8).toUpperCase()}-${(dato).slice(0, 10).replace(/-/g, '')}`;
@@ -117,9 +121,15 @@ function nok(n: number): string {
               </td>
               <td class="py-3 text-right font-mono">{nok(gross)}</td>
             </tr>
+            {fee > 0 && (
+              <tr class="border-b border-sage-500/10">
+                <td class="py-3 text-charcoal/65">Strikketorget-gebyr (trygg betaling)</td>
+                <td class="py-3 text-right font-mono">{nok(fee)}</td>
+              </tr>
+            )}
             <tr>
-              <td class="py-3 text-right text-charcoal/55">Sum</td>
-              <td class="py-3 text-right font-mono font-bold">{nok(gross)}</td>
+              <td class="py-3 text-right text-charcoal/55">Totalt betalt</td>
+              <td class="py-3 text-right font-mono font-bold">{nok(buyerTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -129,10 +139,11 @@ function nok(n: number): string {
         <section class="mb-8 bg-linen rounded-xl p-4">
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Strikker · utbetaling</p>
           <table class="w-full text-sm">
-            <tr><td>Brutto oppdrag</td><td class="text-right font-mono">{nok(gross)}</td></tr>
-            <tr><td>Tjenestegebyr Strikketorget</td><td class="text-right font-mono">−{nok(fee)}</td></tr>
-            <tr class="border-t border-sage-500/20"><td class="pt-2 font-medium">Netto utbetaling</td><td class="pt-2 text-right font-mono font-bold">{nok(net)}</td></tr>
+            <tr class="border-t border-sage-500/20"><td class="pt-2 font-medium">Utbetaling til deg</td><td class="pt-2 text-right font-mono font-bold">{nok(knitterNet)}</td></tr>
           </table>
+          {fee > 0 && (
+            <p class="text-xs text-charcoal/50 mt-2">Strikketorget-gebyret ({nok(fee)}) betales av kjøper i tillegg og trekkes ikke fra utbetalingen din.</p>
+          )}
         </section>
       )}
 

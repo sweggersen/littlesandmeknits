@@ -84,9 +84,13 @@ function mockCtx(opts: MockOpts) {
           updates.push({ table, row });
           const tail: any = {
             eq: () => tail,
+            in: () => tail,
             neq: () => ({
               select: async () => ({ data: [] }),
             }),
+            // Conditional-claim chains end in .select('id'); return one row so the
+            // rows-affected guard treats the claim as succeeded on the happy path.
+            select: async () => ({ data: [{ id: (rows[table] as any)?.id ?? 'row-1' }] }),
             // Some call sites await directly: .update().eq() — promise.
             then(cb: any) { return cb({ error: null }); },
           };
