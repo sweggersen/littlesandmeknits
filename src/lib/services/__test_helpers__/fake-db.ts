@@ -222,7 +222,10 @@ class FakeQuery {
 }
 
 export interface FakeDb {
-  client: { from: (table: string) => FakeQuery };
+  client: {
+    from: (table: string) => FakeQuery;
+    rpc: (name: string, args?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+  };
   ops: FakeOp[];
   /** Current rows for a table (post-mutation state). */
   rows(table: string): Row[];
@@ -255,8 +258,28 @@ export function createFakeDb(seed: Record<string, Row[]> = {}, opts: FakeDbOptio
   const project = !!opts.projectColumns;
   const updateError = opts.updateError ?? {};
   const insertError = opts.insertError ?? {};
+  // Faithful stand-in for the bump_action_count RPC (migration 0119): atomic
+  // increment-while-under-limit against the in-memory user_action_counts.
+  const rpc = async (name: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: unknown }> => {
+    if (name === 'bump_action_count') {
+      const { p_user_id, p_action, p_day, p_limit } = (args ?? {}) as Record<string, unknown>;
+      const rows = store.get('user_action_counts') ?? [];
+      const row = rows.find((r) => r.user_id === p_user_id && r.action === p_action && String(r.day) === String(p_day));
+      if (!row) {
+        rows.push({ user_id: p_user_id, action: p_action, day: p_day, count: 1 });
+        store.set('user_action_counts', rows);
+        return { data: 1, error: null };
+      }
+      if ((row.count as number) < (p_limit as number)) {
+        row.count = (row.count as number) + 1;
+        return { data: row.count, error: null };
+      }
+      return { data: -1, error: null };
+    }
+    return { data: null, error: null };
+  };
   return {
-    client: { from: (table: string) => new FakeQuery(table, store, ops, seq, project, updateError, insertError) },
+    client: { from: (table: string) => new FakeQuery(table, store, ops, seq, project, updateError, insertError), rpc },
     ops,
     rows: (table) => store.get(table) ?? [],
     find: (table, where) =>

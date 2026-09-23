@@ -2,25 +2,22 @@ import { describe, it, expect } from 'vitest';
 import { assertWithinQuota, getQuotaUsed } from './quota';
 import type { ServiceContext } from './types';
 
-function mockCtx(initialCount = 0) {
-  let stored = initialCount;
-  const upserts: unknown[] = [];
+// assertWithinQuota now does the increment atomically in Postgres via the
+// bump_action_count RPC (migration 0119), which returns the new count or -1 when
+// at/over the limit. getQuotaUsed still does a plain read.
+function mockCtx(opts: { rpcCount?: number; rpcError?: { message: string }; storedCount?: number } = {}) {
+  const rpcCalls: Array<{ name: string; args: any }> = [];
+  const stored = opts.storedCount ?? 0;
   const client = {
+    rpc: async (name: string, args: any) => {
+      rpcCalls.push({ name, args });
+      if (opts.rpcError) return { data: null, error: opts.rpcError };
+      return { data: opts.rpcCount ?? 1, error: null };
+    },
     from: (_table: string) => ({
       select: () => ({
-        eq: () => ({
-          eq: () => ({
-            eq: () => ({
-              maybeSingle: async () => ({ data: stored > 0 ? { count: stored } : null }),
-            }),
-          }),
-        }),
+        eq: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: stored > 0 ? { count: stored } : null }) }) }) }),
       }),
-      upsert: async (row: unknown) => {
-        upserts.push(row);
-        stored = (row as { count: number }).count;
-        return { error: null };
-      },
     }),
   };
   const ctx: ServiceContext = {
@@ -29,69 +26,60 @@ function mockCtx(initialCount = 0) {
     user: { id: 'u1', email: 'x@y.io' },
     env: {},
   };
-  return { ctx, upserts, peek: () => stored };
+  return { ctx, rpcCalls };
 }
 
 describe('assertWithinQuota', () => {
-  it('allows the first action of the day', async () => {
-    const { ctx, upserts } = mockCtx(0);
-    const r = await assertWithinQuota(ctx, 'commission_request_create');
-    expect(r).toBeNull();
-    expect(upserts).toHaveLength(1);
-    expect((upserts[0] as any).count).toBe(1);
+  it('allows when the RPC returns a count under the limit', async () => {
+    const { ctx } = mockCtx({ rpcCount: 1 });
+    expect(await assertWithinQuota(ctx, 'commission_request_create')).toBeNull();
   });
 
-  it('allows the 5th commission request (the limit)', async () => {
-    const { ctx, upserts } = mockCtx(4);
-    const r = await assertWithinQuota(ctx, 'commission_request_create');
-    expect(r).toBeNull();
-    expect((upserts[0] as any).count).toBe(5);
+  it('allows when the RPC returns exactly the limit', async () => {
+    const { ctx } = mockCtx({ rpcCount: 5 });
+    expect(await assertWithinQuota(ctx, 'commission_request_create')).toBeNull();
   });
 
-  it('blocks the 6th commission request', async () => {
-    const { ctx, upserts } = mockCtx(5);
+  it('blocks when the RPC returns -1 (at/over limit)', async () => {
+    const { ctx } = mockCtx({ rpcCount: -1 });
     const r = await assertWithinQuota(ctx, 'commission_request_create');
     expect(r).not.toBeNull();
     if (r && !r.ok) expect(r.code).toBe('conflict');
-    expect(upserts).toHaveLength(0); // doesn't increment past limit
   });
 
-  it('uses the right limit per action — offers cap at 20', async () => {
-    const { ctx } = mockCtx(20);
-    const r = await assertWithinQuota(ctx, 'commission_offer_make');
-    expect(r).not.toBeNull();
-    if (r && !r.ok) expect(r.code).toBe('conflict');
-  });
-
-  it('uses the right limit per action — messages cap at 100', async () => {
-    const { ctx: blocked } = mockCtx(100);
-    expect(await assertWithinQuota(blocked, 'marketplace_message_send')).not.toBeNull();
-    const { ctx: allowed } = mockCtx(99);
-    expect(await assertWithinQuota(allowed, 'marketplace_message_send')).toBeNull();
-  });
-
-  it('upsert row contains user_id + action + day + count', async () => {
-    const { ctx, upserts } = mockCtx(0);
+  it('calls the RPC with user_id, action, day and the action limit', async () => {
+    const { ctx, rpcCalls } = mockCtx({ rpcCount: 1 });
     await assertWithinQuota(ctx, 'commission_offer_make');
-    expect(upserts[0]).toMatchObject({
-      user_id: 'u1',
-      action: 'commission_offer_make',
-      count: 1,
+    expect(rpcCalls).toHaveLength(1);
+    expect(rpcCalls[0].name).toBe('bump_action_count');
+    expect(rpcCalls[0].args).toMatchObject({
+      p_user_id: 'u1',
+      p_action: 'commission_offer_make',
+      p_limit: 20, // the offers cap
     });
-    expect((upserts[0] as any).day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(rpcCalls[0].args.p_day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('passes the right per-action limit (messages cap at 100)', async () => {
+    const { ctx, rpcCalls } = mockCtx({ rpcCount: 1 });
+    await assertWithinQuota(ctx, 'marketplace_message_send');
+    expect(rpcCalls[0].args.p_limit).toBe(100);
+  });
+
+  it('fails open (allows) when the RPC errors, rather than blocking users', async () => {
+    const { ctx } = mockCtx({ rpcError: { message: 'boom' } });
+    expect(await assertWithinQuota(ctx, 'commission_request_create')).toBeNull();
   });
 });
 
 describe('getQuotaUsed', () => {
   it('reports current count + limit', async () => {
-    const { ctx } = mockCtx(3);
-    const r = await getQuotaUsed(ctx, 'commission_request_create');
-    expect(r).toEqual({ used: 3, limit: 5 });
+    const { ctx } = mockCtx({ storedCount: 3 });
+    expect(await getQuotaUsed(ctx, 'commission_request_create')).toEqual({ used: 3, limit: 5 });
   });
 
   it('reports zero when no row exists', async () => {
-    const { ctx } = mockCtx(0);
-    const r = await getQuotaUsed(ctx, 'commission_request_create');
-    expect(r).toEqual({ used: 0, limit: 5 });
+    const { ctx } = mockCtx({ storedCount: 0 });
+    expect(await getQuotaUsed(ctx, 'commission_request_create')).toEqual({ used: 0, limit: 5 });
   });
 });

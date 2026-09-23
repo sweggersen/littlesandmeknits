@@ -45,7 +45,7 @@ export async function submitReview(
 
   if (existing && existing > 0) return fail('conflict', 'already_reviewed');
 
-  await ctx.admin.from('transaction_reviews').insert({
+  const { error: insErr } = await ctx.admin.from('transaction_reviews').insert({
     commission_request_id: input.commissionRequestId,
     reviewer_id: ctx.user.id,
     reviewee_id: revieweeId,
@@ -53,6 +53,9 @@ export async function submitReview(
     rating: input.rating,
     comment: input.comment || null,
   });
+  // Check the insert (the sibling seller-reviews.ts does) — otherwise a failed
+  // write would still notify the reviewee of a review that was never stored.
+  if (insErr) return fail('server_error', 'Kunne ikke lagre vurderingen. Prøv igjen.');
 
   await createNotification(ctx.admin, {
     userId: revieweeId, type: 'review_received',
