@@ -202,19 +202,17 @@ function parseCursor(cursor: string | null | undefined): number {
  *  autosuggest. Independent of the active filters so the full list is always
  *  offered. Deduped + sorted; empty on error. */
 export async function listStoreCities(ctx: DirectoryContext): Promise<string[]> {
-  const { data } = await ctx.supabase
-    .from('stores')
-    .select('location_city')
-    .eq('status', 'active')
-    .is('deleted_at', null)
-    .not('location_city', 'is', null)
-    .limit(2000);
-  const set = new Set<string>();
-  for (const r of (data ?? []) as Array<{ location_city: string | null }>) {
-    const c = r.location_city?.trim();
-    if (c) set.add(c);
+  // DISTINCT in Postgres (distinct_store_cities RPC) so the payload is the set
+  // of cities, not one row per store. Sorted here for nb-aware collation.
+  const { data, error } = await ctx.supabase.rpc('distinct_store_cities');
+  if (error) {
+    console.error('listStoreCities RPC failed', error);
+    return [];
   }
-  return [...set].sort((a, b) => a.localeCompare(b, 'nb'));
+  return ((data ?? []) as string[])
+    .map((c) => c?.trim())
+    .filter((c): c is string => !!c)
+    .sort((a, b) => a.localeCompare(b, 'nb'));
 }
 
 export interface StoreMapMarker {
