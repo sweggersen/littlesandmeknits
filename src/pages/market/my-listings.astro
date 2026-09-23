@@ -74,7 +74,7 @@ const commissionsDelivered = knitterCommissions.filter(c => c.status === 'delive
 const commissionsDisputed = knitterCommissions.filter(c => c.status === 'disputed');
 ---
 
-<Layout title="Mine annonser og oppdrag — Strikketorget" lang="nb">
+<Layout title="Mine annonser og oppdrag · Strikketorget" lang="nb">
   <MarketplaceShell current="mine">
       <div class="flex items-end justify-between mb-8 gap-4 flex-wrap">
         <div>
@@ -171,7 +171,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
                         {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
                       </p>
                       <p class="font-medium">{l.title}</p>
-                      <p class="text-xs text-charcoal/55 mt-0.5">Sendt til moderering — blir synlig så snart vi har godkjent den.</p>
+                      <p class="text-xs text-charcoal/55 mt-0.5">Sendt til moderering, blir synlig så snart vi har godkjent den.</p>
                     </div>
                     <p class="font-mono tabular-nums text-sm">{l.price_nok} NOK</p>
                   </div>

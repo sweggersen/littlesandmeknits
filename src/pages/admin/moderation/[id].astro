@@ -322,7 +322,7 @@ function scoreColor(s: number) {
       <!-- Shadow confirm (admin only) -->
       {isAdmin && isShadowPending && (
         <div class="bg-amber-50 rounded-xl border border-amber-200 p-5">
-          <h3 class="font-medium text-sm mb-1">Skyggevurdering — bekreft moderatorens avgjørelse</h3>
+          <h3 class="font-medium text-sm mb-1">Skyggevurdering · bekreft moderatorens avgjørelse</h3>
           <p class="text-xs text-charcoal/55 mb-3">Moderator valgte: <strong>{queueItem.status === 'approved' ? 'Godkjent' : 'Avvist'}</strong></p>
           <form method="post" action="/api/admin/moderation/shadow-confirm" data-astro-reload class="flex gap-2">
             <input type="hidden" name="queue_id" value={queueItem.id} />

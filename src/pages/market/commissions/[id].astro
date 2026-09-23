@@ -438,7 +438,7 @@ const commissionShare = commissionShareMeta({
       events.slice(0, 5).forEach(function(e) {
         var d = new Date(e.dateTime);
         var ts = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' });
-        html += '<li>' + escTrack(ts) + ' — ' + escTrack(e.description) + (e.city ? ' (' + escTrack(e.city) + ')' : '') + '</li>';
+        html += '<li>' + escTrack(ts) + ' · ' + escTrack(e.description) + (e.city ? ' (' + escTrack(e.city) + ')' : '') + '</li>';
       });
       html += '</ul>';
       containers.forEach(function(el) { el.innerHTML = html; });

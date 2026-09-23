@@ -42,7 +42,7 @@ const { data: order } = await supabase
 
 // Has the purchase actually happened?
 if (!order?.reserved_at) {
-  return new Response('Kvittering finnes ikke — kjøpet er ikke fullført', { status: 404 });
+  return new Response('Kvittering finnes ikke, kjøpet er ikke fullført', { status: 404 });
 }
 
 // Look up seller (private vs store)
@@ -91,7 +91,7 @@ function nok(n: number): string {
 }
 ---
 
-<Layout title={`Kvittering — ${listing.title}`} lang="nb">
+<Layout title={`Kvittering · ${listing.title}`} lang="nb">
   <div class="max-w-2xl mx-auto px-6 py-10 print:py-2 print:px-0">
     <div class="flex items-center justify-between mb-6 print:hidden">
       <a href={`/market/listing/${listing.id}`} class="text-xs text-charcoal/45 hover:text-terracotta-500">&larr; Tilbake til annonsen</a>
@@ -116,7 +116,7 @@ function nok(n: number): string {
           <p class="font-medium">{sellerName}</p>
           {sellerOrgFormal && <p class="text-sm text-charcoal/65">{sellerOrgFormal}</p>}
           {sellerOrgnr && <p class="text-xs text-charcoal/55 font-mono">Org.nr. {sellerOrgnr}</p>}
-          {!sellerOrgnr && <p class="text-xs text-charcoal/45">Privatsalg — ikke MVA-pliktig</p>}
+          {!sellerOrgnr && <p class="text-xs text-charcoal/45">Privatsalg · ikke MVA-pliktig</p>}
         </div>
         <div>
           <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kjøper</p>
@@ -176,7 +176,7 @@ function nok(n: number): string {
       </section>
 
       <footer class="text-xs text-charcoal/40 mt-8 pt-4 border-t border-sage-500/10">
-        <p>Strikketorget — drevet av Weggersen Design, org.nr. 935 918 146.</p>
+        <p>Strikketorget, drevet av Weggersen Design, org.nr. 935 918 146.</p>
         <p>Spørsmål: hei@strikketorget.no</p>
       </footer>
     </article>

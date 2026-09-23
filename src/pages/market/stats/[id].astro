@@ -30,7 +30,7 @@ const { data: listing } = await ctx.supabase
   .maybeSingle();
 ---
 
-<Layout title={`Statistikk — ${listing?.title ?? 'Annonse'}`} lang="nb">
+<Layout title={`Statistikk · ${listing?.title ?? 'Annonse'}`} lang="nb">
   <MarketplaceShell current="mine">
     <a href={`/market/listing/${id}`} class="text-sm text-charcoal/55 hover:text-charcoal transition-colors mb-4 inline-block">← Tilbake til annonsen</a>
     <h1 class="font-serif text-3xl mb-2">{listing?.title ?? 'Statistikk'}</h1>
@@ -39,7 +39,7 @@ const { data: listing } = await ctx.supabase
     {activePromo && (
       <div class="bg-terracotta-500/5 border border-terracotta-500/20 rounded-2xl p-4 mb-8">
         <p class="text-sm font-medium text-terracotta-500">
-          Aktiv promotering — {Math.max(0, Math.ceil((new Date(activePromo.ends_at).getTime() - Date.now()) / 86400_000))} dager igjen
+          Aktiv promotering · {Math.max(0, Math.ceil((new Date(activePromo.ends_at).getTime() - Date.now()) / 86400_000))} dager igjen
         </p>
       </div>
     )}

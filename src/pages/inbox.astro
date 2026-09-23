@@ -121,7 +121,7 @@ for (const t of modThreads) {
     href: `/market/moderasjon/${t.id}`,
     unread,
     icon: '⚠️',
-    badge: t.status === 'open' ? 'Viktig — moderator' : 'Avsluttet — moderator',
+    badge: t.status === 'open' ? 'Viktig · moderator' : 'Avsluttet · moderator',
     title,
     preview: last?.body ? (last.body.length > 90 ? last.body.slice(0, 90) + '…' : last.body) : '',
     important: t.status === 'open',

@@ -43,7 +43,7 @@ const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
 
   {totalPending > 0 && (
     <div class="bg-amber-50 rounded-xl border border-amber-200 p-4 mb-6">
-      <p class="text-sm"><strong>{pendingPayouts.length}</strong> ventende utbetalinger — totalt <strong>{totalPending.toFixed(2)} NOK</strong></p>
+      <p class="text-sm"><strong>{pendingPayouts.length}</strong> ventende utbetalinger · totalt <strong>{totalPending.toFixed(2)} NOK</strong></p>
     </div>
   )}
 
@@ -68,7 +68,7 @@ const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
           {allPayouts.map(p => (
             <tr class="border-b border-sage-500/5 hover:bg-sage-100/20 transition-colors">
               <td class="px-4 py-3 font-medium">{p.profiles?.display_name ?? anonymizeUser(p.moderator_id)}</td>
-              <td class="px-4 py-3 font-mono text-xs">{p.period_start} — {p.period_end}</td>
+              <td class="px-4 py-3 font-mono text-xs">{p.period_start} – {p.period_end}</td>
               <td class="px-4 py-3 text-right font-mono tabular-nums">{p.review_count}</td>
               <td class="px-4 py-3 text-right font-mono tabular-nums">{p.amount_nok?.toFixed(2)} NOK</td>
               <td class="px-4 py-3">

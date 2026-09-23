@@ -16,7 +16,7 @@ const justResolved = Astro.url.searchParams.get('resolved') === '1';
 const catLabel = (c: string) => SUPPORT_CATEGORY_LABEL[c as SupportCategory] ?? c;
 ---
 
-<AdminLayout title="Admin — Henvendelser" current="support">
+<AdminLayout title="Admin · Henvendelser" current="support">
   <h1 class="font-serif text-2xl mb-6">Henvendelser</h1>
 
   {justResolved && (
@@ -58,7 +58,7 @@ const catLabel = (c: string) => SUPPORT_CATEGORY_LABEL[c as SupportCategory] ?? 
           <div class="bg-surface/60 rounded-xl border border-sage-500/10 p-3 text-sm">
             <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mr-2">{catLabel(r.category)}</span>
             <span class="text-charcoal/65">{r.subject ?? r.body.slice(0, 80)}</span>
-            {r.handled_note && <span class="text-charcoal/45"> — {r.handled_note}</span>}
+            {r.handled_note && <span class="text-charcoal/45"> · {r.handled_note}</span>}
           </div>
         ))}
       </div>

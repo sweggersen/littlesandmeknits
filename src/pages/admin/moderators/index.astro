@@ -53,7 +53,7 @@ function rateFlag(m: any) {
         </thead>
         <tbody>
           {allMods.map(m => (
-            <tr class:list={['border-b border-sage-500/5', rateFlag(m) ? 'bg-red-50/50' : 'hover:bg-sage-100/20']} title={rateFlag(m) ? 'Høy godkjenningsrate — mulig misbruk' : ''}>
+            <tr class:list={['border-b border-sage-500/5', rateFlag(m) ? 'bg-red-50/50' : 'hover:bg-sage-100/20']} title={rateFlag(m) ? 'Høy godkjenningsrate · mulig misbruk' : ''}>
               <td class="px-4 py-3">
                 <a href={`/admin/users/${m.user_id}`} class="font-medium hover:text-terracotta-500 transition-colors">
                   {m.profiles?.display_name ?? anonymizeUser(m.user_id)}

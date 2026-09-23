@@ -89,7 +89,7 @@ const earnedAchievements = ACHIEVEMENTS.filter(a => earnedSet.has(a.key) && a.ca
 const share = sellerShareMeta({ displayName: seller.display_name, location: seller.location, avatarUrl });
 ---
 
-<Layout title={`${seller.display_name ?? 'Selger'} — Strikketorget`} description={share.description} ogImage={share.ogImage} lang="nb">
+<Layout title={`${seller.display_name ?? 'Selger'} · Strikketorget`} description={share.description} ogImage={share.ogImage} lang="nb">
   <MarketplaceShell>
 
       <!-- Profile header -->

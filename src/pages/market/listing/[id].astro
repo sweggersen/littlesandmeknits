@@ -337,10 +337,10 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                   <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Levering</p>
                   <ul class="space-y-1.5 text-charcoal/75">
                     {listing.escrow_enabled && (
-                      <li><TryggBetaling /> · Kan sendes — kjøp gjennom appen</li>
+                      <li><TryggBetaling /> · Kan sendes, kjøp gjennom appen</li>
                     )}
                     {listing.can_meet && (
-                      <li>Kan møtes — henting og betaling lokalt</li>
+                      <li>Kan møtes, henting og betaling lokalt</li>
                     )}
                     {!listing.escrow_enabled && !listing.can_meet && (
                       <li class="text-amber-800">Ingen leveringsmåte er aktivert på denne annonsen.</li>
