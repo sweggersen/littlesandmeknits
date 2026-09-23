@@ -7,6 +7,7 @@
 
 import type { ServiceContext, ServiceResult } from './types';
 import { fail } from './types';
+import { log } from '../log';
 
 export type QuotaAction =
   | 'commission_request_create'
@@ -52,49 +53,42 @@ function today(): string {
 }
 
 /** Check the user's quota for `action` today; if under the limit,
- *  increment and return null (continue). If at/over, return a
+ *  atomically increment and return null (continue). If at/over, return a
  *  ServiceResult failure the caller can early-return.
  *
- *  Uses ctx.admin so it can read+upsert atomically regardless of RLS.
+ *  The increment happens in a single Postgres statement (bump_action_count
+ *  RPC, migration 0119): concurrent callers serialize on the row and can't both
+ *  slip past the cap. A read-then-write here would be bypassable by firing
+ *  requests in parallel (this is the only throttle on Stripe-session minting +
+ *  message/report floods). RPC returns the new count, or -1 when at/over limit.
  */
 export async function assertWithinQuota(
   ctx: ServiceContext,
   action: QuotaAction,
 ): Promise<ServiceResult<never> | null> {
   const limit = DAILY_LIMITS[action];
-  const day = today();
 
-  // Atomic increment via upsert + RPC-style. supabase-js doesn't
-  // expose a direct atomic-increment, so we read-check-write within
-  // a single ON CONFLICT update that bumps count.
-  // First: read current count.
-  const { data: row } = await ctx.admin
-    .from('user_action_counts')
-    .select('count')
-    .eq('user_id', ctx.user.id)
-    .eq('action', action)
-    .eq('day', day)
-    .maybeSingle();
+  const { data, error } = await ctx.admin.rpc('bump_action_count', {
+    p_user_id: ctx.user.id,
+    p_action: action,
+    p_day: today(),
+    p_limit: limit,
+  });
 
-  const current = row?.count ?? 0;
-  if (current >= limit) {
+  if (error) {
+    // Fail-open on a counter failure (availability > strictness for a transient
+    // DB error), but surface it — a genuine parallel-abuse attempt still
+    // serializes correctly on the row and does NOT hit this path.
+    log.error('quota.bump_failed', { action, message: error.message });
+    return null;
+  }
+
+  if (typeof data === 'number' && data < 0) {
     return fail(
       'conflict',
       `Du har nådd dagsgrensen for denne handlingen (${limit} per dag). Prøv igjen i morgen.`,
     );
   }
-
-  // Upsert: insert with count=1 or bump existing by 1.
-  // ON CONFLICT (user_id, action, day) DO UPDATE SET count = count + 1
-  await ctx.admin.from('user_action_counts').upsert(
-    {
-      user_id: ctx.user.id,
-      action,
-      day,
-      count: current + 1,
-    },
-    { onConflict: 'user_id,action,day' },
-  );
 
   return null;
 }

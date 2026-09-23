@@ -4,6 +4,17 @@ import { listingPath } from '../lib/listing-url';
 import { env } from '../lib/env';
 
 const SITE = 'https://littlesandmeknits.com';
+const MARKET_SITE = 'https://strikketorget.no';
+
+// /market, /studio and the auth routes live on strikketorget.no (they 301 away
+// from littlesandmeknits.com). Emit their final domain so the sitemap doesn't
+// list redirecting URLs. Littles-and-Me content (home, /om, /oppskrifter,
+// /prosjekter, /terms, /privacy, /hjelp) stays on SITE.
+function siteFor(loc: string): string {
+  return loc.startsWith('/market') || loc.startsWith('/studio') || loc === '/login' || loc.startsWith('/auth')
+    ? MARKET_SITE
+    : SITE;
+}
 
 // Static routes that should always be indexed. We list them explicitly
 // rather than scanning the filesystem so that auth-only / admin / dev
@@ -29,7 +40,7 @@ const STATIC_ROUTES = [
 
 function urlEntry(loc: string, lastmod?: string, changefreq?: string, priority?: string) {
   return `  <url>
-    <loc>${SITE}${loc}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}${changefreq ? `\n    <changefreq>${changefreq}</changefreq>` : ''}${priority ? `\n    <priority>${priority}</priority>` : ''}
+    <loc>${siteFor(loc)}${loc}</loc>${lastmod ? `\n    <lastmod>${lastmod}</lastmod>` : ''}${changefreq ? `\n    <changefreq>${changefreq}</changefreq>` : ''}${priority ? `\n    <priority>${priority}</priority>` : ''}
   </url>`;
 }
 

@@ -20,11 +20,12 @@ export async function toggleSellerFollow(
     .insert({ follower_id: ctx.user.id, seller_id: sellerId } as never);
 
   if (error?.code === '23505') {
-    await ctx.supabase
+    const { error: delErr } = await ctx.supabase
       .from('seller_follows')
       .delete()
       .eq('follower_id', ctx.user.id)
       .eq('seller_id', sellerId);
+    if (delErr) return fail('server_error', 'Kunne ikke oppdatere følging');
     return ok({ following: false });
   }
 

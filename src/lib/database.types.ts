@@ -2975,6 +2975,15 @@ export type Database = {
       }
     }
     Functions: {
+      bump_action_count: {
+        Args: {
+          p_action: string
+          p_day: string
+          p_limit: number
+          p_user_id: string
+        }
+        Returns: number
+      }
       distinct_store_cities: { Args: never; Returns: string[] }
       has_store_min_role: {
         Args: {

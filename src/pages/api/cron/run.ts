@@ -312,9 +312,14 @@ export const POST: APIRoute = async ({ request }) => {
           });
         }
 
+        // Match confirmDelivery: set the 14-day review window, otherwise the
+        // reveal_reviews section (which requires review_deadline_at) never
+        // surfaces the reviews for auto-released commissions.
+        const reviewDeadline = new Date();
+        reviewDeadline.setDate(reviewDeadline.getDate() + 14);
         await admin
           .from('commission_requests')
-          .update({ status: 'delivered', delivered_at: now })
+          .update({ status: 'delivered', delivered_at: now, review_deadline_at: reviewDeadline.toISOString() })
           .eq('id', req.id);
 
         if (offer) {

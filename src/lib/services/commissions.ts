@@ -769,10 +769,21 @@ export async function releaseCommissionFunds(
       // One transfer per commission, even if confirm + cron race.
       idempotencyKey: `commission-transfer-${input.requestId}`,
     });
-    await admin
+    const { error: tidErr } = await admin
       .from('commission_requests')
       .update({ stripe_transfer_id: transfer.id })
       .eq('id', input.requestId);
+    if (tidErr) {
+      // The transfer succeeded but we couldn't persist stripe_transfer_id — the
+      // durable double-transfer guard. The 24h idempotency key still blocks a
+      // duplicate short-term; dead-letter so support records the id before it
+      // expires (a later re-release would otherwise pay the knitter twice).
+      await recordDeadLetter({ admin }, {
+        service: 'commissions.release:persist_transfer_id',
+        context: { request_id: input.requestId, transfer_id: transfer.id },
+        error: tidErr,
+      });
+    }
     return { released: true };
   }
 

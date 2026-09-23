@@ -15,12 +15,13 @@ export async function toggleFavorite(
     .insert({ user_id: ctx.user.id, item_type: input.itemType, item_id: input.itemId });
 
   if (error?.code === '23505') {
-    await ctx.supabase
+    const { error: delErr } = await ctx.supabase
       .from('favorites')
       .delete()
       .eq('user_id', ctx.user.id)
       .eq('item_type', input.itemType)
       .eq('item_id', input.itemId);
+    if (delErr) return fail('server_error', 'Kunne ikke oppdatere favoritt');
     return ok({ favorited: false });
   }
 

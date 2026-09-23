@@ -18,17 +18,15 @@ function mockCtx(opts?: {
   // second is the openCount check.
   let selectCall = 0;
   const client = {
-    from: (table: string) => {
-      // assertWithinQuota (report_create): read user_action_counts then upsert.
-      if (table === 'user_action_counts') {
-        const q: any = {
-          select: () => q,
-          eq: () => q,
-          maybeSingle: async () => ({ data: { count: opts?.quotaUsed ?? 0 } }),
-          upsert: async () => ({ error: null }),
-        };
-        return q;
+    // assertWithinQuota now increments via the bump_action_count RPC.
+    rpc: async (name: string, args: any) => {
+      if (name === 'bump_action_count') {
+        const used = opts?.quotaUsed ?? 0;
+        return { data: used >= args.p_limit ? -1 : used + 1, error: null };
       }
+      return { data: null, error: null };
+    },
+    from: (table: string) => {
       return {
         select: () => ({
           eq: () => ({

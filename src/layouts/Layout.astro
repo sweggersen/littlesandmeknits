@@ -57,7 +57,14 @@ const metaDescription = description
   ?? 'Strikketorget er Norges marked for håndstrikkede plagg, brukt og nytt. Kjøp og selg trygt med Trygg betaling, eller bestill et plagg fra en strikker.';
 
 const SITE = 'https://littlesandmeknits.com';
-const canonical = new URL(Astro.url.pathname, SITE).toString();
+const MARKET_SITE = 'https://strikketorget.no';
+// Canonical to the section's REAL domain. /market and /studio live on
+// strikketorget.no (littlesandmeknits.com 301-redirects them there), so
+// canonicalising them to littlesandmeknits.com pointed search engines at a URL
+// that immediately redirects away. Littles-and-Me content stays on SITE.
+const canonicalBase = (Astro.url.pathname.startsWith('/market') || Astro.url.pathname.startsWith('/studio'))
+  ? MARKET_SITE : SITE;
+const canonical = new URL(Astro.url.pathname, canonicalBase).toString();
 const ogImageUrl = ogImage
   ? new URL(ogImage, SITE).toString()
   : `${SITE}/strikketorget-icon.svg`;
