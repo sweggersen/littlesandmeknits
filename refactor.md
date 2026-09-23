@@ -1173,3 +1173,75 @@ Final final: money-path mutation score **99.05%** (break 92); 481 unit / 509 wit
 **Effort:** 1–2 days. The mock-supabase infrastructure is the biggest piece (~3 hours); rewriting the tests on top is mostly mechanical.
 
 </details>
+
+---
+
+## Review round 4 — full-site audit (2026-09-24)
+
+Round 1/2 closed the structural + operational backlog. Since then the platform has had four full top-to-bottom site reviews plus a money-path hardening pass. Reviews 1–3, the money-path work, and the rolling P2/P3 remainder are tracked in `memory/site_review_backlog.md` (single source for the review backlog); the summary is that all P0/P1 from reviews 1–3 and every money-path item shipped.
+
+**Review 4** fanned out five parallel audit agents — frontend/client, navigation/IA, data-model+RLS, copy/i18n, telemetry/logging/perf — against the whole tree. Each finding was verified against real code (agents were told the known false-positives so they wouldn't re-chase them), then shipped in three gated batches. Working rules unchanged: own branch → build + unit + rls + integration + e2e → merge → CI (the `database` job re-runs every migration from scratch against the RLS/integration suites) → deploy → prod-verified on both domains.
+
+Commits: **A+B `f4250c3`**, **C+D+E `2a4842c`** (both deployed + prod-verified 2026-09-24, strikketorget.no + littlesandmeknits.com). Gates on the shipping tip: unit 1101, rls 86, integration clean, e2e 84, build + `astro check` 0 errors.
+
+Operational note: the A+B-only CI run hit a transient Docker Hub image-pull rate-limit twice (`toomanyrequests`, not a code failure); folding C+D+E onto the same master tip and pushing once got a clean full run that deployed everything.
+
+### ☑ R4-A — Review/rating INSERT RLS holes  **(P2 security → done 2026-09-24)**
+
+**The hole.** The 0114–0116 grant sweep missed the two review tables. Migration 0085 grants `authenticated` a blanket table role, so a direct PostgREST caller (public anon key + a user JWT) bypasses the service layer. Both review services write via `ctx.admin` (service-role), so the `authenticated` write grants were pure attack surface:
+- `seller_reviews` INSERT policy checked only `reviewer_id`/`seller_id` — a caller could fabricate reviews for any seller with no purchase, set `listing_id = NULL` to defeat the `one_review_per_listing` unique constraint (NULLs are distinct → **unlimited** reviews), and set `store_id` to drive any store's public `rating_avg`/`rating_count` via the `0109` stats trigger.
+- `transaction_reviews` INSERT `WITH CHECK` never verified participation, never pinned `reviewer_role`, never pinned `visible=false` — any user could publish a fabricated, immediately-visible commission rating on any target and defeat the double-blind embargo.
+
+**Fix.** Migration `0121_review_insert_grants.sql`: `revoke insert, delete` on `seller_reviews` and `revoke insert, update, delete` on `transaction_reviews` from `anon, authenticated` (policies stay; no grant to exercise → denied at the privilege layer). +4 positive/negative RLS tests (service-role path still writes; authenticated path rejected). RLS suite 82 → 86.
+
+**Files:** `supabase/migrations/0121_review_insert_grants.sql`, `src/lib/__tests__/rls.test.ts`.
+
+---
+
+### ☑ R4-B — Observability: the audit net had a hole in it  **(P2 → done 2026-09-24)**
+
+**The linchpin bug.** `recordDeadLetter` (`dead-letter.ts`) and `recordPaymentEvent` (`payment-events.ts`) wrapped their insert in `try/catch`, but `supabase-js` resolves insert/update/delete with `{ error }` and does **not** throw on a DB-level rejection (RLS/constraint/enum). The returned `error` was never destructured, so their `*.insert_failed` logs only fired on a network throw — the audit net the entire money-path hardening leans on silently dropped DB-rejected rows (`recordPaymentEvent` has no Sentry fallback, so those were totally silent). Now both check the returned error **and** guard a client-level throw, keeping best-effort semantics (log + return, never throw). +2 regression tests.
+
+**Also closed:**
+- Stripe webhook `listing_fee` + `stores.createStore` `moderation_queue` inserts were unchecked/console-only — a failed enqueue leaves a paid listing/store in `pending_review`, invisible to moderators. Now dead-lettered.
+- `auth/callback` consent writes (GDPR `age_confirmed_at`/`tos_accepted_at`/`marketing_consent_at`) persisted under a bare `catch { /* non-fatal */ }` + an unchecked update. Now checked + `log.error` + `captureException`; the catch logs instead of swallowing.
+- Orphaned Stripe Connect accounts (`store-connect`, `profile.becomeSeller`) dead-letter the orphaned account id instead of `console.error` only.
+- `orders.ts` shadow-writes (`updateOpenOrder`/`updateOrderByPaymentIntent`) log a returned error instead of masking it as "no matching row".
+
+**Files:** `src/lib/services/{dead-letter,payment-events,stores,store-connect,profile,orders}.ts`, `src/pages/api/stripe/webhook.ts`, `src/pages/api/auth/callback.ts`, `+` tests.
+
+---
+
+### ☑ R4-C — Em-dashes in service-layer user-facing copy  **(P2 → done 2026-09-24)**
+
+The prior em-dash sweep covered `src/pages/**` + `src/components/**` but not the service/api layer, where notification `title:`/`body:` and `fail()` error messages are authored — they render in `/inbox` and error toasts. 17 hits fixed (comma/period per the CLAUDE.md rule; comments untouched). Added a guard test `no-emdash-service-copy` that scans `src/lib/services/**` + `src/pages/api/**` on user-facing-copy lines (`title:`/`body:`/`message:`/`fail(`, never comments) so the class can't regress.
+
+**Files:** `commissions`, `refunds`, `disputes`, `listings-escrow`, `reports`, `stores` services, `api/cron/run.ts`, `src/lib/__tests__/no-emdash-service-copy.test.ts`.
+
+---
+
+### ☑ R4-D — Navigation redirect-hops + orphan routes  **(P2/P3 → done 2026-09-24)**
+
+- `localizedPath('nb', …)` emitted the English alias paths (`/patterns`,`/projects`,`/about`) which 308-redirect to the canonical Norwegian pages, so **every main-site content link took a redirect hop** (and pointed crawlers at non-canonical URLs). Now maps the aliases to `/oppskrifter`,`/prosjekter`,`/om` for nb; 5 hardcoded alias links fixed too.
+- `/varsler → /notifications → /inbox` double redirect collapsed to one hop (verified live: `/varsler` 301 → `/inbox?filter=notifications`).
+- Live links to the `/market/messages` redirect stub repointed at `/inbox?filter=messages` (profile, my-listings).
+- Two orphan, unlinked purchases pages (`profile/purchases`, `studio/purchases`) converted to 301 stubs → `/market/my-purchases`.
+- `/login` (renders `noindex`) dropped from the sitemap (verified live: absent).
+
+**Files:** `src/lib/i18n.ts`, `src/lib/routing/redirects.ts`, `src/pages/sitemap.xml.ts`, `profile/index`, `market/my-listings`, `prosjekter/[id]`, `studio/projects/[id]`, `p/[slug]`, `profile/purchases`, `studio/purchases`.
+
+---
+
+### ☑ R4-E — Client-side double-submit + listener-leak fixes  **(P2/P3 → done 2026-09-24)**
+
+- `store-create` "Opprett butikk" had no double-submit guard (the only mutation controller without one) — a double-click could create duplicate stores / duplicate Connect onboarding. Guard added.
+- `PromotePanel` paid promote forms: disable-on-submit guard (the server already reuses the pending session per the money-path batch; this is the UX belt-and-braces).
+- Document-level listener leaks that grew per navigation fixed: `ListingPhotos` keydown (removed on `astro:before-swap`) and `report-button` outside-click (registered once on `documentElement`).
+- `sticky-sentinel` + `pattern-filter` given `bindOnce` idempotency guards (were double-initialised by `registerController` on first load).
+- `review-form` + `report-button` submit buttons disabled in-flight (re-enabled on error).
+
+**Files:** `src/lib/client/controllers/{store-create,report-button,review-form,sticky-sentinel,pattern-filter}.ts`, `src/components/listing/{ListingPhotos,PromotePanel}.astro`.
+
+---
+
+**Confirmed clean by Review 4 (do not re-chase):** all three `set:html` JSON-LD escapes hold; no hard 404s from internal links; no page rolls its own auth redirect on a middleware-gated prefix; the Vipps `next` open-redirect is closed (`safeInternalPath` on both start + callback); money-column `NOT NULL` + `CHECK >= 0` constraints intact; `orders`/`payment_events`/moderation tables are write-denied to `authenticated`. The remaining open backlog is the pre-existing lower-priority set in `memory/site_review_backlog.md` (cron service-layer migration, `store/[slug]` + `auth/callback` refactors, rate-limiting wiring, type/logger debt, the a11y cluster, untested-service coverage) — nothing new or urgent surfaced.
