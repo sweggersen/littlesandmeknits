@@ -13,7 +13,7 @@ import { recordPaymentEvent } from '../../../lib/services/payment-events';
 import { MoneyBreakdown } from '../../../lib/money';
 import { recordDeadLetter } from '../../../lib/services/dead-letter';
 import { releaseExpiredReservation } from '../../../lib/services/listings';
-import { releaseCommissionFunds, reconcileStuckCommissionPayments } from '../../../lib/services/commissions';
+import { releaseCommissionFunds, reconcileStuckCommissionPayments, refundCommissionPayment } from '../../../lib/services/commissions';
 import { backfillSellerGeocode, backfillStoreGeocode } from '../../../lib/services/geo-backfill';
 import { log } from '../../../lib/log';
 
@@ -345,6 +345,76 @@ export const POST: APIRoute = async ({ request }) => {
           }, env);
         }
         results.released++;
+      }
+    }
+
+    // 2b. Rescue stranded `awaiting_yarn` commissions. A buyer-provides-yarn
+    //     commission is charged in full at payment and sits in `awaiting_yarn`
+    //     until the buyer ships. If they never do, there is no other exit
+    //     (disputeCommission needs `completed`, resolveDispute needs `disputed`),
+    //     so the captured escrow would strand forever. Refund the buyer after a
+    //     generous window with no yarn shipment.
+    const YARN_TIMEOUT_DAYS = 30;
+    const yarnCutoff = new Date(Date.now() - YARN_TIMEOUT_DAYS * 86400_000).toISOString();
+    const { data: strandedYarn } = await admin
+      .from('commission_requests')
+      .select('id, buyer_id, title, awarded_offer_id, stripe_payment_intent_id')
+      .eq('status', 'awaiting_yarn')
+      .is('yarn_shipped_at', null)
+      .lt('updated_at', yarnCutoff)
+      .limit(50);
+    if (strandedYarn?.length) {
+      for (const req of strandedYarn) {
+        // Claim awaiting_yarn -> cancelled conditionally (guards a concurrent
+        // shipYarn/receiveYarn) BEFORE refunding.
+        const { data: claimed } = await admin
+          .from('commission_requests')
+          .update({ status: 'cancelled' })
+          .eq('id', req.id).eq('status', 'awaiting_yarn').is('yarn_shipped_at', null)
+          .select('id');
+        if (!claimed?.length) continue;
+
+        if (req.stripe_payment_intent_id) {
+          try {
+            await refundCommissionPayment(env.STRIPE_SECRET_KEY, req.stripe_payment_intent_id);
+          } catch (e) {
+            // Refund failed after the claim — revert so a later tick retries, and
+            // dead-letter so the stranded escrow isn't silently dropped.
+            await admin.from('commission_requests').update({ status: 'awaiting_yarn' }).eq('id', req.id);
+            await recordDeadLetter({ admin, user: req.buyer_id ? { id: req.buyer_id } : undefined }, {
+              service: 'cron.awaiting_yarn_refund',
+              context: { commission_request_id: req.id, payment_intent_id: req.stripe_payment_intent_id },
+              error: e,
+            });
+            continue;
+          }
+        }
+
+        await recordPaymentEvent(admin, {
+          kind: 'commission', type: 'refunded', commissionRequestId: req.id,
+          paymentIntentId: req.stripe_payment_intent_id ?? undefined,
+          context: { trigger: 'awaiting_yarn_timeout' },
+        });
+
+        if (req.buyer_id) {
+          await createNotification(admin, {
+            userId: req.buyer_id, type: 'commission_cancelled',
+            title: 'Oppdrag avbestilt',
+            body: `«${req.title}» ble avbestilt fordi garnet ikke ble sendt innen ${YARN_TIMEOUT_DAYS} dager. Du er refundert.`,
+            url: `/market/commissions/${req.id}`, referenceId: req.id,
+          }, env);
+        }
+        const { data: yarnOffer } = await admin
+          .from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id!).maybeSingle();
+        if (yarnOffer?.knitter_id) {
+          await createNotification(admin, {
+            userId: yarnOffer.knitter_id, type: 'commission_cancelled',
+            title: 'Oppdrag avbestilt',
+            body: `«${req.title}» ble avbestilt fordi kjøper ikke sendte garnet innen ${YARN_TIMEOUT_DAYS} dager.`,
+            url: `/market/commissions/${req.id}`, referenceId: req.id,
+          }, env);
+        }
+        results.yarnRefunded = (results.yarnRefunded ?? 0) + 1;
       }
     }
 

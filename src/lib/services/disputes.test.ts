@@ -220,6 +220,16 @@ describe('resolveDispute — listing', () => {
     expect((updates.find((x: any) => x.table === 'listings') as any).row.status).toBe('sold');
   });
 
+  it('forbids an admin who is a party (seller) to the dispute', async () => {
+    // ctx.user is 'admin-1'; make them the seller of the disputed listing.
+    const r = await resolveDispute(
+      mockCtx({ role: 'admin', listing: { ...disputedListing, seller_id: 'admin-1' } }).ctx,
+      { itemType: 'listing', itemId: 'l1', decision: 'release' },
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('forbidden');
+  });
+
   it('writes a moderation_audit_log entry', async () => {
     const { ctx, inserts } = mockCtx({ role: 'admin', listing: disputedListing });
     await resolveDispute(ctx, {

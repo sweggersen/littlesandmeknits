@@ -2,6 +2,7 @@ import type { ServiceContext, ServiceResult } from './types';
 import { ok, fail } from './types';
 import { createNotification } from '../notify';
 import { restoreStatus, validateDecideInput } from './moderation-helpers';
+import { hasConflict } from '../moderation';
 
 async function getProfileRole(ctx: ServiceContext): Promise<string | null> {
   const { data } = await ctx.admin
@@ -109,6 +110,18 @@ export async function decideReport(
   if (!report) return fail('not_found', 'Report not found');
   if (report.status !== 'open') return fail('conflict', 'Report already handled');
 
+  // Conflict-of-interest + self-report guards (mirror claimItem/reviewItem). A
+  // moderator must not decide a report they filed, nor one whose target owner
+  // they have a commercial/conversation relationship with — freezing suspends the
+  // owner's entire active inventory, so the blast radius is large.
+  if (report.reporter_id === ctx.user.id) {
+    return fail('forbidden', 'Du kan ikke behandle din egen rapport');
+  }
+  const meta = await resolveTarget(ctx, report.target_type, report.target_id);
+  if (meta && await hasConflict(ctx.admin, ctx.user.id, meta.recipientId)) {
+    return fail('forbidden', 'Du har en relasjon til eieren og kan ikke behandle denne rapporten');
+  }
+
   const now = new Date().toISOString();
 
   // Collect all open sibling reports on the same target.
@@ -145,7 +158,7 @@ export async function decideReport(
   const firstMessage = (input.firstMessage ?? '').trim();
   if (!firstMessage) return fail('bad_input', 'En melding til eieren kreves når du fryser');
 
-  const meta = await resolveTarget(ctx, report.target_type, report.target_id);
+  // `meta` was resolved above for the conflict check; freeze needs a live target.
   if (!meta) return fail('not_found', 'Target item not found');
   if (meta.recipientId === ctx.user.id) return fail('forbidden', 'Du eier dette elementet');
 

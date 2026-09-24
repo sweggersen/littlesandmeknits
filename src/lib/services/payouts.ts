@@ -1,18 +1,11 @@
 import type { ServiceContext, ServiceResult } from './types';
-import { ok, fail } from './types';
+import { ok, fail, ensureAdmin } from './types';
 import { recordDeadLetter } from './dead-letter';
-
-async function requireAdmin(ctx: ServiceContext): Promise<ServiceResult<never> | null> {
-  const { data } = await ctx.admin
-    .from('profiles').select('role').eq('id', ctx.user.id).maybeSingle();
-  if (data?.role !== 'admin') return fail('forbidden', 'Forbidden');
-  return null;
-}
 
 export async function createPayoutBatch(
   ctx: ServiceContext,
 ): Promise<ServiceResult<{ redirect: string }>> {
-  const denied = await requireAdmin(ctx);
+  const denied = await ensureAdmin(ctx);
   if (denied) return denied;
 
   const now = new Date();
@@ -64,6 +57,15 @@ export async function createPayoutBatch(
     });
   }
 
+  // Audit trail — this is the most money-sensitive staff action and previously
+  // wrote nothing (the admin log even defines a 'payouts_generated' label that
+  // nothing produced).
+  await ctx.admin.from('moderation_audit_log').insert({
+    actor_id: ctx.user.id, action: 'payouts_generated',
+    target_type: 'payout_batch', target_id: periodStart,
+    details: { period_start: periodStart, period_end: periodEnd, payout_count: payouts.length },
+  });
+
   return ok({ redirect: '/admin/payouts' });
 }
 
@@ -73,12 +75,22 @@ export async function markPaid(
 ): Promise<ServiceResult<{ redirect: string }>> {
   if (!input.payoutId) return fail('bad_input', 'Invalid input');
 
-  const denied = await requireAdmin(ctx);
+  const denied = await ensureAdmin(ctx);
   if (denied) return denied;
 
-  await ctx.admin.from('moderator_payouts').update({
+  // .select() so we only audit a real pending -> paid transition (idempotent:
+  // a second call flips 0 rows).
+  const { data: flipped } = await ctx.admin.from('moderator_payouts').update({
     status: 'paid', paid_at: new Date().toISOString(),
-  }).eq('id', input.payoutId).eq('status', 'pending');
+  }).eq('id', input.payoutId).eq('status', 'pending').select('id');
+
+  if (flipped?.length) {
+    await ctx.admin.from('moderation_audit_log').insert({
+      actor_id: ctx.user.id, action: 'payout_marked_paid',
+      target_type: 'payout', target_id: input.payoutId,
+      details: {},
+    });
+  }
 
   return ok({ redirect: '/admin/payouts' });
 }

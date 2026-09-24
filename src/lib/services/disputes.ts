@@ -56,6 +56,11 @@ async function resolveListingDispute(
 
   if (!listing) return fail('not_found', 'Listing not found');
   if (listing.status !== 'disputed') return fail('conflict', 'Not in disputed state');
+  // Self-party guard: an admin who is the buyer or seller must not resolve their
+  // own dispute (release/refund in their own favour).
+  if (listing.seller_id === ctx.user.id || listing.buyer_id === ctx.user.id) {
+    return fail('forbidden', 'Du er part i denne saken og kan ikke avgjøre den');
+  }
   // The disputed order holds the PaymentIntent.
   const order = await findOpenOrder(ctx.admin, listingId);
   if (!order?.stripe_payment_intent_id) return fail('server_error', 'No payment intent');
@@ -215,6 +220,14 @@ async function resolveCommissionDispute(
 
   if (!req) return fail('not_found', 'Request not found');
   if (req.status !== 'disputed') return fail('conflict', 'Not in disputed state');
+
+  // Self-party guard: an admin who is the buyer or the awarded knitter must not
+  // resolve their own dispute (release/refund in their own favour).
+  const { data: partyOffer } = await ctx.admin
+    .from('commission_offers').select('knitter_id').eq('id', req.awarded_offer_id!).maybeSingle();
+  if (req.buyer_id === ctx.user.id || partyOffer?.knitter_id === ctx.user.id) {
+    return fail('forbidden', 'Du er part i denne saken og kan ikke avgjøre den');
+  }
 
   if (req.stripe_payment_intent_id) {
     const { data: awardedOffer } = await ctx.admin

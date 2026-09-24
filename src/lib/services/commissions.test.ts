@@ -306,6 +306,19 @@ describe('markCompleted', () => {
     if (!r.ok) expect(r.code).toBe('bad_input');
   });
 
+  it('hard-blocks when the linked project is missing (photo fraud-gate cannot be skipped)', async () => {
+    const { ctx } = mockCtx({
+      actorId: 'k',
+      rows: {
+        commission_requests: { id: 'r1', buyer_id: 'b', status: 'awarded', title: 't', awarded_offer_id: 'o1' },
+        commission_offers: { knitter_id: 'k' }, // no project_id
+      },
+    });
+    const r = await markCompleted(ctx, { requestId: 'r1', trackingCode: 'TRK-1' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('bad_input'); // was silently allowed before
+  });
+
   it('forbids non-knitter', async () => {
     const { ctx } = mockCtx({
       actorId: 'attacker',
@@ -366,7 +379,8 @@ describe('markCompleted', () => {
       actorId: 'k',
       rows: {
         commission_requests: { id: 'r1', buyer_id: 'b', status: 'awarded', title: 't', awarded_offer_id: 'o1' },
-        commission_offers: { knitter_id: 'k' },
+        commission_offers: { knitter_id: 'k', project_id: 'proj-1' },
+        projects: { hero_photo_path: 'k/proj-1/hero.jpg' },
       },
     });
     const before = Date.now();
