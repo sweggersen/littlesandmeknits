@@ -126,13 +126,13 @@ const ogCardUrl = heroUrl ?? null;
     <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 mt-8 pt-8 border-t border-sage-500/15 text-sm">
       {p.recipient && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">For</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">For</dt>
           <dd>{p.recipient}</dd>
         </div>
       )}
       {patternLabel && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Oppskrift</dt>
           <dd>
             {patternEntry ? (
               <a href={`/oppskrifter/${p.pattern_slug}`} class="text-terracotta-500 hover:underline">
@@ -144,31 +144,31 @@ const ogCardUrl = heroUrl ?? null;
       )}
       {p.target_size && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Størrelse</dt>
           <dd>{p.target_size}</dd>
         </div>
       )}
       {p.yarn && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Garn</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Garn</dt>
           <dd>{p.yarn}</dd>
         </div>
       )}
       {p.needles && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Pinner</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Pinner</dt>
           <dd>{p.needles}</dd>
         </div>
       )}
       {p.started_at && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Startet</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Startet</dt>
           <dd>{new Date(p.started_at).toLocaleDateString('nb-NO')}</dd>
         </div>
       )}
       {p.finished_at && (
         <div>
-          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ferdig</dt>
+          <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Ferdig</dt>
           <dd>{new Date(p.finished_at).toLocaleDateString('nb-NO')}</dd>
         </div>
       )}

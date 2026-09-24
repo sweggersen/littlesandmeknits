@@ -69,9 +69,9 @@ const {
 
 <div class="relative">
   <div class="hidden md:grid grid-cols-[1fr_32px_1fr] gap-x-4 mb-6">
-    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/35 text-right">Bestiller</p>
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55 text-right">Bestiller</p>
     <div></div>
-    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/35">Strikker</p>
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/55">Strikker</p>
   </div>
 
   <div class="hidden md:block absolute left-1/2 top-10 bottom-0 w-px bg-sage-500/15 -translate-x-1/2 pointer-events-none"></div>
@@ -81,7 +81,7 @@ const {
     <div class="md:text-right mb-4 md:mb-0">
       {isBuyer ? (
         <div>
-          <p class="text-xs text-charcoal/45 mb-2">Du valgte:</p>
+          <p class="text-xs text-charcoal/60 mb-2">Du valgte:</p>
           <div class="md:ml-auto md:max-w-[260px] bg-surface rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
             <div class="flex items-center gap-2 mb-1">
               <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
@@ -94,7 +94,7 @@ const {
         </div>
       ) : (
         <div>
-          <p class="text-xs text-charcoal/45 mb-2">Valgt tilbud:</p>
+          <p class="text-xs text-charcoal/60 mb-2">Valgt tilbud:</p>
           <div class="md:ml-auto md:max-w-[260px] bg-surface rounded-2xl p-4 border border-terracotta-500/30 bg-terracotta-500/5 md:text-left">
             <div class="flex items-center gap-2 mb-1">
               <ProfileAvatar url={knitterProfile?.avatar_path ? projectPhotoUrl(knitterProfile.avatar_path) : null} name={knitterName} size="xs" />
@@ -104,7 +104,7 @@ const {
             <p class="font-mono tabular-nums">{acceptedOffer!.price_nok} NOK</p>
             <p class="text-xs text-charcoal/55">{acceptedOffer!.turnaround_weeks} {acceptedOffer!.turnaround_weeks === 1 ? 'uke' : 'uker'} leveringstid</p>
             {req.offer_count > 1 && (
-              <p class="text-[10px] text-charcoal/40 mt-2">{req.offer_count - 1} {req.offer_count - 1 === 1 ? 'annet tilbud' : 'andre tilbud'} ble vurdert.</p>
+              <p class="text-[10px] text-charcoal/60 mt-2">{req.offer_count - 1} {req.offer_count - 1 === 1 ? 'annet tilbud' : 'andre tilbud'} ble vurdert.</p>
             )}
           </div>
         </div>
@@ -116,11 +116,11 @@ const {
     <div>
       {isKnitter ? (
         <div class="bg-surface rounded-2xl p-4 border border-sage-500/10">
-          <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ditt tilbud · akseptert</p>
+          <p class="text-xs font-bold uppercase tracking-widest text-charcoal/60 mb-1">Ditt tilbud · akseptert</p>
           <p class="font-mono tabular-nums">{myOffer!.price_nok} NOK · {myOffer!.turnaround_weeks} uker</p>
         </div>
       ) : (
-        <p class="text-xs text-charcoal/40">Tilbud akseptert</p>
+        <p class="text-xs text-charcoal/60">Tilbud akseptert</p>
       )}
     </div>
   </div>
@@ -148,9 +148,9 @@ const {
           </form>
         </div>
       ) : isPast('awaiting_payment') ? (
-        <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Betalt</p>
+        <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Betalt</p>
       ) : (
-        <p class="text-xs text-charcoal/30">Betaling</p>
+        <p class="text-xs text-charcoal/55">Betaling</p>
       )}
     </div>
     <div class="hidden md:flex justify-center relative z-10">
@@ -158,11 +158,11 @@ const {
     </div>
     <div>
       {isActive('awaiting_payment') ? (
-        <p class="text-xs text-charcoal/45">Venter på betaling fra bestiller…</p>
+        <p class="text-xs text-charcoal/60">Venter på betaling fra bestiller…</p>
       ) : isPast('awaiting_payment') ? (
-        <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Betaling mottatt</p>
+        <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Betaling mottatt</p>
       ) : (
-        <p class="text-xs text-charcoal/30">—</p>
+        <p class="text-xs text-charcoal/55">—</p>
       )}
     </div>
   </div>
@@ -183,16 +183,16 @@ const {
           </div>
         ) : isActive('awaiting_yarn') && req.yarn_shipped_at ? (
           <div class="md:ml-auto md:max-w-[260px] md:text-left">
-            <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Garnet er sendt</p>
-            <p class="text-[10px] text-charcoal/40 mt-0.5">
+            <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Garnet er sendt</p>
+            <p class="text-[10px] text-charcoal/60 mt-0.5">
               {new Date(req.yarn_shipped_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })}
               {req.yarn_tracking_code && <span> · <span class="font-mono">{req.yarn_tracking_code}</span></span>}
             </p>
           </div>
         ) : isPast('awaiting_yarn') ? (
-          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Garn sendt og mottatt</p>
+          <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Garn sendt og mottatt</p>
         ) : (
-          <p class="text-xs text-charcoal/30">Send garn</p>
+          <p class="text-xs text-charcoal/55">Send garn</p>
         )}
       </div>
       <div class="hidden md:flex justify-center relative z-10">
@@ -200,7 +200,7 @@ const {
       </div>
       <div>
         {isActive('awaiting_yarn') && !req.yarn_shipped_at ? (
-          <p class="text-xs text-charcoal/45">Venter på garn fra bestiller…</p>
+          <p class="text-xs text-charcoal/60">Venter på garn fra bestiller…</p>
         ) : isActive('awaiting_yarn') && req.yarn_shipped_at ? (
           <div class="bg-surface rounded-2xl p-4 border border-terracotta-500/20">
             <p class="font-medium text-sm mb-1">Garnet er på vei!</p>
@@ -212,9 +212,9 @@ const {
             </form>
           </div>
         ) : isPast('awaiting_yarn') ? (
-          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Garn mottatt</p>
+          <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Garn mottatt</p>
         ) : (
-          <p class="text-xs text-charcoal/30">—</p>
+          <p class="text-xs text-charcoal/55">—</p>
         )}
       </div>
     </div>
@@ -227,7 +227,7 @@ const {
         {isActive('awarded') ? (
           isBuyer && linkedProject ? (
             <div class="md:ml-auto md:max-w-[280px] md:text-left">
-              <p class="text-xs text-charcoal/45 mb-2">Strikkeren jobber…</p>
+              <p class="text-xs text-charcoal/60 mb-2">Strikkeren jobber…</p>
               {projectProgressPct !== null && (
                 <div class="bg-surface rounded-xl p-3 border border-sage-500/10 mb-2">
                   <div class="flex items-center justify-between text-[10px] text-charcoal/55 mb-1">
@@ -244,12 +244,12 @@ const {
               </a>
             </div>
           ) : (
-            <p class="text-xs text-charcoal/45">Strikkeren jobber med bestillingen din.</p>
+            <p class="text-xs text-charcoal/60">Strikkeren jobber med bestillingen din.</p>
           )
         ) : isPast('awarded') ? (
-          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Strikking ferdig</p>
+          <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Strikking ferdig</p>
         ) : (
-          <p class="text-xs text-charcoal/30">Pågår</p>
+          <p class="text-xs text-charcoal/55">Pågår</p>
         )}
       </div>
       <div class="hidden md:flex justify-center relative z-10">
@@ -267,7 +267,7 @@ const {
                 )}
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-medium line-clamp-1">{linkedProject.title}</p>
-                  <p class="text-[10px] text-charcoal/45">{PROJECT_STATUS[linkedProject.status]} · Åpne i Strikkestua</p>
+                  <p class="text-[10px] text-charcoal/60">{PROJECT_STATUS[linkedProject.status]} · Åpne i Strikkestua</p>
                 </div>
               </a>
             )}
@@ -278,7 +278,7 @@ const {
                     <span class="text-sm font-medium block">Del en framdriftsoppdatering</span>
                     <span class="text-xs text-charcoal/55">Et bilde underveis gir kjøper trygghet (valgfritt).</span>
                   </span>
-                  <span class="text-charcoal/40 text-lg leading-none group-open:rotate-45 transition-transform">+</span>
+                  <span class="text-charcoal/60 text-lg leading-none group-open:rotate-45 transition-transform">+</span>
                 </summary>
                 <form method="post" action={`/api/projects/${linkedProject.id}/log`} enctype="multipart/form-data" data-astro-reload class="space-y-2 mt-3">
                   <input type="hidden" name="next" value={`/market/commissions/${req.id}`} />
@@ -298,18 +298,18 @@ const {
               <form method="post" action="/api/marketplace/commissions/mark-completed" data-astro-reload class="space-y-2">
                 <input type="hidden" name="request_id" value={req.id} />
                 <input name="tracking_code" type="text" required maxlength="50" placeholder="Sporingsnummer" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
-                <p class="text-[10px] text-charcoal/45">Send med sporing (Norgespakke), det beskytter deg mot falske «ikke mottatt»-krav.</p>
-                <p class="text-[10px] text-charcoal/45">Last opp et bilde av det ferdige plagget i prosjektet ditt før du sender, det er ditt bevis på tilstanden ved sending.</p>
+                <p class="text-[10px] text-charcoal/60">Send med sporing (Norgespakke), det beskytter deg mot falske «ikke mottatt»-krav.</p>
+                <p class="text-[10px] text-charcoal/60">Last opp et bilde av det ferdige plagget i prosjektet ditt før du sender, det er ditt bevis på tilstanden ved sending.</p>
                 <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Merk som ferdig</button>
               </form>
             </div>
           </div>
         ) : isActive('awarded') ? (
-          <p class="text-xs text-charcoal/45">Strikkeren jobber…</p>
+          <p class="text-xs text-charcoal/60">Strikkeren jobber…</p>
         ) : isPast('awarded') ? (
-          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Ferdigstrikket</p>
+          <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Ferdigstrikket</p>
         ) : (
-          <p class="text-xs text-charcoal/30">—</p>
+          <p class="text-xs text-charcoal/55">—</p>
         )}
       </div>
     </div>
@@ -327,7 +327,7 @@ const {
               <p class="text-xs text-charcoal/55 mb-2">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
             )}
             {daysUntilAutoRelease !== null && (
-              <p class="text-[10px] text-charcoal/40 mb-3">Automatisk godkjenning om {daysUntilAutoRelease} {daysUntilAutoRelease === 1 ? 'dag' : 'dager'}.</p>
+              <p class="text-[10px] text-charcoal/60 mb-3">Automatisk godkjenning om {daysUntilAutoRelease} {daysUntilAutoRelease === 1 ? 'dag' : 'dager'}.</p>
             )}
             <form method="post" action="/api/marketplace/commissions/confirm-delivery" data-astro-reload>
               <input type="hidden" name="request_id" value={req.id} />
@@ -336,13 +336,13 @@ const {
             <form method="post" action="/api/marketplace/commissions/dispute" data-astro-reload class="mt-2">
               <input type="hidden" name="request_id" value={req.id} />
               <input name="reason" required maxlength="500" placeholder="Beskriv problemet…" class="w-full bg-linen rounded-lg px-3 py-2 text-xs border border-sage-500/15 focus:outline-none focus:border-sage-500 mb-1" />
-              <button type="submit" class="w-full text-[10px] text-charcoal/35 hover:text-terracotta-500 transition-colors">Rapporter problem</button>
+              <button type="submit" class="w-full text-[10px] text-charcoal/55 hover:text-terracotta-500 transition-colors">Rapporter problem</button>
             </form>
           </div>
         ) : isActive('completed') ? (
-          <p class="text-xs text-charcoal/45">Venter på bekreftelse fra bestiller…</p>
+          <p class="text-xs text-charcoal/60">Venter på bekreftelse fra bestiller…</p>
         ) : (
-          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Mottak bekreftet</p>
+          <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Mottak bekreftet</p>
         )}
       </div>
       <div class="hidden md:flex justify-center relative z-10">
@@ -351,16 +351,16 @@ const {
       <div>
         {isActive('completed') ? (
           <div>
-            <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Merket som ferdig</p>
+            <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Merket som ferdig</p>
             {req.finished_item_tracking_code && (
-              <p class="text-[10px] text-charcoal/40 mt-0.5">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
+              <p class="text-[10px] text-charcoal/60 mt-0.5">Sporing: <span class="font-mono">{req.finished_item_tracking_code}</span></p>
             )}
             {daysUntilAutoRelease !== null && (
-              <p class="text-[10px] text-charcoal/40 mt-0.5">Automatisk godkjenning om {daysUntilAutoRelease}d</p>
+              <p class="text-[10px] text-charcoal/60 mt-0.5">Automatisk godkjenning om {daysUntilAutoRelease}d</p>
             )}
           </div>
         ) : (
-          <p class="text-xs text-charcoal/45"><span class="text-sage-700">✓</span> Ferdigstrikket</p>
+          <p class="text-xs text-charcoal/60"><span class="text-sage-700">✓</span> Ferdigstrikket</p>
         )}
       </div>
     </div>
@@ -372,7 +372,7 @@ const {
       <div class="md:text-right mb-4 md:mb-0">
         <p class="text-sm font-medium text-sage-700">✓ Levert</p>
         {req.delivered_at && (
-          <p class="text-[10px] text-charcoal/40">{new Date(req.delivered_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+          <p class="text-[10px] text-charcoal/60">{new Date(req.delivered_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
         )}
       </div>
       <div class="hidden md:flex justify-center relative z-10">

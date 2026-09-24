@@ -104,7 +104,7 @@ for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_
 
   {items.length === 0 ? (
     <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
-      <p class="text-sm text-charcoal/45">Ingen elementer i køen.</p>
+      <p class="text-sm text-charcoal/60">Ingen elementer i køen.</p>
     </div>
   ) : (
     <div class="space-y-2">
@@ -112,7 +112,7 @@ for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_
         <a href={`/admin/moderation/${item.id}`} class="flex items-center gap-4 bg-surface rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TYPE_LABEL[item.item_type] ?? item.item_type}</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{TYPE_LABEL[item.item_type] ?? item.item_type}</span>
               <span class:list={[
                 'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
                 item.status === 'pending' || item.status === 'escalated' ? 'text-terracotta-500 bg-terracotta-500/10' : item.status === 'approved' ? 'text-sage-700 bg-sage-100' : 'text-red-600 bg-red-50',
@@ -124,14 +124,14 @@ for (const p of submittersRes.data ?? []) submitterNameById.set(p.id, p.display_
             {itemMetaById.get(item.item_id)?.subtitle && (
               <p class="text-xs text-charcoal/55">{itemMetaById.get(item.item_id)!.subtitle}</p>
             )}
-            <p class="text-xs text-charcoal/40">
+            <p class="text-xs text-charcoal/60">
               av {item.item_type === 'store'
                 ? (submitterNameById.get(item.submitter_id) || anonymizeUser(item.submitter_id))
                 : anonymizeUser(item.submitter_id)}
               · {new Date(item.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </p>
           </div>
-          <span class="text-charcoal/30">&rarr;</span>
+          <span class="text-charcoal/55">&rarr;</span>
         </a>
       ))}
     </div>

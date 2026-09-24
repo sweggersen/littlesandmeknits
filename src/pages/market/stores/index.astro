@@ -115,7 +115,7 @@ const nextPageParams = (() => {
       <div data-directory-filter-panel
         class:list={['bg-surface rounded-2xl border border-sage-500/10 p-3 sm:p-4 mb-6 flex flex-wrap items-end gap-3', !hasFilters && 'hidden']}>
         <div class="flex-1 min-w-[8rem]">
-          <label for="by" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">By</label>
+          <label for="by" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">By</label>
           <input id="by" type="text" name="by" value={city ?? ''} maxlength="60" placeholder="Alle byer"
             list="store-cities" autocomplete="off"
             class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none" />
@@ -125,7 +125,7 @@ const nextPageParams = (() => {
         </div>
 
         <div class="min-w-[7rem]">
-          <label for="vurdering" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Vurdering</label>
+          <label for="vurdering" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Vurdering</label>
           <select id="vurdering" name="vurdering" class="w-full bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
             <option value="" selected={!Number.isFinite(minRating) || minRating <= 0}>Alle</option>
             <option value="3" selected={minRating === 3}>3+ stjerner</option>

@@ -45,7 +45,7 @@ const { projectId, status, yarnLinks, availableStash, stash } = Astro.props;
           {' '}{yarnLinks.reduce((s, l) => s + (l.grams_used ?? 0), 0)} g
         </span>
       ) : (
-        <span class="text-xs text-charcoal/45">Knytt garn fra lageret for å trekke fra automatisk når prosjektet er ferdig.</span>
+        <span class="text-xs text-charcoal/60">Knytt garn fra lageret for å trekke fra automatisk når prosjektet er ferdig.</span>
       )}
     </summary>
 
@@ -72,7 +72,7 @@ const { projectId, status, yarnLinks, availableStash, stash } = Astro.props;
             <form method="post" action={`/api/projects/${projectId}/yarn/${link.id}/delete`} class="inline">
               <button
                 type="submit"
-                class="text-[11px] text-charcoal/40 hover:text-terracotta-500 transition-colors"
+                class="text-[11px] text-charcoal/60 hover:text-terracotta-500 transition-colors"
                 onclick="return confirm('Fjerne denne garnkoblingen? Hvis prosjektet er ferdig, legges grammene tilbake i lageret.')"
               >
                 Fjern
@@ -104,11 +104,11 @@ const { projectId, status, yarnLinks, availableStash, stash } = Astro.props;
         </button>
       </form>
     ) : stash.length === 0 ? (
-      <p class="mt-4 text-xs text-charcoal/45">
+      <p class="mt-4 text-xs text-charcoal/60">
         Ingen garn i lageret ennå. <a href="/studio/yarn/new" class="text-terracotta-500 hover:underline">Legg til et garn</a> for å kunne knytte det til prosjekter.
       </p>
     ) : (
-      <p class="mt-4 text-xs text-charcoal/45">Alle garnene fra lageret er allerede knyttet til dette prosjektet.</p>
+      <p class="mt-4 text-xs text-charcoal/60">Alle garnene fra lageret er allerede knyttet til dette prosjektet.</p>
     )}
 
     {status === 'finished' && yarnLinks.length > 0 && yarnLinks.every((l) => l.deducted_at) && (

@@ -49,7 +49,7 @@ const { thread, messages, itemTitle, itemUrl, isOpen } = view;
                 'text-[10px] font-bold uppercase tracking-widest',
                 m.is_moderator ? 'text-amber-700' : 'text-charcoal/55',
               ]}>{m.is_moderator ? 'Moderator' : (m.sender_id === user.id ? 'Du' : 'Annen')}</span>
-              <span class="text-[10px] text-charcoal/40 ml-auto">{new Date(m.created_at).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+              <span class="text-[10px] text-charcoal/60 ml-auto">{new Date(m.created_at).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             <p class="whitespace-pre-wrap text-charcoal/85">{m.body}</p>
           </div>

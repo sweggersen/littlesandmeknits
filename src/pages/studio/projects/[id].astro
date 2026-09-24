@@ -190,7 +190,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
       <div class="min-w-0">
         <div class="flex items-center gap-2 mb-1">
           <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
-          <span class="text-[10px] text-charcoal/40">·</span>
+          <span class="text-[10px] text-charcoal/60">·</span>
           <span class="font-mono tabular-nums text-xs text-charcoal/70">{commissionInfo.priceNok} NOK</span>
         </div>
         <p class="text-sm text-charcoal/70">
@@ -201,7 +201,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
         <a href={`/market/commissions/${commissionInfo.requestId}/prosjekt?preview=1`} target="_blank" rel="noopener" class="text-xs font-medium text-terracotta-500 hover:text-terracotta-600 transition-colors">
           Forhåndsvis som {commissionInfo.buyerName} ↗
         </a>
-        <a href={`/market/commissions/${commissionInfo.requestId}`} class="text-xs text-charcoal/45 hover:text-charcoal/70 transition-colors">
+        <a href={`/market/commissions/${commissionInfo.requestId}`} class="text-xs text-charcoal/60 hover:text-charcoal/70 transition-colors">
           Se forespørsel →
         </a>
       </div>
@@ -242,13 +242,13 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
         <dl class="space-y-3 text-sm">
           {p.recipient && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">For</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">For</dt>
               <dd>{p.recipient}</dd>
             </div>
           )}
           {patternEntry && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Oppskrift</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">Oppskrift</dt>
               <dd>
                 <a href={`/oppskrifter/${p.pattern_slug}`} class="text-terracotta-500 hover:underline" target="_blank" rel="noopener">
                   {patternEntry.data.title.nb}
@@ -258,37 +258,37 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
           )}
           {!patternEntry && p.pattern_external && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Oppskrift</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">Oppskrift</dt>
               <dd>{p.pattern_external}</dd>
             </div>
           )}
           {p.target_size && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Størrelse</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">Størrelse</dt>
               <dd>{p.target_size}</dd>
             </div>
           )}
           {p.yarn && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Garn</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">Garn</dt>
               <dd>{p.yarn}</dd>
             </div>
           )}
           {p.needles && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Pinner</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">Pinner</dt>
               <dd>{p.needles}</dd>
             </div>
           )}
           <div>
-            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-0.5">Opprettet</dt>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-0.5">Opprettet</dt>
             <dd class="text-charcoal/60">{new Date(p.created_at).toLocaleDateString('nb-NO')}</dd>
           </div>
         </dl>
 
         <div class="mt-6 pt-6 border-t border-sage-500/10">
           <form method="post" action={`/api/projects/${p.id}/status`}>
-            <label class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 block mb-2">
+            <label class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 block mb-2">
               Status
             </label>
             <div class="flex gap-2">
@@ -343,7 +343,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
                 type="submit"
                 formnovalidate
                 onclick={`event.preventDefault(); if(confirm('Fjern hovedbilde?')) { this.form.querySelector('input[type=file]').value=''; this.form.submit(); }`}
-                class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors px-3"
+                class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors px-3"
               >
                 Fjern
               </button>
@@ -357,7 +357,7 @@ const designerLine = igHandle ? `@${igHandle}` : 'Littles and Me';
       <form method="post" action={`/api/projects/${p.id}/delete`}>
         <button
           type="submit"
-          class="w-full text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors py-2"
+          class="w-full text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors py-2"
           onclick="return confirm('Slett dette prosjektet permanent? Alle logger forsvinner.')"
         >
           Slett prosjekt

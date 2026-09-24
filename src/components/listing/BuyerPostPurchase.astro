@@ -81,7 +81,7 @@ const {
         <textarea name="description" rows="3" maxlength="1000" placeholder="Hva er problemet?" class="block w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 resize-none"></textarea>
       </label>
       <button type="submit" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Send forespørsel</button>
-      <p class="text-[10px] text-charcoal/45">Selger får varsel og kan godta eller avvise. Hvis avvist, sendes saken til moderator.</p>
+      <p class="text-[10px] text-charcoal/60">Selger får varsel og kan godta eller avvise. Hvis avvist, sendes saken til moderator.</p>
     </form>
   </details>
 )}
@@ -134,7 +134,7 @@ const {
       </p>
     )}
     {autoReleaseDays !== null && (
-      <p class="text-xs text-charcoal/45">
+      <p class="text-xs text-charcoal/60">
         Betalingen frigis automatisk om {autoReleaseDays} {autoReleaseDays === 1 ? 'dag' : 'dager'} hvis du ikke svarer.
       </p>
     )}
@@ -157,7 +157,7 @@ const {
         </form>
       </details>
     </div>
-    <p class="text-[11px] text-charcoal/45 text-center">
+    <p class="text-[11px] text-charcoal/60 text-center">
       Beløpet belastes først ved sending, og du kan rapportere problemer innen 14 dager etter sending.
     </p>
   </section>
@@ -203,7 +203,7 @@ const {
 
 {isBuyer && hasReviewed && buyerReview && (
   <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm">
-    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Din vurdering</p>
+    <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Din vurdering</p>
     <div class="flex gap-0.5 mb-1">
       {[1, 2, 3, 4, 5].map((v) => (
         <svg width="16" height="16" viewBox="0 0 24 24" fill={v <= buyerReview.rating ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="1.5" class={v <= buyerReview.rating ? 'text-terracotta-500' : 'text-charcoal/20'}>

@@ -46,13 +46,13 @@ const { data: listing } = await ctx.supabase
 
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
       <div class="bg-surface rounded-2xl p-5 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Visninger (organisk)</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Visninger (organisk)</p>
         <p class="font-mono tabular-nums text-2xl">{organic.impressions}</p>
       </div>
       <div class="bg-surface rounded-2xl p-5 border border-sage-500/10">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Klikk (organisk)</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Klikk (organisk)</p>
         <p class="font-mono tabular-nums text-2xl">{organic.clicks}</p>
-        <p class="text-xs text-charcoal/45 mt-1">CTR {organicCtr}%</p>
+        <p class="text-xs text-charcoal/60 mt-1">CTR {organicCtr}%</p>
       </div>
       <div class="bg-surface rounded-2xl p-5 border border-terracotta-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Visninger (promotert)</p>
@@ -61,7 +61,7 @@ const { data: listing } = await ctx.supabase
       <div class="bg-surface rounded-2xl p-5 border border-terracotta-500/10">
         <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-2">Klikk (promotert)</p>
         <p class="font-mono tabular-nums text-2xl">{promoted.clicks}</p>
-        <p class="text-xs text-charcoal/45 mt-1">CTR {promoCtr}%</p>
+        <p class="text-xs text-charcoal/60 mt-1">CTR {promoCtr}%</p>
       </div>
     </div>
 
@@ -78,7 +78,7 @@ const { data: listing } = await ctx.supabase
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {audience.top_categories.length > 0 && (
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Kategorier</p>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Kategorier</p>
               <ul class="space-y-1">
                 {audience.top_categories.map((c) => (
                   <li class="flex justify-between text-sm">
@@ -91,7 +91,7 @@ const { data: listing } = await ctx.supabase
           )}
           {audience.top_sizes.length > 0 && (
             <div>
-              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Størrelser</p>
+              <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Størrelser</p>
               <ul class="space-y-1">
                 {audience.top_sizes.map((s) => (
                   <li class="flex justify-between text-sm">

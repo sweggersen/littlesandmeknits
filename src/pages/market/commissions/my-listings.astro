@@ -55,12 +55,12 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
                 <a href={`/market/commissions/${r.id}`} class="flex items-center gap-4 bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">
                         {CATEGORY_LABEL[r.category]} · str. {r.size_label}
                       </span>
                       <span class:list={[
                         'text-[10px] font-bold uppercase tracking-widest',
-                        r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/35',
+                        r.status === 'open' ? 'text-sage-700' : r.status === 'awaiting_payment' ? 'text-amber-600' : r.status === 'awarded' ? 'text-terracotta-500' : 'text-charcoal/55',
                       ]}>
                         {COMMISSION_STATUS[r.status]}
                       </span>
@@ -71,12 +71,12 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
                     {isAwarded && accepted ? (
                       <>
                         <p class="font-mono tabular-nums text-sm">{accepted.price_nok} NOK</p>
-                        <p class="text-xs text-charcoal/45">{knitterName}</p>
+                        <p class="text-xs text-charcoal/60">{knitterName}</p>
                       </>
                     ) : (
                       <>
                         <p class="font-mono tabular-nums text-sm">{r.budget_nok_min}–{r.budget_nok_max} NOK</p>
-                        <p class="text-xs text-charcoal/45">{r.offer_count} tilbud</p>
+                        <p class="text-xs text-charcoal/60">{r.offer_count} tilbud</p>
                       </>
                     )}
                   </div>
@@ -106,12 +106,12 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
                 <a href={`/market/commissions/${reqData.id}`} class="flex items-center gap-4 bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2 mb-1">
-                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">
                         {CATEGORY_LABEL[reqData.category]} · str. {reqData.size_label}
                       </span>
                       <span class:list={[
                         'text-[10px] font-bold uppercase tracking-widest',
-                        o.status === 'pending' ? 'text-sage-700' : o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/35',
+                        o.status === 'pending' ? 'text-sage-700' : o.status === 'accepted' ? 'text-terracotta-500' : 'text-charcoal/55',
                       ]}>
                         {OFFER_STATUS[o.status]}
                       </span>
@@ -120,7 +120,7 @@ const [{ data: myRequests }, { data: myOffers }] = await Promise.all([
                   </div>
                   <div class="text-right shrink-0">
                     <p class="font-mono tabular-nums text-sm">{o.price_nok} NOK</p>
-                    <p class="text-xs text-charcoal/45">{o.turnaround_weeks} uker</p>
+                    <p class="text-xs text-charcoal/60">{o.turnaround_weeks} uker</p>
                   </div>
                 </a>
               );

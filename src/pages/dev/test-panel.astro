@@ -79,7 +79,7 @@ for (const u of testUsers) {
           <a href="/market" class="text-sm text-charcoal/55 hover:text-charcoal transition-colors underline">
             Strikketorget
           </a>
-          <span class="text-charcoal/30">·</span>
+          <span class="text-charcoal/55">·</span>
           <a href="/market/my-listings" class="text-sm text-charcoal/55 hover:text-charcoal transition-colors underline">
             Mine annonser
           </a>
@@ -90,7 +90,7 @@ for (const u of testUsers) {
         <p class="text-xs text-charcoal/55 mb-3">
           Logget inn som: <strong>{user.email}</strong>
         </p>
-        <p class="text-xs text-charcoal/45">
+        <p class="text-xs text-charcoal/60">
           Passord for alle testkontoer: <code class="bg-oatmeal/60 px-2 py-0.5 rounded">strikke-test-2026</code>
         </p>
       </div>
@@ -98,7 +98,7 @@ for (const u of testUsers) {
       {stats.length === 0 ? (
         <div class="bg-surface rounded-3xl p-12 text-center border border-sage-500/10">
           <p class="text-charcoal/55 mb-4">Ingen testkontoer funnet.</p>
-          <p class="text-sm text-charcoal/45">Kjør <code class="bg-oatmeal/60 px-2 py-0.5 rounded">npx tsx scripts/marketplace-seed.ts</code></p>
+          <p class="text-sm text-charcoal/60">Kjør <code class="bg-oatmeal/60 px-2 py-0.5 rounded">npx tsx scripts/marketplace-seed.ts</code></p>
         </div>
       ) : (
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -113,19 +113,19 @@ for (const u of testUsers) {
                   {p.displayName[0]}
                 </div>
                 <p class="font-medium text-base">{p.displayName}</p>
-                <p class="text-[10px] text-charcoal/45 mb-3">{p.email}</p>
+                <p class="text-[10px] text-charcoal/60 mb-3">{p.email}</p>
                 <div class="grid grid-cols-3 gap-1 text-center">
                   <div>
                     <p class="font-mono text-lg">{p.listingsActive}</p>
-                    <p class="text-[9px] uppercase tracking-widest text-charcoal/45">Aktive</p>
+                    <p class="text-[9px] uppercase tracking-widest text-charcoal/60">Aktive</p>
                   </div>
                   <div>
                     <p class="font-mono text-lg">{p.listingsSold}</p>
-                    <p class="text-[9px] uppercase tracking-widest text-charcoal/45">Solgt</p>
+                    <p class="text-[9px] uppercase tracking-widest text-charcoal/60">Solgt</p>
                   </div>
                   <div>
                     <p class="font-mono text-lg">{p.conversations}</p>
-                    <p class="text-[9px] uppercase tracking-widest text-charcoal/45">Chat</p>
+                    <p class="text-[9px] uppercase tracking-widest text-charcoal/60">Chat</p>
                   </div>
                 </div>
                 {p.listingsDraft > 0 && (

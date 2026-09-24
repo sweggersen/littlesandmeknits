@@ -107,7 +107,7 @@ const weights = [
         <div>
           <label for="photo-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Bytt bilde</label>
           <input id="photo-y" name="photo" type="file" accept="image/*" data-max-mb="10" class="block w-full text-xs text-charcoal/70 file:mr-3 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-medium file:bg-sage-100 file:text-sage-900 hover:file:bg-sage-500 hover:file:text-linen file:cursor-pointer file:transition-colors" />
-          <p class="text-[10px] text-charcoal/45 mt-1">La feltet være tomt for å beholde det nåværende bildet.</p>
+          <p class="text-[10px] text-charcoal/60 mt-1">La feltet være tomt for å beholde det nåværende bildet.</p>
         </div>
         <div>
           <label for="notes-y" class="block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 mb-2">Notater</label>
@@ -123,7 +123,7 @@ const weights = [
       <form method="post" action={`/api/yarns/${y.id}/delete`} class="mt-4">
         <button
           type="submit"
-          class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors"
+          class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors"
           onclick="return confirm('Slette dette garnet?')"
         >
           Slett garn

@@ -19,7 +19,7 @@ interface Props {
   ctaLabel?: string;
 }
 const {
-  title, eyebrow, eyebrowClass = 'text-charcoal/45', subtitle,
+  title, eyebrow, eyebrowClass = 'text-charcoal/60', subtitle,
   titleClass = 'text-4xl sm:text-5xl',
   sortOptions = [], sortValue, hasFilters = false, filterCount = 0,
   ctaHref, ctaLabel,
@@ -36,7 +36,7 @@ const {
     <div class="flex items-center gap-2 shrink-0">
       {sortOptions.length > 0 && (
         <>
-          <label for="dir-sort" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Sorter</label>
+          <label for="dir-sort" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Sorter</label>
           <select id="dir-sort" name="sort" data-directory-sort
             class="bg-surface rounded-full px-4 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none">
             {sortOptions.map((o) => <option value={o.value} selected={sortValue === o.value}>{o.label}</option>)}

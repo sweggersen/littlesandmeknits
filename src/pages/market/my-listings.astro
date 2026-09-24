@@ -100,7 +100,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
                 <p class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 mb-1">Uleste meldinger</p>
                 <p class="text-sm text-charcoal/70">{unreadConvos} {unreadConvos === 1 ? 'samtale' : 'samtaler'} venter på svar</p>
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/40">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/60">
                 <path d="m9 18 6-6-6-6" />
               </svg>
             </div>
@@ -144,7 +144,7 @@ const commissionsDisputed = knitterCommissions.filter(c => c.status === 'dispute
                 <a href={`/market/listing/${l.id}`} class="block bg-surface rounded-2xl p-4 border border-sage-500/10 hover:border-sage-500/30 transition-colors">
                   <div class="flex items-center justify-between gap-4">
                     <div>
-                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">
                         {KIND_LABEL[l.kind] ?? l.kind} · {LISTING_STATUS[l.status]}
                       </p>
                       <p class="font-medium">{l.title}</p>

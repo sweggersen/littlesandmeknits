@@ -38,7 +38,7 @@ export default function ThemePanel({
 
   return (
     <div className="space-y-4">
-      <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{L.theme}</h3>
+      <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{L.theme}</h3>
 
       <label className="block">
         <span className="block text-xs font-medium text-charcoal/60 mb-1">{L.fontDisplay}</span>
@@ -102,7 +102,7 @@ export default function ThemePanel({
                 data-text-style-row={row.key}
               >
                 <span>{row.label}</span>
-                <span aria-hidden className="text-charcoal/40">›</span>
+                <span aria-hidden className="text-charcoal/60">›</span>
               </button>
             ))}
           </div>
@@ -117,7 +117,7 @@ export default function ThemePanel({
               <span aria-hidden>←</span>
               <span>{L.textStylesBack}</span>
             </button>
-            <p className="text-[11px] text-charcoal/45 mb-1.5">{openRow.hint}</p>
+            <p className="text-[11px] text-charcoal/60 mb-1.5">{openRow.hint}</p>
             <TypographyControls
               value={openRow.key === 'heading' ? theme.heading : theme.body}
               onChange={(next) =>
@@ -136,7 +136,7 @@ export default function ThemePanel({
 
       <div>
         <span className="block text-xs font-medium text-charcoal/60">{L.presets}</span>
-        <p className="text-[11px] text-charcoal/45 mb-1.5">Endrer farger og fonter. Legger til en layout hvis butikken er tom.</p>
+        <p className="text-[11px] text-charcoal/60 mb-1.5">Endrer farger og fonter. Legger til en layout hvis butikken er tom.</p>
         <div className="flex flex-wrap gap-1.5">
           {STORE_PRESET_IDS.map((id) => (
             <button

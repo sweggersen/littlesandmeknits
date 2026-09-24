@@ -38,10 +38,10 @@ export function init(): void {
       el.setAttribute('aria-pressed', favorited ? 'true' : 'false');
       el.setAttribute('aria-label', favorited ? 'Fjern fra favoritter' : 'Lagre som favoritt');
       if (favorited) {
-        el.classList.remove('text-charcoal/30');
+        el.classList.remove('text-charcoal/55');
         el.style.color = 'var(--color-primary)';
       } else {
-        el.classList.add('text-charcoal/30');
+        el.classList.add('text-charcoal/55');
         el.style.color = '';
       }
 

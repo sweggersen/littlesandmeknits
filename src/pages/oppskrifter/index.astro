@@ -49,7 +49,7 @@ const categories: Array<'all' | 'sweaters' | 'accessories' | 'blankets' | 'sets'
     </div>
 
     {patterns.length === 0 ? (
-      <p class="text-charcoal/40 italic py-20 text-center">{t('shop.empty')}</p>
+      <p class="text-charcoal/60 italic py-20 text-center">{t('shop.empty')}</p>
     ) : (
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" data-pattern-grid>
         {patterns.map((p) => (

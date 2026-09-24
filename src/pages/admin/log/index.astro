@@ -37,7 +37,7 @@ const ACTION_LABEL: Record<string, string> = {
 
   {allLogs.length === 0 ? (
     <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
-      <p class="text-sm text-charcoal/45">Ingen aktivitet logget ennå.</p>
+      <p class="text-sm text-charcoal/60">Ingen aktivitet logget ennå.</p>
     </div>
   ) : (
     <div class="space-y-2">
@@ -54,17 +54,17 @@ const ACTION_LABEL: Record<string, string> = {
                   'text-charcoal/55 bg-oatmeal/60',
                 ]}>{ACTION_LABEL[log.action] ?? log.action}</span>
                 {log.target_type && (
-                  <span class="text-[10px] text-charcoal/40">{log.target_type}</span>
+                  <span class="text-[10px] text-charcoal/60">{log.target_type}</span>
                 )}
               </div>
               <p class="text-sm">
                 <span class="font-medium">{log.actor_id ? (log.profiles?.display_name ?? anonymizeUser(log.actor_id)) : 'System'}</span>
               </p>
               {log.details && (
-                <pre class="text-[10px] text-charcoal/45 mt-1 overflow-x-auto">{JSON.stringify(log.details, null, 2)}</pre>
+                <pre class="text-[10px] text-charcoal/60 mt-1 overflow-x-auto">{JSON.stringify(log.details, null, 2)}</pre>
               )}
             </div>
-            <time class="text-[10px] text-charcoal/40 shrink-0 tabular-nums">
+            <time class="text-[10px] text-charcoal/60 shrink-0 tabular-nums">
               {new Date(log.created_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
             </time>
           </div>

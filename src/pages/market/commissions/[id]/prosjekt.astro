@@ -116,12 +116,12 @@ const progressPct =
       </div>
     )}
 
-    <a href={`/market/commissions/${requestId}`} class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 inline-flex items-center gap-1">
+    <a href={`/market/commissions/${requestId}`} class="text-sm text-charcoal/60 hover:text-terracotta-500 transition-colors mb-4 inline-flex items-center gap-1">
       ← Tilbake til oppdraget
     </a>
 
     <header class="mb-6">
-      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+      <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">
         {isPreview ? `Strikkes til ${project.recipient ?? 'kjøperen'}` : `${knitterName} strikker for deg`}
       </p>
       <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -136,7 +136,7 @@ const progressPct =
     {heroUrl ? (
       <img src={heroUrl} alt="" class="w-full max-h-[480px] object-cover rounded-3xl mb-6" />
     ) : (
-      <div class="w-full bg-sage-100/40 border border-sage-500/15 rounded-3xl py-12 mb-6 text-center text-charcoal/45 text-sm">
+      <div class="w-full bg-sage-100/40 border border-sage-500/15 rounded-3xl py-12 mb-6 text-center text-charcoal/60 text-sm">
         Ingen bilder lastet opp ennå.
       </div>
     )}
@@ -151,7 +151,7 @@ const progressPct =
         <div class="h-2 bg-sage-100 rounded-full overflow-hidden">
           <div class="h-full bg-terracotta-500 transition-all" style={`width: ${progressPct}%`}></div>
         </div>
-        <p class="text-[11px] text-charcoal/45 mt-2">
+        <p class="text-[11px] text-charcoal/60 mt-2">
           {project.current_rows} av {project.target_rows} rader
         </p>
       </div>
@@ -174,14 +174,14 @@ const progressPct =
     {/* Project details */}
     <div class="grid sm:grid-cols-2 gap-4 mb-6">
       <div class="bg-surface rounded-2xl border border-sage-500/15 p-4">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Strikkes med</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Strikkes med</p>
         <p class="text-sm">
-          {project.yarn ?? <span class="text-charcoal/40">Ikke spesifisert</span>}
+          {project.yarn ?? <span class="text-charcoal/60">Ikke spesifisert</span>}
         </p>
         {project.needles && <p class="text-sm text-charcoal/70 mt-1">{project.needles}</p>}
       </div>
       <div class="bg-surface rounded-2xl border border-sage-500/15 p-4">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Detaljer</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Detaljer</p>
         <p class="text-sm">Størrelse {reqRow.size_label}</p>
         {project.pattern_external && (
           <p class="text-sm text-charcoal/70 mt-1">Oppskrift: {project.pattern_external}</p>
@@ -192,7 +192,7 @@ const progressPct =
     {/* Knitter's summary, if any */}
     {project.summary && (
       <div class="bg-surface rounded-2xl border border-sage-500/15 p-5 mb-6">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Notater fra strikkeren</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Notater fra strikkeren</p>
         <p class="text-sm whitespace-pre-line text-charcoal/80">{project.summary}</p>
       </div>
     )}

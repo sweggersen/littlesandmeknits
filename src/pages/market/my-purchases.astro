@@ -79,7 +79,7 @@ const hasAny = (purchases?.length ?? 0) + (commissions?.length ?? 0) > 0;
                           <div class="flex items-center gap-2 mb-1">
                             <StatusBadge label={LISTING_STATUS[p.status]} variant={p.status === 'shipped' ? 'sage' : 'amber'} />
                             {p.tracking_code && (
-                              <span class="text-xs text-charcoal/45 font-mono">{p.tracking_code}</span>
+                              <span class="text-xs text-charcoal/60 font-mono">{p.tracking_code}</span>
                             )}
                           </div>
                           <p class="font-medium">{p.title}</p>

@@ -274,7 +274,7 @@ function scoreColor(s: number) {
 ---
 
 <AdminLayout title="Vurder element" current="moderering">
-  <a href="/admin/moderation" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-4 inline-block">&larr; Tilbake til kø</a>
+  <a href="/admin/moderation" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors mb-4 inline-block">&larr; Tilbake til kø</a>
 
   <div class="grid lg:grid-cols-[1fr_340px] gap-6">
     <!-- Left: Item details -->
@@ -304,7 +304,7 @@ function scoreColor(s: number) {
               <button type="submit" name="decision" value="escalate" class="px-4 py-2.5 border border-sage-500/15 rounded-lg text-xs font-medium text-charcoal/60 hover:bg-sage-100/50 transition-colors">Eskaler</button>
             </div>
             <label class="block">
-              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Avvisningsgrunn (valgfritt)</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Avvisningsgrunn (valgfritt)</span>
               <input name="rejection_reason" type="text" maxlength="500" placeholder={
                 queueItem.item_type === 'store' ? 'F.eks. eier ikke virksomheten, mistanke om impersonasjon'
                   : queueItem.item_type === 'commission_request' ? 'F.eks. urealistisk budsjett'
@@ -312,7 +312,7 @@ function scoreColor(s: number) {
               } class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500" />
             </label>
             <label class="block">
-              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Interne notater</span>
+              <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Interne notater</span>
               <textarea name="internal_notes" rows="2" maxlength="1000" class="w-full mt-1 bg-linen rounded-lg px-3 py-2 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 resize-none"></textarea>
             </label>
           </form>
@@ -350,12 +350,12 @@ function scoreColor(s: number) {
     <div class="space-y-4">
       <!-- Confidence score -->
       <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">{isPersonalStore ? 'Selgerens tillitsscore' : 'Tillitsscore'}</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">{isPersonalStore ? 'Selgerens tillitsscore' : 'Tillitsscore'}</p>
         <div class="flex items-center gap-3 mb-3">
           <span class:list={['font-mono text-3xl font-bold tabular-nums rounded-lg px-3 py-1', scoreColor(confidence.total)]}>
             {confidence.total}
           </span>
-          <span class="text-xs text-charcoal/40">/ 100</span>
+          <span class="text-xs text-charcoal/60">/ 100</span>
         </div>
         {storeRecommendation && (
           <div class:list={['mb-3 rounded-lg border px-3 py-2', RECOMMENDATION_TONE[storeRecommendation.tone]]}>
@@ -367,7 +367,7 @@ function scoreColor(s: number) {
           {confidence.breakdown.map(b => (
             <div class="flex items-center justify-between text-[11px]">
               <span class="text-charcoal/55">{b.label}</span>
-              <span class:list={['font-mono tabular-nums', b.points < 0 ? 'text-red-600' : b.points > 0 ? 'text-sage-700' : 'text-charcoal/30']}>
+              <span class:list={['font-mono tabular-nums', b.points < 0 ? 'text-red-600' : b.points > 0 ? 'text-sage-700' : 'text-charcoal/55']}>
                 {b.points > 0 ? '+' : ''}{b.points}
               </span>
             </div>
@@ -381,7 +381,7 @@ function scoreColor(s: number) {
            listings/commissions, identity stays anonymised. -->
       {submitter && (
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Innmelder</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Innmelder</p>
           <div class="flex items-center gap-3 mb-3">
             <div class:list={['w-8 h-8 rounded-full flex items-center justify-center shrink-0', matchedRoleNames.size > 0 ? 'bg-sage-100' : 'bg-sage-100']}>
               <span class="font-serif text-sm text-sage-700">{
@@ -401,17 +401,17 @@ function scoreColor(s: number) {
               {queueItem.item_type === 'store' && submitterEmail && (
                 <p class="text-[10px] text-charcoal/55 font-mono truncate">{submitterEmail}</p>
               )}
-              <p class="text-[10px] text-charcoal/40">
+              <p class="text-[10px] text-charcoal/60">
                 {submitter.trust_tier} · score {submitter.trust_score} · {submitter.total_completed_transactions} fullførte
               </p>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-1 text-[11px]">
-            <span class="text-charcoal/40">Registrert</span>
+            <span class="text-charcoal/60">Registrert</span>
             <span>{new Date(submitter.created_at).toLocaleDateString('nb-NO')}</span>
-            <span class="text-charcoal/40">Stripe</span>
+            <span class="text-charcoal/60">Stripe</span>
             <span>{(submitter as any).stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
-            <span class="text-charcoal/40">Avvisninger</span>
+            <span class="text-charcoal/60">Avvisninger</span>
             <span class:list={[submitter.total_rejections > 0 ? 'text-red-600 font-medium' : '']}>{submitter.total_rejections}</span>
           </div>
         </div>
@@ -420,15 +420,15 @@ function scoreColor(s: number) {
       <!-- Store address (private — fraud/verification) -->
       {(queueItem.item_type === 'store' || queueItem.item_type === 'store_image') && (
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Adresse (privat)</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Adresse (privat)</p>
           <div class="grid grid-cols-3 gap-1 text-[11px]">
-            <span class="text-charcoal/40">Gateadresse</span>
+            <span class="text-charcoal/60">Gateadresse</span>
             <span class="col-span-2">{storePrivateAddress ?? '— mangler —'}</span>
-            <span class="text-charcoal/40">Poststed</span>
+            <span class="text-charcoal/60">Poststed</span>
             <span class="col-span-2">{[itemData?.postnummer, itemData?.location_city].filter(Boolean).join(' ') || '—'}</span>
             {itemData?.legal_address && (
               <>
-                <span class="text-charcoal/40">Brønnøysund</span>
+                <span class="text-charcoal/60">Brønnøysund</span>
                 <span class="col-span-2">{itemData.legal_address}</span>
               </>
             )}
@@ -439,7 +439,7 @@ function scoreColor(s: number) {
       <!-- Previous history -->
       {prevQueue && prevQueue.length > 0 && (
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tidligere vurderinger</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Tidligere vurderinger</p>
           <div class="space-y-1">
             {prevQueue.map(pq => (
               <div class="flex items-center justify-between text-[11px]">

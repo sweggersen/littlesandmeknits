@@ -54,7 +54,7 @@ const ROW: Record<PreflightStatus, string> = {
 
     {groups.map((g) => (
       <section class="mb-6">
-        <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">{g}</h2>
+        <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">{g}</h2>
         <div class="space-y-2">
           {report.checks.filter((c) => c.group === g).map((c) => (
             <div class:list={['flex items-start gap-3 rounded-xl border px-4 py-3 bg-surface', ROW[c.status]]}>
@@ -69,7 +69,7 @@ const ROW: Record<PreflightStatus, string> = {
       </section>
     ))}
 
-    <p class="text-xs text-charcoal/40 mt-8">
+    <p class="text-xs text-charcoal/60 mt-8">
       Scriptbar variant: <code>GET /api/admin/preflight</code> (samme admin-tilgang, JSON).
     </p>
   </div>

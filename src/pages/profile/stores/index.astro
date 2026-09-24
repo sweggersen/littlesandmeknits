@@ -53,7 +53,7 @@ const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
 
       {myInvites.length > 0 && (
         <section class="mb-8">
-          <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Invitasjoner til deg</h2>
+          <h2 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Invitasjoner til deg</h2>
           <ul class="space-y-3">
             {myInvites.map((inv) => (
               <li class="bg-surface rounded-2xl border border-terracotta-500/25 p-5 flex items-center gap-4">
@@ -131,7 +131,7 @@ const STATUS_VARIANT: Record<string, 'muted' | 'amber' | 'sage' | 'red'> = {
                     {isDeleted && ` · ${daysLeft} dager igjen`}
                   </p>
                 </div>
-                {!isDeleted && <span class="text-charcoal/30 text-xl shrink-0">→</span>}
+                {!isDeleted && <span class="text-charcoal/55 text-xl shrink-0">→</span>}
               </div>
             );
             return (

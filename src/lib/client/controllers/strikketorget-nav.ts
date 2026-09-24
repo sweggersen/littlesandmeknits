@@ -77,6 +77,7 @@ export function init(): void {
     menu?.classList.toggle('hidden', !open);
     backdrop?.classList.toggle('hidden', !open);
     document.body.style.overflow = open ? 'hidden' : '';
+    trigger?.setAttribute('aria-expanded', String(open));
   }
 
   // Reset state on each fresh page-load — nav is transition:persist'd,
@@ -130,6 +131,7 @@ export function init(): void {
         document.querySelector('[data-profile-menu]')?.classList.add('hidden');
         const dd = btn.parentElement?.querySelector('[data-dev-menu-dropdown]');
         dd?.classList.toggle('hidden');
+        btn.setAttribute('aria-expanded', String(!dd?.classList.contains('hidden')));
       });
     });
     if (bindOnce('strikketorget-nav-dev-outside', document.body)) {
@@ -137,11 +139,13 @@ export function init(): void {
         const target = e.target as Element | null;
         if (target?.closest('[data-dev-menu]')) return;
         document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
+        document.querySelectorAll('[data-dev-menu-trigger]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
       });
     }
   }
   // Always force-close dev dropdown on a fresh navigation.
   document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
+  document.querySelectorAll('[data-dev-menu-trigger]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
 
   // Profile dropdown
   const profileTrigger = document.querySelector<HTMLButtonElement>('[data-profile-menu-trigger]');
@@ -152,6 +156,7 @@ export function init(): void {
       // Close the dev dropdown so the two menus never overlap.
       document.querySelectorAll('[data-dev-menu-dropdown]').forEach((el) => el.classList.add('hidden'));
       profileMenu?.classList.toggle('hidden');
+      profileTrigger.setAttribute('aria-expanded', String(!profileMenu?.classList.contains('hidden')));
     });
   }
   if (bindOnce('strikketorget-nav-profile-outside', document.documentElement)) {
@@ -159,7 +164,10 @@ export function init(): void {
       const pm = document.querySelector<HTMLElement>('[data-profile-menu]');
       const pt = document.querySelector<HTMLButtonElement>('[data-profile-menu-trigger]');
       if (!pm || !pt) return;
-      if (!pt.parentElement?.contains(e.target as Node)) pm.classList.add('hidden');
+      if (!pt.parentElement?.contains(e.target as Node)) {
+        pm.classList.add('hidden');
+        pt.setAttribute('aria-expanded', 'false');
+      }
     });
   }
 

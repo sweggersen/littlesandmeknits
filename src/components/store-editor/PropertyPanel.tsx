@@ -36,7 +36,7 @@ export default function PropertyPanel({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">
           {L.properties} · {def.label}
         </h3>
         {onMove && (
@@ -63,10 +63,10 @@ export default function PropertyPanel({
       ))}
       {block.type === 'hero' && (
         <div className="pt-2 mt-1 border-t border-sage-500/15 space-y-1.5">
-          <span className="block text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+          <span className="block text-[10px] font-bold uppercase tracking-widest text-charcoal/60">
             {L.heroLayout}
           </span>
-          <p className="text-[11px] text-charcoal/45">{L.heroLayoutHint}</p>
+          <p className="text-[11px] text-charcoal/60">{L.heroLayoutHint}</p>
           {props.elements != null && (
             <button
               type="button"
@@ -311,7 +311,7 @@ function AssetPicker({
         </span>
         <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={busy} data-upload />
       </label>
-      {!value && assets.length === 0 && <p className="text-[11px] text-charcoal/45 mt-1">{L.noImage}</p>}
+      {!value && assets.length === 0 && <p className="text-[11px] text-charcoal/60 mt-1">{L.noImage}</p>}
       {error && <p className="text-[11px] text-terracotta-700 mt-1">{error}</p>}
     </div>
   );
@@ -403,7 +403,7 @@ function MultiAssetPicker({
         </span>
         <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={busy || atMax} data-upload />
       </label>
-      <p className="text-[11px] text-charcoal/45 mt-1">
+      <p className="text-[11px] text-charcoal/60 mt-1">
         {atMax ? L.maxImagesReached : `${value.length} / ${max}`}
       </p>
       {error && <p className="text-[11px] text-terracotta-700 mt-1">{error}</p>}
@@ -421,7 +421,7 @@ function ListingPicker({
   onChange: (v: string[]) => void;
 }) {
   if (listings.length === 0) {
-    return <p className="text-[11px] text-charcoal/45">{L.noListings}</p>;
+    return <p className="text-[11px] text-charcoal/60">{L.noListings}</p>;
   }
   const toggle = (id: string) =>
     onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
@@ -437,7 +437,7 @@ function ListingPicker({
             data-listing={l.id}
           />
           <span className="truncate flex-1">{l.title}</span>
-          <span className="text-[11px] text-charcoal/45">{l.price_nok} kr</span>
+          <span className="text-[11px] text-charcoal/60">{l.price_nok} kr</span>
         </label>
       ))}
     </div>

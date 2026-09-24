@@ -12,14 +12,14 @@ const formId = `report-${targetId}`;
 <div class="relative inline-block" data-report-wrapper>
   <button
     type="button"
-    class="text-xs text-charcoal/35 hover:text-terracotta-500 transition-colors"
+    class="text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors"
     data-report-toggle
   >
     {label}
   </button>
 
   <div class="hidden absolute right-0 bottom-full mb-2 w-64 bg-surface rounded-xl border border-sage-500/15 shadow-lg p-4 z-20" data-report-dropdown>
-    <p class="text-xs font-bold uppercase tracking-widest text-charcoal/40 mb-2">Rapporter innhold</p>
+    <p class="text-xs font-bold uppercase tracking-widest text-charcoal/60 mb-2">Rapporter innhold</p>
     <form id={formId} data-report-form class="space-y-2">
       <input type="hidden" name="target_type" value={targetType} />
       <input type="hidden" name="target_id" value={targetId} />
@@ -37,7 +37,7 @@ const formId = `report-${targetId}`;
         <span>Hold meg anonym. Moderator kan ikke kontakte meg for oppfølging.</span>
       </label>
       <button type="submit" class="w-full bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-medium hover:bg-red-600 transition-colors disabled:bg-charcoal/20 disabled:hover:bg-charcoal/20 disabled:cursor-not-allowed">Send rapport</button>
-      <p class="text-[10px] text-charcoal/40 hidden" data-report-status></p>
+      <p class="text-[10px] text-charcoal/60 hidden" data-report-status role="status" aria-live="polite"></p>
     </form>
   </div>
 </div>

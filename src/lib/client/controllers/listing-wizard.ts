@@ -26,7 +26,7 @@ export function init(): void {
       const sn = parseInt(p.dataset.stepPill!, 10);
       p.classList.toggle('bg-charcoal', sn === n);
       p.classList.toggle('text-linen', sn === n);
-      p.classList.toggle('text-charcoal/45', sn !== n);
+      p.classList.toggle('text-charcoal/60', sn !== n);
       p.classList.toggle('bg-sage-100', sn < n);
       p.classList.toggle('text-sage-900', sn < n);
     });

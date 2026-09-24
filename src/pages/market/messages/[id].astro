@@ -55,7 +55,7 @@ const isSeller = conversation.seller_id === user.id;
   <MarketplaceShell current="meldinger">
       <div class="flex items-start justify-between gap-4 mb-6 flex-wrap">
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">
             {isSeller ? 'Kjøper' : 'Selger'}: {otherName}
           </p>
           <h1 class="font-serif text-2xl sm:text-3xl">{isCommission ? `Oppdrag: ${listingTitle}` : listingTitle}</h1>
@@ -77,10 +77,10 @@ const isSeller = conversation.seller_id === user.id;
           messages.map((m) => (
             <div class={`p-4 sm:p-5 ${m.sender_id === user.id ? 'bg-sage-50/50' : ''}`}>
               <div class="flex items-center justify-between gap-2 mb-1">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">
                   {m.sender_id === user.id ? 'Deg' : otherName}
                 </p>
-                <time class="text-[10px] text-charcoal/35" datetime={m.created_at}>
+                <time class="text-[10px] text-charcoal/55" datetime={m.created_at}>
                   {new Date(m.created_at).toLocaleString('nb-NO', {
                     day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                   })}
