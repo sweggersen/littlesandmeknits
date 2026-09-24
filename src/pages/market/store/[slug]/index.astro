@@ -21,6 +21,12 @@ const slug = Astro.params.slug ?? '';
 const ctx = await buildServiceContext(Astro.request, Astro.cookies);
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 
+// Anonymous visitors get the public storefront with no per-viewer state (the
+// member/follow/fav reads + markStoreSeen are all gated on ctx), so cache it
+// briefly at the edge. The 404 branches return their own Response, so only a
+// successful render carries this header; the logged-in variant is never cached.
+if (!ctx) Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+
 // Look up the store regardless of status (we may still want to show a
 // preview to moderators or members of pending/suspended stores).
 const admin = createAdminSupabase(env.SUPABASE_SERVICE_ROLE_KEY);
