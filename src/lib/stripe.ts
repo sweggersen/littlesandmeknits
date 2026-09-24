@@ -26,6 +26,14 @@ export function createStripe(secretKey: string): Stripe {
     throw new Error('Stripe: refusing to use a LIVE key (sk_live_) on the dev server. Use a test key (sk_test_) or sk_simulate in .dev.vars.');
   }
 
+  // Symmetric guard: a PRODUCTION build MUST use a live key. A stray sk_test_ in
+  // prod silently routes real buyers through Stripe TEST mode (test cards only),
+  // so checkout breaks with no loud failure. The sk_simulate case is already
+  // handled + thrown above, so anything reaching here that isn't sk_live_ is wrong.
+  if (import.meta.env.PROD && !secretKey.startsWith('sk_live_')) {
+    throw new Error('Stripe: production build requires a LIVE key (sk_live_). Got a non-live key — set the prod STRIPE_SECRET_KEY secret to sk_live_.');
+  }
+
   return new Stripe(secretKey, {
     // Pin the API version the SDK v22 types are generated for. Without this,
     // calls ride the *account* default (an ancient 2017-01-27 on this account),

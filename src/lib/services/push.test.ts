@@ -69,10 +69,38 @@ describe('subscribePush', () => {
   it('returns server_error when upsert fails', async () => {
     const { ctx } = mockCtx({ message: 'unique violation' });
     const result = await subscribePush(ctx, {
-      endpoint: 'https://x', p256dh: 'a', auth: 'b',
+      endpoint: 'https://fcm.googleapis.com/x', p256dh: 'a', auth: 'b',
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.code).toBe('server_error');
+  });
+
+  it('rejects an endpoint whose host is NOT a real push service (SSRF guard)', async () => {
+    const { ctx, operations } = mockCtx();
+    for (const bad of [
+      'https://attacker.example.com/x',
+      'https://169.254.169.254/latest/meta-data',
+      'https://fcm.googleapis.com.evil.com/x', // suffix-spoof
+      'http://fcm.googleapis.com/x',           // not https
+    ]) {
+      const r = await subscribePush(ctx, { endpoint: bad, p256dh: 'a', auth: 'b' });
+      expect(r.ok, bad).toBe(false);
+      if (!r.ok) expect(r.code).toBe('bad_input');
+    }
+    expect(operations).toHaveLength(0); // nothing was ever stored
+  });
+
+  it('accepts each real push-service host', async () => {
+    for (const good of [
+      'https://fcm.googleapis.com/x',
+      'https://updates.push.services.mozilla.com/x',
+      'https://web.push.apple.com/x',
+      'https://par02p.notify.windows.com/x',
+    ]) {
+      const { ctx } = mockCtx();
+      const r = await subscribePush(ctx, { endpoint: good, p256dh: 'a', auth: 'b' });
+      expect(r.ok, good).toBe(true);
+    }
   });
 });
 

@@ -393,11 +393,16 @@ export async function handleChargeRefunded(
       });
     }
     // Refund resolution lives on the order (keyed on PI — may be delivered).
-    const { error } = await admin
+    // charge.refunded fires once PER refund with a CUMULATIVE amount_refunded, so
+    // gate the ledger + notification on this being the FIRST refund event (the
+    // refund_resolved_at flip) — otherwise a support-issued partial refund
+    // double-counts the ledger and sends a second "full refund" notification.
+    const { data: flipped, error } = await admin
       .from('orders')
       .update({ refund_resolved_at: now, refund_outcome: 'accepted' })
       .eq('stripe_payment_intent_id', intentId)
-      .is('refund_resolved_at', null);
+      .is('refund_resolved_at', null)
+      .select('id');
     if (error) {
       await recordDeadLetter(dlCtx(admin, env, escrow.buyerId), {
         service: 'stripe.webhook:charge_refunded',
@@ -406,21 +411,23 @@ export async function handleChargeRefunded(
       });
       return dbError();
     }
-    // Ledger: refund settled on Stripe's side (amount from the charge, in ore).
-    await recordPaymentEvent(admin, {
-      kind: 'listing', type: 'refunded', orderId: escrow.orderId,
-      actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),
-      paymentIntentId: intentId, stripeObjectId: charge.id, context: { source: 'stripe_charge_refunded' },
-    });
-    if (escrow.buyerId) {
-      await createNotification(admin, {
-        userId: escrow.buyerId,
-        type: 'dispute_resolved',
-        title: 'Refusjon gjennomført',
-        body: `Du har fått refundert betalingen for «${escrow.title}».`,
-        url: `/market/listing/${escrow.id}`,
-        referenceId: escrow.id,
-      }, env);
+    if (flipped?.length) {
+      // Ledger: refund settled on Stripe's side (amount from the charge, in ore).
+      await recordPaymentEvent(admin, {
+        kind: 'listing', type: 'refunded', orderId: escrow.orderId,
+        actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),
+        paymentIntentId: intentId, stripeObjectId: charge.id, context: { source: 'stripe_charge_refunded' },
+      });
+      if (escrow.buyerId) {
+        await createNotification(admin, {
+          userId: escrow.buyerId,
+          type: 'dispute_resolved',
+          title: 'Refusjon gjennomført',
+          body: `Du har fått refundert betalingen for «${escrow.title}».`,
+          url: `/market/listing/${escrow.id}`,
+          referenceId: escrow.id,
+        }, env);
+      }
     }
   } else {
     // Commissions use separate charges & transfers: at delivery the knitter is
@@ -436,20 +443,33 @@ export async function handleChargeRefunded(
         error: 'Refund/chargeback after the knitter transfer was made — transfer is NOT auto-reversed; reconcile platform balance',
       });
     }
-    await recordPaymentEvent(admin, {
-      kind: 'commission', type: 'refunded', commissionRequestId: escrow.id,
-      actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),
-      paymentIntentId: intentId, stripeObjectId: charge.id, context: { source: 'stripe_charge_refunded' },
-    });
-    if (escrow.buyerId) {
-      await createNotification(admin, {
-        userId: escrow.buyerId,
-        type: 'dispute_resolved',
-        title: 'Refusjon gjennomført',
-        body: `Du har fått refundert betalingen for «${escrow.title}».`,
-        url: `/market/commissions/${escrow.id}`,
-        referenceId: escrow.id,
-      }, env);
+    // Commissions have no refund_resolved_at flag to flip, and charge.refunded
+    // re-fires (cumulative amount) — so dedup on an existing ledger row for this
+    // charge, else a partial refund double-counts + double-notifies the buyer.
+    const { data: alreadyLedgered } = await admin
+      .from('payment_events')
+      .select('id')
+      .eq('commission_request_id', escrow.id)
+      .eq('event_type', 'refunded')
+      .eq('stripe_object_id', charge.id)
+      .limit(1)
+      .maybeSingle();
+    if (!alreadyLedgered) {
+      await recordPaymentEvent(admin, {
+        kind: 'commission', type: 'refunded', commissionRequestId: escrow.id,
+        actorId: escrow.buyerId, amountNok: Math.round(charge.amount_refunded / 100),
+        paymentIntentId: intentId, stripeObjectId: charge.id, context: { source: 'stripe_charge_refunded' },
+      });
+      if (escrow.buyerId) {
+        await createNotification(admin, {
+          userId: escrow.buyerId,
+          type: 'dispute_resolved',
+          title: 'Refusjon gjennomført',
+          body: `Du har fått refundert betalingen for «${escrow.title}».`,
+          url: `/market/commissions/${escrow.id}`,
+          referenceId: escrow.id,
+        }, env);
+      }
     }
   }
   return ok();

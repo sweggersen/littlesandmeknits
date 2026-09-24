@@ -523,6 +523,37 @@ async function handleEvent(
     return new Response('ok', { status: 200 });
   }
 
+  // ── Connected account revoked our platform access ────────────────
+  // The holder deauthorized the platform, so new destination charges / transfers
+  // to this account will fail. Drop it out of 'verified' (the money gates check
+  // for that exact value) and dead-letter so support can prompt a re-onboard.
+  if (event.type === 'account.application.deauthorized') {
+    const acctId = event.account ?? null;
+    if (!acctId) return new Response('ok', { status: 200 });
+    const { error: sErr } = await supabase
+      .from('seller_profiles')
+      .update({ stripe_connect_status: 'restricted' } as never)
+      .eq('stripe_account_id', acctId);
+    const { error: stErr } = await supabase
+      .from('stores')
+      .update({ stripe_connect_status: 'restricted', stripe_onboarded: false } as never)
+      .eq('stripe_account_id', acctId);
+    if (sErr || stErr) {
+      await recordDeadLetter(dlCtx(supabase), {
+        service: 'stripe.webhook:account_deauthorized',
+        context: { stripe_account_id: acctId },
+        error: sErr || stErr,
+      });
+      return new Response('DB error', { status: 500 });
+    }
+    await recordDeadLetter(dlCtx(supabase), {
+      service: 'stripe.webhook:account_deauthorized',
+      context: { stripe_account_id: acctId },
+      error: 'Connected account deauthorized the platform — marked restricted; prompt a re-onboard.',
+    });
+    return new Response('ok', { status: 200 });
+  }
+
   // ── Money-flow failure modes (june26 §1.2) ───────────────────────
   if (event.type === 'charge.dispute.created') {
     return handleChargebackOpened(supabase, event.data.object as Stripe.Dispute, notifyEnv);
