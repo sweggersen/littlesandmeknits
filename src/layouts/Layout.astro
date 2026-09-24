@@ -281,6 +281,11 @@ const isEmbed = Astro.url.searchParams.get('embed') === '1';
       import { registerController } from '../lib/client/dom';
       registerController(initSavedToast);
 
+      // Disable money-CTA submit buttons on submit (opt-in via data-guard-submit)
+      // so a Stripe-latency POST doesn't look frozen / double-submit.
+      import { init as initSubmitGuard } from '../lib/client/controllers/submit-guard';
+      registerController(initSubmitGuard);
+
       // Register the PWA service worker on supported browsers.
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

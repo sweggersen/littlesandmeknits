@@ -8,6 +8,9 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
   if (!ctx) return redirect('/login');
 
   const form = await request.formData();
-  const result = await payCommission(ctx, { requestId: form.get('request_id')?.toString() ?? '' });
-  return toResponse(result, redirect);
+  const requestId = form.get('request_id')?.toString() ?? '';
+  const result = await payCommission(ctx, { requestId });
+  // Full-page form: a failure returns to the commission with the message in the
+  // global error toast rather than a bare error page.
+  return toResponse(result, redirect, { errorRedirect: `/market/commissions/${requestId}` });
 };

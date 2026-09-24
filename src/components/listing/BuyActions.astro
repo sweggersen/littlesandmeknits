@@ -79,8 +79,8 @@ const bd = purchaseBreakdown(priceNok, (shippingOption ?? 'free') as 'free' | 's
         </div>
       </dl>
 
-      <form method="post" action={`/api/marketplace/listings/${listingId}/buy`}>
-        <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors">
+      <form method="post" action={`/api/marketplace/listings/${listingId}/buy`} data-guard-submit>
+        <button type="submit" data-busy-label="Sender…" class="w-full bg-primary text-primary-fg px-6 py-3.5 rounded-full text-base font-medium hover:bg-primary-hover transition-colors disabled:opacity-60">
           Bekreft kjøp · {bd.totalNok} kr
         </button>
       </form>

@@ -89,7 +89,7 @@ const otherImages = data.gallery.slice(1);
           intercepts the submit, fetches /api/checkout, and mishandles the 303
           redirect to Stripe's cross-origin Checkout — leaving the user on
           /api/checkout (a GET → 404). */}
-      <form method="post" action="/api/checkout" class="mb-8" data-astro-reload>
+      <form method="post" action="/api/checkout" class="mb-8" data-astro-reload data-guard-submit>
         <input type="hidden" name="pattern" value={pattern.id} />
         <input type="hidden" name="lang" value={lang} />
         <button

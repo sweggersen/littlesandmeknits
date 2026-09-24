@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import MarketplaceShell from '../components/MarketplaceShell.astro';
+import Alert from '../components/Alert.astro';
 import { createServerSupabase } from '../lib/supabase';
 import { orEither } from '../lib/db/assert';
 
@@ -36,6 +37,9 @@ const [convsRes, modRes, notifsRes] = await Promise.all([
     .limit(50),
 ]);
 
+// Distinguish a query ERROR from a genuinely empty inbox — otherwise an outage
+// tells a user with unread mail that they have nothing (mirrors studio/index).
+const loadErr = convsRes.error || modRes.error || notifsRes.error;
 const conversations = convsRes.data ?? [];
 const modThreads = modRes.data ?? [];
 const notifications = notifsRes.data ?? [];
@@ -195,6 +199,7 @@ function timeAgo(dateStr: string): string {
   <MarketplaceShell current="inbox">
     <div class="flex items-center justify-between mb-4">
       <h1 class="font-serif text-3xl sm:text-4xl">Innboks{totalUnread > 0 && (<span class="text-terracotta-500 font-sans text-lg ml-2 align-middle">({totalUnread})</span>)}</h1>
+      {loadErr && <div class="mt-4"><Alert type="error">Vi klarte ikke å laste hele innboksen akkurat nå. Prøv igjen om litt.</Alert></div>}
       {totalUnread > 0 && (
         <form method="post" action="/api/notifications/read-all">
           <button type="submit" class="text-xs text-charcoal/50 hover:text-terracotta-500 transition-colors">Marker alt som lest</button>

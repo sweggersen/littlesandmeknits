@@ -17,11 +17,15 @@ if (!id) return Astro.redirect('/market/commissions');
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
 
-let { data: req } = await supabase
+let { data: req, error: reqErr } = await supabase
   .from('commission_requests')
   .select('*, profiles!commission_requests_buyer_id_fkey(display_name, avatar_path)')
   .eq('id', id)
   .maybeSingle();
+
+// A transient query error is NOT not-found — throw (branded 500) instead of
+// bouncing a valid commission to /market/commissions with no explanation.
+if (reqErr) throw new Error(`commission read failed: ${reqErr.message}`);
 
 const { data: viewerProfile } = user ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle() : { data: null };
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';

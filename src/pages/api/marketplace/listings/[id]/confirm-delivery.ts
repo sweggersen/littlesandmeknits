@@ -8,5 +8,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
   if (!ctx) return redirect('/login');
 
   const result = await confirmListingDelivery(ctx, { listingId: params.id ?? '' });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: `/market/listing/${params.id ?? ''}` });
 };

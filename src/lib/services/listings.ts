@@ -270,10 +270,26 @@ async function syncHero(supabase: SupabaseClient, listingId: string) {
   await supabase.from('listings').update({ hero_photo_path: first?.path ?? null }).eq('id', listingId);
 }
 
+/** The photo services scope by listingId+photoId but must also verify the
+ *  caller OWNS the listing — otherwise the only ownership gate is the route's
+ *  inline check (a CLAUDE.md violation) + RLS. Kept in the service so authz is
+ *  greppable and can't be bypassed by a caller that skips the route's check. */
+async function assertListingOwner(
+  ctx: ServiceContext,
+  listingId: string,
+): Promise<ServiceResult<never> | null> {
+  const { data } = await ctx.supabase
+    .from('listings').select('seller_id').eq('id', listingId).maybeSingle();
+  if (!data || data.seller_id !== ctx.user.id) return fail('forbidden', 'Not your listing');
+  return null;
+}
+
 export async function deleteListingPhoto(
   ctx: ServiceContext,
   input: { listingId: string; photoId: string },
 ): Promise<ServiceResult<void>> {
+  const denied = await assertListingOwner(ctx, input.listingId);
+  if (denied) return denied;
   const { data: photo } = await ctx.supabase
     .from('listing_photos').select('path').eq('id', input.photoId).eq('listing_id', input.listingId).maybeSingle();
   if (photo) {
@@ -288,6 +304,8 @@ export async function captionListingPhoto(
   ctx: ServiceContext,
   input: { listingId: string; photoId: string; caption: string },
 ): Promise<ServiceResult<void>> {
+  const denied = await assertListingOwner(ctx, input.listingId);
+  if (denied) return denied;
   await ctx.supabase.from('listing_photos')
     .update({ caption: input.caption || null })
     .eq('id', input.photoId).eq('listing_id', input.listingId);
@@ -298,6 +316,8 @@ export async function reorderListingPhotos(
   ctx: ServiceContext,
   input: { listingId: string; order: string[] },
 ): Promise<ServiceResult<void>> {
+  const denied = await assertListingOwner(ctx, input.listingId);
+  if (denied) return denied;
   await Promise.all(
     input.order.map((id, i) =>
       ctx.supabase.from('listing_photos')
@@ -314,6 +334,8 @@ export async function uploadListingPhotos(
   ctx: ServiceContext,
   input: { listingId: string; files: File[] },
 ): Promise<ServiceResult<{ redirect: string }>> {
+  const denied = await assertListingOwner(ctx, input.listingId);
+  if (denied) return denied;
   if (input.files.length === 0) return ok({ redirect: `/market/listing/${input.listingId}` });
 
   const { count } = await ctx.supabase
