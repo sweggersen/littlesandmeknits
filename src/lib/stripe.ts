@@ -19,19 +19,22 @@ export function createStripe(secretKey: string): Stripe {
     return createSimulatedStripe();
   }
 
+  // A "live" key is either a full secret key (sk_live_) OR a RESTRICTED key
+  // (rk_live_) — restricted keys are the recommended production setup, so both
+  // must count as live. (Test-mode equivalents are sk_test_ / rk_test_.)
+  const isLiveKey = secretKey.startsWith('sk_live_') || secretKey.startsWith('rk_live_');
+
   // Never let a LIVE key run on the dev server — that would charge real cards
-  // during local testing. Use sk_test_ (real Stripe test mode) or sk_simulate
-  // locally; sk_live_ belongs only in the production deploy.
-  if (import.meta.env.DEV && secretKey.startsWith('sk_live_')) {
-    throw new Error('Stripe: refusing to use a LIVE key (sk_live_) on the dev server. Use a test key (sk_test_) or sk_simulate in .dev.vars.');
+  // during local testing. Use a test key (sk_test_/rk_test_) or sk_simulate.
+  if (import.meta.env.DEV && isLiveKey) {
+    throw new Error('Stripe: refusing to use a LIVE key on the dev server. Use a test key (sk_test_/rk_test_) or sk_simulate in .dev.vars.');
   }
 
-  // Symmetric guard: a PRODUCTION build MUST use a live key. A stray sk_test_ in
+  // Symmetric guard: a PRODUCTION build MUST use a live key. A stray test key in
   // prod silently routes real buyers through Stripe TEST mode (test cards only),
-  // so checkout breaks with no loud failure. The sk_simulate case is already
-  // handled + thrown above, so anything reaching here that isn't sk_live_ is wrong.
-  if (import.meta.env.PROD && !secretKey.startsWith('sk_live_')) {
-    throw new Error('Stripe: production build requires a LIVE key (sk_live_). Got a non-live key — set the prod STRIPE_SECRET_KEY secret to sk_live_.');
+  // so checkout breaks with no loud failure. sk_simulate is already thrown above.
+  if (import.meta.env.PROD && !isLiveKey) {
+    throw new Error('Stripe: production build requires a LIVE key (sk_live_ or rk_live_). Got a non-live key — set the prod STRIPE_SECRET_KEY secret.');
   }
 
   return new Stripe(secretKey, {
