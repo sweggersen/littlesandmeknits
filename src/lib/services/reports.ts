@@ -19,6 +19,12 @@ export async function submitReport(
       !input.reason || !VALID_REASONS.includes(input.reason)) {
     return fail('bad_input', 'Invalid input');
   }
+  // Can't report yourself (the free case — no owner lookup needed). Reports on
+  // your OWN listing/store/commission are bounded by the per-target dedup +
+  // daily quota below and surface to a moderator, so they need no extra query.
+  if (input.targetType === 'profile' && input.targetId === ctx.user.id) {
+    return fail('bad_input', 'Du kan ikke rapportere deg selv');
+  }
 
   // Daily quota — a griefer can't mass-flag many different targets (the
   // per-target dedup below only stops repeat-reporting the SAME target).

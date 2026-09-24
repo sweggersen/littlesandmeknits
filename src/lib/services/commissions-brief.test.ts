@@ -73,6 +73,22 @@ describe('createRequest — commission brief enrichment', () => {
     expect(row.status).toBe('open');
   });
 
+  it('rejects a needed_by set in the past (blocks the instant-refund escape)', async () => {
+    const { ctx } = makeCtx(db);
+    const past = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+    const res = await createRequest(ctx, { ...baseInput, neededBy: past });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe('bad_input');
+    expect(db.rows('commission_requests')).toHaveLength(0);
+  });
+
+  it('accepts a future needed_by', async () => {
+    const { ctx } = makeCtx(db);
+    const future = new Date(Date.now() + 30 * 86400_000).toISOString().slice(0, 10);
+    const res = await createRequest(ctx, { ...baseInput, neededBy: future });
+    expect(res.ok).toBe(true);
+  });
+
   it('defaults requires_agreement to false and pattern_reference to null when omitted', async () => {
     const { ctx } = makeCtx(db);
     const res = await createRequest(ctx, { ...baseInput });

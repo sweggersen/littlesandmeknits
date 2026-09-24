@@ -42,10 +42,13 @@ function mockCtx(opts: MockOpts = {}) {
           return { error: null };
         },
         eq: () => ({
-          eq: async () => {
-            updates.push({ table, row, where: 'id+status' });
-            return { error: null };
-          },
+          eq: () => ({
+            // markPaid ends in .select('id') to detect a real pending->paid flip.
+            select: async () => {
+              updates.push({ table, row, where: 'id+status' });
+              return { data: [{ id: 'p-1' }], error: null };
+            },
+          }),
         }),
       }),
     }),

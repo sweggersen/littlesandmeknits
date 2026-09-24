@@ -65,6 +65,15 @@ export async function createRequest(
   if (budgetNokMin === null || budgetNokMax === null) return fail('bad_input', 'Budget required');
   if (budgetNokMax < budgetNokMin) return fail('bad_input', 'Max budget must exceed minimum');
 
+  // needed_by, if given, must be a real FUTURE date. A past deadline lets the
+  // buyer pre-arm cancelLateCommission (needed_by + grace already elapsed) and
+  // pull an instant full refund the moment payment lands.
+  if (input.neededBy) {
+    const nb = new Date(input.neededBy);
+    if (Number.isNaN(nb.getTime())) return fail('bad_input', 'Ugyldig frist');
+    if (nb.getTime() <= Date.now()) return fail('bad_input', 'Fristen må være fram i tid');
+  }
+
   // Validate reference images up front so a bad upload never leaves an orphan
   // request row behind. Same rules as listing photos (0013 / uploadListingPhotos).
   const referenceImages = (input.referenceImages ?? []).filter((f) => f && f.size > 0);
@@ -1095,12 +1104,17 @@ export async function markCompleted(
   // Fraud control (P1.2): require a photo of the finished item before shipping.
   // It lives on the commission's project (server-stamped created_at, visible to
   // the buyer) — evidence against a false "not as described / damaged" claim.
-  if (offer.project_id) {
-    const { data: project } = await ctx.supabase
-      .from('projects').select('hero_photo_path').eq('id', offer.project_id).maybeSingle();
-    if (!project?.hero_photo_path) {
-      return fail('bad_input', 'Last opp et bilde av det ferdige plagget i prosjektet før du markerer som ferdig.');
-    }
+  // A missing project_id (ensureCommissionProject failed at accept + pay) is NOT
+  // a reason to skip the gate — that would let a knitter arm the 14-day escrow
+  // auto-release with no photo. Treat it as a hard block; support/reconcile can
+  // relink the project first.
+  if (!offer.project_id) {
+    return fail('bad_input', 'Prosjektet mangler. Ta kontakt med support før du markerer som ferdig.');
+  }
+  const { data: project } = await ctx.supabase
+    .from('projects').select('hero_photo_path').eq('id', offer.project_id).maybeSingle();
+  if (!project?.hero_photo_path) {
+    return fail('bad_input', 'Last opp et bilde av det ferdige plagget i prosjektet før du markerer som ferdig.');
   }
 
   const autoRelease = new Date();
@@ -1362,11 +1376,23 @@ export async function extendRequest(
   if (!req || req.buyer_id !== ctx.user.id) return fail('forbidden', 'Not your request');
   if (req.status !== 'open') return fail('bad_input', 'Only open requests can be extended');
 
-  const current = req.expires_at ? new Date(req.expires_at) : new Date();
-  current.setDate(current.getDate() + 30);
+  // Base the extension on the LATER of the current expiry and now — extending an
+  // already-expired request from its stale expiry could still land in the past
+  // (a no-op that doesn't reopen it).
+  const base = req.expires_at && new Date(req.expires_at) > new Date() ? new Date(req.expires_at) : new Date();
+  const extended = new Date(base);
+  extended.setDate(extended.getDate() + 30);
+
+  // Cap the total open window so a request can't be kept alive indefinitely.
+  const MAX_OPEN_DAYS = 120;
+  const maxExpiry = new Date();
+  maxExpiry.setDate(maxExpiry.getDate() + MAX_OPEN_DAYS);
+  if (extended > maxExpiry) {
+    return fail('conflict', `Forespørselen kan være åpen i maks ${MAX_OPEN_DAYS} dager. Opprett en ny hvis du fortsatt trenger hjelp.`);
+  }
 
   await ctx.admin.from('commission_requests').update({
-    expires_at: current.toISOString(),
+    expires_at: extended.toISOString(),
   }).eq('id', input.requestId);
 
   return ok({ redirect: `/market/commissions/${input.requestId}` });

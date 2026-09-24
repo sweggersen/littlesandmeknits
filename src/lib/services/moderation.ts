@@ -69,6 +69,13 @@ export async function reviewItem(
     return fail('not_found', 'Queue item not available');
   }
   if (qi.submitter_id === ctx.user.id) return fail('forbidden', 'Cannot review your own submission');
+  // Same conflict-of-interest guard claimItem applies (moderation.ts:37). Without
+  // it, a moderator could POST an unassigned queue_id straight to review and
+  // decide an item belonging to someone they have a commercial/conversation tie
+  // to, skipping the claim-time check entirely.
+  if (await hasConflict(ctx.admin, ctx.user.id, qi.submitter_id)) {
+    return fail('forbidden', 'Du har en relasjon til innsenderen og kan ikke vurdere dette');
+  }
   if (qi.assigned_to && qi.assigned_to !== ctx.user.id) return fail('forbidden', 'Not assigned to you');
 
   // For store items: moderator can't approve a store they're a member of
