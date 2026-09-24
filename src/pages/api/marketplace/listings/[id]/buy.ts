@@ -11,6 +11,10 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     listingId: params.id ?? '',
     stripeSecretKey: env.STRIPE_SECRET_KEY,
   });
-  if (!result.ok) return new Response(result.message, { status: 500 });
+  // Full-page form: on failure (e.g. Stripe down) send the buyer back to the
+  // listing with the message in the global error toast, not a bare error page.
+  if (!result.ok) {
+    return redirect(`/market/listing/${params.id ?? ''}?error=${encodeURIComponent(result.message)}`, 303);
+  }
   return redirect(result.data.checkoutUrl, 303);
 };

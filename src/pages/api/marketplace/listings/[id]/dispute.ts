@@ -12,5 +12,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
     listingId: params.id ?? '',
     reason: form.get('reason')?.toString() ?? '',
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: `/market/listing/${params.id ?? ''}` });
 };

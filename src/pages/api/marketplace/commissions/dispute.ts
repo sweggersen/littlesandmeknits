@@ -12,5 +12,5 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     requestId: form.get('request_id')?.toString() ?? '',
     reason: form.get('reason')?.toString() ?? '',
   });
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: `/market/commissions/${form.get('request_id')?.toString() ?? ''}` });
 };

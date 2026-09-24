@@ -61,5 +61,5 @@ export const POST: APIRoute = async ({ params, request, cookies, redirect }) => 
   const result = await uploadListingPhotos(ctx, { listingId: id, files });
   // Override the service's default redirect so drafts return to /foto.
   if (result.ok) return Response.redirect(new URL(back, request.url), 303);
-  return toResponse(result, redirect);
+  return toResponse(result, redirect, { errorRedirect: back });
 };

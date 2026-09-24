@@ -32,6 +32,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     stripeSecretKey: env.STRIPE_SECRET_KEY ?? '',
   });
 
-  if (!result.ok) return new Response(result.message, { status: 500 });
+  // Full-page form: on failure (e.g. Stripe down) send the buyer back to the
+  // pattern page with the message in the global error toast, not a bare page.
+  if (!result.ok) {
+    const patternPath = lang === 'nb' ? `/oppskrifter/${slug}` : `/en/patterns/${slug}`;
+    return redirect(`${patternPath}?error=${encodeURIComponent(result.message)}`, 303);
+  }
   return redirect(result.data.checkoutUrl, 303);
 };

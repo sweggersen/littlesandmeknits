@@ -37,11 +37,15 @@ const user = Astro.locals.user;
 // once we know the viewer). buyer_id + sold_at stay as the catalog projection.
 const LISTING_COLS = 'id, seller_id, kind, title, description, price_nok, size_label, category, condition, status, colorway, knitted_by, pattern_external_title, hero_photo_path, location, shipping_info, published_at, listing_fee_nok, escrow_enabled, can_meet, shipping_option, shipping_price_nok, store_id, buyer_id, sold_at, promoted_until, promotion_tier';
 
-let { data: listing } = await supabase
+let { data: listing, error: listingErr } = await supabase
   .from('listings')
   .select(LISTING_COLS)
   .eq('id', id)
   .maybeSingle();
+
+// A transient query error is NOT the same as not-found — throw (branded 500)
+// instead of bouncing a valid listing to /market with no explanation.
+if (listingErr) throw new Error(`listing read failed: ${listingErr.message}`);
 
 const { data: viewerProfile } = user ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle() : { data: null };
 const isStaff = viewerProfile?.role === 'admin' || viewerProfile?.role === 'moderator';

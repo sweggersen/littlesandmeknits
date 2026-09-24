@@ -362,7 +362,8 @@ function initListingGallery() {
     const body = new FormData();
     body.set('action', 'reorder');
     body.set('order', JSON.stringify(photoData.map(p => p.id)));
-    await postAction(body);
+    const res = await postAction(body);
+    if (!res.ok) { alert('Kunne ikke lagre rekkefølgen. Laster på nytt.'); location.reload(); }
   }
 
   document.querySelectorAll('[data-move-up]').forEach(btn => {
@@ -388,7 +389,8 @@ function initListingGallery() {
       }
       const btn = form.querySelector('button[type="submit"]');
       if (btn) btn.textContent = '✓';
-      await postAction(body);
+      const res = await postAction(body);
+      if (!res.ok) { alert('Kunne ikke lagre bildeteksten. Laster på nytt.'); location.reload(); return; }
       setTimeout(() => { if (btn) btn.textContent = 'Lagre'; }, 1500);
     });
   });
@@ -411,7 +413,8 @@ function initListingGallery() {
         if (urls.length > 0) showInline(current);
       }
       rebuildMoveButtons();
-      await postAction(body);
+      const res = await postAction(body);
+      if (!res.ok) { alert('Kunne ikke slette bildet. Laster på nytt.'); location.reload(); }
     });
   });
 }

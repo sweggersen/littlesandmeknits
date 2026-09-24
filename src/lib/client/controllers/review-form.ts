@@ -52,15 +52,17 @@ export function init(): void {
       const body = new FormData(form);
       try {
         const res = await fetch('/api/reviews/submit', { method: 'POST', body, credentials: 'same-origin' });
-        const data = await res.json();
-        if (data.ok) {
+        if (res.ok) {
           status.textContent = 'Vurdering sendt!';
           status.classList.remove('hidden', 'text-red-600');
           status.classList.add('text-sage-700');
           submitBtn.disabled = true; // stays disabled — reviewed once
           submitBtn.textContent = 'Sendt';
         } else {
-          status.textContent = data.error === 'already_reviewed' ? 'Du har allerede gitt en vurdering.' : 'Noe gikk galt.';
+          // toResponse returns a PLAIN-TEXT body on failure (not JSON), so read
+          // text and match the message — res.json() here would throw.
+          const text = await res.text();
+          status.textContent = text.includes('already_reviewed') ? 'Du har allerede gitt en vurdering.' : 'Noe gikk galt.';
           status.classList.remove('hidden');
           status.classList.add('text-red-600');
           submitBtn.disabled = false; // let them retry

@@ -142,7 +142,7 @@ const {
               </div>
             );
           })()}
-          <form method="post" action="/api/marketplace/commissions/pay" data-astro-reload>
+          <form method="post" action="/api/marketplace/commissions/pay" data-astro-reload data-guard-submit>
             <input type="hidden" name="request_id" value={req.id} />
             <button type="submit" class="w-full bg-primary text-primary-fg px-4 py-2.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">Betal nå</button>
           </form>
