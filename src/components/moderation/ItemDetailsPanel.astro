@@ -58,7 +58,7 @@ const {
 <div class="bg-surface rounded-xl border border-sage-500/10 p-5">
   <div class="flex items-center justify-between mb-3">
     <div class="flex items-center gap-2">
-      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{
+      <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{
         queueItem.item_type === 'listing' ? 'Annonse'
           : queueItem.item_type === 'store' ? 'Butikk'
           : 'Oppdrag'
@@ -83,7 +83,7 @@ const {
   </div>
 
   {!itemData ? (
-    <p class="text-sm text-charcoal/45">Element ikke funnet.</p>
+    <p class="text-sm text-charcoal/60">Element ikke funnet.</p>
   ) : queueItem.item_type === 'store_image' ? (
     <div>
       <h2 class="font-serif text-xl mb-1">{itemData.name}</h2>
@@ -163,23 +163,23 @@ const {
       )}
       {itemData.description && (
         <div class="bg-linen rounded-lg p-3 mb-3">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Beskrivelse</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Beskrivelse</span>
           <p class="text-sm text-charcoal/75 whitespace-pre-line mt-1">{itemData.description}</p>
         </div>
       )}
 
       <div class="grid grid-cols-2 gap-2 text-sm mb-3">
         {itemData.contact_email && (
-          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">E-post</span><p class="truncate">{itemData.contact_email}</p></div>
+          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">E-post</span><p class="truncate">{itemData.contact_email}</p></div>
         )}
         {itemData.contact_phone && (
-          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Telefon</span><p>{itemData.contact_phone}</p></div>
+          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Telefon</span><p>{itemData.contact_phone}</p></div>
         )}
         {itemData.location_city && (
-          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">By</span><p>{itemData.location_city}</p></div>
+          <div><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">By</span><p>{itemData.location_city}</p></div>
         )}
         {itemData.website_url && (
-          <div class="col-span-2"><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Nettside</span><p class="truncate"><a href={itemData.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{itemData.website_url}</a></p></div>
+          <div class="col-span-2"><span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Nettside</span><p class="truncate"><a href={itemData.website_url} target="_blank" rel="noopener" class="text-terracotta-500 hover:underline">{itemData.website_url}</a></p></div>
         )}
       </div>
 
@@ -197,7 +197,7 @@ const {
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-sm font-medium">Registrerte representanter</h3>
           <a href={`https://virksomhet.brreg.no/nb/oppslag/enheter/${itemData.orgnr}/roller`} target="_blank" rel="noopener"
-            class="text-[10px] text-charcoal/45 hover:text-terracotta-500 underline">
+            class="text-[10px] text-charcoal/60 hover:text-terracotta-500 underline">
             Se på brreg.no &nearr;
           </a>
         </div>
@@ -218,7 +218,7 @@ const {
                     <span class={match ? 'font-bold' : 'font-medium'}>
                       {role.isOrganisation ? role.organisationName : role.personName}
                     </span>
-                    {role.isOrganisation && <span class="text-charcoal/45 ml-1">(org)</span>}
+                    {role.isOrganisation && <span class="text-charcoal/60 ml-1">(org)</span>}
                     <span class="text-charcoal/55"> · {role.roleDescription}</span>
                   </div>
                   {match === 'strong' && <span class="text-[10px] font-bold uppercase tracking-widest text-sage-700">samsvarer</span>}
@@ -274,22 +274,22 @@ const {
       )}
       <div class="grid grid-cols-2 gap-2 text-sm mb-3">
         <div>
-          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Kategori</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Kategori</span>
           <p>{CATEGORY_LABEL[itemData.category] ?? itemData.category}</p>
         </div>
         <div>
-          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Størrelse</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Størrelse</span>
           <p>{itemData.size_label}</p>
         </div>
         {itemData.price_nok != null && (
           <div>
-            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Pris</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Pris</span>
             <p class="font-mono">{itemData.price_nok} NOK</p>
           </div>
         )}
         {itemData.budget_nok_min != null && (
           <div>
-            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Budsjett</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Budsjett</span>
             <p class="font-mono">{itemData.budget_nok_min}–{itemData.budget_nok_max} NOK</p>
           </div>
         )}

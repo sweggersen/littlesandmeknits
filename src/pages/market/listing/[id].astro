@@ -232,7 +232,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                 data-favorited={isFavorited ? 'true' : 'false'}
                 class:list={[
                   'shrink-0 mt-1 p-2 rounded-full hover:bg-sage-100/50 transition-colors',
-                  isFavorited ? 'text-terracotta-500' : 'text-charcoal/40',
+                  isFavorited ? 'text-terracotta-500' : 'text-charcoal/60',
                 ]}
                 aria-label={isFavorited ? 'Fjern favoritt' : 'Legg til favoritt'}
               >
@@ -246,49 +246,49 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
 
           <dl class="grid grid-cols-2 gap-3 text-sm mb-6">
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Størrelse</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Størrelse</dt>
               <dd>{listing.size_label}</dd>
             </div>
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Kategori</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Kategori</dt>
               <dd>{CATEGORY_LABEL[listing.category] ?? listing.category}</dd>
             </div>
             {listing.condition && (
               <div>
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Tilstand</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Tilstand</dt>
                 <dd>{CONDITION_LABEL[listing.condition] ?? listing.condition}</dd>
               </div>
             )}
             {listing.colorway && (
               <div>
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Farge</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Farge</dt>
                 <dd>{listing.colorway}</dd>
               </div>
             )}
             {roughLoc && (
               <div>
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Sted</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Sted</dt>
                 <dd class="flex items-center gap-1">
-                  <svg class="w-3.5 h-3.5 text-charcoal/40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>
+                  <svg class="w-3.5 h-3.5 text-charcoal/60 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>
                   <span>{roughLoc}</span>
                 </dd>
               </div>
             )}
             {listing.shipping_info && (
               <div class="col-span-2">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Frakt</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Frakt</dt>
                 <dd>{listing.shipping_info}</dd>
               </div>
             )}
             {listing.pattern_external_title && (
               <div class="col-span-2">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Oppskrift</dt>
                 <dd>{listing.pattern_external_title}</dd>
               </div>
             )}
             {(listing as any).knitted_by && (
               <div class="col-span-2">
-                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Strikket av</dt>
+                <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Strikket av</dt>
                 <dd>{(listing as any).knitted_by}</dd>
               </div>
             )}
@@ -338,7 +338,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                   could break the shipping⇒trygg-betaling invariant. */}
               {isOwner && listing.status === 'active' && (
                 <div class="bg-sage-100/60 rounded-2xl p-4 text-sm">
-                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Levering</p>
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Levering</p>
                   <ul class="space-y-1.5 text-charcoal/75">
                     {listing.escrow_enabled && (
                       <li><TryggBetaling /> · Kan sendes, kjøp gjennom appen</li>
@@ -428,7 +428,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                 <details open={!(listing.escrow_enabled && sellerOnboarded)} class="bg-surface rounded-3xl border border-sage-500/10 mt-3 group">
                   <summary class="cursor-pointer p-4 text-sm font-medium text-charcoal/70 hover:text-charcoal flex items-center justify-between">
                     <span>Send melding til {isStoreListing ? 'butikken' : 'selger'}</span>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/30 group-open:rotate-180 transition-transform shrink-0">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-charcoal/55 group-open:rotate-180 transition-transform shrink-0">
                       <polyline points="6 9 12 15 18 9"/>
                     </svg>
                   </summary>
@@ -471,7 +471,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                   {storeRow.name}
                   {storeRow.verified && <span class="text-[9px] font-bold uppercase tracking-widest bg-sage-500/20 text-sage-700 px-1.5 py-0.5 rounded-full">✓</span>}
                 </p>
-                <p class="text-xs text-charcoal/45">
+                <p class="text-xs text-charcoal/60">
                   Butikk · {storeRow.location_city ?? 'Strikketorget'}
                 </p>
               </div>
@@ -490,7 +490,7 @@ const seoDescription = (listing.description ?? '').slice(0, 160).trim()
                       <span class="text-xs text-charcoal/55">{sellerAvgRating.toFixed(1)} · {sellerReviewCount} {sellerReviewCount === 1 ? 'omtale' : 'omtaler'}</span>
                     </div>
                   ) : (
-                    <p class="text-xs text-charcoal/45">
+                    <p class="text-xs text-charcoal/60">
                       {sellerProfile?.location ?? listing.location ?? 'Selger'}
                     </p>
                   )}

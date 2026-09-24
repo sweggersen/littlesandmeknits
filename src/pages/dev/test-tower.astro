@@ -37,7 +37,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
               <h1 class="font-mono text-base font-bold leading-tight">Test Control Tower</h1>
             </div>
             <div class="flex items-center gap-2 min-w-0 flex-1">
-              <label for="scenario-select" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 shrink-0">Scenario</label>
+              <label for="scenario-select" class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 shrink-0">Scenario</label>
               <select id="scenario-select" class="text-sm font-medium bg-surface border border-sage-500/20 rounded-lg px-3 py-1.5 min-w-[260px] max-w-full focus:outline-none focus:border-sage-500"></select>
             </div>
           </div>
@@ -1334,7 +1334,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
         viewHtml = `<form id="${formId}" method="post" action="/api/dev/impersonate" target="_blank" class="inline mt-2 ml-8">
           <input type="hidden" name="email" value="${viewPersona.email}">
           <input type="hidden" name="next" value="${viewUrl}">
-          <button type="submit" class="text-[10px] text-charcoal/40 hover:text-terracotta-500 transition-colors cursor-pointer">Se som ${viewPersona.name} &rarr; ${viewUrl}</button>
+          <button type="submit" class="text-[10px] text-charcoal/60 hover:text-terracotta-500 transition-colors cursor-pointer">Se som ${viewPersona.name} &rarr; ${viewUrl}</button>
         </form>`;
       }
 
@@ -1345,7 +1345,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
           <div class="bg-surface rounded-xl border ${ready ? 'border-charcoal/15 shadow-sm' : done ? 'border-sage-500/10' : 'border-sage-500/10 opacity-60'} p-4 mb-4">
             <div class="flex items-center gap-2.5">
-              <span class="font-mono text-[11px] text-charcoal/30 w-5 text-right shrink-0">${idx + 1}</span>
+              <span class="font-mono text-[11px] text-charcoal/55 w-5 text-right shrink-0">${idx + 1}</span>
               <span class="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full role-${persona.role}">${persona.name} &middot; ${persona.roleLabel}</span>
               <span class="text-sm font-medium flex-1">${step.label}</span>
             </div>
@@ -1365,8 +1365,8 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
 
       if (!stateData) {
         el.innerHTML = `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">State Inspector</p>
-          <p class="text-xs text-charcoal/40">Kjør et steg for å se tilstand.</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">State Inspector</p>
+          <p class="text-xs text-charcoal/60">Kjør et steg for å se tilstand.</p>
         </div>`;
         return;
       }
@@ -1377,18 +1377,18 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (stateData.request) {
         const req = stateData.request;
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Forespørsel</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Forespørsel</p>
           <p class="font-medium text-sm mb-1">${escHtml(req.title)}</p>
           <p class="mb-2"><span class="state-badge ${req.status}">${req.status}</span></p>
           <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-            <span class="text-charcoal/40">Budget</span><span class="font-mono">${req.budget_nok_min}–${req.budget_nok_max}</span>
-            <span class="text-charcoal/40">Kategori</span><span>${req.category}</span>
-            <span class="text-charcoal/40">Størrelse</span><span>${req.size_label}</span>
-            <span class="text-charcoal/40">Eget garn</span><span>${req.yarn_provided_by_buyer ? 'Ja' : 'Nei'}</span>
-            ${req.yarn_shipped_at ? `<span class="text-charcoal/40">Garn sendt</span><span>&#10003;</span>` : ''}
-            ${req.yarn_received_at ? `<span class="text-charcoal/40">Garn mottatt</span><span>&#10003;</span>` : ''}
-            ${req.completed_at ? `<span class="text-charcoal/40">Ferdigstilt</span><span>${new Date(req.completed_at).toLocaleDateString('nb')}</span>` : ''}
-            ${req.delivered_at ? `<span class="text-charcoal/40">Levert</span><span>${new Date(req.delivered_at).toLocaleDateString('nb')}</span>` : ''}
+            <span class="text-charcoal/60">Budget</span><span class="font-mono">${req.budget_nok_min}–${req.budget_nok_max}</span>
+            <span class="text-charcoal/60">Kategori</span><span>${req.category}</span>
+            <span class="text-charcoal/60">Størrelse</span><span>${req.size_label}</span>
+            <span class="text-charcoal/60">Eget garn</span><span>${req.yarn_provided_by_buyer ? 'Ja' : 'Nei'}</span>
+            ${req.yarn_shipped_at ? `<span class="text-charcoal/60">Garn sendt</span><span>&#10003;</span>` : ''}
+            ${req.yarn_received_at ? `<span class="text-charcoal/60">Garn mottatt</span><span>&#10003;</span>` : ''}
+            ${req.completed_at ? `<span class="text-charcoal/60">Ferdigstilt</span><span>${new Date(req.completed_at).toLocaleDateString('nb')}</span>` : ''}
+            ${req.delivered_at ? `<span class="text-charcoal/60">Levert</span><span>${new Date(req.delivered_at).toLocaleDateString('nb')}</span>` : ''}
           </div>
         </div>`;
       }
@@ -1396,13 +1396,13 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Offers
       if (stateData.offers?.length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Tilbud (${stateData.offers.length})</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Tilbud (${stateData.offers.length})</p>
           <div class="space-y-2">
             ${stateData.offers.map(o => `
               <div class="flex items-center justify-between gap-2 text-xs">
                 <div>
                   <span class="font-medium">${o.profiles?.display_name || '?'}</span>
-                  <span class="text-charcoal/40 ml-1">${o.price_nok} kr &middot; ${o.turnaround_weeks}u</span>
+                  <span class="text-charcoal/60 ml-1">${o.price_nok} kr &middot; ${o.turnaround_weeks}u</span>
                 </div>
                 <span class="state-badge ${o.status}">${o.status}</span>
               </div>
@@ -1415,10 +1415,10 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (stateData.project) {
         const proj = stateData.project;
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Prosjekt</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Prosjekt</p>
           <p class="text-sm font-medium mb-1">${escHtml(proj.title)}</p>
           <p><span class="state-badge ${proj.status}">${proj.status}</span></p>
-          ${proj.started_at ? `<p class="text-[11px] text-charcoal/40 mt-1">Startet: ${proj.started_at}</p>` : ''}
+          ${proj.started_at ? `<p class="text-[11px] text-charcoal/60 mt-1">Startet: ${proj.started_at}</p>` : ''}
         </div>`;
       }
 
@@ -1426,17 +1426,17 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (stateData.listing) {
         const l = stateData.listing;
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Annonse</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Annonse</p>
           <p class="text-sm font-medium mb-1">${escHtml(l.title)}</p>
           <p class="mb-1"><span class="state-badge ${l.status}">${l.status}</span></p>
-          <p class="text-[11px] text-charcoal/40">${l.price_nok} kr &middot; ${l.category} &middot; ${l.size_label}</p>
+          <p class="text-[11px] text-charcoal/60">${l.price_nok} kr &middot; ${l.category} &middot; ${l.size_label}</p>
         </div>`;
       }
 
       // Conversations
       if (stateData.conversations?.length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Meldinger</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Meldinger</p>
           ${stateData.conversations.map(c => `
             <div class="space-y-1.5">
               ${(c.marketplace_messages || []).map(m => `
@@ -1454,16 +1454,16 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       if (stateData.queue_item) {
         const qi = stateData.queue_item;
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Modereringskø</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Modereringskø</p>
           <p class="mb-2"><span class="state-badge ${qi.status}">${qi.status}</span></p>
           <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-            <span class="text-charcoal/40">Type</span><span>${qi.item_type}</span>
-            <span class="text-charcoal/40">Shadow</span><span>${qi.shadow_review ? 'Ja' : 'Nei'}</span>
-            <span class="text-charcoal/40">Spot-check</span><span>${qi.spot_check ? 'Ja' : 'Nei'}</span>
-            ${qi.rejection_reason ? '<span class="text-charcoal/40">Avslag</span><span>' + escHtml(qi.rejection_reason) + '</span>' : ''}
-            ${qi.shadow_confirmed_at ? '<span class="text-charcoal/40">Shadow bekreftet</span><span>&#10003;</span>' : ''}
-            ${qi.shadow_decision_overridden ? '<span class="text-charcoal/40">Overstyrt</span><span>Ja</span>' : ''}
-            ${qi.spot_check_agreed != null ? '<span class="text-charcoal/40">Spot enig</span><span>' + (qi.spot_check_agreed ? 'Ja' : 'Nei') + '</span>' : ''}
+            <span class="text-charcoal/60">Type</span><span>${qi.item_type}</span>
+            <span class="text-charcoal/60">Shadow</span><span>${qi.shadow_review ? 'Ja' : 'Nei'}</span>
+            <span class="text-charcoal/60">Spot-check</span><span>${qi.spot_check ? 'Ja' : 'Nei'}</span>
+            ${qi.rejection_reason ? '<span class="text-charcoal/60">Avslag</span><span>' + escHtml(qi.rejection_reason) + '</span>' : ''}
+            ${qi.shadow_confirmed_at ? '<span class="text-charcoal/60">Shadow bekreftet</span><span>&#10003;</span>' : ''}
+            ${qi.shadow_decision_overridden ? '<span class="text-charcoal/60">Overstyrt</span><span>Ja</span>' : ''}
+            ${qi.spot_check_agreed != null ? '<span class="text-charcoal/60">Spot enig</span><span>' + (qi.spot_check_agreed ? 'Ja' : 'Nei') + '</span>' : ''}
           </div>
         </div>`;
       }
@@ -1471,19 +1471,19 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Moderator stats
       if (stateData.mod_stats && Object.keys(stateData.mod_stats).length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Moderator-statistikk</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Moderator-statistikk</p>
           ${Object.entries(stateData.mod_stats).map(([email, ms]) => {
             const name = Object.values(P).find(p => p.email === email)?.name || email;
             return '<details class="mb-2" open>' +
               '<summary class="text-xs font-medium">' + name + '</summary>' +
               '<div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] mt-1 pl-2">' +
-              '<span class="text-charcoal/40">Vurderinger</span><span class="font-mono">' + ms.total_reviews + '</span>' +
-              '<span class="text-charcoal/40">Godkjent</span><span class="font-mono">' + ms.total_approvals + '</span>' +
-              '<span class="text-charcoal/40">Avvist</span><span class="font-mono">' + ms.total_rejections + '</span>' +
-              '<span class="text-charcoal/40">Denne mnd</span><span class="font-mono">' + ms.current_month_reviews + ' (' + ms.current_month_earned_nok + ' kr)</span>' +
-              '<span class="text-charcoal/40">Sats</span><span class="font-mono">' + ms.rate_nok_per_review + ' kr/stk</span>' +
-              '<span class="text-charcoal/40">Totalt tjent</span><span class="font-mono">' + ms.total_earned_nok + ' kr</span>' +
-              (ms.shadow_overrides ? '<span class="text-charcoal/40">Overstyrte</span><span class="font-mono text-amber-600">' + ms.shadow_overrides + '</span>' : '') +
+              '<span class="text-charcoal/60">Vurderinger</span><span class="font-mono">' + ms.total_reviews + '</span>' +
+              '<span class="text-charcoal/60">Godkjent</span><span class="font-mono">' + ms.total_approvals + '</span>' +
+              '<span class="text-charcoal/60">Avvist</span><span class="font-mono">' + ms.total_rejections + '</span>' +
+              '<span class="text-charcoal/60">Denne mnd</span><span class="font-mono">' + ms.current_month_reviews + ' (' + ms.current_month_earned_nok + ' kr)</span>' +
+              '<span class="text-charcoal/60">Sats</span><span class="font-mono">' + ms.rate_nok_per_review + ' kr/stk</span>' +
+              '<span class="text-charcoal/60">Totalt tjent</span><span class="font-mono">' + ms.total_earned_nok + ' kr</span>' +
+              (ms.shadow_overrides ? '<span class="text-charcoal/60">Overstyrte</span><span class="font-mono text-amber-600">' + ms.shadow_overrides + '</span>' : '') +
               '</div></details>';
           }).join('')}
         </div>`;
@@ -1492,7 +1492,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Profiles & trust
       if (stateData.profiles && Object.keys(stateData.profiles).length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Profiler &amp; tillit</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Profiler &amp; tillit</p>
           ${Object.entries(stateData.profiles).map(([email, pr]) => {
             const name = Object.values(P).find(p => p.email === email)?.name || email;
             return '<div class="mb-2 text-[11px]">' +
@@ -1500,9 +1500,9 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
               (pr.role ? ' <span class="state-badge" style="background:#E0E7FF;color:#3730A3">' + pr.role + '</span>' : '') +
               ' <span class="state-badge">' + pr.trust_tier + '</span>' +
               '<div class="grid grid-cols-2 gap-x-3 gap-y-0.5 mt-0.5 pl-2">' +
-              '<span class="text-charcoal/40">Trust</span><span class="font-mono">' + pr.trust_score + '</span>' +
-              '<span class="text-charcoal/40">Transaksjoner</span><span class="font-mono">' + pr.total_completed_transactions + '</span>' +
-              '<span class="text-charcoal/40">Avvisninger</span><span class="font-mono">' + pr.total_rejections + '</span>' +
+              '<span class="text-charcoal/60">Trust</span><span class="font-mono">' + pr.trust_score + '</span>' +
+              '<span class="text-charcoal/60">Transaksjoner</span><span class="font-mono">' + pr.total_completed_transactions + '</span>' +
+              '<span class="text-charcoal/60">Avvisninger</span><span class="font-mono">' + pr.total_rejections + '</span>' +
               '</div></div>';
           }).join('')}
         </div>`;
@@ -1511,7 +1511,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Reports
       if (stateData.reports?.length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Rapporter (${stateData.reports.length})</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Rapporter (${stateData.reports.length})</p>
           <div class="space-y-1.5">
             ${stateData.reports.map(r => '<div class="text-[11px] flex items-center justify-between">' +
               '<span>' + escHtml(r.reason) + '</span>' +
@@ -1525,7 +1525,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Transaction reviews
       if (stateData.tx_reviews?.length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Vurderinger (${stateData.tx_reviews.length})</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Vurderinger (${stateData.tx_reviews.length})</p>
           <div class="space-y-1.5">
             ${stateData.tx_reviews.map(r => '<div class="text-[11px]">' +
               '<span class="font-medium">' + r.reviewer_role + '</span> ' +
@@ -1541,7 +1541,7 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Payouts
       if (stateData.payouts?.length) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Utbetalinger (${stateData.payouts.length})</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Utbetalinger (${stateData.payouts.length})</p>
           <div class="space-y-1.5">
             ${stateData.payouts.map(p => '<div class="text-[11px] flex items-center justify-between">' +
               '<span class="font-mono">' + p.amount_nok + ' kr (' + p.review_count + ' vurd.)</span>' +
@@ -1555,12 +1555,12 @@ const adminToken = btoa(String.fromCharCode(...new Uint8Array(sig))).slice(0, 43
       // Notifications
       if (stateData.notifications) {
         html += `<div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-3">Varsler</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Varsler</p>
           ${Object.entries(stateData.notifications).map(([email, notifs]) => {
             const name = Object.values(P).find(p => p.email === email)?.name || email;
             return `<details class="mb-2" ${notifs.length ? 'open' : ''}>
               <summary class="text-xs font-medium flex items-center gap-2">
-                ${name} <span class="text-charcoal/30 font-mono">${notifs.length}</span>
+                ${name} <span class="text-charcoal/55 font-mono">${notifs.length}</span>
               </summary>
               <div class="mt-1 space-y-1 pl-2 border-l-2 border-sage-500/10">
                 ${notifs.map(n => `<p class="text-[10px] text-charcoal/55">${escHtml(n.title)}</p>`).join('')}

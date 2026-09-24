@@ -54,14 +54,14 @@ const statusVariant: Record<string, 'default' | 'sage' | 'terracotta' | 'muted'>
         )}
         <div class="py-2.5 pr-3 min-w-0 flex-1">
           <div class="flex items-center gap-1.5 mb-0.5">
-            <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/45">{statusLabel}</span>
+            <span class="text-[9px] font-bold uppercase tracking-widest text-charcoal/60">{statusLabel}</span>
             {isCommission && (
               <span class="text-[9px] font-bold uppercase tracking-widest text-terracotta-500">Oppdrag</span>
             )}
           </div>
           <p class="text-sm font-medium line-clamp-1">{title}</p>
           {isCommission && buyerName && (
-            <p class="text-[11px] text-charcoal/45">for {buyerName}</p>
+            <p class="text-[11px] text-charcoal/60">for {buyerName}</p>
           )}
         </div>
       </div>
@@ -91,7 +91,7 @@ const statusVariant: Record<string, 'default' | 'sage' | 'terracotta' | 'muted'>
               <span class="text-[10px] font-bold uppercase tracking-wider text-sage-900" title="Offentlig delt">Delt</span>
             )}
             {createdAt && (
-              <span class="text-xs text-charcoal/40">
+              <span class="text-xs text-charcoal/60">
                 {new Date(createdAt).toLocaleDateString('nb-NO', { month: 'short', day: 'numeric' })}
               </span>
             )}

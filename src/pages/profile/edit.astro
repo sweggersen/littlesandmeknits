@@ -43,7 +43,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
 <Layout title="Rediger profil · Littles and Me Knits" lang="nb">
   <div class="bg-linen min-h-[60vh]">
     <div class="max-w-xl mx-auto px-4 sm:px-6 py-8 sm:py-12 relative">
-      <a href="/profile" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-4 block">← Tilbake til profil</a>
+      <a href="/profile" class="text-sm text-charcoal/60 hover:text-terracotta-500 transition-colors mb-4 block">← Tilbake til profil</a>
       <div class="flex items-start justify-between gap-4 mb-2">
         <h1 class="font-serif text-3xl">Rediger profil</h1>
         {/* Save button — appears next to the heading when the user stages
@@ -111,7 +111,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
           <input name="display_name" type="text" maxlength="60" value={displayName}
             placeholder="La stå tomt for å bruke fornavn + etternavn"
             class="w-full bg-surface rounded-xl px-4 py-3 text-base border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
-          <span class="block text-xs text-charcoal/45 mt-1.5">Dette vises på annonsene dine og selgerprofilen.</span>
+          <span class="block text-xs text-charcoal/60 mt-1.5">Dette vises på annonsene dine og selgerprofilen.</span>
         </label>
 
         <!-- Bio -->
@@ -133,7 +133,7 @@ const saved = Astro.url.searchParams.get('saved') === '1';
         <label class="block">
           <span class="block text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-2">Instagram</span>
           <div class="flex items-center bg-surface rounded-xl border border-sage-500/15 focus-within:border-sage-500 transition-colors">
-            <span class="pl-4 text-charcoal/40">@</span>
+            <span class="pl-4 text-charcoal/60">@</span>
             <input name="instagram_handle" type="text" maxlength="30" value={profile?.instagram_handle ?? user.user_metadata?.instagram_handle ?? ''}
               class="flex-1 bg-transparent px-2 py-3 text-base focus:outline-none" />
           </div>

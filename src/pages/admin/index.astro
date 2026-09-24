@@ -83,30 +83,30 @@ const TEMPLATES = [
     <section class="mb-8">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Omsetning · 7d</p>
-          <p class="font-mono text-2xl tabular-nums">{kr(trends.gmv7)} <span class="text-sm text-charcoal/45">kr</span></p>
-          <p class="text-[11px] text-charcoal/40 mt-1">30d: {kr(trends.gmv30)} kr</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Omsetning · 7d</p>
+          <p class="font-mono text-2xl tabular-nums">{kr(trends.gmv7)} <span class="text-sm text-charcoal/60">kr</span></p>
+          <p class="text-[11px] text-charcoal/60 mt-1">30d: {kr(trends.gmv30)} kr</p>
         </div>
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Inntekt · 7d</p>
-          <p class="font-mono text-2xl tabular-nums">{kr(trends.revenue7)} <span class="text-sm text-charcoal/45">kr</span></p>
-          <p class="text-[11px] text-charcoal/40 mt-1">30d: {kr(trends.revenue30)} kr</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Inntekt · 7d</p>
+          <p class="font-mono text-2xl tabular-nums">{kr(trends.revenue7)} <span class="text-sm text-charcoal/60">kr</span></p>
+          <p class="text-[11px] text-charcoal/60 mt-1">30d: {kr(trends.revenue30)} kr</p>
         </div>
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Solgt · 7d</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Solgt · 7d</p>
           <p class="font-mono text-2xl tabular-nums">{trends.sold7}</p>
-          <p class="text-[11px] text-charcoal/40 mt-1">30d: {trends.sold30}</p>
+          <p class="text-[11px] text-charcoal/60 mt-1">30d: {trends.sold30}</p>
         </div>
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">Nye brukere · 7d</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Nye brukere · 7d</p>
           <p class="font-mono text-2xl tabular-nums">{trends.signups7}</p>
-          <p class="text-[11px] text-charcoal/40 mt-1">30d: {trends.signups30}</p>
+          <p class="text-[11px] text-charcoal/60 mt-1">30d: {trends.signups30}</p>
         </div>
       </div>
 
       <div class="bg-surface rounded-xl border border-sage-500/10 p-4 flex items-center gap-5">
         <div class="shrink-0">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Salg siste 7 dager</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Salg siste 7 dager</p>
           <div class="flex items-end gap-1.5 h-12" role="img" aria-label={`Salg per dag siste uke: ${trends.dailySold.join(', ')}`}>
             {trends.dailySold.map((v) => (
               <div class="w-5 rounded-t bg-sage-500/70" style={`height:${Math.round((v / sparkMax) * 100)}%;min-height:2px`} title={`${v}`}></div>
@@ -123,7 +123,7 @@ const TEMPLATES = [
             title={cronHealth.stale
               ? 'Cron-jobben ser ut til å ha stoppet. Automatiske oppgaver (escrow-frigjøring m.m.) kjører ikke. Sjekk cron-job.org.'
               : 'Siste vellykkede kjøring av den planlagte jobben'}>
-            <span class="text-charcoal/40">Cron:</span>{' '}
+            <span class="text-charcoal/60">Cron:</span>{' '}
             {cronHealth.lastRunAt
               ? (cronHealth.stale ? `stoppet? (${timeAgo(cronHealth.lastRunAt)})` : `ok · ${timeAgo(cronHealth.lastRunAt)}`)
               : 'aldri kjørt'}
@@ -137,7 +137,7 @@ const TEMPLATES = [
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     {stats.map(s => (
       <a href={s.href} class="bg-surface rounded-xl border border-sage-500/10 p-4 hover:border-sage-500/30 transition-colors">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-1">{s.label}</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">{s.label}</p>
         <p class="font-mono text-3xl tabular-nums">{s.value}</p>
       </a>
     ))}

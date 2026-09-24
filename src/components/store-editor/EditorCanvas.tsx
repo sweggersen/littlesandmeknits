@@ -291,7 +291,7 @@ export default function EditorCanvas({
             data-elem-popover-kind={editor.kind}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{ELEM_TITLE[editor.kind]}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{ELEM_TITLE[editor.kind]}</span>
               <button
                 type="button"
                 className="px-1.5 rounded hover:opacity-70 text-charcoal/60"
@@ -301,7 +301,7 @@ export default function EditorCanvas({
                 ✕
               </button>
             </div>
-            <p className="text-[11px] text-charcoal/45 mb-2">{ELEM_HINT[editor.kind]}</p>
+            <p className="text-[11px] text-charcoal/60 mb-2">{ELEM_HINT[editor.kind]}</p>
             <ElementControls
               kind={editor.kind}
               theme={theme}

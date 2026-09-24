@@ -100,7 +100,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
         <button type="button" data-action="cleanup" class="text-xs text-red-600/70 hover:text-red-700 border border-red-300/30 rounded-full px-3 py-1.5 hover:bg-red-50 transition-colors">
           Slett testdata
         </button>
-        <span class="text-xs text-charcoal/45" data-seed-status>Klar.</span>
+        <span class="text-xs text-charcoal/60" data-seed-status>Klar.</span>
       </div>
 
       <!-- Active session indicator -->
@@ -119,7 +119,7 @@ const SECTIONS: Array<{ title: string; intro?: string; screens: Screen[] }> = [
                 <div class="min-w-0">
                   <p class="text-sm font-medium">{sc.title}</p>
                   {sc.desc && <p class="text-xs text-charcoal/55 mt-0.5">{sc.desc}</p>}
-                  <p class="text-[11px] text-charcoal/40 font-mono mt-0.5">{sc.href}</p>
+                  <p class="text-[11px] text-charcoal/60 font-mono mt-0.5">{sc.href}</p>
                 </div>
                 <button type="button" data-as={sc.as ?? ''} data-href={sc.href}
                   class="shrink-0 bg-primary text-primary-fg px-3 py-1.5 rounded-full text-xs font-medium hover:bg-primary-hover transition-colors">

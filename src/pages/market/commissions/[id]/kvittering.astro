@@ -74,14 +74,14 @@ function nok(n: number): string {
 <Layout title={`Kvittering · ${req.title}`} lang="nb">
   <div class="max-w-2xl mx-auto px-6 py-10 print:py-2 print:px-0">
     <div class="flex items-center justify-between mb-6 print:hidden">
-      <a href={`/market/commissions/${req.id}`} class="text-xs text-charcoal/45 hover:text-terracotta-500">&larr; Tilbake til oppdraget</a>
+      <a href={`/market/commissions/${req.id}`} class="text-xs text-charcoal/60 hover:text-terracotta-500">&larr; Tilbake til oppdraget</a>
       <button onclick="window.print()" class="bg-primary text-primary-fg px-4 py-2 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">Skriv ut / Last ned PDF</button>
     </div>
 
     <article class="bg-surface rounded-3xl border border-sage-500/15 p-8 sm:p-10 print:border-0 print:rounded-none print:p-0">
       <header class="flex items-start justify-between gap-4 mb-6">
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Kvittering · oppdrag</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Kvittering · oppdrag</p>
           <h1 class="font-serif text-3xl mt-1">Strikketorget</h1>
         </div>
         <div class="text-right text-xs text-charcoal/55">
@@ -92,20 +92,20 @@ function nok(n: number): string {
 
       <section class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Strikker</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Strikker</p>
           <p class="font-medium">{knitter?.display_name ?? 'Privatperson'}</p>
           {knitter?.location && <p class="text-sm text-charcoal/65">{knitter.location}</p>}
-          <p class="text-xs text-charcoal/45 mt-1">Privatsalg · ikke MVA-pliktig</p>
+          <p class="text-xs text-charcoal/60 mt-1">Privatsalg · ikke MVA-pliktig</p>
         </div>
         <div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Bestiller</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Bestiller</p>
           <p class="font-medium">{buyer?.display_name ?? 'Kjøper'}</p>
           {buyer?.location && <p class="text-sm text-charcoal/65">{buyer.location}</p>}
         </div>
       </section>
 
       <section class="mb-8">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Oppdrag</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Oppdrag</p>
         <table class="w-full text-sm">
           <thead>
             <tr class="border-b border-sage-500/20 text-left text-xs text-charcoal/55">
@@ -137,7 +137,7 @@ function nok(n: number): string {
 
       {isKnitter && (
         <section class="mb-8 bg-linen rounded-xl p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Strikker · utbetaling</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Strikker · utbetaling</p>
           <table class="w-full text-sm">
             <tr class="border-t border-sage-500/20"><td class="pt-2 font-medium">Utbetaling til deg</td><td class="pt-2 text-right font-mono font-bold">{nok(knitterNet)}</td></tr>
           </table>
@@ -153,7 +153,7 @@ function nok(n: number): string {
         <p><strong>Privatsalg</strong>: Bestilt strikkearbeid mellom forbrukere. Kjøpsloven gjelder.</p>
       </section>
 
-      <footer class="text-xs text-charcoal/40 mt-8 pt-4 border-t border-sage-500/10">
+      <footer class="text-xs text-charcoal/60 mt-8 pt-4 border-t border-sage-500/10">
         <p>Strikketorget, drevet av Weggersen Design, org.nr. 935 918 146.</p>
         <p>Spørsmål: hei@strikketorget.no</p>
       </footer>

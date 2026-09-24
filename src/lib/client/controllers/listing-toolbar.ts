@@ -13,8 +13,10 @@ export function init(): void {
   // toggles don't fire twice. New element after a view transition rebinds.
   if (searchInput && !bindOnce('listing-toolbar', searchInput)) return;
 
-  document.querySelector('[data-toggle-filter]')?.addEventListener('click', () => {
+  const toggleFilterBtn = document.querySelector('[data-toggle-filter]');
+  toggleFilterBtn?.addEventListener('click', () => {
     filterPanel?.classList.toggle('hidden');
+    toggleFilterBtn.setAttribute('aria-expanded', String(!filterPanel?.classList.contains('hidden')));
   });
 
   function doSearch() {
@@ -39,7 +41,8 @@ export function init(): void {
 
     document.querySelectorAll<HTMLElement>('[data-view]').forEach((b) => {
       const active = b.dataset.view === mode;
-      b.className = `p-2 rounded-lg transition-colors ${active ? 'bg-primary text-primary-fg' : 'text-charcoal/40 hover:text-charcoal'}`;
+      b.className = `p-2 rounded-lg transition-colors ${active ? 'bg-primary text-primary-fg' : 'text-charcoal/60 hover:text-charcoal'}`;
+      b.setAttribute('aria-pressed', String(active));
     });
 
     grid.className = mode === 'grid' ? GRID_CLASSES : LIST_CLASSES;

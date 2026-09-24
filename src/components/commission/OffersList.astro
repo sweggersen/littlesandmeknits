@@ -64,7 +64,7 @@ const pricePlaceholder = (() => {
     allOffers.length === 0 ? (
       <div class="text-center py-8">
         <p class="text-sm text-charcoal/55 mb-1">Ingen tilbud ennå</p>
-        <p class="text-xs text-charcoal/40">Strikkere kan se forespørselen din og sende tilbud.</p>
+        <p class="text-xs text-charcoal/60">Strikkere kan se forespørselen din og sende tilbud.</p>
       </div>
     ) : (
       <div>
@@ -113,7 +113,7 @@ const pricePlaceholder = (() => {
           </label>
         </div>
         {hasBudget && (
-          <p class="text-[11px] text-charcoal/45 -mt-1">
+          <p class="text-[11px] text-charcoal/60 -mt-1">
             Bestillers budsjett: {budgetMin ?? '?'}{budgetMax != null ? `–${budgetMax}` : ''} NOK
           </p>
         )}
@@ -123,12 +123,12 @@ const pricePlaceholder = (() => {
     </div>
   ) : myOffer ? (
     <div class="max-w-md mx-auto bg-surface rounded-2xl p-5 border border-sage-500/10">
-      <p class="text-xs font-bold uppercase tracking-widest text-charcoal/45 mb-1">Ditt tilbud</p>
+      <p class="text-xs font-bold uppercase tracking-widest text-charcoal/60 mb-1">Ditt tilbud</p>
       <p class="font-mono tabular-nums">{myOffer.price_nok} NOK · {myOffer.turnaround_weeks} uker</p>
-      <p class="text-[10px] text-charcoal/45 mt-1">Venter på svar fra bestiller</p>
+      <p class="text-[10px] text-charcoal/60 mt-1">Venter på svar fra bestiller</p>
       <form method="post" action="/api/marketplace/commissions/withdraw" data-astro-reload class="mt-2">
         <input type="hidden" name="offer_id" value={myOffer.id} />
-        <button type="submit" class="text-[10px] text-charcoal/35 hover:text-terracotta-500 transition-colors">Trekk tilbake</button>
+        <button type="submit" class="text-[10px] text-charcoal/55 hover:text-terracotta-500 transition-colors">Trekk tilbake</button>
       </form>
     </div>
   ) : !hasUser ? (
@@ -141,7 +141,7 @@ const pricePlaceholder = (() => {
   {isBuyer && (
     <div class="mt-4 text-center space-y-2">
       {daysUntilExpiry !== null && (
-        <p class="text-xs text-charcoal/45">
+        <p class="text-xs text-charcoal/60">
           {expiringSoon ? (
             <span class="text-amber-600">Utloper om {daysUntilExpiry} {daysUntilExpiry === 1 ? 'dag' : 'dager'}</span>
           ) : (
@@ -157,7 +157,7 @@ const pricePlaceholder = (() => {
       )}
       <form method="post" action="/api/marketplace/commissions/cancel" data-astro-reload>
         <input type="hidden" name="request_id" value={requestId} />
-        <button type="submit" class="text-xs text-charcoal/35 hover:text-terracotta-500 transition-colors">Avbryt forespørsel</button>
+        <button type="submit" class="text-xs text-charcoal/55 hover:text-terracotta-500 transition-colors">Avbryt forespørsel</button>
       </form>
     </div>
   )}

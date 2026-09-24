@@ -69,8 +69,8 @@ const DEV_PERSONAS = [
         {DEV_PERSONAS.map((p) => (
           <button data-dev-login={p.email}
             class="w-full flex items-center justify-between gap-3 bg-surface rounded-2xl border border-sage-500/15 hover:border-sage-500/40 transition-colors px-4 py-3 text-left disabled:opacity-50">
-            <span><span class="font-medium">{p.label}</span> <span class="text-charcoal/45 text-sm">· {p.email}</span></span>
-            <span class="text-xs text-charcoal/45">{p.role}</span>
+            <span><span class="font-medium">{p.label}</span> <span class="text-charcoal/60 text-sm">· {p.email}</span></span>
+            <span class="text-xs text-charcoal/60">{p.role}</span>
           </button>
         ))}
       </div>
@@ -84,7 +84,7 @@ const DEV_PERSONAS = [
       <p data-dev-login-status class="text-sm text-charcoal/55 min-h-[1.25rem]"></p>
 
       <a href={`/auth/vipps/start?next=${encodeURIComponent(next)}`}
-        class="inline-block mt-4 text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors">
+        class="inline-block mt-4 text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">
         Eller test ekte Vipps-flyt →
       </a>
 

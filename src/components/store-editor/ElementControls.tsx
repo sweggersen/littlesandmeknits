@@ -129,7 +129,7 @@ function LogoControls({
       <label className="block">
         <span className="flex items-center justify-between text-xs font-medium text-charcoal/60 mb-1">
           <span>{L.logoSize}</span>
-          <span className="font-mono text-charcoal/45">{scale}%</span>
+          <span className="font-mono text-charcoal/60">{scale}%</span>
         </span>
         <input
           type="range"
@@ -145,7 +145,7 @@ function LogoControls({
       <label className="block">
         <span className="flex items-center justify-between text-xs font-medium text-charcoal/60 mb-1">
           <span>{L.logoTint}</span>
-          <span className="font-mono text-charcoal/45">{tint}%</span>
+          <span className="font-mono text-charcoal/60">{tint}%</span>
         </span>
         <input
           type="range"
@@ -163,7 +163,7 @@ function LogoControls({
       <label className="block">
         <span className="flex items-center justify-between text-xs font-medium text-charcoal/60 mb-1">
           <span>{L.logoColorAmount}</span>
-          <span className="font-mono text-charcoal/45">{colorAmount}%</span>
+          <span className="font-mono text-charcoal/60">{colorAmount}%</span>
         </span>
         <input
           type="range"

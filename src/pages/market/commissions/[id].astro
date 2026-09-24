@@ -222,13 +222,13 @@ const commissionShare = commissionShareMeta({
           {req.status !== 'open' && (
             <span class:list={[
               'inline-block text-[10px] font-bold uppercase tracking-widest rounded-full px-3 py-1',
-              req.status === 'delivered' ? 'text-sage-700 bg-sage-100' : req.status === 'completed' ? 'text-terracotta-500 bg-terracotta-500/10' : 'text-charcoal/45 bg-oatmeal/60',
+              req.status === 'delivered' ? 'text-sage-700 bg-sage-100' : req.status === 'completed' ? 'text-terracotta-500 bg-terracotta-500/10' : 'text-charcoal/60 bg-oatmeal/60',
             ]}>
               {COMMISSION_STATUS[req.status]}
             </span>
           )}
           {isPrivate && (
-            <span class="inline-block text-[10px] font-bold uppercase tracking-widest text-charcoal/35 bg-oatmeal/40 rounded-full px-3 py-1">Privat</span>
+            <span class="inline-block text-[10px] font-bold uppercase tracking-widest text-charcoal/55 bg-oatmeal/40 rounded-full px-3 py-1">Privat</span>
           )}
           {requiresAgreement && (
             <span class="inline-block text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 rounded-full px-3 py-1">Krever avtale før betaling</span>
@@ -237,8 +237,8 @@ const commissionShare = commissionShareMeta({
 
         <div class="flex items-center gap-2 mb-2">
           <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{CATEGORY_LABEL[req.category] ?? req.category}</span>
-          <span class="text-[10px] text-charcoal/40">·</span>
-          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">str. {req.size_label}</span>
+          <span class="text-[10px] text-charcoal/60">·</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">str. {req.size_label}</span>
         </div>
         <h1 class="font-serif text-3xl sm:text-4xl mb-3">{req.title}</h1>
 
@@ -251,19 +251,19 @@ const commissionShare = commissionShareMeta({
         <dl class="grid grid-cols-2 gap-3 text-sm mb-5">
           {req.colorway && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Farge</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Farge</dt>
               <dd>{req.colorway}</dd>
             </div>
           )}
           {req.yarn_preference && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Garnpreferanse</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Garnpreferanse</dt>
               <dd>{req.yarn_preference}</dd>
             </div>
           )}
           {patternReference && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Oppskrift / referanse</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Oppskrift / referanse</dt>
               <dd>
                 {patternReferenceUrl ? (
                   <a href={patternReferenceUrl} target="_blank" rel="noopener nofollow ugc" class="text-terracotta-500 underline break-all hover:text-terracotta-600 transition-colors">{patternReference}</a>
@@ -275,13 +275,13 @@ const commissionShare = commissionShareMeta({
           )}
           {req.yarn_provided_by_buyer && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Garn</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Garn</dt>
               <dd>Kjøper sender garnet</dd>
             </div>
           )}
           {req.needed_by && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-1">Trengs innen</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-1">Trengs innen</dt>
               <dd>{new Date(req.needed_by).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</dd>
             </div>
           )}
@@ -293,7 +293,7 @@ const commissionShare = commissionShareMeta({
 
         {refPhotos.length > 0 && (
           <div class="mb-5">
-            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Referansebilder</p>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Referansebilder</p>
             <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {refPhotos.map((photo) => (
                 <a href={resizedImageUrl(projectPhotoUrl(photo.path), 1200, { quality: 80 })!} target="_blank" rel="noopener" class="aspect-square rounded-xl overflow-hidden bg-oatmeal block">
@@ -309,12 +309,12 @@ const commissionShare = commissionShareMeta({
             <ProfileAvatar url={buyerProfile?.avatar_path ? projectPhotoUrl(buyerProfile.avatar_path) : null} name={buyerProfile?.display_name ?? '?'} size="sm" />
             <div>
               <p class="text-sm font-medium group-hover:text-terracotta-500 transition-colors">{buyerProfile?.display_name ?? 'Anonym'}</p>
-              <p class="text-[10px] text-charcoal/45">Bestiller</p>
+              <p class="text-[10px] text-charcoal/60">Bestiller</p>
             </div>
           </a>
           {(isBuyer || isKnitter) && acceptedOffer && !isOpen && (
             commissionConvId ? (
-              <a href={`/market/messages/${commissionConvId}`} class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Gå til samtale →</a>
+              <a href={`/market/messages/${commissionConvId}`} class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Gå til samtale →</a>
             ) : (
               <form method="post" action="/api/marketplace/conversations/create-commission" data-astro-reload data-commission-msg class="flex items-start gap-2 w-full max-w-sm">
                 <input type="hidden" name="commission_request_id" value={req.id} />
@@ -333,7 +333,7 @@ const commissionShare = commissionShareMeta({
             )
           )}
           {(isBuyer || isKnitter) && acceptedOffer && (
-            <a href={`/market/commissions/${req.id}/kvittering`} class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">📄 Se kvittering →</a>
+            <a href={`/market/commissions/${req.id}/kvittering`} class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">📄 Se kvittering →</a>
           )}
         </div>
       </div>
@@ -396,7 +396,7 @@ const commissionShare = commissionShareMeta({
                   <time class="text-xs font-bold uppercase tracking-wider text-sage-900">
                     {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long' })}
                   </time>
-                  {log.rows_at != null && <span class="text-[10px] text-charcoal/45">Rad {log.rows_at}</span>}
+                  {log.rows_at != null && <span class="text-[10px] text-charcoal/60">Rad {log.rows_at}</span>}
                 </div>
                 {log.body && <p class="text-sm text-charcoal/80 whitespace-pre-wrap">{log.body}</p>}
                 {log.photos?.length > 0 && (

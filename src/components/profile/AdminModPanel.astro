@@ -23,7 +23,7 @@ const tileBase = 'bg-surface rounded-2xl border border-sage-500/20 p-4 text-cent
   <div class="p-4 dash-tiles">
     <a href="/admin" data-tile class={tileBase}>
       <p class="text-sm font-medium">Dashboard</p>
-      <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Oversikt</p>
+      <p class="text-[11px] text-charcoal/60 mt-0.5 dash-sub">Oversikt</p>
     </a>
     <a href="/admin/moderation" data-tile class:list={[
       'rounded-2xl border p-4 text-center transition-colors relative',
@@ -39,26 +39,26 @@ const tileBase = 'bg-surface rounded-2xl border border-sage-500/20 p-4 text-cent
           <p class="text-[11px] text-amber-600 font-bold">{pendingQueueCount} venter</p>
         </div>
       ) : (
-        <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Ingen ventende</p>
+        <p class="text-[11px] text-charcoal/60 mt-0.5 dash-sub">Ingen ventende</p>
       )}
     </a>
     <a href="/admin/reports" data-tile class={tileBase}>
       <p class="text-sm font-medium">Rapporter</p>
-      <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Flagget innhold</p>
+      <p class="text-[11px] text-charcoal/60 mt-0.5 dash-sub">Flagget innhold</p>
     </a>
     {isAdmin && (
       <>
         <a href="/admin/users" data-tile class={tileBase}>
           <p class="text-sm font-medium">Brukere</p>
-          <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Roller og tillit</p>
+          <p class="text-[11px] text-charcoal/60 mt-0.5 dash-sub">Roller og tillit</p>
         </a>
         <a href="/admin/moderators" data-tile class={tileBase}>
           <p class="text-sm font-medium">Moderatorer</p>
-          <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Ytelse og stats</p>
+          <p class="text-[11px] text-charcoal/60 mt-0.5 dash-sub">Ytelse og stats</p>
         </a>
         <a href="/admin/log" data-tile class={tileBase}>
           <p class="text-sm font-medium">Aktivitetslogg</p>
-          <p class="text-[11px] text-charcoal/45 mt-0.5 dash-sub">Revisjon</p>
+          <p class="text-[11px] text-charcoal/60 mt-0.5 dash-sub">Revisjon</p>
         </a>
       </>
     )}

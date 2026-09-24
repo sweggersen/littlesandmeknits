@@ -25,7 +25,7 @@ const patternEntry = pattern
 
 <Layout title={`${title.en} · Littles and Me`} description={summary.en} lang="en">
   <div class="max-w-4xl mx-auto px-6 py-14">
-    <a href="/en/projects" class="text-sm text-charcoal/45 hover:text-terracotta-500 transition-colors mb-6 inline-block">← All projects</a>
+    <a href="/en/projects" class="text-sm text-charcoal/60 hover:text-terracotta-500 transition-colors mb-6 inline-block">← All projects</a>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       <div>
@@ -55,17 +55,17 @@ const patternEntry = pattern
         <dl class="space-y-3 text-sm">
           {yarn && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Yarn</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Yarn</dt>
               <dd>{yarn}</dd>
             </div>
           )}
           <div>
-            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Knitted</dt>
+            <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Knitted</dt>
             <dd>{formatDate((knitDate as Date).toISOString(), 'short')}</dd>
           </div>
           {patternEntry && (
             <div>
-              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">Pattern</dt>
+              <dt class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Pattern</dt>
               <dd>
                 <a href={`/en/patterns/${patternEntry.id}`} class="text-terracotta-500 hover:underline">
                   {patternEntry.data.title.en}

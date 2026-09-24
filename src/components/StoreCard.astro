@@ -33,7 +33,7 @@ const distanceLabel =
       {logo_path ? (
         <img src={projectPhotoUrl(logo_path)} alt="" class="w-full h-full object-cover" />
       ) : (
-        <div class="w-full h-full flex items-center justify-center font-serif text-lg text-charcoal/40">
+        <div class="w-full h-full flex items-center justify-center font-serif text-lg text-charcoal/60">
           {name?.[0]?.toUpperCase() ?? '?'}
         </div>
       )}
@@ -64,7 +64,7 @@ const distanceLabel =
             <span class="text-[11px] text-charcoal/50">{rating_avg.toFixed(1)} ({rating_count})</span>
           </span>
         ) : (
-          <span class="text-[11px] text-charcoal/40">Ingen vurderinger</span>
+          <span class="text-[11px] text-charcoal/60">Ingen vurderinger</span>
         )}
         {active_listing_count > 0 && (
           <span class="text-[11px] text-charcoal/50">· {active_listing_count} {active_listing_count === 1 ? 'annonse' : 'annonser'}</span>
@@ -72,7 +72,7 @@ const distanceLabel =
       </div>
 
       {(locationBits || distanceLabel) && (
-        <p class="text-[10px] uppercase tracking-widest text-charcoal/40 mt-1">
+        <p class="text-[10px] uppercase tracking-widest text-charcoal/60 mt-1">
           {locationBits}{locationBits && distanceLabel ? ' · ' : ''}{distanceLabel}
         </p>
       )}
@@ -88,7 +88,7 @@ const distanceLabel =
       title={isFavorite ? 'Fjern fra favoritter' : 'Lagre som favoritt'}
       style={isFavorite ? 'color: var(--color-primary);' : ''}
       class:list={['absolute top-2 right-2 w-8 h-8 rounded-full bg-surface/80 backdrop-blur-sm flex items-center justify-center transition-colors hover:bg-surface',
-        !isFavorite && 'text-charcoal/30']}
+        !isFavorite && 'text-charcoal/55']}
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
     </button>

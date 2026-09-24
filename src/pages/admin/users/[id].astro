@@ -63,7 +63,7 @@ function tierColor(tier: string) {
 ---
 
 <AdminLayout title={`Bruker · ${staffOrAnon({ id: userId, role: profile.role, display_name: profile.display_name })}`} current="brukere" adminOnly>
-  <a href="/admin/users" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-4 inline-block">&larr; Tilbake</a>
+  <a href="/admin/users" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors mb-4 inline-block">&larr; Tilbake</a>
 
   <div class="grid lg:grid-cols-[1fr_340px] gap-6">
     <div class="space-y-4">
@@ -85,17 +85,17 @@ function tierColor(tier: string) {
         </div>
 
         <div class="grid grid-cols-2 gap-2 text-[11px]">
-          <span class="text-charcoal/40">ID</span>
+          <span class="text-charcoal/60">ID</span>
           <span class="font-mono text-[10px] break-all">{userId}</span>
-          <span class="text-charcoal/40">Registrert</span>
+          <span class="text-charcoal/60">Registrert</span>
           <span>{new Date(profile.created_at).toLocaleDateString('nb-NO')}</span>
-          <span class="text-charcoal/40">Stripe</span>
+          <span class="text-charcoal/60">Stripe</span>
           <span>{sellerConnect?.stripe_connect_status === 'verified' ? 'Verifisert' : 'Nei'}</span>
-          <span class="text-charcoal/40">Fullførte</span>
+          <span class="text-charcoal/60">Fullførte</span>
           <span>{profile.total_completed_transactions}</span>
-          <span class="text-charcoal/40">Avvisninger</span>
+          <span class="text-charcoal/60">Avvisninger</span>
           <span class:list={[profile.total_rejections > 0 ? 'text-red-600 font-medium' : '']}>{profile.total_rejections}</span>
-          <span class="text-charcoal/40">Vurderinger</span>
+          <span class="text-charcoal/60">Vurderinger</span>
           <span>{reviewStats.review_count > 0 ? `${reviewStats.avg_rating.toFixed(1)} (${reviewStats.review_count})` : '–'}</span>
         </div>
       </div>
@@ -136,19 +136,19 @@ function tierColor(tier: string) {
     <!-- Right sidebar -->
     <div class="space-y-4">
       <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Tillitsscore</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Tillitsscore</p>
         <p class="font-mono text-3xl font-bold tabular-nums">{trustScore}</p>
-        <p class="text-xs text-charcoal/40">/ 100</p>
+        <p class="text-xs text-charcoal/60">/ 100</p>
       </div>
 
       {(reports?.length ?? 0) > 0 && (
         <div class="bg-surface rounded-xl border border-sage-500/10 p-4">
-          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40 mb-2">Rapporter mot bruker</p>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Rapporter mot bruker</p>
           <div class="space-y-1">
             {reports!.map(r => (
               <div class="flex items-center justify-between text-[11px]">
                 <span class="text-charcoal/55">{r.reason}</span>
-                <span class:list={[r.status === 'open' ? 'text-terracotta-500' : 'text-charcoal/40']}>
+                <span class:list={[r.status === 'open' ? 'text-terracotta-500' : 'text-charcoal/60']}>
                   {r.status}
                 </span>
               </div>

@@ -79,7 +79,7 @@ const roleOptions: StoreRole[] = role === 'owner'
     {/* Pending invites */}
     {invites && invites.length > 0 && (
       <section>
-        <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Ventende invitasjoner</h3>
+        <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Ventende invitasjoner</h3>
         <ul class="space-y-2">
           {invites.map((inv: any) => (
             <li class="bg-oatmeal/40 rounded-xl px-4 py-3 flex items-center justify-between gap-3 text-sm">
@@ -101,7 +101,7 @@ const roleOptions: StoreRole[] = role === 'owner'
 
     {/* Members list */}
     <section>
-      <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-3">Nåværende medlemmer</h3>
+      <h3 class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-3">Nåværende medlemmer</h3>
       <ul class="space-y-2">
         {members.map((m) => (
           <li class="bg-surface rounded-2xl border border-sage-500/10 px-4 py-3 flex items-center gap-3">
@@ -141,7 +141,7 @@ const roleOptions: StoreRole[] = role === 'owner'
                 <input type="hidden" name="user_id" value={m.user_id} />
                 <input type="hidden" name="visible" value={m.visible_on_storefront ? 'false' : 'true'} />
                 <button type="submit" aria-label="Vis i team-seksjonen"
-                  class:list={['px-2 flex items-center rounded-lg transition-colors', m.visible_on_storefront ? 'text-sage-700 hover:bg-sage-100/50' : 'text-charcoal/30 hover:bg-oatmeal/40']}
+                  class:list={['px-2 flex items-center rounded-lg transition-colors', m.visible_on_storefront ? 'text-sage-700 hover:bg-sage-100/50' : 'text-charcoal/55 hover:bg-oatmeal/40']}
                   title={m.visible_on_storefront ? 'Vises i team-seksjonen (klikk for å skjule)' : 'Skjult fra team-seksjonen (klikk for å vise)'}>
                   {m.visible_on_storefront ? (
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>

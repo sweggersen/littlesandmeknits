@@ -24,7 +24,7 @@ const adminLinks = [
 ---
 
 <nav class="space-y-1">
-  <p class="text-[9px] font-bold uppercase tracking-widest text-charcoal/30 px-3 mb-2">Moderering</p>
+  <p class="text-[9px] font-bold uppercase tracking-widest text-charcoal/55 px-3 mb-2">Moderering</p>
   {modLinks.map(link => (
     <a href={link.href} class:list={[
       'block px-3 py-2 text-sm rounded-lg transition-colors',
@@ -35,7 +35,7 @@ const adminLinks = [
   {isAdmin && (
     <>
       <div class="border-t border-sage-500/10 my-3"></div>
-      <p class="text-[9px] font-bold uppercase tracking-widest text-charcoal/30 px-3 mb-2">Admin</p>
+      <p class="text-[9px] font-bold uppercase tracking-widest text-charcoal/55 px-3 mb-2">Admin</p>
       {adminLinks.map(link => (
         <a href={link.href} class:list={[
           'block px-3 py-2 text-sm rounded-lg transition-colors',

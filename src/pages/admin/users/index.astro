@@ -49,18 +49,18 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderat
 
   {allUsers.length === 0 ? (
     <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
-      <p class="text-sm text-charcoal/45">Ingen brukere funnet.</p>
+      <p class="text-sm text-charcoal/60">Ingen brukere funnet.</p>
     </div>
   ) : (
     <div class="bg-surface rounded-xl border border-sage-500/10 overflow-hidden">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-sage-500/10">
-            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Bruker</th>
-            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Rolle</th>
-            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Tillit</th>
-            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Txn</th>
-            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Avv.</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Bruker</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Rolle</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Tillit</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Txn</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Avv.</th>
           </tr>
         </thead>
         <tbody>
@@ -75,12 +75,12 @@ const ROLE_LABEL: Record<string, string> = { admin: 'Admin', moderator: 'Moderat
                 {u.role ? (
                   <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500">{ROLE_LABEL[u.role] ?? u.role}</span>
                 ) : (
-                  <span class="text-charcoal/30">–</span>
+                  <span class="text-charcoal/55">–</span>
                 )}
               </td>
               <td class="px-4 py-3">
                 <span class="font-mono tabular-nums">{u.trust_score}</span>
-                <span class="text-[10px] text-charcoal/40 ml-1">{TIER_LABEL[u.trust_tier] ?? u.trust_tier}</span>
+                <span class="text-[10px] text-charcoal/60 ml-1">{TIER_LABEL[u.trust_tier] ?? u.trust_tier}</span>
               </td>
               <td class="px-4 py-3 text-right font-mono tabular-nums">{u.total_completed_transactions}</td>
               <td class:list={['px-4 py-3 text-right font-mono tabular-nums', u.total_rejections > 0 ? 'text-red-600' : '']}>

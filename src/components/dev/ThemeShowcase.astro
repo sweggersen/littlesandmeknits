@@ -205,7 +205,7 @@ const sectionTokens = [
     <div class="bg-surface rounded-3xl border border-sage-500/10 overflow-hidden">
       <table class="w-full text-sm">
         <thead>
-          <tr class="border-b border-sage-500/15 text-left text-charcoal/45">
+          <tr class="border-b border-sage-500/15 text-left text-charcoal/60">
             <th class="font-medium px-5 py-3">Annonse</th>
             <th class="font-medium px-5 py-3">Status</th>
             <th class="font-medium px-5 py-3 text-right">Pris</th>
@@ -252,13 +252,13 @@ const sectionTokens = [
     <div class="space-y-6">
       {[['Overflater', surfaceTokens], ['Merkevare', brandTokens], ['Seksjoner + brand', sectionTokens]].map(([group, tokens]) => (
         <div>
-          <p class="text-xs text-charcoal/45 mb-2">{group}</p>
+          <p class="text-xs text-charcoal/60 mb-2">{group}</p>
           <div class="flex flex-wrap gap-3">
             {(tokens as string[][]).map(([varName, label]) => (
               <div class="w-28">
                 <div class="h-14 rounded-xl border border-sage-500/15" style={`background: var(${varName})`}></div>
                 <p class="text-[11px] mt-1.5 text-charcoal/70">{label}</p>
-                <p class="text-[10px] text-charcoal/40 font-mono truncate">{varName}</p>
+                <p class="text-[10px] text-charcoal/60 font-mono truncate">{varName}</p>
               </div>
             ))}
           </div>

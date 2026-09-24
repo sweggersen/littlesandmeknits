@@ -76,10 +76,10 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
           <div class="flex items-center gap-2 mb-2 flex-wrap">
             <span class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">Annonse</span>
             <span class="font-medium">{l.title}</span>
-            <span class="text-xs text-charcoal/45 ml-auto">{l.price_nok} NOK</span>
+            <span class="text-xs text-charcoal/60 ml-auto">{l.price_nok} NOK</span>
           </div>
           <p class="text-sm text-charcoal/65 line-clamp-2">{l.dispute_reason}</p>
-          <p class="text-xs text-charcoal/45 mt-2">
+          <p class="text-xs text-charcoal/60 mt-2">
             Åpnet: {l.disputed_at ? new Date(l.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
             <span class="ml-2 text-terracotta-500">→ åpne</span>
           </p>
@@ -93,7 +93,7 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
             <span class="font-medium">{r.title}</span>
           </div>
           <p class="text-sm text-charcoal/65 line-clamp-2">{r.dispute_reason}</p>
-          <p class="text-xs text-charcoal/45 mt-2">
+          <p class="text-xs text-charcoal/60 mt-2">
             Åpnet: {r.disputed_at ? new Date(r.disputed_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
             <span class="ml-2 text-terracotta-500">→ åpne</span>
           </p>
@@ -112,10 +112,10 @@ const tab = Astro.url.searchParams.get('tab') ?? 'open';
         ...(resolvedCommissions ?? []).map(r => ({ ...r, type: 'Oppdrag' as const, url: `/market/commissions/${r.id}` })),
       ].sort((a, b) => new Date(b.dispute_resolved_at ?? 0).getTime() - new Date(a.dispute_resolved_at ?? 0).getTime()).map((item) => (
         <div class="bg-surface/60 rounded-xl p-4 border border-sage-500/5 flex items-center gap-3">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45">{item.type}</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{item.type}</span>
           <a href={item.url} class="text-sm font-medium hover:text-terracotta-500 transition-colors">{item.title}</a>
-          <span class="text-xs text-charcoal/45 ml-auto">{item.dispute_resolution}</span>
-          <span class="text-xs text-charcoal/35">
+          <span class="text-xs text-charcoal/60 ml-auto">{item.dispute_resolution}</span>
+          <span class="text-xs text-charcoal/55">
             {item.dispute_resolved_at ? new Date(item.dispute_resolved_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }) : '—'}
           </span>
         </div>

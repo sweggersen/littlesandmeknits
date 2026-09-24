@@ -49,18 +49,18 @@ const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
 
   {allPayouts.length === 0 ? (
     <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
-      <p class="text-sm text-charcoal/45">Ingen utbetalinger generert ennå.</p>
+      <p class="text-sm text-charcoal/60">Ingen utbetalinger generert ennå.</p>
     </div>
   ) : (
     <div class="bg-surface rounded-xl border border-sage-500/10 overflow-hidden">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-sage-500/10">
-            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Moderator</th>
-            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Periode</th>
-            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Vurderinger</th>
-            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Beløp</th>
-            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/40 px-4 py-3">Status</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Moderator</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Periode</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Vurderinger</th>
+            <th class="text-right text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Beløp</th>
+            <th class="text-left text-[10px] font-bold uppercase tracking-widest text-charcoal/60 px-4 py-3">Status</th>
             <th class="px-4 py-3"></th>
           </tr>
         </thead>
@@ -74,7 +74,7 @@ const hasCurrentPeriod = allPayouts.some(p => p.period_start === periodStart);
               <td class="px-4 py-3">
                 <span class:list={[
                   'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-                  p.status === 'pending' ? 'text-amber-600 bg-amber-50' : p.status === 'paid' ? 'text-sage-700 bg-sage-100' : 'text-charcoal/40 bg-oatmeal/60',
+                  p.status === 'pending' ? 'text-amber-600 bg-amber-50' : p.status === 'paid' ? 'text-sage-700 bg-sage-100' : 'text-charcoal/60 bg-oatmeal/60',
                 ]}>{p.status === 'pending' ? 'Ventende' : p.status === 'paid' ? 'Betalt' : p.status}</span>
               </td>
               <td class="px-4 py-3 text-right">

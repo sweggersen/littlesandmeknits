@@ -133,7 +133,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
             {isStudio ? 'Strikkestua' : isHome ? 'Littles and Me Knits' : 'Strikketorget'}
           </span>
           {isStudio && (
-            <span class="font-serif text-[11px] text-charcoal/35 group-hover:text-terracotta-500/50 transition-colors">
+            <span class="font-serif text-[11px] text-charcoal/55 group-hover:text-terracotta-500/50 transition-colors">
               by Littles and Me Knits
             </span>
           )}
@@ -200,7 +200,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
     <div class="flex items-center gap-2">
       <!-- Dev/admin menu (localhost or staff only) -->
       <div class="relative hidden" data-dev-menu>
-        <button type="button" class="p-1.5 text-amber-600 hover:text-amber-800 transition-colors" aria-label="Dev menu" data-dev-menu-trigger>
+        <button type="button" class="p-1.5 text-amber-600 hover:text-amber-800 transition-colors" aria-label="Dev menu" aria-haspopup="menu" aria-expanded="false" data-dev-menu-trigger>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/>
           </svg>
@@ -215,7 +215,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
           <a href="/dev/test-tower" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Test tower</a>
           <a href="/dev/test-panel" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Marked test panel</a>
           <hr class="my-1 border-sage-500/10" />
-          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/35">Admin</p>
+          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/55">Admin</p>
           <a href="/admin" data-astro-reload class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Dashboard</a>
           <a href="/admin/moderation" data-astro-reload class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Moderering</a>
           <a href="/admin/users" data-astro-reload class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Brukere</a>
@@ -225,7 +225,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
           <a href="/admin/moderators" data-astro-reload class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Moderatorer</a>
           <a href="/admin/log" data-astro-reload class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Aktivitetslogg</a>
           <hr class="my-1 border-sage-500/10" />
-          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/35">Lokale verktøy</p>
+          <p class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-charcoal/55">Lokale verktøy</p>
           <a href="http://127.0.0.1:54324" target="_blank" rel="noopener" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Mailpit ↗</a>
           <a href="http://127.0.0.1:54323" target="_blank" rel="noopener" class="block px-3 py-1.5 text-sm text-charcoal/70 hover:bg-sage-50">Supabase Studio ↗</a>
         </div>
@@ -254,7 +254,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
 
       <!-- Desktop: clickable avatar with dropdown -->
       <div class="hidden lg:block relative" data-auth-link="profile-menu" style="display:none;">
-        <button type="button" data-profile-menu-trigger class="flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors p-1.5 rounded-full">
+        <button type="button" data-profile-menu-trigger aria-haspopup="menu" aria-expanded="false" aria-label="Profilmeny" class="flex items-center gap-1.5 text-sm font-medium text-charcoal/70 hover:text-charcoal transition-colors p-1.5 rounded-full">
           <span data-profile-avatar class="w-6 h-6 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-[10px] font-serif text-sage-700">?</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9"/>
@@ -266,7 +266,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
             <span data-profile-header-avatar class="w-9 h-9 rounded-full bg-sage-100 flex items-center justify-center shrink-0 text-sm font-serif text-sage-700">?</span>
             <span class="flex flex-col min-w-0">
               <span data-profile-header-name class="font-serif text-sm text-charcoal truncate">Profil</span>
-              <span data-profile-header-sub class="text-[11px] text-charcoal/45 truncate"></span>
+              <span data-profile-header-sub class="text-[11px] text-charcoal/60 truncate"></span>
             </span>
           </div>
           <a href="/profile" class="block px-4 py-2 text-sm text-charcoal/80 hover:bg-sage-100/40">Min profil</a>
@@ -309,6 +309,8 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
         type="button"
         class="lg:hidden p-2 -mr-2 text-charcoal/70 hover:text-charcoal relative"
         aria-label="Meny"
+        aria-expanded="false"
+        aria-haspopup="menu"
         data-mobile-menu-trigger
       >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -357,7 +359,7 @@ const marketBackLabel = cameFromMarket ? 'Tilbake til Strikketorget' : 'Strikket
       </li>
       <li class="border-t border-sage-500/10 pt-2 mt-1">
         {externalLinks.map((l) => (
-          <a href={l.href} class="block py-2 text-sm font-medium text-charcoal/45">{l.label} →</a>
+          <a href={l.href} class="block py-2 text-sm font-medium text-charcoal/60">{l.label} →</a>
         ))}
       </li>
       <li data-auth-link="login">

@@ -66,7 +66,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1">Logo</p>
-              <p class="text-[11px] text-charcoal/45">Kvadratisk, minst 200×200 px</p>
+              <p class="text-[11px] text-charcoal/60">Kvadratisk, minst 200×200 px</p>
             </div>
           </div>
           <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/avif" required
@@ -86,7 +86,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-1">Banner</p>
-              <p class="text-[11px] text-charcoal/45">Bred (16:5), minst 1200×400 px</p>
+              <p class="text-[11px] text-charcoal/60">Bred (16:5), minst 1200×400 px</p>
             </div>
           </div>
           <input type="file" name="file" accept="image/jpeg,image/png,image/webp,image/avif" required
@@ -138,7 +138,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
               pattern="^#[0-9A-Fa-f]{6}$"
               class="flex-1 bg-linen rounded-xl px-3 py-2 text-sm border border-sage-500/15 focus:border-sage-500/40 focus:outline-none font-mono uppercase" />
           </div>
-          <p class="text-xs text-charcoal/45 mt-2">
+          <p class="text-xs text-charcoal/60 mt-2">
             Brukes for små aksenter på butikksiden. Bruk en farge som passer med Strikketorgets palett.
           </p>
         </div>
@@ -210,7 +210,7 @@ const justUploaded = Astro.url.searchParams.get('uploaded');
             {store.legal_address && (<div class="flex gap-2"><dt class="text-charcoal/55">Adresse:</dt><dd>{store.legal_address}</dd></div>)}
             {store.legal_business_type && (<div class="flex gap-2"><dt class="text-charcoal/55">Type:</dt><dd>{store.legal_business_type}</dd></div>)}
           </dl>
-          <p class="text-xs text-charcoal/45 mt-3">
+          <p class="text-xs text-charcoal/60 mt-3">
             Disse feltene er låst og synkronisert med Brønnøysund.
           </p>
         </div>

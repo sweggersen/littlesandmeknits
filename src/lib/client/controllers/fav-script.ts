@@ -48,10 +48,10 @@ export function init(): void {
       // the brand --color-primary token so a re-skin updates the
       // heart too.
       if (favorited) {
-        el.classList.remove('text-charcoal/30');
+        el.classList.remove('text-charcoal/55');
         el.style.color = 'var(--color-primary)';
       } else {
-        el.classList.add('text-charcoal/30');
+        el.classList.add('text-charcoal/55');
         el.style.color = '';
       }
     });

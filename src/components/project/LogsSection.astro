@@ -86,7 +86,7 @@ const { projectId, today, logs } = Astro.props;
                 {new Date(log.log_date).toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
               </time>
               {log.rows_at !== null && log.rows_at !== undefined && (
-                <span class="text-[10px] font-medium uppercase tracking-wider text-charcoal/45">
+                <span class="text-[10px] font-medium uppercase tracking-wider text-charcoal/60">
                   Rad {log.rows_at}
                 </span>
               )}
@@ -94,7 +94,7 @@ const { projectId, today, logs } = Astro.props;
             <form method="post" action={`/api/projects/${projectId}/log/${log.id}/delete`} class="inline">
               <button
                 type="submit"
-                class="text-[11px] text-charcoal/40 hover:text-terracotta-500 transition-colors"
+                class="text-[11px] text-charcoal/60 hover:text-terracotta-500 transition-colors"
                 onclick="return confirm('Slette denne loggen?')"
               >
                 Slett

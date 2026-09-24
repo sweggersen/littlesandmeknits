@@ -52,16 +52,16 @@ const TARGET_LABEL: Record<string, string> = { listing: 'Annonse', commission_re
 ---
 
 <AdminLayout title="Moderasjon-samtale" current="rapporter">
-  <a href="/admin/reports" class="text-xs text-charcoal/40 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til rapporter</a>
+  <a href="/admin/reports" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors mb-3 inline-block">&larr; Tilbake til rapporter</a>
 
   <div class="grid lg:grid-cols-[420px_1fr] gap-4 items-start">
     <div class="bg-surface rounded-xl border border-sage-500/10 p-5 space-y-4 lg:sticky lg:top-[80px]">
       <div>
         <div class="flex items-center gap-2 mb-2 flex-wrap">
-          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TARGET_LABEL[thread.target_type] ?? thread.target_type}</span>
+          <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{TARGET_LABEL[thread.target_type] ?? thread.target_type}</span>
           <span class:list={[
             'text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5',
-            isOpen ? 'text-amber-700 bg-amber-100' : 'text-charcoal/40 bg-oatmeal/60',
+            isOpen ? 'text-amber-700 bg-amber-100' : 'text-charcoal/60 bg-oatmeal/60',
           ]}>{isOpen ? 'Åpen' : 'Lukket'}</span>
         </div>
         <h1 class="font-serif text-xl">{itemTitle ?? 'Element'}</h1>
@@ -84,7 +84,7 @@ const TARGET_LABEL: Record<string, string> = { listing: 'Annonse', commission_re
                   'text-[10px] font-bold uppercase tracking-widest',
                   m.is_moderator ? 'text-amber-700' : 'text-charcoal/55',
                 ]}>{m.is_moderator ? 'Moderator' : (nameById.get(m.sender_id) ?? 'Eier')}</span>
-                <span class="text-[10px] text-charcoal/40 ml-auto">{new Date(m.created_at).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                <span class="text-[10px] text-charcoal/60 ml-auto">{new Date(m.created_at).toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               <p class="whitespace-pre-wrap text-charcoal/85">{m.body}</p>
             </div>
@@ -126,9 +126,9 @@ const TARGET_LABEL: Record<string, string> = { listing: 'Annonse', commission_re
 
     <div class="bg-surface rounded-xl border border-sage-500/10 p-2 lg:p-3">
       <div class="flex items-center justify-between mb-2 px-2 pt-1">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">Forhåndsvisning</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">Forhåndsvisning</p>
         {itemUrl && (
-          <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/45 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
+          <a href={itemUrl} target="_blank" rel="noopener" class="text-[10px] text-charcoal/60 hover:text-terracotta-500">Åpne i ny fane &nearr;</a>
         )}
       </div>
       {itemUrl ? (

@@ -118,7 +118,7 @@ const totalInactive = inactiveListings.length + closedRequests.length;
 
             {!hideInactive && inactiveListings.length > 0 && (
               <section>
-                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/35 mb-4">Solgt eller fjernet ({inactiveListings.length})</h2>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-4">Solgt eller fjernet ({inactiveListings.length})</h2>
                 <ul class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                   {inactiveListings.map((l) => (
                     <ListingCard
@@ -138,7 +138,7 @@ const totalInactive = inactiveListings.length + closedRequests.length;
 
             {!hideInactive && closedRequests.length > 0 && (
               <section>
-                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/35 mb-4">Lukkede oppdrag ({closedRequests.length})</h2>
+                <h2 class="text-xs font-bold uppercase tracking-widest text-charcoal/55 mb-4">Lukkede oppdrag ({closedRequests.length})</h2>
                 <ul class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 opacity-50">
                   {closedRequests.map((r) => (
                     <CommissionCard

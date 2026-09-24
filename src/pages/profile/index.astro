@@ -120,7 +120,7 @@ for (const o of d.allOffers.slice(0, 4)) {
                 {stats.map((s) => (
                   <a href={s.href} data-tile class="bg-surface rounded-2xl border border-sage-500/20 p-4 hover:border-sage-500/30 transition-colors">
                     <div class="flex items-center justify-between mb-3">
-                      <StatIcon name={s.icon} class="text-charcoal/35" />
+                      <StatIcon name={s.icon} class="text-charcoal/55" />
                       {s.hot && <span class="w-2 h-2 rounded-full bg-terracotta-500"></span>}
                     </div>
                     <p class="font-serif text-3xl leading-none tabular-nums">{s.value}</p>
@@ -137,7 +137,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Trenger oppmerksomhet</h2>
-              <a href="/market/commissions/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              <a href="/market/commissions/my-listings" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Se alle →</a>
             </div>
             {feed.length === 0 ? (
               <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Ingenting krever handling akkurat nå.</p>
@@ -178,7 +178,7 @@ for (const o of d.allOffers.slice(0, 4)) {
             <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
               <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
                 <h2 class="font-serif text-lg">Nye merker</h2>
-                <a href="/profile/badges" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
+                <a href="/profile/badges" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Alle →</a>
               </div>
               <div class="flex flex-wrap gap-2">
                 {d.recentAchievements.map((a) => (
@@ -200,7 +200,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Prosjekter</h2>
-              <a href="/studio" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
+              <a href="/studio" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Strikkestua →</a>
             </div>
             {d.allProjects.length === 0 ? (
               <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Ingen prosjekter ennå.</p>
@@ -227,7 +227,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <a href="/profile/stores" class="font-serif text-lg hover:text-terracotta-500 transition-colors">Mine butikker</a>
-              <a href="/profile/stores/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
+              <a href="/profile/stores/new" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
             {pendingInvites > 0 && (
               <a href="/profile/stores" class="flex items-center justify-between gap-2 mb-2 rounded-xl bg-terracotta-500/8 border border-terracotta-500/25 px-3 py-2 text-sm text-terracotta-500 hover:bg-terracotta-500/12 transition-colors">
@@ -252,7 +252,7 @@ for (const o of d.allOffers.slice(0, 4)) {
                     <a href={s.href} class="flex items-center gap-3 rounded-xl border border-sage-500/20 hover:border-sage-500/30 transition-colors p-2.5">
                       {s.logo_path
                         ? <img src={projectPhotoUrl(s.logo_path)!} alt="" class="w-9 h-9 rounded-lg object-cover shrink-0" />
-                        : <div class="w-9 h-9 rounded-lg bg-oatmeal/60 shrink-0 grid place-items-center font-serif text-sm text-charcoal/40">{(s.name?.[0] ?? '?').toUpperCase()}</div>}
+                        : <div class="w-9 h-9 rounded-lg bg-oatmeal/60 shrink-0 grid place-items-center font-serif text-sm text-charcoal/60">{(s.name?.[0] ?? '?').toUpperCase()}</div>}
                       <div class="min-w-0 flex-1">
                         <p class="text-sm font-medium truncate">{s.name}</p>
                         <p class="text-[11px] text-charcoal/50">{s.statusLabel}</p>
@@ -270,7 +270,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Annonser</h2>
-              <a href="/market/my-listings" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Se alle →</a>
+              <a href="/market/my-listings" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Se alle →</a>
             </div>
             {d.allListings.length === 0 ? (
               <div class="px-5 py-8 text-center">
@@ -303,7 +303,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Bibliotek</h2>
-              <a href="/profile/library/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
+              <a href="/profile/library/new" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
             {d.allBibliotek.length === 0 ? (
               <p class="text-sm text-charcoal/50">Ingen oppskrifter lagret.</p>
@@ -348,7 +348,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Kjøpte oppskrifter</h2>
-              <a href="/market/my-purchases" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Alle →</a>
+              <a href="/market/my-purchases" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Alle →</a>
             </div>
             {d.allPurchases.length === 0 ? (
               <p class="text-sm text-charcoal/50">Ingen kjøpte oppskrifter.</p>
@@ -372,7 +372,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Mine tilbud</h2>
-              <a href="/market/commissions" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Oppdrag →</a>
+              <a href="/market/commissions" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Oppdrag →</a>
             </div>
             {d.allOffers.length === 0 ? (
               <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Du har ikke sendt noen tilbud.</p>
@@ -399,7 +399,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 overflow-hidden">
             <div class="flex items-center justify-between px-5 py-3.5 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Mine forespørsler</h2>
-              <a href="/market/commissions/new" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">+ Ny</a>
+              <a href="/market/commissions/new" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">+ Ny</a>
             </div>
             {d.allRequests.length === 0 ? (
               <p class="px-5 py-8 text-sm text-charcoal/50 text-center">Ingen forespørsler ennå.</p>
@@ -426,7 +426,7 @@ for (const o of d.allOffers.slice(0, 4)) {
           <section class="bg-surface rounded-2xl border border-sage-500/20 p-5 h-full">
             <div class="flex items-center justify-between px-5 -mx-5 pb-3.5 mb-4 border-b border-sage-500/15">
               <h2 class="font-serif text-lg">Om meg</h2>
-              <a href="/innstillinger" class="text-xs text-charcoal/45 hover:text-terracotta-500 transition-colors">Rediger →</a>
+              <a href="/innstillinger" class="text-xs text-charcoal/60 hover:text-terracotta-500 transition-colors">Rediger →</a>
             </div>
             {d.profile?.bio
               ? <p class="text-sm text-charcoal/70 leading-relaxed whitespace-pre-line">{d.profile.bio}</p>

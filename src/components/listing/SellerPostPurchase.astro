@@ -51,7 +51,7 @@ const canGenerateLabel = carrierAvailable
     </div>
     {order?.shipping_name && (
       <div class="bg-oatmeal/40 rounded-2xl p-4 text-sm space-y-1">
-        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 mb-2">Send til</p>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 mb-2">Send til</p>
         <p class="font-medium">{order?.shipping_name}</p>
         {order?.shipping_address && <p class="text-charcoal/70">{order?.shipping_address}</p>}
         {order?.shipping_postal_code && order?.shipping_city && (
@@ -67,7 +67,7 @@ const canGenerateLabel = carrierAvailable
             Generer fraktetikett med Posten
           </button>
         </form>
-        <div class="flex items-center gap-3 text-[11px] text-charcoal/40">
+        <div class="flex items-center gap-3 text-[11px] text-charcoal/60">
           <span class="flex-1 h-px bg-sage-500/15"></span>eller legg inn sporing manuelt<span class="flex-1 h-px bg-sage-500/15"></span>
         </div>
       </div>
@@ -80,7 +80,7 @@ const canGenerateLabel = carrierAvailable
         placeholder={trackingRequired ? 'Sporingsnummer fra Posten/Bring' : 'Sporingskode (valgfritt)'}
         class="w-full bg-linen rounded-xl px-4 py-3 text-sm border border-sage-500/15 focus:outline-none focus:border-sage-500 transition-colors" />
       {trackingRequired && (
-        <p class="text-[11px] text-charcoal/45">Pakken sendes med sporing, sporingsnummeret beskytter deg mot falske «ikke mottatt»-krav.</p>
+        <p class="text-[11px] text-charcoal/60">Pakken sendes med sporing, sporingsnummeret beskytter deg mot falske «ikke mottatt»-krav.</p>
       )}
       <button type="submit" class="w-full bg-primary text-primary-fg px-6 py-3 rounded-full text-sm font-medium hover:bg-primary-hover transition-colors">
         Merk som sendt

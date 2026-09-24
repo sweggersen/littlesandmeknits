@@ -101,7 +101,7 @@ const flash = Astro.url.searchParams.get('resolve') === '1'
 
   {groups.length === 0 ? (
     <div class="bg-surface rounded-xl border border-sage-500/10 p-8 text-center">
-      <p class="text-sm text-charcoal/45">Ingen rapporter.</p>
+      <p class="text-sm text-charcoal/60">Ingen rapporter.</p>
     </div>
   ) : (
     <div class="space-y-2">
@@ -114,14 +114,14 @@ const flash = Astro.url.searchParams.get('resolve') === '1'
             <div class="flex items-start justify-between gap-4">
               <div class="min-w-0">
                 <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/40">{TYPE_LABEL[g.target_type] ?? g.target_type}</span>
+                  <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60">{TYPE_LABEL[g.target_type] ?? g.target_type}</span>
                   {g.reports.length > 1 && (
                     <span class="text-[10px] font-bold uppercase tracking-widest text-terracotta-500 bg-terracotta-500/10 rounded-full px-2 py-0.5">
                       {g.reports.length} rapporter
                     </span>
                   )}
                   {tab === 'closed' && (
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/45 bg-oatmeal/60 rounded-full px-2 py-0.5">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-charcoal/60 bg-oatmeal/60 rounded-full px-2 py-0.5">
                       {g.reports.length} totalt
                     </span>
                   )}
@@ -130,11 +130,11 @@ const flash = Astro.url.searchParams.get('resolve') === '1'
                 <p class="text-xs text-charcoal/55 mt-1">
                   {reasons.join(' · ')}
                 </p>
-                <p class="text-[10px] text-charcoal/40 mt-1">
+                <p class="text-[10px] text-charcoal/60 mt-1">
                   Sist {new Date(g.newestAt).toLocaleDateString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
-              <span class="text-charcoal/30 text-lg shrink-0">→</span>
+              <span class="text-charcoal/55 text-lg shrink-0">→</span>
             </div>
           </a>
         );
