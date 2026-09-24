@@ -22,4 +22,15 @@ describe('createStripe environment guards', () => {
     const stripe = createStripe('sk_test_abc123');
     expect(stripe.checkout.sessions.create).toBeTypeOf('function');
   });
+
+  it('refuses a RESTRICTED live key (rk_live_) on the dev server', () => {
+    // rk_live_ is a live key too — a prod incident hotfix: prod uses a restricted
+    // live key, so the guards must treat sk_live_ and rk_live_ the same.
+    expect(() => createStripe('rk_live_abc123')).toThrowError(/LIVE key/i);
+  });
+
+  it('accepts a restricted TEST key (rk_test_) on the dev server', () => {
+    const stripe = createStripe('rk_test_abc123');
+    expect(stripe.checkout.sessions.create).toBeTypeOf('function');
+  });
 });
