@@ -15,6 +15,9 @@ import { sectionEnabled } from '../../lib/sections';
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
+// Anonymous visitors get an identical page (favourites/prefs only load when a
+// user is set), so cache briefly at the edge; never cache the logged-in variant.
+if (!user) Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
 
 // Section feature-flag gate (soft launch): hide a category card when its section
 // is flagged off, so it doesn't link to a page that redirects to /kommer-snart.

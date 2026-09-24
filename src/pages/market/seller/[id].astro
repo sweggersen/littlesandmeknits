@@ -16,6 +16,9 @@ const sellerId = Astro.params.id;
 if (!sellerId) return Astro.redirect('/market');
 
 const user = Astro.locals.user;
+// Anonymous visitors get an identical page — cache briefly at the edge; never
+// cache the personalized logged-in variant.
+if (!user) Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 

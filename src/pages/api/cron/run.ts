@@ -619,18 +619,24 @@ export const POST: APIRoute = async ({ request }) => {
     }
   });
 
-  // 5. Recalculate trust scores for recently active users (buyers + knitters)
+  // 5. Recalculate trust scores for recently active users (buyers + knitters).
+  //    Bounded per tick: each user costs ~30 subrequests (trust reads + the
+  //    batched achievement check), so processing 100 users in one invocation
+  //    could blow the Cloudflare Workers subrequest cap. Cap at MAX_TRUST_USERS
+  //    and drain oldest-active first (order by updated_at asc); continuously
+  //    active users are re-touched and picked up on later ticks.
+  const MAX_TRUST_USERS = 25;
   await runSection('trust_recalc', async () => {
     const oneDayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
     const [{ data: recentBuyers }, { data: recentKnitters }] = await Promise.all([
-      admin.from('commission_requests').select('buyer_id').gte('updated_at', oneDayAgo).limit(50),
-      admin.from('commission_offers').select('knitter_id').gte('updated_at', oneDayAgo).limit(50),
+      admin.from('commission_requests').select('buyer_id').gte('updated_at', oneDayAgo).order('updated_at', { ascending: true }).limit(MAX_TRUST_USERS),
+      admin.from('commission_offers').select('knitter_id').gte('updated_at', oneDayAgo).order('updated_at', { ascending: true }).limit(MAX_TRUST_USERS),
     ]);
 
     const activeUserIds = [...new Set([
       ...(recentBuyers ?? []).map(r => r.buyer_id),
       ...(recentKnitters ?? []).map(r => r.knitter_id),
-    ])];
+    ])].slice(0, MAX_TRUST_USERS);
     for (const uid of activeUserIds) {
       // One user's trust/achievements failure shouldn't abort the rest.
       try {

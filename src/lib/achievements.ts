@@ -372,13 +372,16 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
   if (!profile) return [];
 
   const has = new Set((existing ?? []).map(e => e.achievement_key));
-  const granted: string[] = [];
-
-  async function grant(key: string) {
+  // Collect keys to grant and BATCH the writes at the end. A first-run recalc can
+  // newly earn dozens of achievements; doing one INSERT + one summary notification
+  // (instead of ~120 sequential insert+notify pairs) keeps the per-user subrequest
+  // cost bounded so the cron can process many users per tick without hitting the
+  // Cloudflare Workers subrequest cap.
+  const toGrant: string[] = [];
+  function grant(key: string) {
     if (has.has(key)) return;
-    const ok = await grantAchievement(admin, userId, key);
-    if (ok) granted.push(key);
     has.add(key);
+    toGrant.push(key);
   }
 
   const days = (Date.now() - new Date(profile.created_at).getTime()) / 86400_000;
@@ -617,18 +620,39 @@ export async function checkAndGrantAchievements(admin: SupabaseClient, userId: s
     }
   }
 
-  for (const key of granted) {
-    const def = ACHIEVEMENT_MAP.get(key);
-    if (def) {
-      await createNotification(admin, {
-        userId,
-        type: 'achievement_unlocked',
-        title: `${def.emoji} Nytt merke opptjent!`,
-        body: `Du har låst opp «${def.label}» — ${def.description}`,
-        url: '/profile/badges',
-      }, env as any);
+  if (toGrant.length) {
+    // One batch write (ignore-duplicates guards a concurrent grant) instead of N
+    // sequential inserts.
+    await admin.from('user_achievements').upsert(
+      toGrant.map((key) => ({ user_id: userId, achievement_key: key })),
+      { onConflict: 'user_id,achievement_key', ignoreDuplicates: true },
+    );
+  }
+
+  // Notify individually for a normal 1–3 unlock; send a single summary when a
+  // (usually first-run) recalc grants many at once — avoids N notifications.
+  if (toGrant.length > 3) {
+    await createNotification(admin, {
+      userId,
+      type: 'achievement_unlocked',
+      title: `🎉 ${toGrant.length} nye merker opptjent!`,
+      body: 'Du har låst opp flere merker. Se dem under «Mine merker».',
+      url: '/profile/badges',
+    }, env as any);
+  } else {
+    for (const key of toGrant) {
+      const def = ACHIEVEMENT_MAP.get(key);
+      if (def) {
+        await createNotification(admin, {
+          userId,
+          type: 'achievement_unlocked',
+          title: `${def.emoji} Nytt merke opptjent!`,
+          body: `Du har låst opp «${def.label}» — ${def.description}`,
+          url: '/profile/badges',
+        }, env as any);
+      }
     }
   }
 
-  return granted;
+  return toGrant;
 }

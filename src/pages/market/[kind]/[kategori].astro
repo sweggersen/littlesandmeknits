@@ -26,6 +26,10 @@ const categoryLabel = CATEGORY_LABEL[categoryParam] ?? categoryParam;
 
 const supabase = createServerSupabase({ request: Astro.request, cookies: Astro.cookies });
 const user = Astro.locals.user;
+// Anonymous visitors + crawlers get an identical page (favourites are only
+// computed when a user is set), so cache briefly at the edge. Never cache the
+// personalized logged-in variant.
+if (!user) Astro.response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
 
 const { data: listings } = await supabase
   .from('listings')
