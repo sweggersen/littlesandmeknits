@@ -10,12 +10,13 @@ interface MockOpts {
   pendingPurchases?: number;
   openThreads?: number;
   /** Which step should fail. */
-  failAt?: 'favorites' | 'notifications' | 'notification_preferences' | 'listings_archive' | 'profile_anonymise' | 'auth_delete' | null;
+  failAt?: 'favorites' | 'notifications' | 'notification_preferences' | 'listings_archive'
+    | 'seller_profiles' | 'auth_identities' | 'buyer_preferences' | 'profile_anonymise' | 'ban' | null;
 }
 
 function mockCtx(opts: MockOpts = {}) {
   const operations: { table: string; op: string; row?: unknown; status?: string[] }[] = [];
-  const authDeleted: string[] = [];
+  const banned: string[] = [];
 
   // Counts for the pre-flight blocker checks, in call order:
   //   1. open listings (seller_id, status IN reserved/shipped/disputed/frozen)
@@ -47,10 +48,8 @@ function mockCtx(opts: MockOpts = {}) {
       delete: () => ({
         eq: async () => {
           operations.push({ table, op: 'delete' });
-          if (table === 'favorites') return { error: getError('favorites') };
-          if (table === 'notifications') return { error: getError('notifications') };
-          if (table === 'notification_preferences') return { error: getError('notification_preferences') };
-          return { error: null };
+          // Step name == table name for the delete steps, so getError maps directly.
+          return { error: getError(table) };
         },
       }),
       update: (row: unknown) => {
@@ -82,11 +81,19 @@ function mockCtx(opts: MockOpts = {}) {
     supabase: client as any,
     admin: {
       ...client,
+      storage: {
+        from: () => ({
+          list: async () => ({ data: [] }),
+          remove: async () => ({ error: null }),
+        }),
+      },
       auth: {
         admin: {
-          deleteUser: async (id: string) => {
-            authDeleted.push(id);
-            return { error: getError('auth_delete') };
+          // The tombstone bans the auth user (can't hard-delete: orders FK is
+          // ON DELETE RESTRICT) instead of deleting it.
+          updateUserById: async (id: string, _attrs: unknown) => {
+            banned.push(id);
+            return { error: getError('ban') };
           },
         },
       },
@@ -94,7 +101,7 @@ function mockCtx(opts: MockOpts = {}) {
     user: { id: 'user-to-delete', email: 'x@y.io' },
     env: {},
   };
-  return { ctx, operations, authDeleted };
+  return { ctx, operations, banned };
 }
 
 describe('deleteAccount — confirmation', () => {
@@ -165,8 +172,8 @@ describe('deleteAccount — fail-fast', () => {
     expect(profileUpdated).toBeUndefined();
   });
 
-  it('completes the happy path: deletes favorites, notifications, prefs, archives listings, anonymises profile, deletes auth user', async () => {
-    const { ctx, operations, authDeleted } = mockCtx({ failAt: null });
+  it('completes the happy path: deletes favorites/notifications/prefs + the PII tables, anonymises orders + profile, bans the auth user', async () => {
+    const { ctx, operations, banned } = mockCtx({ failAt: null });
     const r = await deleteAccount(ctx, { confirm: 'SLETT' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.data.redirect).toMatch(/deleted=1/);
@@ -176,16 +183,33 @@ describe('deleteAccount — fail-fast', () => {
     expect(tablesTouched).toContain('notifications:delete');
     expect(tablesTouched).toContain('notification_preferences:delete');
     expect(tablesTouched).toContain('listings:update.in');
+    // The split PII tables are now explicitly deleted (were relying on a cascade
+    // that never fired for transacting users).
+    expect(tablesTouched).toContain('seller_profiles:delete');
+    expect(tablesTouched).toContain('auth_identities:delete');
+    expect(tablesTouched).toContain('buyer_preferences:delete');
+    // Orders keep their financial record but get their shipping PII stripped.
+    expect(tablesTouched).toContain('orders:update');
     expect(tablesTouched).toContain('profiles:update');
 
-    expect(authDeleted).toEqual(['user-to-delete']);
+    // Login is disabled by BANNING the auth user (not deleting it).
+    expect(banned).toEqual(['user-to-delete']);
   });
 
-  it('still returns ok even when auth user delete fails (user data already gone)', async () => {
-    const { ctx } = mockCtx({ failAt: 'auth_delete' });
+  it('halts at a PII-table delete failure WITHOUT anonymising the profile', async () => {
+    const { ctx, operations } = mockCtx({ failAt: 'seller_profiles' });
+    const r = await deleteAccount(ctx, { confirm: 'SLETT' });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.code).toBe('server_error');
+    const profileUpdated = operations.find((o) => o.table === 'profiles' && o.op === 'update');
+    expect(profileUpdated, 'profile must not be anonymised when a PII delete fails').toBeUndefined();
+  });
+
+  it('still returns ok when the ban fails (PII already erased; support mops up)', async () => {
+    const { ctx } = mockCtx({ failAt: 'ban' });
     const r = await deleteAccount(ctx, { confirm: 'SLETT' });
     expect(r.ok).toBe(true);
-    // The dead-letter record captures the orphan for support; the
-    // user-visible part (their data is removed) succeeded.
+    // The dead-letter captures the un-banned account for support; the erasure
+    // (the legal obligation) succeeded.
   });
 });

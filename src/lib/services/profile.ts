@@ -256,10 +256,36 @@ export async function getBookkeeping(
 
 /** Delete the user's account per GDPR Art. 17 ("right to be forgotten").
  *  Refuses if there are pending obligations (open trades, open moderator
- *  threads). On success: anonymises the profile, wipes personal artifacts,
- *  archives draft listings, and removes the auth user. Transaction
- *  history is retained 5 years per Norwegian bokføringsloven.
+ *  threads). On success: deletes the PII tables (kontonummer/KYC, OIDC sub/phone,
+ *  interests), anonymises the profile + the buyer shipping fields on retained
+ *  orders, removes stored photos, and BANS the auth user so the anonymised
+ *  tombstone can't sign in. Order/financial history is retained 5 years per
+ *  Norwegian bokføringsloven (which is why we can't hard-delete the auth user:
+ *  orders -> profiles is ON DELETE RESTRICT).
  *  Returns the redirect target; the route clears the session cookies. */
+
+/** Best-effort recursive purge of everything under a storage prefix. Supabase
+ *  `.list()` is one level deep and marks folders with `id === null`, so we recurse
+ *  into those and remove files as we go. Bounded by the per-level list limit. */
+async function removeStorageFolder(
+  admin: ServiceContext['admin'],
+  bucket: string,
+  prefix: string,
+): Promise<void> {
+  const { data: entries } = await admin.storage.from(bucket).list(prefix, { limit: 1000 });
+  if (!entries?.length) return;
+  const files: string[] = [];
+  for (const e of entries) {
+    const full = prefix ? `${prefix}/${e.name}` : e.name;
+    if ((e as { id: string | null }).id === null) {
+      await removeStorageFolder(admin, bucket, full); // folder — recurse
+    } else {
+      files.push(full);
+    }
+  }
+  if (files.length) await admin.storage.from(bucket).remove(files);
+}
+
 export async function deleteAccount(
   ctx: ServiceContext,
   input: { confirm: string },
@@ -320,13 +346,44 @@ export async function deleteAccount(
     .eq('seller_id', ctx.user.id).in('status', ['draft', 'pending_review', 'active']);
   if (listingsRes.error) return fail500('listings_archive', listingsRes.error);
 
-  // Anonymise the profile LAST. After this point the user can't sign
-  // in, so we can't recover from a downstream error easily — but the
-  // earlier-step failures get a real rollback because the profile
-  // is still intact.
+  // Delete the profiles-split PII tables. These hold the most sensitive data
+  // (kontonummer/birthdate/legal name/address; OIDC sub + phone; interests) and
+  // have no reason to survive erasure. They were NEVER deleted before — the code
+  // relied on a profiles cascade that never fires for transacting users.
+  const sellerProfRes = await ctx.admin.from('seller_profiles').delete().eq('id', ctx.user.id);
+  if (sellerProfRes.error) return fail500('seller_profiles', sellerProfRes.error);
+  const authIdRes = await ctx.admin.from('auth_identities').delete().eq('user_id', ctx.user.id);
+  if (authIdRes.error) return fail500('auth_identities', authIdRes.error);
+  const buyerPrefRes = await ctx.admin.from('buyer_preferences').delete().eq('id', ctx.user.id);
+  if (buyerPrefRes.error) return fail500('buyer_preferences', buyerPrefRes.error);
+
+  // Strip the buyer's shipping PII from orders. Orders are financial records that
+  // must survive (bokføringsloven), so we keep amounts/status/timeline and drop
+  // only the personal name + address.
+  const ordersRes = await ctx.admin.from('orders')
+    .update({ shipping_name: null, shipping_address: null, shipping_postal_code: null, shipping_city: null })
+    .eq('buyer_id', ctx.user.id);
+  if (ordersRes.error) return fail500('orders_shipping_anonymise', ordersRes.error);
+
+  // Remove stored photos: the avatar (a photo of the person) + the user's photo
+  // folder (commission reference + project images live under <uid>/…). Best-effort
+  // — a storage hiccup must not block the erasure; dead-letter so support finishes.
+  const { data: profForAvatar } = await ctx.admin.from('profiles').select('avatar_path').eq('id', ctx.user.id).maybeSingle();
+  try {
+    if (profForAvatar?.avatar_path) await ctx.admin.storage.from('projects').remove([profForAvatar.avatar_path]);
+    await removeStorageFolder(ctx.admin, 'projects', ctx.user.id);
+  } catch (e) {
+    await recordDeadLetter(ctx, { service: 'profile.deleteAccount:storage', context: { user_id: ctx.user.id }, error: e });
+  }
+
+  // Anonymise the profile LAST (a tombstone). first_name/last_name (legal name)
+  // and birthday were previously left intact — clear them too.
   const anonName = `slettet-${ctx.user.id.slice(0, 8)}`;
   const profileRes = await ctx.admin.from('profiles').update({
     display_name: anonName,
+    first_name: null,
+    last_name: null,
+    birthday: null,
     avatar_path: null,
     bio: null,
     instagram_handle: null,
@@ -336,19 +393,20 @@ export async function deleteAccount(
   }).eq('id', ctx.user.id);
   if (profileRes.error) return fail500('profile_anonymise', profileRes.error);
 
-  // 3. Delete the auth user (revokes all sessions, removes login).
-  // If this fails we have an orphan: the profile is anonymised but
-  // the auth user can still log in. Land in dead-letter so support
-  // can finish the job manually.
-  const { error: authErr } = await ctx.admin.auth.admin.deleteUser(ctx.user.id);
-  if (authErr) {
+  // 3. Block login. We CANNOT delete the auth user: profiles.id -> auth.users is
+  // ON DELETE CASCADE and orders.{buyer,seller}_id -> profiles is ON DELETE
+  // RESTRICT, so deleteUser throws for anyone who ever transacted (and their
+  // financial records must be retained). Ban the user instead so the anonymised
+  // tombstone can never sign in again.
+  const { error: banErr } = await ctx.admin.auth.admin.updateUserById(ctx.user.id, { ban_duration: '876000h' });
+  if (banErr) {
+    // PII is already erased (the legal obligation is met); only the login-disable
+    // failed. Dead-letter so support bans manually, but don't fail the response.
     await recordDeadLetter(ctx, {
-      service: 'profile.deleteAccount:auth_delete',
+      service: 'profile.deleteAccount:ban',
       context: { user_id: ctx.user.id, profile_anonymised: true },
-      error: authErr,
+      error: banErr,
     });
-    // Don't fail the response — the user-visible part (their data
-    // is gone) succeeded. Support will mop up the auth row.
   }
 
   return ok({ redirect: '/?deleted=1' });
